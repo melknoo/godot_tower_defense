@@ -1,0 +1,53 @@
+[gd_scene load_steps=2 format=3 uid="uid://cvnltlult1fsd"]
+
+[ext_resource type="Script" uid="uid://bmm152d18tq63" path="res://main.gd" id="1_ig7tw"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_ig7tw")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="GoldLabel" type="Label" parent="UI"]
+offset_left = 10.0
+offset_top = 520.0
+offset_right = 50.0
+offset_bottom = 543.0
+
+[node name="LivesLabel" type="Label" parent="UI"]
+offset_left = 150.0
+offset_top = 520.0
+offset_right = 190.0
+offset_bottom = 543.0
+
+[node name="WaveLabel" type="Label" parent="UI"]
+offset_left = 300.0
+offset_top = 520.0
+offset_right = 340.0
+offset_bottom = 543.0
+
+[node name="StartWaveButton" type="Button" parent="UI"]
+offset_left = 500.0
+offset_top = 515.0
+offset_right = 508.0
+offset_bottom = 523.0
+text = "Welle starten"
+
+[node name="TowerButtons" type="HBoxContainer" parent="UI"]
+offset_left = 10.0
+offset_top = 545.0
+offset_right = 50.0
+offset_bottom = 585.0
+
+[node name="ArcherBtn" type="Button" parent="UI/TowerButtons"]
+layout_mode = 2
+text = "Archer (25g)"
+
+[node name="CannonBtn" type="Button" parent="UI/TowerButtons"]
+layout_mode = 2
+text = "Cannon (50g)"
+
+[node name="SniperBtn" type="Button" parent="UI/TowerButtons"]
+layout_mode = 2
+text = "Sniper (75g)"
+
+[connection signal="pressed" from="UI/StartWaveButton" to="." method="start_wave"]
