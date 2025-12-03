@@ -18,7 +18,8 @@ var selected_tower_type := ""  # Leer = kein Turm ausgewählt
 var tower_data := {
 	"archer": {"cost": 25, "damage": 15, "range": 150.0, "fire_rate": 0.6, "color": Color(0.2, 0.7, 0.3), "splash": 0.0},
 	"cannon": {"cost": 50, "damage": 40, "range": 120.0, "fire_rate": 1.5, "color": Color(0.7, 0.4, 0.2), "splash": 60.0},
-	"sniper": {"cost": 75, "damage": 80, "range": 250.0, "fire_rate": 2.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0}
+	"sniper": {"cost": 75, "damage": 80, "range": 250.0, "fire_rate": 2.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
+	"water": {"cost": 100, "damage": 100, "range": 150.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0}
 }
 
 var path_points: Array[Vector2] = [
@@ -45,6 +46,7 @@ var hover_sprite: Node2D
 @onready var archer_btn: Button = $UI/TowerButtons/ArcherBtn
 @onready var cannon_btn: Button = $UI/TowerButtons/CannonBtn
 @onready var sniper_btn: Button = $UI/TowerButtons/SniperBtn
+@onready var water_btn: Button = $UI/TowerButtons/WaterBtn
 
 func _ready() -> void:
 	tower_scene = preload("res://tower.tscn")
@@ -53,6 +55,7 @@ func _ready() -> void:
 	archer_btn.pressed.connect(_on_archer_selected)
 	cannon_btn.pressed.connect(_on_cannon_selected)
 	sniper_btn.pressed.connect(_on_sniper_selected)
+	water_btn.pressed.connect(_on_water_selected)
 	
 	create_hover_preview()
 	update_ui()
@@ -123,6 +126,11 @@ func _on_cannon_selected() -> void:
 
 func _on_sniper_selected() -> void:
 	selected_tower_type = "sniper"
+	update_tower_buttons()
+	update_hover_appearance()
+
+func _on_water_selected() -> void:
+	selected_tower_type = "water"
 	update_tower_buttons()
 	update_hover_appearance()
 

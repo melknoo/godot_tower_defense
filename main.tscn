@@ -50,4 +50,8 @@ text = "Cannon (50g)"
 layout_mode = 2
 text = "Sniper (75g)"
 
+[node name="WaterBtn" type="Button" parent="UI/TowerButtons"]
+layout_mode = 2
+text = "Water (100g)"
+
 [connection signal="pressed" from="UI/StartWaveButton" to="." method="start_wave"]
