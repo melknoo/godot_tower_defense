@@ -35,13 +35,17 @@ var path_points: Array[Vector2] = [
 	Vector2(12, 6) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 ]
 
-var placed_towers: Dictionary = {}
+var placed_towers: Dictionary = {}  # grid_pos -> Tower
+var tower_placed_wave: Dictionary = {}  # grid_pos -> wave when placed
+var selected_placed_tower: Vector2i = Vector2i(-1, -1)  # Aktuell ausgewählter platzierter Turm
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
 var hover_sprite: Node2D
 
 var tower_buttons: Dictionary = {}
+var sell_panel: PanelContainer
+var sell_label: Label
 
 @onready var gold_label: Label = $UI/GoldLabel
 @onready var lives_label: Label = $UI/LivesLabel
@@ -54,6 +58,7 @@ func _ready() -> void:
 	enemy_scene = preload("res://enemy.tscn")
 	
 	create_tower_buttons()
+	create_sell_panel()
 	create_hover_preview()
 	update_ui()
 	draw_grid()
@@ -134,6 +139,101 @@ func create_tower_button(type: String) -> Button:
 	btn.pressed.connect(_on_tower_selected.bind(type))
 	
 	return btn
+
+func create_sell_panel() -> void:
+	sell_panel = PanelContainer.new()
+	sell_panel.visible = false
+	
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.3, 0.2, 0.2, 0.9)
+	style.border_width_bottom = 2
+	style.border_width_top = 2
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_color = Color(0.8, 0.4, 0.4)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	sell_panel.add_theme_stylebox_override("panel", style)
+	
+	var vbox := VBoxContainer.new()
+	sell_panel.add_child(vbox)
+	
+	sell_label = Label.new()
+	sell_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(sell_label)
+	
+	var sell_btn := Button.new()
+	sell_btn.text = "Verkaufen"
+	sell_btn.pressed.connect(_on_sell_pressed)
+	vbox.add_child(sell_btn)
+	
+	var cancel_btn := Button.new()
+	cancel_btn.text = "Abbrechen"
+	cancel_btn.pressed.connect(deselect_placed_tower)
+	vbox.add_child(cancel_btn)
+	
+	$UI.add_child(sell_panel)
+
+func get_sell_value(grid_pos: Vector2i) -> int:
+	if not placed_towers.has(grid_pos):
+		return 0
+	
+	var tower: Tower = placed_towers[grid_pos]
+	var base_cost: int = tower_data[tower.tower_type]["cost"]
+	var placed_wave: int = tower_placed_wave.get(grid_pos, -1)
+	
+	# 100% nur wenn in aktueller Runde platziert UND noch keine Welle gestartet wurde
+	# Sobald eine Welle startet (current_wave erhöht sich), ist es immer 50%
+	if placed_wave == current_wave:
+		return base_cost
+	else:
+		return base_cost / 2
+
+func select_placed_tower(grid_pos: Vector2i) -> void:
+	selected_placed_tower = grid_pos
+	selected_tower_type = ""
+	update_tower_buttons()
+	hover_preview.visible = false
+	
+	var tower: Tower = placed_towers[grid_pos]
+	var sell_value := get_sell_value(grid_pos)
+	var percent := 100 if sell_value == tower_data[tower.tower_type]["cost"] else 50
+	
+	sell_label.text = tower.tower_type.capitalize() + "\nVerkaufen: " + str(sell_value) + "g (" + str(percent) + "%)"
+	sell_panel.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE + 10, 0)
+	sell_panel.visible = true
+	
+	# Turm hervorheben
+	tower.range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
+
+func deselect_placed_tower() -> void:
+	if selected_placed_tower != Vector2i(-1, -1) and placed_towers.has(selected_placed_tower):
+		var tower: Tower = placed_towers[selected_placed_tower]
+		tower.range_circle.default_color = Color(1, 1, 1, 0.15)
+	
+	selected_placed_tower = Vector2i(-1, -1)
+	sell_panel.visible = false
+
+func _on_sell_pressed() -> void:
+	if selected_placed_tower == Vector2i(-1, -1):
+		return
+	
+	var sell_value := get_sell_value(selected_placed_tower)
+	gold += sell_value
+	
+	var tower: Tower = placed_towers[selected_placed_tower]
+	tower.queue_free()
+	placed_towers.erase(selected_placed_tower)
+	tower_placed_wave.erase(selected_placed_tower)
+	
+	deselect_placed_tower()
+	update_ui()
 
 func _on_tower_selected(type: String) -> void:
 	selected_tower_type = type
@@ -223,9 +323,25 @@ func update_hover_appearance() -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			try_place_tower(event.position)
+			# Ignorieren wenn Maus über UI ist
+			if sell_panel.visible and sell_panel.get_global_rect().has_point(event.position):
+				return
+			
+			var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
+			
+			# Prüfen ob auf platzierten Turm geklickt
+			if placed_towers.has(grid_pos):
+				if selected_placed_tower == grid_pos:
+					deselect_placed_tower()
+				else:
+					deselect_placed_tower()
+					select_placed_tower(grid_pos)
+			else:
+				deselect_placed_tower()
+				try_place_tower(event.position)
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			deselect_tower()
+			deselect_placed_tower()
 	
 	if event is InputEventMouseMotion:
 		update_hover_preview(event.position)
@@ -259,6 +375,7 @@ func update_hover_preview(mouse_pos: Vector2) -> void:
 
 func can_place_at(grid_pos: Vector2i) -> bool:
 	if selected_tower_type == "": return false
+	if wave_active: return false
 	if is_on_path(grid_pos): return false
 	if placed_towers.has(grid_pos): return false
 	if gold < tower_data[selected_tower_type]["cost"]: return false
@@ -279,6 +396,7 @@ func try_place_tower(pos: Vector2) -> void:
 	add_child(tower)
 	
 	placed_towers[grid_pos] = tower
+	tower_placed_wave[grid_pos] = current_wave
 	gold -= cost
 	update_ui()
 	update_hover_preview(pos)
