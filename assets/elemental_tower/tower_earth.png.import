@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c8svdr1ny0vnw"
-path="res://.godot/imported/bullet_sniper.png-114fb229c9cc620ff47183aca4085ed1.ctex"
+uid="uid://cvyrs743sqj5a"
+path="res://.godot/imported/tower_earth.png-afdad3aa310684d0868b43efec447fd5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bullet_sniper.png"
-dest_files=["res://.godot/imported/bullet_sniper.png-114fb229c9cc620ff47183aca4085ed1.ctex"]
+source_file="res://assets/elemental_tower/tower_earth.png"
+dest_files=["res://.godot/imported/tower_earth.png-afdad3aa310684d0868b43efec447fd5.ctex"]
 
 [params]
 

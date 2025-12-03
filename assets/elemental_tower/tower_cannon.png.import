@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://33xxip2pjcy1"
-path="res://.godot/imported/bullet_archer.png-96ce2b3c98b066426f90804bb8d7cae0.ctex"
+uid="uid://28bp0el1bydp"
+path="res://.godot/imported/tower_cannon.png-d14a481981bb45cfdd86df0ce08ec3ec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bullet_archer.png"
-dest_files=["res://.godot/imported/bullet_archer.png-96ce2b3c98b066426f90804bb8d7cae0.ctex"]
+source_file="res://assets/elemental_tower/tower_cannon.png"
+dest_files=["res://.godot/imported/tower_cannon.png-d14a481981bb45cfdd86df0ce08ec3ec.ctex"]
 
 [params]
 

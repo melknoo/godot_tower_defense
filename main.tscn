@@ -38,20 +38,20 @@ offset_top = 545.0
 offset_right = 50.0
 offset_bottom = 585.0
 
-[node name="ArcherBtn" type="Button" parent="UI/TowerButtons"]
-layout_mode = 2
-text = "Archer (25g)"
-
-[node name="CannonBtn" type="Button" parent="UI/TowerButtons"]
-layout_mode = 2
-text = "Cannon (50g)"
-
-[node name="SniperBtn" type="Button" parent="UI/TowerButtons"]
-layout_mode = 2
-text = "Sniper (75g)"
-
 [node name="WaterBtn" type="Button" parent="UI/TowerButtons"]
 layout_mode = 2
 text = "Water (100g)"
+
+[node name="FireBtn" type="Button" parent="UI/TowerButtons"]
+layout_mode = 2
+text = "Fire (100g)"
+
+[node name="EarthBtn" type="Button" parent="UI/TowerButtons"]
+layout_mode = 2
+text = "Earth (100g)"
+
+[node name="AirBtn" type="Button" parent="UI/TowerButtons"]
+layout_mode = 2
+text = "Air (100g)"
 
 [connection signal="pressed" from="UI/StartWaveButton" to="." method="start_wave"]

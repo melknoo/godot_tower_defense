@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b0ccomjdnfpyu"
-path="res://.godot/imported/tower_archer.png-93b11ef216dc1c83ca6dfa7d3404925b.ctex"
+uid="uid://cc73ww220iw15"
+path="res://.godot/imported/tower_air.png-5b15a368828b5f1123d4e8d7dcf09e77.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tower_archer.png"
-dest_files=["res://.godot/imported/tower_archer.png-93b11ef216dc1c83ca6dfa7d3404925b.ctex"]
+source_file="res://assets/elemental_tower/tower_air.png"
+dest_files=["res://.godot/imported/tower_air.png-5b15a368828b5f1123d4e8d7dcf09e77.ctex"]
 
 [params]
 

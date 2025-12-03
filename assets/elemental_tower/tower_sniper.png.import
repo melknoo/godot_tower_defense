@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bky7ywcjth51g"
-path="res://.godot/imported/Fire Elemental.png-f3d651e2afe339a184d60b217469e467.ctex"
+uid="uid://bv1wibdt16b83"
+path="res://.godot/imported/tower_sniper.png-a6e8bf21955526adcf645bd2c4cea579.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_tower/Fire Elemental.png"
-dest_files=["res://.godot/imported/Fire Elemental.png-f3d651e2afe339a184d60b217469e467.ctex"]
+source_file="res://assets/elemental_tower/tower_sniper.png"
+dest_files=["res://.godot/imported/tower_sniper.png-a6e8bf21955526adcf645bd2c4cea579.ctex"]
 
 [params]
 

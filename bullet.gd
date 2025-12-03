@@ -8,12 +8,31 @@ var splash_radius := 0.0
 var bullet_type := "archer"
 
 func _ready() -> void:
-	var sprite := Sprite2D.new()
-	var texture_path := "res://assets/bullet_" + bullet_type + ".png"
+	var texture_path := "res://assets/elemental_bullets/bullet_" + bullet_type + ".png"
+	
 	if ResourceLoader.exists(texture_path):
+		var sprite := Sprite2D.new()
 		sprite.texture = load(texture_path)
-		sprite.scale = Vector2(0.5, 0.5)
-		add_child(sprite)
+		
+		# Prüfen ob animiert (horizontal)
+		if sprite.texture.get_width() > sprite.texture.get_height():
+			# Horizontales Spritesheet (z.B. water bullet)
+			var frame_count := sprite.texture.get_width() / sprite.texture.get_height()
+			sprite.hframes = frame_count
+			sprite.vframes = 1
+			sprite.scale = Vector2(2, 2)
+			add_child(sprite)
+			
+			# Animation Timer
+			var timer := Timer.new()
+			timer.wait_time = 0.1
+			timer.autostart = true
+			timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % frame_count)
+			add_child(timer)
+		else:
+			# Einzelnes Bild
+			sprite.scale = Vector2(2, 2)
+			add_child(sprite)
 	else:
 		# Fallback: Farbiges Polygon
 		var poly := Polygon2D.new()
@@ -25,6 +44,10 @@ func _ready() -> void:
 			"archer": poly.color = Color(0.5, 1, 0.5)
 			"cannon": poly.color = Color(1, 0.5, 0.2)
 			"sniper": poly.color = Color(0.5, 0.5, 1)
+			"water": poly.color = Color(0.3, 0.6, 1.0)
+			"fire": poly.color = Color(0.3, 0.6, 1.0)
+			"air": poly.color = Color(0.3, 0.6, 1.0)
+			"earth": poly.color = Color(0.3, 0.6, 1.0)
 		add_child(poly)
 
 func setup(t: Node2D, dmg: int, splash: float, type: String) -> void:
@@ -33,10 +56,13 @@ func setup(t: Node2D, dmg: int, splash: float, type: String) -> void:
 	splash_radius = splash
 	bullet_type = type
 	
-	if type == "sniper":
-		speed = 600.0
-	elif type == "cannon":
-		speed = 300.0
+	match type:
+		"sniper": speed = 600.0
+		"cannon": speed = 300.0
+		"water": speed = 150.0
+		"fire": speed = 150.0
+		"air": speed = 150.0
+		"earth": speed = 150.0
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(target):
@@ -45,9 +71,7 @@ func _process(delta: float) -> void:
 	
 	var direction := (target.position - position).normalized()
 	position += direction * speed * delta
-	
-	# Bullet in Flugrichtung drehen (Sprite zeigt nach unten = -PI/2)
-	rotation = direction.angle() - PI/2
+	rotation = direction.angle()+PI
 	
 	if position.distance_to(target.position) < 15:
 		hit_target()
@@ -61,7 +85,6 @@ func hit_target() -> void:
 	else:
 		if is_instance_valid(target):
 			target.take_damage(damage)
-	
 	queue_free()
 
 func spawn_explosion() -> void:

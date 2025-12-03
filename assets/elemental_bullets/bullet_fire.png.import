@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0xntqrmrrkn0"
-path="res://.godot/imported/Air elemental.png-42a05eb7965ed4610da95dd56478b51d.ctex"
+uid="uid://blt6rcn367wpu"
+path="res://.godot/imported/bullet_fire.png-df4c13257781dc904df215a1ba39f3de.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_tower/Air elemental.png"
-dest_files=["res://.godot/imported/Air elemental.png-42a05eb7965ed4610da95dd56478b51d.ctex"]
+source_file="res://assets/elemental_bullets/bullet_fire.png"
+dest_files=["res://.godot/imported/bullet_fire.png-df4c13257781dc904df215a1ba39f3de.ctex"]
 
 [params]
 

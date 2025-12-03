@@ -19,7 +19,10 @@ var tower_data := {
 	"archer": {"cost": 25, "damage": 15, "range": 150.0, "fire_rate": 0.6, "color": Color(0.2, 0.7, 0.3), "splash": 0.0},
 	"cannon": {"cost": 50, "damage": 40, "range": 120.0, "fire_rate": 1.5, "color": Color(0.7, 0.4, 0.2), "splash": 60.0},
 	"sniper": {"cost": 75, "damage": 80, "range": 250.0, "fire_rate": 2.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
-	"water": {"cost": 100, "damage": 100, "range": 150.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0}
+	"water": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
+	"fire": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
+	"earth": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
+	"air": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0}
 }
 
 var path_points: Array[Vector2] = [
@@ -43,19 +46,19 @@ var hover_sprite: Node2D
 @onready var lives_label: Label = $UI/LivesLabel
 @onready var wave_label: Label = $UI/WaveLabel
 @onready var start_button: Button = $UI/StartWaveButton
-@onready var archer_btn: Button = $UI/TowerButtons/ArcherBtn
-@onready var cannon_btn: Button = $UI/TowerButtons/CannonBtn
-@onready var sniper_btn: Button = $UI/TowerButtons/SniperBtn
 @onready var water_btn: Button = $UI/TowerButtons/WaterBtn
+@onready var fire_btn: Button = $UI/TowerButtons/FireBtn
+@onready var earth_btn: Button = $UI/TowerButtons/EarthBtn
+@onready var air_btn: Button = $UI/TowerButtons/AirBtn
 
 func _ready() -> void:
 	tower_scene = preload("res://tower.tscn")
 	enemy_scene = preload("res://enemy.tscn")
 	
-	archer_btn.pressed.connect(_on_archer_selected)
-	cannon_btn.pressed.connect(_on_cannon_selected)
-	sniper_btn.pressed.connect(_on_sniper_selected)
 	water_btn.pressed.connect(_on_water_selected)
+	fire_btn.pressed.connect(_on_fire_selected)
+	air_btn.pressed.connect(_on_air_selected)
+	earth_btn.pressed.connect(_on_earth_selected)
 	
 	create_hover_preview()
 	update_ui()
@@ -90,7 +93,7 @@ func update_hover_appearance() -> void:
 		return
 	
 	# Neues Sprite basierend auf Turmtyp
-	var texture_path := "res://assets/tower_" + selected_tower_type + ".png"
+	var texture_path := "res://assets/elemental_tower/tower_" + selected_tower_type + ".png"
 	if ResourceLoader.exists(texture_path):
 		var sprite := Sprite2D.new()
 		sprite.texture = load(texture_path)
@@ -114,35 +117,37 @@ func update_hover_appearance() -> void:
 		var angle := i * TAU / 32
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
 
-func _on_archer_selected() -> void:
-	selected_tower_type = "archer"
-	update_tower_buttons()
-	update_hover_appearance()
-
-func _on_cannon_selected() -> void:
-	selected_tower_type = "cannon"
-	update_tower_buttons()
-	update_hover_appearance()
-
-func _on_sniper_selected() -> void:
-	selected_tower_type = "sniper"
-	update_tower_buttons()
-	update_hover_appearance()
-
 func _on_water_selected() -> void:
 	selected_tower_type = "water"
 	update_tower_buttons()
 	update_hover_appearance()
 
+func _on_fire_selected() -> void:
+	selected_tower_type = "fire"
+	update_tower_buttons()
+	update_hover_appearance()
+	
+func _on_air_selected() -> void:
+	selected_tower_type = "air"
+	update_tower_buttons()
+	update_hover_appearance()
+	
+func _on_earth_selected() -> void:
+	selected_tower_type = "earth"
+	update_tower_buttons()
+	update_hover_appearance()
+
 func update_tower_buttons() -> void:
-	archer_btn.modulate = Color(1, 1, 1)
-	cannon_btn.modulate = Color(1, 1, 1)
-	sniper_btn.modulate = Color(1, 1, 1)
+	water_btn.modulate = Color(1, 1, 1)
+	fire_btn.modulate = Color(1, 1, 1)
+	air_btn.modulate = Color(1, 1, 1)
+	earth_btn.modulate = Color(1, 1, 1)
 	
 	match selected_tower_type:
-		"archer": archer_btn.modulate = Color(0.5, 1, 0.5)
-		"cannon": cannon_btn.modulate = Color(0.5, 1, 0.5)
-		"sniper": sniper_btn.modulate = Color(0.5, 1, 0.5)
+		"water": water_btn.modulate = Color(0.5, 1, 0.5)
+		"fire": fire_btn.modulate = Color(0.5, 1, 0.5)
+		"earth": earth_btn.modulate = Color(0.5, 1, 0.5)
+		"air": air_btn.modulate = Color(0.5, 1, 0.5)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:

@@ -56,6 +56,9 @@ func _ready() -> void:
 			"cannon": poly.color = Color(0.7, 0.4, 0.2)
 			"sniper": poly.color = Color(0.3, 0.3, 0.8)
 			"water": poly.color = Color(0.2, 0.5, 0.9)
+			"fire": poly.color = Color(0.2, 0.5, 0.9)
+			"earth": poly.color = Color(0.2, 0.5, 0.9)
+			"air": poly.color = Color(0.2, 0.5, 0.9)
 		turret.add_child(poly)
 	
 	# Reichweite-Kreis
@@ -73,7 +76,7 @@ func _process(delta: float) -> void:
 	
 	if target:
 		var direction := target.position - position
-		var target_angle := direction.angle()
+		var target_angle := direction.angle() + PI
 		turret.rotation = lerp_angle(turret.rotation, target_angle, 10 * delta)
 	
 	if target and fire_timer <= 0:
