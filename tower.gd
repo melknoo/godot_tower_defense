@@ -1,6 +1,3 @@
-# ============================================
-# TOWER.GD - Mit Turmtypen
-# ============================================
 extends Node2D
 class_name Tower
 
@@ -15,6 +12,9 @@ var fire_timer := 0.0
 var target: Node2D = null
 var range_circle: Line2D
 
+# Node für den drehbaren Teil des Turms
+var turret: Node2D
+
 func setup(data: Dictionary, type: String) -> void:
 	tower_type = type
 	tower_range = data["range"]
@@ -25,11 +25,17 @@ func setup(data: Dictionary, type: String) -> void:
 func _ready() -> void:
 	bullet_scene = preload("res://bullet.tscn")
 	
+	# Turret-Node für Rotation erstellen
+	turret = Node2D.new()
+	add_child(turret)
+	
 	# Sprite laden basierend auf Turmtyp
 	var sprite := Sprite2D.new()
 	var texture_path := "res://assets/tower_" + tower_type + ".png"
 	if ResourceLoader.exists(texture_path):
 		sprite.texture = load(texture_path)
+		sprite.scale = Vector2(0.5, 0.5)
+		turret.add_child(sprite)
 	else:
 		# Fallback: Farbiges Polygon
 		var poly := Polygon2D.new()
@@ -41,14 +47,9 @@ func _ready() -> void:
 			"archer": poly.color = Color(0.2, 0.7, 0.3)
 			"cannon": poly.color = Color(0.7, 0.4, 0.2)
 			"sniper": poly.color = Color(0.3, 0.3, 0.8)
-		add_child(poly)
-		sprite.queue_free()
+		turret.add_child(poly)
 	
-	if sprite.texture:
-		sprite.scale = Vector2(0.5, 0.5)
-		add_child(sprite)
-	
-	# Reichweite-Kreis
+	# Reichweite-Kreis (dreht sich nicht mit)
 	range_circle = Line2D.new()
 	for i in range(33):
 		var angle := i * TAU / 32
@@ -60,6 +61,12 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	fire_timer -= delta
 	find_target()
+	
+	# Turm zum Ziel drehen
+	if target:
+		var direction := target.position - position
+		var target_angle := direction.angle()
+		turret.rotation = lerp_angle(turret.rotation, target_angle, 10 * delta)
 	
 	if target and fire_timer <= 0:
 		shoot()

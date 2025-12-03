@@ -33,7 +33,6 @@ func setup(t: Node2D, dmg: int, splash: float, type: String) -> void:
 	splash_radius = splash
 	bullet_type = type
 	
-	# Sniper ist schneller
 	if type == "sniper":
 		speed = 600.0
 	elif type == "cannon":
@@ -47,20 +46,19 @@ func _process(delta: float) -> void:
 	var direction := (target.position - position).normalized()
 	position += direction * speed * delta
 	
+	# Bullet in Flugrichtung drehen (Sprite zeigt nach unten = -PI/2)
+	rotation = direction.angle() - PI/2
+	
 	if position.distance_to(target.position) < 15:
 		hit_target()
 
 func hit_target() -> void:
 	if splash_radius > 0:
-		# Splash-Damage an alle Gegner in Reichweite
 		for enemy in get_tree().get_nodes_in_group("enemies"):
 			if position.distance_to(enemy.position) <= splash_radius:
 				enemy.take_damage(damage)
-		
-		# Explosions-Effekt
 		spawn_explosion()
 	else:
-		# Einzelschaden
 		if is_instance_valid(target):
 			target.take_damage(damage)
 	
@@ -81,7 +79,6 @@ func spawn_explosion() -> void:
 	
 	get_parent().add_child(explosion)
 	
-	# Explosion nach kurzer Zeit entfernen
 	var tween := explosion.create_tween()
 	tween.tween_property(circle, "color", Color(1, 0.5, 0, 0), 0.3)
 	tween.tween_callback(explosion.queue_free)
