@@ -13,16 +13,16 @@ var current_wave := 0
 var enemies_in_wave := 0
 var wave_active := false
 
-var selected_tower_type := ""  # Leer = kein Turm ausgewählt
+var selected_tower_type := ""
 
 var tower_data := {
 	"archer": {"cost": 25, "damage": 15, "range": 150.0, "fire_rate": 0.6, "color": Color(0.2, 0.7, 0.3), "splash": 0.0},
 	"cannon": {"cost": 50, "damage": 40, "range": 120.0, "fire_rate": 1.5, "color": Color(0.7, 0.4, 0.2), "splash": 60.0},
 	"sniper": {"cost": 75, "damage": 80, "range": 250.0, "fire_rate": 2.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
-	"water": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
-	"fire": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
-	"earth": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
-	"air": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0}
+	"water": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.6, 1.0), "splash": 0.0},
+	"fire": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(1.0, 0.4, 0.2), "splash": 0.0},
+	"earth": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.6, 0.4, 0.2), "splash": 0.0},
+	"air": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.8, 0.9, 1.0), "splash": 0.0}
 }
 
 var path_points: Array[Vector2] = [
@@ -37,45 +37,149 @@ var path_points: Array[Vector2] = [
 
 var placed_towers: Dictionary = {}
 
-# Hover Preview Nodes
 var hover_preview: Node2D
 var hover_range_circle: Line2D
 var hover_sprite: Node2D
+
+var tower_buttons: Dictionary = {}
 
 @onready var gold_label: Label = $UI/GoldLabel
 @onready var lives_label: Label = $UI/LivesLabel
 @onready var wave_label: Label = $UI/WaveLabel
 @onready var start_button: Button = $UI/StartWaveButton
-@onready var water_btn: Button = $UI/TowerButtons/WaterBtn
-@onready var fire_btn: Button = $UI/TowerButtons/FireBtn
-@onready var earth_btn: Button = $UI/TowerButtons/EarthBtn
-@onready var air_btn: Button = $UI/TowerButtons/AirBtn
+@onready var tower_button_container: VBoxContainer = $UI/TowerButtons
 
 func _ready() -> void:
 	tower_scene = preload("res://tower.tscn")
 	enemy_scene = preload("res://enemy.tscn")
 	
-	water_btn.pressed.connect(_on_water_selected)
-	fire_btn.pressed.connect(_on_fire_selected)
-	air_btn.pressed.connect(_on_air_selected)
-	earth_btn.pressed.connect(_on_earth_selected)
-	
+	create_tower_buttons()
 	create_hover_preview()
 	update_ui()
-	update_tower_buttons()
 	draw_grid()
 	draw_path()
+
+func create_tower_buttons() -> void:
+	# Alte Buttons entfernen falls vorhanden
+	for child in tower_button_container.get_children():
+		child.queue_free()
+	
+	var tower_types := ["water", "fire", "earth", "air"]
+	
+	for type in tower_types:
+		var btn := create_tower_button(type)
+		tower_button_container.add_child(btn)
+		tower_buttons[type] = btn
+
+func create_tower_button(type: String) -> Button:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(64, 80)
+	btn.flat = true
+	
+	# Container für Sprite + Kosten
+	var vbox := VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(vbox)
+	
+	# TextureRect für den Tower-Sprite (erster Frame)
+	var tex_rect := TextureRect.new()
+	tex_rect.custom_minimum_size = Vector2(48, 48)
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var texture_path := "res://assets/elemental_tower/tower_" + type + ".png"
+	if ResourceLoader.exists(texture_path):
+		var full_tex: Texture2D = load(texture_path)
+		# AtlasTexture für ersten Frame (16x16 aus 16x64)
+		var atlas := AtlasTexture.new()
+		atlas.atlas = full_tex
+		atlas.region = Rect2(0, 0, 16, 16)  # Erster Frame oben
+		tex_rect.texture = atlas
+	
+	vbox.add_child(tex_rect)
+	
+	# Kosten-Label
+	var cost_label := Label.new()
+	cost_label.text = str(tower_data[type]["cost"]) + "g"
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cost_label.add_theme_font_size_override("font_size", 12)
+	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(cost_label)
+	
+	# StyleBox für Hintergrund
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	style.border_width_bottom = 2
+	style.border_width_top = 2
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_color = Color(0.4, 0.4, 0.4)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	btn.add_theme_stylebox_override("normal", style)
+	
+	var hover_style := style.duplicate()
+	hover_style.bg_color = Color(0.3, 0.3, 0.3, 0.9)
+	hover_style.border_color = Color(0.6, 0.6, 0.6)
+	btn.add_theme_stylebox_override("hover", hover_style)
+	
+	var pressed_style := style.duplicate()
+	pressed_style.bg_color = Color(0.2, 0.4, 0.2, 0.9)
+	pressed_style.border_color = Color(0.4, 0.8, 0.4)
+	btn.add_theme_stylebox_override("pressed", pressed_style)
+	
+	btn.pressed.connect(_on_tower_selected.bind(type))
+	
+	return btn
+
+func _on_tower_selected(type: String) -> void:
+	selected_tower_type = type
+	update_tower_buttons()
+	update_hover_appearance()
+
+func update_tower_buttons() -> void:
+	for type in tower_buttons:
+		var btn: Button = tower_buttons[type]
+		var style: StyleBoxFlat
+		
+		if type == selected_tower_type:
+			style = StyleBoxFlat.new()
+			style.bg_color = Color(0.2, 0.4, 0.2, 0.9)
+			style.border_width_bottom = 2
+			style.border_width_top = 2
+			style.border_width_left = 2
+			style.border_width_right = 2
+			style.border_color = Color(0.4, 1.0, 0.4)
+			style.corner_radius_top_left = 4
+			style.corner_radius_top_right = 4
+			style.corner_radius_bottom_left = 4
+			style.corner_radius_bottom_right = 4
+		else:
+			style = StyleBoxFlat.new()
+			style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+			style.border_width_bottom = 2
+			style.border_width_top = 2
+			style.border_width_left = 2
+			style.border_width_right = 2
+			style.border_color = Color(0.4, 0.4, 0.4)
+			style.corner_radius_top_left = 4
+			style.corner_radius_top_right = 4
+			style.corner_radius_bottom_left = 4
+			style.corner_radius_bottom_right = 4
+		
+		btn.add_theme_stylebox_override("normal", style)
 
 func create_hover_preview() -> void:
 	hover_preview = Node2D.new()
 	hover_preview.visible = false
 	add_child(hover_preview)
 	
-	# Container für das Turm-Sprite
 	hover_sprite = Node2D.new()
 	hover_preview.add_child(hover_sprite)
 	
-	# Reichweite-Kreis
 	hover_range_circle = Line2D.new()
 	hover_range_circle.width = 2
 	hover_preview.add_child(hover_range_circle)
@@ -83,21 +187,21 @@ func create_hover_preview() -> void:
 	update_hover_appearance()
 
 func update_hover_appearance() -> void:
-	# Altes Sprite entfernen
 	for child in hover_sprite.get_children():
 		child.queue_free()
 	
-	# Nichts anzeigen wenn kein Turm ausgewählt
 	if selected_tower_type == "":
 		hover_range_circle.clear_points()
 		return
 	
-	# Neues Sprite basierend auf Turmtyp
 	var texture_path := "res://assets/elemental_tower/tower_" + selected_tower_type + ".png"
 	if ResourceLoader.exists(texture_path):
 		var sprite := Sprite2D.new()
 		sprite.texture = load(texture_path)
-		sprite.scale = Vector2(0.5, 0.5)
+		sprite.vframes = 4
+		sprite.hframes = 1
+		sprite.frame = 0
+		sprite.scale = Vector2(3, 3)
 		sprite.modulate.a = 0.6
 		hover_sprite.add_child(sprite)
 	else:
@@ -110,44 +214,11 @@ func update_hover_appearance() -> void:
 		poly.color.a = 0.6
 		hover_sprite.add_child(poly)
 	
-	# Reichweite-Kreis aktualisieren
 	hover_range_circle.clear_points()
 	var range_val: float = tower_data[selected_tower_type]["range"]
 	for i in range(33):
 		var angle := i * TAU / 32
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
-
-func _on_water_selected() -> void:
-	selected_tower_type = "water"
-	update_tower_buttons()
-	update_hover_appearance()
-
-func _on_fire_selected() -> void:
-	selected_tower_type = "fire"
-	update_tower_buttons()
-	update_hover_appearance()
-	
-func _on_air_selected() -> void:
-	selected_tower_type = "air"
-	update_tower_buttons()
-	update_hover_appearance()
-	
-func _on_earth_selected() -> void:
-	selected_tower_type = "earth"
-	update_tower_buttons()
-	update_hover_appearance()
-
-func update_tower_buttons() -> void:
-	water_btn.modulate = Color(1, 1, 1)
-	fire_btn.modulate = Color(1, 1, 1)
-	air_btn.modulate = Color(1, 1, 1)
-	earth_btn.modulate = Color(1, 1, 1)
-	
-	match selected_tower_type:
-		"water": water_btn.modulate = Color(0.5, 1, 0.5)
-		"fire": fire_btn.modulate = Color(0.5, 1, 0.5)
-		"earth": earth_btn.modulate = Color(0.5, 1, 0.5)
-		"air": air_btn.modulate = Color(0.5, 1, 0.5)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -156,7 +227,6 @@ func _input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			deselect_tower()
 	
-	# Hover Preview aktualisieren
 	if event is InputEventMouseMotion:
 		update_hover_preview(event.position)
 
@@ -166,14 +236,12 @@ func deselect_tower() -> void:
 	hover_preview.visible = false
 
 func update_hover_preview(mouse_pos: Vector2) -> void:
-	# Keine Preview wenn kein Turm ausgewählt
 	if selected_tower_type == "":
 		hover_preview.visible = false
 		return
 	
 	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
 	
-	# Prüfen ob Maus im Spielfeld ist
 	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
 		hover_preview.visible = false
 		return
@@ -181,7 +249,6 @@ func update_hover_preview(mouse_pos: Vector2) -> void:
 	hover_preview.visible = true
 	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 	
-	# Farbe basierend auf Platzierbarkeit
 	var can_place := can_place_at(grid_pos)
 	if can_place:
 		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
@@ -214,8 +281,6 @@ func try_place_tower(pos: Vector2) -> void:
 	placed_towers[grid_pos] = tower
 	gold -= cost
 	update_ui()
-	
-	# Preview nach Platzierung aktualisieren (Gold könnte nicht mehr reichen)
 	update_hover_preview(pos)
 
 func is_on_path(grid_pos: Vector2i) -> bool:

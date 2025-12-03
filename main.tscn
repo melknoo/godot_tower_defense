@@ -9,21 +9,21 @@ script = ExtResource("1_ig7tw")
 
 [node name="GoldLabel" type="Label" parent="UI"]
 offset_left = 10.0
-offset_top = 520.0
+offset_top = 490.0
 offset_right = 50.0
-offset_bottom = 543.0
+offset_bottom = 513.0
 
 [node name="LivesLabel" type="Label" parent="UI"]
 offset_left = 150.0
-offset_top = 520.0
+offset_top = 490.0
 offset_right = 190.0
-offset_bottom = 543.0
+offset_bottom = 513.0
 
 [node name="WaveLabel" type="Label" parent="UI"]
 offset_left = 300.0
-offset_top = 520.0
+offset_top = 490.0
 offset_right = 340.0
-offset_bottom = 543.0
+offset_bottom = 513.0
 
 [node name="StartWaveButton" type="Button" parent="UI"]
 offset_left = 500.0
@@ -32,11 +32,11 @@ offset_right = 508.0
 offset_bottom = 523.0
 text = "Welle starten"
 
-[node name="TowerButtons" type="HBoxContainer" parent="UI"]
-offset_left = 10.0
-offset_top = 545.0
-offset_right = 50.0
-offset_bottom = 585.0
+[node name="TowerButtons" type="VBoxContainer" parent="UI"]
+offset_left = 714.0
+offset_top = 3.0
+offset_right = 1102.0
+offset_bottom = 139.0
 
 [node name="WaterBtn" type="Button" parent="UI/TowerButtons"]
 layout_mode = 2
