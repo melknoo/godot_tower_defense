@@ -13,10 +13,8 @@ var current_wave := 0
 var enemies_in_wave := 0
 var wave_active := false
 
-# Aktuell ausgewählter Turmtyp
-var selected_tower_type := "archer"
+var selected_tower_type := ""  # Leer = kein Turm ausgewählt
 
-# Turmdaten
 var tower_data := {
 	"archer": {"cost": 25, "damage": 15, "range": 150.0, "fire_rate": 0.6, "color": Color(0.2, 0.7, 0.3), "splash": 0.0},
 	"cannon": {"cost": 50, "damage": 40, "range": 120.0, "fire_rate": 1.5, "color": Color(0.7, 0.4, 0.2), "splash": 60.0},
@@ -35,6 +33,11 @@ var path_points: Array[Vector2] = [
 
 var placed_towers: Dictionary = {}
 
+# Hover Preview Nodes
+var hover_preview: Node2D
+var hover_range_circle: Line2D
+var hover_sprite: Node2D
+
 @onready var gold_label: Label = $UI/GoldLabel
 @onready var lives_label: Label = $UI/LivesLabel
 @onready var wave_label: Label = $UI/WaveLabel
@@ -47,35 +50,87 @@ func _ready() -> void:
 	tower_scene = preload("res://tower.tscn")
 	enemy_scene = preload("res://enemy.tscn")
 	
-	# Button-Signale verbinden
 	archer_btn.pressed.connect(_on_archer_selected)
 	cannon_btn.pressed.connect(_on_cannon_selected)
 	sniper_btn.pressed.connect(_on_sniper_selected)
 	
+	create_hover_preview()
 	update_ui()
 	update_tower_buttons()
 	draw_grid()
 	draw_path()
 
+func create_hover_preview() -> void:
+	hover_preview = Node2D.new()
+	hover_preview.visible = false
+	add_child(hover_preview)
+	
+	# Container für das Turm-Sprite
+	hover_sprite = Node2D.new()
+	hover_preview.add_child(hover_sprite)
+	
+	# Reichweite-Kreis
+	hover_range_circle = Line2D.new()
+	hover_range_circle.width = 2
+	hover_preview.add_child(hover_range_circle)
+	
+	update_hover_appearance()
+
+func update_hover_appearance() -> void:
+	# Altes Sprite entfernen
+	for child in hover_sprite.get_children():
+		child.queue_free()
+	
+	# Nichts anzeigen wenn kein Turm ausgewählt
+	if selected_tower_type == "":
+		hover_range_circle.clear_points()
+		return
+	
+	# Neues Sprite basierend auf Turmtyp
+	var texture_path := "res://assets/tower_" + selected_tower_type + ".png"
+	if ResourceLoader.exists(texture_path):
+		var sprite := Sprite2D.new()
+		sprite.texture = load(texture_path)
+		sprite.scale = Vector2(0.5, 0.5)
+		sprite.modulate.a = 0.6
+		hover_sprite.add_child(sprite)
+	else:
+		var poly := Polygon2D.new()
+		poly.polygon = PackedVector2Array([
+			Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
+			Vector2(0, -25), Vector2(-20, -10)
+		])
+		poly.color = tower_data[selected_tower_type]["color"]
+		poly.color.a = 0.6
+		hover_sprite.add_child(poly)
+	
+	# Reichweite-Kreis aktualisieren
+	hover_range_circle.clear_points()
+	var range_val: float = tower_data[selected_tower_type]["range"]
+	for i in range(33):
+		var angle := i * TAU / 32
+		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
+
 func _on_archer_selected() -> void:
 	selected_tower_type = "archer"
 	update_tower_buttons()
+	update_hover_appearance()
 
 func _on_cannon_selected() -> void:
 	selected_tower_type = "cannon"
 	update_tower_buttons()
+	update_hover_appearance()
 
 func _on_sniper_selected() -> void:
 	selected_tower_type = "sniper"
 	update_tower_buttons()
+	update_hover_appearance()
 
 func update_tower_buttons() -> void:
-	# Alle Buttons zurücksetzen
 	archer_btn.modulate = Color(1, 1, 1)
 	cannon_btn.modulate = Color(1, 1, 1)
 	sniper_btn.modulate = Color(1, 1, 1)
 	
-	# Ausgewählten markieren
 	match selected_tower_type:
 		"archer": archer_btn.modulate = Color(0.5, 1, 0.5)
 		"cannon": cannon_btn.modulate = Color(0.5, 1, 0.5)
@@ -85,17 +140,58 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			try_place_tower(event.position)
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			deselect_tower()
+	
+	# Hover Preview aktualisieren
+	if event is InputEventMouseMotion:
+		update_hover_preview(event.position)
+
+func deselect_tower() -> void:
+	selected_tower_type = ""
+	update_tower_buttons()
+	hover_preview.visible = false
+
+func update_hover_preview(mouse_pos: Vector2) -> void:
+	# Keine Preview wenn kein Turm ausgewählt
+	if selected_tower_type == "":
+		hover_preview.visible = false
+		return
+	
+	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
+	
+	# Prüfen ob Maus im Spielfeld ist
+	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
+		hover_preview.visible = false
+		return
+	
+	hover_preview.visible = true
+	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
+	
+	# Farbe basierend auf Platzierbarkeit
+	var can_place := can_place_at(grid_pos)
+	if can_place:
+		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
+		hover_sprite.modulate = Color(1, 1, 1, 0.7)
+	else:
+		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
+		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
+
+func can_place_at(grid_pos: Vector2i) -> bool:
+	if selected_tower_type == "": return false
+	if is_on_path(grid_pos): return false
+	if placed_towers.has(grid_pos): return false
+	if gold < tower_data[selected_tower_type]["cost"]: return false
+	return true
 
 func try_place_tower(pos: Vector2) -> void:
 	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
 	
 	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH: return
 	if grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT: return
-	if is_on_path(grid_pos): return
-	if placed_towers.has(grid_pos): return
+	if not can_place_at(grid_pos): return
 	
 	var cost: int = tower_data[selected_tower_type]["cost"]
-	if gold < cost: return
 	
 	var tower := tower_scene.instantiate()
 	tower.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
@@ -105,6 +201,9 @@ func try_place_tower(pos: Vector2) -> void:
 	placed_towers[grid_pos] = tower
 	gold -= cost
 	update_ui()
+	
+	# Preview nach Platzierung aktualisieren (Gold könnte nicht mehr reichen)
+	update_hover_preview(pos)
 
 func is_on_path(grid_pos: Vector2i) -> bool:
 	var path_cells := [
