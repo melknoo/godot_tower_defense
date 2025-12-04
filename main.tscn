@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3 uid="uid://cvnltlult1fsd"]
+[gd_scene load_steps=8 format=3 uid="uid://cvnltlult1fsd"]
 
 [ext_resource type="Script" uid="uid://bmm152d18tq63" path="res://main.gd" id="1_ig7tw"]
 [ext_resource type="Script" uid="uid://b0gdvgdiskijd" path="res://wave_manager.gd" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://w8chmv7lt7ye" path="res://ui/tower_shop.gd" id="2_1bvp3"]
+[ext_resource type="Theme" uid="uid://dcl1o6j52w57r" path="res://assets/ui/game_theme.tres" id="2_272bh"]
 [ext_resource type="Script" uid="uid://cia5slmvh3egb" path="res://ui/tower_info.gd" id="3_7mycd"]
 [ext_resource type="Script" uid="uid://c8nxk78gk1q7u" path="res://tower_manager.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://cebxliox85m2b" path="res://ui/hud.gd" id="4_272bh"]
@@ -17,6 +18,7 @@ offset_left = 714.0
 offset_top = 3.0
 offset_right = 1102.0
 offset_bottom = 139.0
+theme = ExtResource("2_272bh")
 script = ExtResource("2_1bvp3")
 
 [node name="WaterBtn" type="Button" parent="UI/TowerShop"]
@@ -38,6 +40,7 @@ text = "Air (100g)"
 [node name="TowerInfo" type="PanelContainer" parent="UI"]
 offset_right = 40.0
 offset_bottom = 40.0
+theme = ExtResource("2_272bh")
 script = ExtResource("3_7mycd")
 
 [node name="HUD" type="Control" parent="UI"]
@@ -45,6 +48,7 @@ layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
+theme = ExtResource("2_272bh")
 script = ExtResource("4_272bh")
 
 [node name="GoldLabel" type="Label" parent="UI/HUD"]
@@ -74,6 +78,7 @@ offset_left = 500.0
 offset_top = 515.0
 offset_right = 611.0
 offset_bottom = 546.0
+theme_override_colors/font_color = Color(0.1404478, 0.14044732, 0.14044747, 1)
 text = "Welle starten"
 
 [node name="WaveManager" type="Node" parent="."]

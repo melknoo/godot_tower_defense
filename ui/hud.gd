@@ -67,6 +67,7 @@ func _setup_ui() -> void:
 		wave_preview_label.add_theme_font_size_override("font_size", 11)
 		wave_preview_label.visible = false
 		add_child(wave_preview_label)
+	UITheme.style_button(start_button)
 
 
 func _connect_signals() -> void:

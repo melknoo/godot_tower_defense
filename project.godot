@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 GameState="*res://game_state.gd"
 TowerData="*res://data/tower_data.gd"
+UITheme="*res://ui_theme.gd"
 
 [display]
 
@@ -28,3 +29,7 @@ window/size/viewport_height=576
 [dotnet]
 
 project/assembly_name="tower defense"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
