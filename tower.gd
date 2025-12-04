@@ -43,7 +43,6 @@ func setup(data: Dictionary, type: String) -> void:
 	
 	_load_special_effects()
 	
-	# Nur updaten wenn bereits ready
 	if is_inside_tree():
 		_update_visuals()
 
@@ -68,39 +67,48 @@ func _load_special_effects() -> void:
 		special_type = ""
 	
 	match special_type:
-		"slow":
-			slow_amount = TowerData.get_stat(tower_type, "slow_amount", level)
-		"burn":
-			burn_damage = TowerData.get_stat(tower_type, "burn_damage", level)
-		"stun":
-			stun_chance = TowerData.get_stat(tower_type, "stun_chance", level)
-		"chain":
-			chain_targets = TowerData.get_stat(tower_type, "chain_targets", level)
+		"slow": slow_amount = TowerData.get_stat(tower_type, "slow_amount", level)
+		"burn": burn_damage = TowerData.get_stat(tower_type, "burn_damage", level)
+		"stun": stun_chance = TowerData.get_stat(tower_type, "stun_chance", level)
+		"chain": chain_targets = TowerData.get_stat(tower_type, "chain_targets", level)
 
 
 func _create_visuals() -> void:
-	# Turret Container
 	turret = Node2D.new()
 	add_child(turret)
 	
-	# Range Circle
 	range_circle = Line2D.new()
 	range_circle.default_color = Color(1, 1, 1, 0.15)
 	range_circle.width = 2
 	add_child(range_circle)
 	
-	# Level Indicator
 	level_indicator = Node2D.new()
 	level_indicator.position = Vector2(20, -20)
 	add_child(level_indicator)
 
 
+func _get_tower_texture_path() -> String:
+	# Level 0 = Basis-Sprite, Level 1+ = level_X Sprite
+	if level == 0:
+		return "res://assets/elemental_tower/tower_%s.png" % tower_type
+	else:
+		# Level 1 -> level_2, Level 2 -> level_3, etc. (da Level 0 = Basis)
+		var display_level := level + 1
+		return "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, display_level]
+
+
 func _update_visuals() -> void:
-	# Sprite laden/aktualisieren
+	# Alte Sprites entfernen
 	for child in turret.get_children():
 		child.queue_free()
 	
-	var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
+	var texture_path := _get_tower_texture_path()
+	
+	# Fallback auf Basis-Sprite wenn Level-Sprite nicht existiert
+	if not ResourceLoader.exists(texture_path) and level > 0:
+		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
+		print("[Tower] Level-Sprite nicht gefunden, nutze Basis: %s" % texture_path)
+	
 	if ResourceLoader.exists(texture_path):
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
@@ -109,7 +117,6 @@ func _update_visuals() -> void:
 		sprite.scale = Vector2(3, 3)
 		turret.add_child(sprite)
 		
-		# Animation Timer
 		var timer := Timer.new()
 		timer.name = "AnimTimer"
 		timer.wait_time = 0.15
@@ -127,13 +134,12 @@ func _update_visuals() -> void:
 		poly.color = color if color else Color.WHITE
 		turret.add_child(poly)
 	
-	# Range Circle aktualisieren
+	# Range Circle
 	range_circle.clear_points()
 	for i in range(33):
 		var angle := i * TAU / 32
 		range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
 	
-	# Level Indicator aktualisieren
 	_update_level_indicator()
 
 
@@ -144,7 +150,6 @@ func _update_level_indicator() -> void:
 	if level == 0:
 		return
 	
-	# Sterne für Level anzeigen
 	for i in range(level):
 		var star := Label.new()
 		star.text = "★"
@@ -155,10 +160,12 @@ func _update_level_indicator() -> void:
 
 
 func _show_upgrade_effect() -> void:
-	# Visueller Effekt beim Upgrade
+	if not sprite:
+		return
+	
 	var flash := Sprite2D.new()
-	flash.texture = sprite.texture if sprite else null
-	flash.vframes = 4 if sprite else 1
+	flash.texture = sprite.texture
+	flash.vframes = 4
 	flash.scale = Vector2(3.5, 3.5)
 	flash.modulate = Color(1, 1, 1, 0.8)
 	turret.add_child(flash)
@@ -175,7 +182,6 @@ func _process(delta: float) -> void:
 	
 	if target:
 		_rotate_towards_target(delta)
-		
 		if fire_timer <= 0:
 			_shoot()
 			fire_timer = fire_rate
@@ -190,7 +196,6 @@ func _find_target() -> void:
 		if dist > tower_range:
 			continue
 		
-		# Priorität: Gegner der am weitesten auf dem Pfad ist
 		var progress: float = enemy.get_progress() if enemy.has_method("get_progress") else 0.0
 		if progress > best_progress:
 			best_progress = progress
@@ -207,16 +212,15 @@ func _shoot() -> void:
 	if not target:
 		return
 	
-	# Bullet erstellen
 	var bullet := bullet_scene.instantiate()
 	bullet.position = position
 	
-	# Bullet Setup mit allen Effekt-Daten
 	var bullet_data := {
 		"target": target,
 		"damage": damage,
 		"splash": splash_radius,
 		"type": tower_type,
+		"level": level,  # Level für Bullet-Sprite
 		"special": special_type,
 		"slow_amount": slow_amount,
 		"burn_damage": burn_damage,
@@ -230,16 +234,12 @@ func _shoot() -> void:
 		bullet.setup(target, damage, splash_radius, tower_type)
 	
 	get_parent().add_child(bullet)
-	
-	# Schuss-Effekt
 	_spawn_muzzle_flash()
 
 
 func _spawn_muzzle_flash() -> void:
 	var flash := Polygon2D.new()
-	flash.polygon = PackedVector2Array([
-		Vector2(-5, 0), Vector2(0, -15), Vector2(5, 0)
-	])
+	flash.polygon = PackedVector2Array([Vector2(-5, 0), Vector2(0, -15), Vector2(5, 0)])
 	flash.color = _get_muzzle_color()
 	flash.rotation = turret.rotation - PI/2
 	flash.position = Vector2(0, -20).rotated(turret.rotation)

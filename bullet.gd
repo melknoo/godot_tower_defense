@@ -1,5 +1,5 @@
 # bullet.gd
-# Projektil mit Spezialeffekten
+# Projektil mit Spezialeffekten und Level-Sprites
 extends Node2D
 class_name Bullet
 
@@ -8,6 +8,7 @@ var damage := 20
 var speed := 400.0
 var splash_radius := 0.0
 var bullet_type := "water"
+var bullet_level := 0
 
 # Spezialeffekte
 var special_type := ""
@@ -43,6 +44,7 @@ func setup_extended(data: Dictionary) -> void:
 	damage = data.get("damage", 20)
 	splash_radius = data.get("splash", 0.0)
 	bullet_type = data.get("type", "water")
+	bullet_level = data.get("level", 0)
 	special_type = data.get("special", "")
 	slow_amount = data.get("slow_amount", 0.0)
 	burn_damage = data.get("burn_damage", 0)
@@ -67,8 +69,21 @@ func _set_speed_for_type(type: String) -> void:
 		_: speed = 400.0
 
 
+func _get_bullet_texture_path() -> String:
+	# Level 0 = Basis-Sprite, Level 1+ = level_X Sprite
+	if bullet_level == 0:
+		return "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
+	else:
+		var display_level := bullet_level + 1
+		return "res://assets/elemental_bullets/bullet_%s_level_%d.png" % [bullet_type, display_level]
+
+
 func _create_visuals() -> void:
-	var texture_path := "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
+	var texture_path := _get_bullet_texture_path()
+	
+	# Fallback auf Basis-Sprite wenn Level-Sprite nicht existiert
+	if not ResourceLoader.exists(texture_path) and bullet_level > 0:
+		texture_path = "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
 	
 	if ResourceLoader.exists(texture_path):
 		sprite = Sprite2D.new()
@@ -93,14 +108,13 @@ func _create_visuals() -> void:
 		var poly := Polygon2D.new()
 		poly.polygon = PackedVector2Array([
 			Vector2(-6, -3), Vector2(6, -3),
-			Vector2(8, 0), Vector2(6, 3),
-			Vector2(-6, 3)
+			Vector2(8, 0), Vector2(6, 3), Vector2(-6, 3)
 		])
 		poly.color = _get_bullet_color()
 		add_child(poly)
+		#_create_trail()
 	
-	# Trail Effekt
-	_create_trail()
+	
 
 
 func _create_trail() -> void:
@@ -109,7 +123,6 @@ func _create_trail() -> void:
 	trail.default_color = _get_bullet_color()
 	trail.default_color.a = 0.5
 	
-	# Gradient für Trail
 	var gradient := Gradient.new()
 	gradient.set_color(0, _get_bullet_color())
 	gradient.set_color(1, Color(_get_bullet_color(), 0))
@@ -136,15 +149,12 @@ func _process(delta: float) -> void:
 		_explode()
 		return
 	
-	# Bewegung zum Ziel
 	var direction := (target.position - position).normalized()
 	position += direction * speed * delta
 	rotation = direction.angle()
 	
-	# Trail aktualisieren
 	_update_trail()
 	
-	# Treffer prüfen
 	if position.distance_to(target.position) < 15:
 		_hit_target()
 
@@ -154,8 +164,6 @@ func _update_trail() -> void:
 		return
 	
 	trail.add_point(position)
-	
-	# Trail auf max 10 Punkte begrenzen
 	while trail.get_point_count() > 10:
 		trail.remove_point(0)
 
@@ -166,7 +174,6 @@ func _hit_target() -> void:
 	else:
 		_hit_single(target)
 	
-	# Chain Lightning
 	if chain_targets > 0 and special_type == "chain":
 		_do_chain_attack()
 	
@@ -174,9 +181,7 @@ func _hit_target() -> void:
 
 
 func _hit_single(enemy: Node2D) -> void:
-	if not is_instance_valid(enemy):
-		return
-	if enemy in already_hit:
+	if not is_instance_valid(enemy) or enemy in already_hit:
 		return
 	
 	already_hit.append(enemy)
@@ -188,7 +193,6 @@ func _hit_splash() -> void:
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if position.distance_to(enemy.position) <= splash_radius:
 			_hit_single(enemy)
-	
 	_spawn_splash_effect()
 
 
@@ -200,155 +204,125 @@ func _apply_special_effects(enemy: Node2D) -> void:
 		"slow":
 			if enemy.has_method("apply_slow"):
 				enemy.apply_slow(slow_amount, slow_duration)
-		
 		"burn":
 			if enemy.has_method("apply_burn"):
 				enemy.apply_burn(burn_damage, burn_duration)
-		
 		"stun":
-			if randf() < stun_chance:
-				if enemy.has_method("apply_stun"):
-					enemy.apply_stun(stun_duration)
-		
+			if randf() < stun_chance and enemy.has_method("apply_stun"):
+				enemy.apply_stun(stun_duration)
 		"freeze":
 			if enemy.has_method("apply_freeze"):
 				enemy.apply_freeze(2.0)
-		
-		"confuse":
-			# Steam: Gegner laufen kurz rückwärts
-			pass  # Später implementieren
-		
 		"root":
-			# Nature: Gegner werden festgehalten
 			if enemy.has_method("apply_stun"):
 				enemy.apply_stun(1.5)
-		
 		"pool":
-			# Lava: Hinterlässt brennende Pfütze
 			_spawn_lava_pool()
 
 
 func _do_chain_attack() -> void:
-	var current_target := target
-	var remaining_chains := chain_targets
-	var chain_damage := damage / 2  # Chain macht weniger Schaden
+	var current := target
+	var remaining := chain_targets
+	var chain_dmg := damage / 2
 	
-	while remaining_chains > 0 and is_instance_valid(current_target):
-		var next_target: Node2D = null
-		var closest_dist := chain_range
+	while remaining > 0 and is_instance_valid(current):
+		var next: Node2D = null
+		var closest := chain_range
 		
-		for enemy in get_tree().get_nodes_in_group("enemies"):
-			if enemy in already_hit:
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if e in already_hit:
 				continue
-			
-			var dist := current_target.position.distance_to(enemy.position)
-			if dist < closest_dist:
-				closest_dist = dist
-				next_target = enemy
+			var d := current.position.distance_to(e.position)
+			if d < closest:
+				closest = d
+				next = e
 		
-		if next_target:
-			# Chain Blitz zeichnen
-			_draw_chain_lightning(current_target.position, next_target.position)
-			
-			already_hit.append(next_target)
-			next_target.take_damage(chain_damage)
-			_apply_special_effects(next_target)
-			
-			current_target = next_target
-			remaining_chains -= 1
+		if next:
+			_draw_chain_lightning(current.position, next.position)
+			already_hit.append(next)
+			next.take_damage(chain_dmg)
+			_apply_special_effects(next)
+			current = next
+			remaining -= 1
 		else:
 			break
 
 
 func _draw_chain_lightning(from: Vector2, to: Vector2) -> void:
-	var lightning := Line2D.new()
-	lightning.width = 2
-	lightning.default_color = Color(0.8, 0.9, 1.0)
+	var line := Line2D.new()
+	line.width = 2
+	line.default_color = Color(0.8, 0.9, 1.0)
 	
-	# Zickzack-Linie
-	var segments := 5
-	var direction := (to - from) / segments
-	var perpendicular := direction.rotated(PI/2).normalized()
+	var seg := 5
+	var dir := (to - from) / seg
+	var perp := dir.rotated(PI/2).normalized()
 	
-	lightning.add_point(from)
-	for i in range(1, segments):
-		var point := from + direction * i
-		point += perpendicular * randf_range(-10, 10)
-		lightning.add_point(point)
-	lightning.add_point(to)
+	line.add_point(from)
+	for i in range(1, seg):
+		line.add_point(from + dir * i + perp * randf_range(-10, 10))
+	line.add_point(to)
 	
-	get_parent().add_child(lightning)
-	
-	# Verblassen
-	var tween := lightning.create_tween()
-	tween.tween_property(lightning, "modulate:a", 0.0, 0.2)
-	tween.tween_callback(lightning.queue_free)
+	get_parent().add_child(line)
+	var tw := line.create_tween()
+	tw.tween_property(line, "modulate:a", 0.0, 0.2)
+	tw.tween_callback(line.queue_free)
 
 
 func _spawn_splash_effect() -> void:
-	var explosion := Node2D.new()
-	explosion.position = position
+	var exp := Node2D.new()
+	exp.position = position
 	
-	var circle := Polygon2D.new()
-	var points := PackedVector2Array()
+	var circ := Polygon2D.new()
+	var pts := PackedVector2Array()
 	for i in range(32):
-		var angle := i * TAU / 32
-		points.append(Vector2(cos(angle), sin(angle)) * splash_radius)
-	circle.polygon = points
-	circle.color = _get_bullet_color()
-	circle.color.a = 0.5
-	explosion.add_child(circle)
+		var a := i * TAU / 32
+		pts.append(Vector2(cos(a), sin(a)) * splash_radius)
+	circ.polygon = pts
+	circ.color = Color(_get_bullet_color(), 0.5)
+	exp.add_child(circ)
 	
-	get_parent().add_child(explosion)
-	
-	var tween := explosion.create_tween()
-	tween.tween_property(circle, "color:a", 0.0, 0.3)
-	tween.tween_callback(explosion.queue_free)
+	get_parent().add_child(exp)
+	var tw := exp.create_tween()
+	tw.tween_property(circ, "color:a", 0.0, 0.3)
+	tw.tween_callback(exp.queue_free)
 
 
 func _spawn_lava_pool() -> void:
 	var pool := Node2D.new()
 	pool.position = position
 	
-	var circle := Polygon2D.new()
-	var points := PackedVector2Array()
+	var circ := Polygon2D.new()
+	var pts := PackedVector2Array()
 	for i in range(16):
-		var angle := i * TAU / 16
-		var radius := splash_radius * randf_range(0.8, 1.0)
-		points.append(Vector2(cos(angle), sin(angle)) * radius)
-	circle.polygon = points
-	circle.color = Color(1.0, 0.3, 0.0, 0.6)
-	pool.add_child(circle)
+		var a := i * TAU / 16
+		pts.append(Vector2(cos(a), sin(a)) * splash_radius * randf_range(0.8, 1.0))
+	circ.polygon = pts
+	circ.color = Color(1.0, 0.3, 0.0, 0.6)
+	pool.add_child(circ)
 	
 	get_parent().add_child(pool)
 	
-	# Pool-Damage über Zeit
-	var pool_timer := Timer.new()
-	pool_timer.wait_time = 0.5
-	pool_timer.autostart = true
-	pool.add_child(pool_timer)
+	var tmr := Timer.new()
+	tmr.wait_time = 0.5
+	tmr.autostart = true
+	pool.add_child(tmr)
 	
-	var pool_damage := burn_damage if burn_damage > 0 else 5
-	var pool_duration := 3.0
-	
-	pool_timer.timeout.connect(func():
-		for enemy in get_tree().get_nodes_in_group("enemies"):
-			if pool.position.distance_to(enemy.position) <= splash_radius:
-				enemy.take_damage(pool_damage, false)
+	var pool_dmg := burn_damage if burn_damage > 0 else 5
+	tmr.timeout.connect(func():
+		for e in get_tree().get_nodes_in_group("enemies"):
+			if pool.position.distance_to(e.position) <= splash_radius:
+				e.take_damage(pool_dmg, false)
 	)
 	
-	# Pool verschwindet nach Zeit
-	var tween := pool.create_tween()
-	tween.tween_interval(pool_duration)
-	tween.tween_property(circle, "color:a", 0.0, 0.5)
-	tween.tween_callback(pool.queue_free)
+	var tw := pool.create_tween()
+	tw.tween_interval(3.0)
+	tw.tween_property(circ, "color:a", 0.0, 0.5)
+	tw.tween_callback(pool.queue_free)
 
 
 func _explode() -> void:
-	# Trail aufräumen
 	if is_instance_valid(trail):
-		var tween := trail.create_tween()
-		tween.tween_property(trail, "modulate:a", 0.0, 0.2)
-		tween.tween_callback(trail.queue_free)
-	
+		var tw := trail.create_tween()
+		tw.tween_property(trail, "modulate:a", 0.0, 0.2)
+		tw.tween_callback(trail.queue_free)
 	queue_free()
