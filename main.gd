@@ -7,12 +7,6 @@ const MAP_HEIGHT := 8
 var tower_scene: PackedScene
 var enemy_scene: PackedScene
 
-var gold := 100
-var lives := 20
-var current_wave := 0
-var enemies_in_wave := 0
-var wave_active := false
-
 var selected_tower_type := ""
 
 var tower_data := {
@@ -35,9 +29,9 @@ var path_points: Array[Vector2] = [
 	Vector2(12, 6) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 ]
 
-var placed_towers: Dictionary = {}  # grid_pos -> Tower
-var tower_placed_wave: Dictionary = {}  # grid_pos -> wave when placed
-var selected_placed_tower: Vector2i = Vector2i(-1, -1)  # Aktuell ausgewählter platzierter Turm
+var placed_towers: Dictionary = {}
+var tower_placed_wave: Dictionary = {}
+var selected_placed_tower: Vector2i = Vector2i(-1, -1)
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
@@ -52,11 +46,17 @@ var sell_label: Label
 @onready var wave_label: Label = $UI/WaveLabel
 @onready var start_button: Button = $UI/StartWaveButton
 @onready var tower_button_container: VBoxContainer = $UI/TowerButtons
+@onready var wave_manager: WaveManager = $WaveManager
+
+
 
 func _ready() -> void:
 	tower_scene = preload("res://tower.tscn")
 	enemy_scene = preload("res://enemy.tscn")
+	wave_manager.path_points = path_points
+	wave_manager.enemy_spawned.connect(_on_enemy_spawned)
 	
+	_connect_game_state_signals()
 	create_tower_buttons()
 	create_sell_panel()
 	create_hover_preview()
@@ -64,8 +64,47 @@ func _ready() -> void:
 	draw_grid()
 	draw_path()
 
+
+func _connect_game_state_signals() -> void:
+	GameState.gold_changed.connect(_on_gold_changed)
+	GameState.lives_changed.connect(_on_lives_changed)
+	GameState.wave_started.connect(_on_wave_started)
+	GameState.wave_completed.connect(_on_wave_completed)
+	GameState.game_over_triggered.connect(_on_game_over)
+
+
+func _on_gold_changed(amount: int) -> void:
+	gold_label.text = "Gold: " + str(amount)
+	update_hover_preview(get_viewport().get_mouse_position())
+
+
+func _on_lives_changed(amount: int) -> void:
+	lives_label.text = "Leben: " + str(amount)
+
+
+func _on_wave_started(wave: int) -> void:
+	wave_label.text = "Welle: " + str(wave)
+	start_button.disabled = true
+	wave_manager.start_wave(wave)
+	spawn_enemies()
+
+func _on_enemy_spawned(enemy: Node2D) -> void:
+	pass
+
+func _on_wave_completed(wave: int) -> void:
+	start_button.disabled = false
+
+
+func _on_game_over() -> void:
+	get_tree().paused = true
+	var game_over_label := Label.new()
+	game_over_label.text = "GAME OVER\nWelle: " + str(GameState.current_wave)
+	game_over_label.position = Vector2(300, 200)
+	game_over_label.add_theme_font_size_override("font_size", 48)
+	$UI.add_child(game_over_label)
+
+
 func create_tower_buttons() -> void:
-	# Alte Buttons entfernen falls vorhanden
 	for child in tower_button_container.get_children():
 		child.queue_free()
 	
@@ -76,18 +115,17 @@ func create_tower_buttons() -> void:
 		tower_button_container.add_child(btn)
 		tower_buttons[type] = btn
 
+
 func create_tower_button(type: String) -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(64, 80)
 	btn.flat = true
 	
-	# Container für Sprite + Kosten
 	var vbox := VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(vbox)
 	
-	# TextureRect für den Tower-Sprite (erster Frame)
 	var tex_rect := TextureRect.new()
 	tex_rect.custom_minimum_size = Vector2(48, 48)
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -96,15 +134,13 @@ func create_tower_button(type: String) -> Button:
 	var texture_path := "res://assets/elemental_tower/tower_" + type + ".png"
 	if ResourceLoader.exists(texture_path):
 		var full_tex: Texture2D = load(texture_path)
-		# AtlasTexture für ersten Frame (16x16 aus 16x64)
 		var atlas := AtlasTexture.new()
 		atlas.atlas = full_tex
-		atlas.region = Rect2(0, 0, 16, 16)  # Erster Frame oben
+		atlas.region = Rect2(0, 0, 16, 16)
 		tex_rect.texture = atlas
 	
 	vbox.add_child(tex_rect)
 	
-	# Kosten-Label
 	var cost_label := Label.new()
 	cost_label.text = str(tower_data[type]["cost"]) + "g"
 	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -112,7 +148,6 @@ func create_tower_button(type: String) -> Button:
 	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(cost_label)
 	
-	# StyleBox für Hintergrund
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
 	style.border_width_bottom = 2
@@ -139,6 +174,7 @@ func create_tower_button(type: String) -> Button:
 	btn.pressed.connect(_on_tower_selected.bind(type))
 	
 	return btn
+
 
 func create_sell_panel() -> void:
 	sell_panel = PanelContainer.new()
@@ -180,6 +216,7 @@ func create_sell_panel() -> void:
 	
 	$UI.add_child(sell_panel)
 
+
 func get_sell_value(grid_pos: Vector2i) -> int:
 	if not placed_towers.has(grid_pos):
 		return 0
@@ -188,12 +225,11 @@ func get_sell_value(grid_pos: Vector2i) -> int:
 	var base_cost: int = tower_data[tower.tower_type]["cost"]
 	var placed_wave: int = tower_placed_wave.get(grid_pos, -1)
 	
-	# 100% nur wenn in aktueller Runde platziert UND noch keine Welle gestartet wurde
-	# Sobald eine Welle startet (current_wave erhöht sich), ist es immer 50%
-	if placed_wave == current_wave:
+	if placed_wave == GameState.current_wave:
 		return base_cost
 	else:
 		return base_cost / 2
+
 
 func select_placed_tower(grid_pos: Vector2i) -> void:
 	selected_placed_tower = grid_pos
@@ -209,8 +245,8 @@ func select_placed_tower(grid_pos: Vector2i) -> void:
 	sell_panel.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE + 10, 0)
 	sell_panel.visible = true
 	
-	# Turm hervorheben
 	tower.range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
+
 
 func deselect_placed_tower() -> void:
 	if selected_placed_tower != Vector2i(-1, -1) and placed_towers.has(selected_placed_tower):
@@ -220,12 +256,13 @@ func deselect_placed_tower() -> void:
 	selected_placed_tower = Vector2i(-1, -1)
 	sell_panel.visible = false
 
+
 func _on_sell_pressed() -> void:
 	if selected_placed_tower == Vector2i(-1, -1):
 		return
 	
 	var sell_value := get_sell_value(selected_placed_tower)
-	gold += sell_value
+	GameState.tower_sold(sell_value)
 	
 	var tower: Tower = placed_towers[selected_placed_tower]
 	tower.queue_free()
@@ -233,12 +270,13 @@ func _on_sell_pressed() -> void:
 	tower_placed_wave.erase(selected_placed_tower)
 	
 	deselect_placed_tower()
-	update_ui()
+
 
 func _on_tower_selected(type: String) -> void:
 	selected_tower_type = type
 	update_tower_buttons()
 	update_hover_appearance()
+
 
 func update_tower_buttons() -> void:
 	for type in tower_buttons:
@@ -272,6 +310,7 @@ func update_tower_buttons() -> void:
 		
 		btn.add_theme_stylebox_override("normal", style)
 
+
 func create_hover_preview() -> void:
 	hover_preview = Node2D.new()
 	hover_preview.visible = false
@@ -285,6 +324,7 @@ func create_hover_preview() -> void:
 	hover_preview.add_child(hover_range_circle)
 	
 	update_hover_appearance()
+
 
 func update_hover_appearance() -> void:
 	for child in hover_sprite.get_children():
@@ -320,16 +360,15 @@ func update_hover_appearance() -> void:
 		var angle := i * TAU / 32
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
 
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			# Ignorieren wenn Maus über UI ist
 			if sell_panel.visible and sell_panel.get_global_rect().has_point(event.position):
 				return
 			
 			var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
 			
-			# Prüfen ob auf platzierten Turm geklickt
 			if placed_towers.has(grid_pos):
 				if selected_placed_tower == grid_pos:
 					deselect_placed_tower()
@@ -346,10 +385,12 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		update_hover_preview(event.position)
 
+
 func deselect_tower() -> void:
 	selected_tower_type = ""
 	update_tower_buttons()
 	hover_preview.visible = false
+
 
 func update_hover_preview(mouse_pos: Vector2) -> void:
 	if selected_tower_type == "":
@@ -373,20 +414,30 @@ func update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
 		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
 
+
 func can_place_at(grid_pos: Vector2i) -> bool:
-	if selected_tower_type == "": return false
-	if wave_active: return false
-	if is_on_path(grid_pos): return false
-	if placed_towers.has(grid_pos): return false
-	if gold < tower_data[selected_tower_type]["cost"]: return false
+	if selected_tower_type == "":
+		return false
+	if GameState.wave_active:
+		return false
+	if is_on_path(grid_pos):
+		return false
+	if placed_towers.has(grid_pos):
+		return false
+	if not GameState.can_afford(tower_data[selected_tower_type]["cost"]):
+		return false
 	return true
+
 
 func try_place_tower(pos: Vector2) -> void:
 	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
 	
-	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH: return
-	if grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT: return
-	if not can_place_at(grid_pos): return
+	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH:
+		return
+	if grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
+		return
+	if not can_place_at(grid_pos):
+		return
 	
 	var cost: int = tower_data[selected_tower_type]["cost"]
 	
@@ -396,10 +447,10 @@ func try_place_tower(pos: Vector2) -> void:
 	add_child(tower)
 	
 	placed_towers[grid_pos] = tower
-	tower_placed_wave[grid_pos] = current_wave
-	gold -= cost
-	update_ui()
+	tower_placed_wave[grid_pos] = GameState.current_wave
+	GameState.tower_placed(cost)
 	update_hover_preview(pos)
+
 
 func is_on_path(grid_pos: Vector2i) -> bool:
 	var path_cells := [
@@ -411,60 +462,28 @@ func is_on_path(grid_pos: Vector2i) -> bool:
 	]
 	return grid_pos in path_cells
 
+
 func start_wave() -> void:
-	if wave_active: return
-	
-	current_wave += 1
-	wave_active = true
-	enemies_in_wave = 5 + current_wave * 2
-	start_button.disabled = true
-	update_ui()
-	spawn_enemies()
+	GameState.start_wave()
+
 
 func spawn_enemies() -> void:
-	for i in range(enemies_in_wave):
+	var enemy_count := GameState.enemies_remaining
+	for i in range(enemy_count):
 		await get_tree().create_timer(0.8).timeout
-		if not is_inside_tree(): return
+		if not is_inside_tree():
+			return
 		
 		var enemy := enemy_scene.instantiate()
-		enemy.setup(path_points, 50 + current_wave * 10, 80 + current_wave * 5)
-		enemy.died.connect(_on_enemy_died)
-		enemy.reached_end.connect(_on_enemy_reached_end)
+		enemy.setup(path_points, 50 + GameState.current_wave * 10, 80 + GameState.current_wave * 5)
 		add_child(enemy)
 
-func _on_enemy_died(reward: int) -> void:
-	gold += reward
-	enemies_in_wave -= 1
-	check_wave_end()
-	update_ui()
-
-func _on_enemy_reached_end() -> void:
-	lives -= 1
-	enemies_in_wave -= 1
-	check_wave_end()
-	update_ui()
-	if lives <= 0:
-		game_over()
-
-func check_wave_end() -> void:
-	if enemies_in_wave <= 0 and wave_active:
-		wave_active = false
-		start_button.disabled = false
-		gold += 25 + current_wave * 5
-		update_ui()
-
-func game_over() -> void:
-	get_tree().paused = true
-	var game_over_label := Label.new()
-	game_over_label.text = "GAME OVER\nWelle: " + str(current_wave)
-	game_over_label.position = Vector2(300, 200)
-	game_over_label.add_theme_font_size_override("font_size", 48)
-	$UI.add_child(game_over_label)
 
 func update_ui() -> void:
-	gold_label.text = "Gold: " + str(gold)
-	lives_label.text = "Leben: " + str(lives)
-	wave_label.text = "Welle: " + str(current_wave)
+	gold_label.text = "Gold: " + str(GameState.gold)
+	lives_label.text = "Leben: " + str(GameState.lives)
+	wave_label.text = "Welle: " + str(GameState.current_wave)
+
 
 func draw_grid() -> void:
 	for x in range(MAP_WIDTH + 1):
@@ -481,6 +500,7 @@ func draw_grid() -> void:
 		line.default_color = Color(0.3, 0.3, 0.3, 0.5)
 		line.width = 1
 		add_child(line)
+
 
 func draw_path() -> void:
 	var path_line := Line2D.new()

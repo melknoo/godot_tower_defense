@@ -1,8 +1,7 @@
 extends Node2D
 class_name Enemy
 
-signal died(reward: int)
-signal reached_end
+# Keine Signals mehr nötig - GameState wird direkt verwendet
 
 var path: Array[Vector2] = []
 var path_index := 0
@@ -13,22 +12,22 @@ var reward := 10
 
 var health_bar: Line2D
 
+
 func _ready() -> void:
 	add_to_group("enemies")
 	
-	# Gegner zeichnen
 	var sprite := Sprite2D.new()
 	sprite.texture = preload("res://assets/enemy.png")
 	sprite.scale = Vector2(0.5, 0.5)
 	add_child(sprite)
 	
-	# Health Bar
 	health_bar = Line2D.new()
 	health_bar.add_point(Vector2(-15, -22))
 	health_bar.add_point(Vector2(15, -22))
 	health_bar.default_color = Color(0, 1, 0)
 	health_bar.width = 4
 	add_child(health_bar)
+
 
 func setup(path_points: Array[Vector2], hp: int, spd: float) -> void:
 	path = path_points
@@ -37,9 +36,21 @@ func setup(path_points: Array[Vector2], hp: int, spd: float) -> void:
 	speed = spd
 	position = path[0]
 
+func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
+	path = path_points
+	health = data["health"]
+	max_health = health
+	speed = data["speed"]
+	reward = data["reward"]
+	position = path[0]
+	# Optional: Farbe/Scale anpassen
+	modulate = data.get("color", Color.WHITE)
+	scale = Vector2.ONE * data.get("scale", 0.5)
+
+
 func _process(delta: float) -> void:
 	if path_index >= path.size():
-		reached_end.emit()
+		GameState.enemy_reached_end()
 		queue_free()
 		return
 	
@@ -52,11 +63,15 @@ func _process(delta: float) -> void:
 	
 	update_health_bar()
 
+
 func take_damage(amount: int) -> void:
 	health -= amount
+	GameState.record_damage(amount)
+	
 	if health <= 0:
-		died.emit(reward)
+		GameState.enemy_died(reward)
 		queue_free()
+
 
 func update_health_bar() -> void:
 	var health_percent := float(health) / max_health
