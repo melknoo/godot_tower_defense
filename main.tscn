@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://cvnltlult1fsd"]
+[gd_scene load_steps=9 format=3 uid="uid://cvnltlult1fsd"]
 
 [ext_resource type="Script" uid="uid://bmm152d18tq63" path="res://main.gd" id="1_ig7tw"]
 [ext_resource type="Script" uid="uid://b0gdvgdiskijd" path="res://wave_manager.gd" id="2_0xm2m"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://cia5slmvh3egb" path="res://ui/tower_info.gd" id="3_7mycd"]
 [ext_resource type="Script" uid="uid://c8nxk78gk1q7u" path="res://tower_manager.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://cebxliox85m2b" path="res://ui/hud.gd" id="4_272bh"]
+[ext_resource type="Script" uid="uid://1owdn4wtn86q" path="res://ground_layer.gd" id="8_5vw27"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_ig7tw")
@@ -40,3 +41,6 @@ script = ExtResource("2_0xm2m")
 
 [node name="TowerManager" type="Node2D" parent="."]
 script = ExtResource("3_h2yge")
+
+[node name="GroundLayer" type="Node2D" parent="."]
+script = ExtResource("8_5vw27")
