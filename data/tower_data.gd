@@ -58,6 +58,19 @@ var towers := {
 		"special": "chain",
 		"chain_targets": [0, 2, 3],
 		"combinations": ["ice", "nature"]
+	},
+	"archer": {
+		"name": "Normal",
+		"description": "Standard Turm",
+		"cost": 25,
+		"damage": [15, 25, 40],
+		"range": [150.0, 170.0, 190.0],
+		"fire_rate": [0.7, 0.8, 1],
+		"splash": [0.0, 0.0, 0.0],
+		"color": Color(0.687, 0.947, 0.913, 1.0),
+		"upgrade_costs": [35, 70],
+		"special": "upgrade",
+		"combinations": ["ice", "nature"]
 	}
 }
 

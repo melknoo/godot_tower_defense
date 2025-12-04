@@ -37,6 +37,10 @@ text = "Earth (100g)"
 layout_mode = 2
 text = "Air (100g)"
 
+[node name="ArcherBtn" type="Button" parent="UI/TowerShop"]
+layout_mode = 2
+text = "Air (100g)"
+
 [node name="TowerInfo" type="PanelContainer" parent="UI"]
 offset_right = 40.0
 offset_bottom = 40.0
