@@ -8,12 +8,13 @@ signal sell_pressed
 signal upgrade_pressed
 signal close_pressed
 
-@onready var tower_name_label: Label = $VBox/TowerNameLabel
-@onready var tower_level_label: Label = $VBox/TowerLevelLabel
-@onready var stats_label: Label = $VBox/StatsLabel
-@onready var sell_button: Button = $VBox/SellButton
-@onready var upgrade_button: Button = $VBox/UpgradeButton
-@onready var close_button: Button = $VBox/CloseButton
+var tower_name_label: Label
+var tower_level_label: Label
+var stats_label: Label
+var sell_button: Button
+var upgrade_button: Button
+var close_button: Button
+var vbox: VBoxContainer
 
 var current_tower: Node2D = null
 var current_grid_pos: Vector2i = Vector2i(-1, -1)
@@ -23,7 +24,7 @@ var tower_manager: TowerManager = null
 func _ready() -> void:
 	visible = false
 	_setup_panel_style()
-	_setup_buttons()
+	_setup_ui()
 
 
 func _setup_panel_style() -> void:
@@ -45,58 +46,52 @@ func _setup_panel_style() -> void:
 	add_theme_stylebox_override("panel", style)
 
 
-func _setup_buttons() -> void:
-	# VBox erstellen falls nicht vorhanden
-	var vbox := get_node_or_null("VBox") as VBoxContainer
-	if not vbox:
-		vbox = VBoxContainer.new()
-		vbox.name = "VBox"
-		add_child(vbox)
+func _setup_ui() -> void:
+	# VBox erstellen
+	vbox = VBoxContainer.new()
+	vbox.name = "VBox"
+	add_child(vbox)
 	
-	# Labels erstellen
-	if not tower_name_label:
-		tower_name_label = Label.new()
-		tower_name_label.name = "TowerNameLabel"
-		tower_name_label.add_theme_font_size_override("font_size", 16)
-		vbox.add_child(tower_name_label)
+	# Tower Name Label
+	tower_name_label = Label.new()
+	tower_name_label.name = "TowerNameLabel"
+	tower_name_label.add_theme_font_size_override("font_size", 16)
+	vbox.add_child(tower_name_label)
 	
-	if not tower_level_label:
-		tower_level_label = Label.new()
-		tower_level_label.name = "TowerLevelLabel"
-		tower_level_label.add_theme_font_size_override("font_size", 12)
-		vbox.add_child(tower_level_label)
+	# Level Label
+	tower_level_label = Label.new()
+	tower_level_label.name = "TowerLevelLabel"
+	tower_level_label.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(tower_level_label)
 	
-	if not stats_label:
-		stats_label = Label.new()
-		stats_label.name = "StatsLabel"
-		stats_label.add_theme_font_size_override("font_size", 11)
-		vbox.add_child(stats_label)
+	# Stats Label
+	stats_label = Label.new()
+	stats_label.name = "StatsLabel"
+	stats_label.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(stats_label)
 	
 	# Separator
 	var sep := HSeparator.new()
 	vbox.add_child(sep)
 	
 	# Upgrade Button
-	if not upgrade_button:
-		upgrade_button = Button.new()
-		upgrade_button.name = "UpgradeButton"
-		upgrade_button.pressed.connect(_on_upgrade_pressed)
-		vbox.add_child(upgrade_button)
+	upgrade_button = Button.new()
+	upgrade_button.name = "UpgradeButton"
+	upgrade_button.pressed.connect(_on_upgrade_pressed)
+	vbox.add_child(upgrade_button)
 	
 	# Sell Button
-	if not sell_button:
-		sell_button = Button.new()
-		sell_button.name = "SellButton"
-		sell_button.pressed.connect(_on_sell_pressed)
-		vbox.add_child(sell_button)
+	sell_button = Button.new()
+	sell_button.name = "SellButton"
+	sell_button.pressed.connect(_on_sell_pressed)
+	vbox.add_child(sell_button)
 	
 	# Close Button
-	if not close_button:
-		close_button = Button.new()
-		close_button.name = "CloseButton"
-		close_button.text = "Schließen"
-		close_button.pressed.connect(_on_close_pressed)
-		vbox.add_child(close_button)
+	close_button = Button.new()
+	close_button.name = "CloseButton"
+	close_button.text = "Schließen"
+	close_button.pressed.connect(_on_close_pressed)
+	vbox.add_child(close_button)
 
 
 func set_tower_manager(tm: TowerManager) -> void:
@@ -145,12 +140,12 @@ func _update_display() -> void:
 	tower_level_label.text = "Level %d / %d" % [level + 1, TowerData.MAX_LEVEL + 1]
 	
 	# Stats
-	var damage: int = TowerData.get_stat(tower_type, "damage", level)
+	var damage_val: int = TowerData.get_stat(tower_type, "damage", level)
 	var range_val: float = TowerData.get_stat(tower_type, "range", level)
-	var fire_rate: float = TowerData.get_stat(tower_type, "fire_rate", level)
+	var fire_rate_val: float = TowerData.get_stat(tower_type, "fire_rate", level)
 	
 	stats_label.text = "Schaden: %d\nReichweite: %d\nFeuerrate: %.1f/s" % [
-		damage, int(range_val), 1.0 / fire_rate
+		damage_val, int(range_val), 1.0 / fire_rate_val
 	]
 	
 	# Upgrade Button
@@ -168,7 +163,6 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 		
 		if GameState.can_afford(cost) and not GameState.wave_active:
 			upgrade_button.disabled = false
-			# Zeige neue Stats
 			var new_damage: int = TowerData.get_stat(tower_type, "damage", level + 1)
 			var new_range: float = TowerData.get_stat(tower_type, "range", level + 1)
 			upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d" % [new_damage, int(new_range)]
@@ -190,7 +184,6 @@ func _update_sell_button() -> void:
 	
 	sell_button.text = "Verkaufen: %dg (%d%%)" % [sell_value, sell_percent]
 	
-	# Färbung je nach Prozent
 	if sell_percent == 100:
 		sell_button.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
 	else:
