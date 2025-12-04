@@ -1,12 +1,33 @@
+# tower_data.gd
 extends Node
 
-# Alle verfügbaren Tower-Typen mit Stats pro Level
-# Level 0 = Basis, Level 1 = Upgrade 1, Level 2 = Upgrade 2
+signal element_unlocked(element: String)
+
+# Freigeschaltete Elemente (archer ist immer verfügbar)
+var unlocked_elements: Array[String] = []
+
+# Basis-Elemente die freigeschaltet werden können
+const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
+
 var towers := {
+	"archer": {
+		"name": "Bogenschütze",
+		"description": "Standard Turm",
+		"cost": 25,
+		"damage": [15, 25, 40],
+		"range": [150.0, 170.0, 190.0],
+		"fire_rate": [0.7, 0.6, 0.5],
+		"splash": [0.0, 0.0, 0.0],
+		"color": Color(0.687, 0.947, 0.913),
+		"upgrade_costs": [35, 70],
+		"special": "",
+		"is_base": true,  # Immer verfügbar
+		"combinations": []
+	},
 	"water": {
 		"name": "Wasser",
 		"description": "Verlangsamt Gegner",
-		"cost": 25,
+		"cost": 30,
 		"damage": [20, 35, 50],
 		"range": [120.0, 140.0, 160.0],
 		"fire_rate": [1.0, 0.9, 0.8],
@@ -15,12 +36,13 @@ var towers := {
 		"upgrade_costs": [40, 80],
 		"special": "slow",
 		"slow_amount": [0.3, 0.4, 0.5],
+		"is_base": false,
 		"combinations": ["steam", "ice"]
 	},
 	"fire": {
 		"name": "Feuer",
 		"description": "Brennender Flächenschaden",
-		"cost": 25,
+		"cost": 30,
 		"damage": [25, 45, 70],
 		"range": [100.0, 110.0, 120.0],
 		"fire_rate": [1.2, 1.1, 1.0],
@@ -29,12 +51,13 @@ var towers := {
 		"upgrade_costs": [45, 90],
 		"special": "burn",
 		"burn_damage": [5, 10, 15],
+		"is_base": false,
 		"combinations": ["steam", "lava"]
 	},
 	"earth": {
 		"name": "Erde",
 		"description": "Hoher Schaden, langsam",
-		"cost": 25,
+		"cost": 30,
 		"damage": [40, 70, 110],
 		"range": [90.0, 100.0, 110.0],
 		"fire_rate": [2.0, 1.8, 1.6],
@@ -43,12 +66,13 @@ var towers := {
 		"upgrade_costs": [50, 100],
 		"special": "stun",
 		"stun_chance": [0.1, 0.15, 0.2],
+		"is_base": false,
 		"combinations": ["lava", "nature"]
 	},
 	"air": {
 		"name": "Luft",
-		"description": "Schnell, trifft fliegende Gegner",
-		"cost": 25,
+		"description": "Schnell, Kettenblitz",
+		"cost": 30,
 		"damage": [15, 25, 40],
 		"range": [150.0, 170.0, 190.0],
 		"fire_rate": [0.5, 0.4, 0.3],
@@ -57,24 +81,11 @@ var towers := {
 		"upgrade_costs": [35, 70],
 		"special": "chain",
 		"chain_targets": [0, 2, 3],
-		"combinations": ["ice", "nature"]
-	},
-	"archer": {
-		"name": "Normal",
-		"description": "Standard Turm",
-		"cost": 25,
-		"damage": [15, 25, 40],
-		"range": [150.0, 170.0, 190.0],
-		"fire_rate": [0.7, 0.8, 1],
-		"splash": [0.0, 0.0, 0.0],
-		"color": Color(0.687, 0.947, 0.913, 1.0),
-		"upgrade_costs": [35, 70],
-		"special": "upgrade",
+		"is_base": false,
 		"combinations": ["ice", "nature"]
 	}
 }
 
-# Kombinationstürme (für später)
 var combinations := {
 	"steam": {
 		"name": "Dampf",
@@ -130,7 +141,6 @@ var combinations := {
 	}
 }
 
-# Max Upgrade Level
 const MAX_LEVEL := 2
 
 
@@ -138,7 +148,90 @@ func _ready() -> void:
 	print("[TowerData] %d Basis-Türme, %d Kombinationen geladen" % [towers.size(), combinations.size()])
 
 
-# Stat für einen Tower auf bestimmtem Level abrufen
+# === UNLOCK SYSTEM ===
+
+func unlock_element(element: String) -> bool:
+	if element not in UNLOCKABLE_ELEMENTS:
+		print("[TowerData] Ungültiges Element: %s" % element)
+		return false
+	
+	if element in unlocked_elements:
+		print("[TowerData] Element bereits freigeschaltet: %s" % element)
+		return false
+	
+	if not GameState.spend_element_core():
+		print("[TowerData] Keine Element-Kerne verfügbar")
+		return false
+	
+	unlocked_elements.append(element)
+	element_unlocked.emit(element)
+	print("[TowerData] Element freigeschaltet: %s" % element)
+	return true
+
+
+func is_element_unlocked(element: String) -> bool:
+	return element in unlocked_elements
+
+
+func is_tower_available(tower_type: String) -> bool:
+	# Archer immer verfügbar
+	if tower_type == "archer":
+		return true
+	
+	# Basis-Element?
+	if towers.has(tower_type):
+		return tower_type in unlocked_elements
+	
+	# Kombination? Prüfen ob beide Basis-Elemente freigeschaltet
+	if combinations.has(tower_type):
+		var requires: Array = combinations[tower_type].get("requires", [])
+		for req in requires:
+			if req not in unlocked_elements:
+				return false
+		return true
+	
+	return false
+
+
+func get_available_tower_types() -> Array[String]:
+	var available: Array[String] = ["archer"]
+	
+	# Freigeschaltete Basis-Elemente
+	for element in unlocked_elements:
+		if towers.has(element):
+			available.append(element)
+	
+	# Verfügbare Kombinationen
+	for combo_name in combinations:
+		if is_tower_available(combo_name):
+			available.append(combo_name)
+	
+	return available
+
+
+func get_locked_elements() -> Array[String]:
+	var locked: Array[String] = []
+	for element in UNLOCKABLE_ELEMENTS:
+		if element not in unlocked_elements:
+			locked.append(element)
+	return locked
+
+
+func get_unlocked_count() -> int:
+	return unlocked_elements.size()
+
+
+func get_total_unlockable() -> int:
+	return UNLOCKABLE_ELEMENTS.size()
+
+
+func reset_unlocks() -> void:
+	unlocked_elements.clear()
+	print("[TowerData] Unlocks zurückgesetzt")
+
+
+# === EXISTING FUNCTIONS ===
+
 func get_stat(tower_type: String, stat: String, level: int = 0) -> Variant:
 	var data := get_tower_data(tower_type)
 	if data.is_empty():
@@ -149,7 +242,6 @@ func get_stat(tower_type: String, stat: String, level: int = 0) -> Variant:
 	
 	var value = data[stat]
 	
-	# Wenn es ein Array ist, Level-Wert zurückgeben
 	if value is Array:
 		level = clampi(level, 0, value.size() - 1)
 		return value[level]
@@ -157,7 +249,6 @@ func get_stat(tower_type: String, stat: String, level: int = 0) -> Variant:
 	return value
 
 
-# Komplette Tower-Daten holen (prüft auch Kombinationen)
 func get_tower_data(tower_type: String) -> Dictionary:
 	if towers.has(tower_type):
 		return towers[tower_type]
@@ -166,17 +257,14 @@ func get_tower_data(tower_type: String) -> Dictionary:
 	return {}
 
 
-# Prüfen ob Tower existiert
 func has_tower(tower_type: String) -> bool:
 	return towers.has(tower_type) or combinations.has(tower_type)
 
 
-# Ist es ein Kombinations-Tower?
 func is_combination(tower_type: String) -> bool:
 	return combinations.has(tower_type)
 
 
-# Basis-Tower-Typen für Shop
 func get_base_tower_types() -> Array[String]:
 	var types: Array[String] = []
 	for key in towers.keys():
@@ -184,14 +272,13 @@ func get_base_tower_types() -> Array[String]:
 	return types
 
 
-# Upgrade-Kosten für nächstes Level
 func get_upgrade_cost(tower_type: String, current_level: int) -> int:
 	var data := get_tower_data(tower_type)
 	if data.is_empty():
 		return -1
 	
 	if current_level >= MAX_LEVEL:
-		return -1  # Bereits max Level
+		return -1
 	
 	var costs: Array = data.get("upgrade_costs", [])
 	if current_level >= costs.size():
@@ -200,12 +287,10 @@ func get_upgrade_cost(tower_type: String, current_level: int) -> int:
 	return costs[current_level]
 
 
-# Kann Tower weiter upgraden?
 func can_upgrade(tower_type: String, current_level: int) -> bool:
 	return current_level < MAX_LEVEL and get_upgrade_cost(tower_type, current_level) > 0
 
 
-# Verkaufswert berechnen
 func get_sell_value(tower_type: String, level: int, placed_this_wave: bool) -> int:
 	var data := get_tower_data(tower_type)
 	if data.is_empty():
@@ -213,20 +298,17 @@ func get_sell_value(tower_type: String, level: int, placed_this_wave: bool) -> i
 	
 	var total_invested: int = data.get("cost", 0)
 	
-	# Upgrade-Kosten addieren
 	var upgrade_costs: Array = data.get("upgrade_costs", [])
 	for i in range(level):
 		if i < upgrade_costs.size():
 			total_invested += upgrade_costs[i]
 	
-	# 100% wenn diese Runde platziert, sonst 50%
 	if placed_this_wave:
 		return total_invested
 	else:
 		return total_invested / 2
 
 
-# Kombination finden für zwei Tower-Typen
 func find_combination(type1: String, type2: String) -> String:
 	for combo_name in combinations:
 		var requires: Array = combinations[combo_name].get("requires", [])
@@ -235,7 +317,6 @@ func find_combination(type1: String, type2: String) -> String:
 	return ""
 
 
-# Dictionary im alten Format für Kompatibilität (bis alles migriert ist)
 func get_legacy_data(tower_type: String, level: int = 0) -> Dictionary:
 	var data := get_tower_data(tower_type)
 	if data.is_empty():

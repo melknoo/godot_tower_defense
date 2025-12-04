@@ -14,32 +14,12 @@ script = ExtResource("1_ig7tw")
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="TowerShop" type="VBoxContainer" parent="UI"]
-offset_left = 714.0
+offset_left = 600.0
 offset_top = 3.0
-offset_right = 1102.0
-offset_bottom = 139.0
+offset_right = 988.0
+offset_bottom = 169.0
 theme = ExtResource("2_272bh")
 script = ExtResource("2_1bvp3")
-
-[node name="WaterBtn" type="Button" parent="UI/TowerShop"]
-layout_mode = 2
-text = "Water (100g)"
-
-[node name="FireBtn" type="Button" parent="UI/TowerShop"]
-layout_mode = 2
-text = "Fire (100g)"
-
-[node name="EarthBtn" type="Button" parent="UI/TowerShop"]
-layout_mode = 2
-text = "Earth (100g)"
-
-[node name="AirBtn" type="Button" parent="UI/TowerShop"]
-layout_mode = 2
-text = "Air (100g)"
-
-[node name="ArcherBtn" type="Button" parent="UI/TowerShop"]
-layout_mode = 2
-text = "Air (100g)"
 
 [node name="TowerInfo" type="PanelContainer" parent="UI"]
 offset_right = 40.0
@@ -55,40 +35,8 @@ offset_bottom = 40.0
 theme = ExtResource("2_272bh")
 script = ExtResource("4_272bh")
 
-[node name="GoldLabel" type="Label" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 490.0
-offset_right = 50.0
-offset_bottom = 513.0
-
-[node name="LivesLabel" type="Label" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 150.0
-offset_top = 490.0
-offset_right = 190.0
-offset_bottom = 513.0
-
-[node name="WaveLabel" type="Label" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 300.0
-offset_top = 490.0
-offset_right = 340.0
-offset_bottom = 513.0
-
-[node name="StartWaveButton" type="Button" parent="UI/HUD"]
-layout_mode = 0
-offset_left = 500.0
-offset_top = 515.0
-offset_right = 611.0
-offset_bottom = 546.0
-theme_override_colors/font_color = Color(0.1404478, 0.14044732, 0.14044747, 1)
-text = "Welle starten"
-
 [node name="WaveManager" type="Node" parent="."]
 script = ExtResource("2_0xm2m")
 
 [node name="TowerManager" type="Node2D" parent="."]
 script = ExtResource("3_h2yge")
-
-[connection signal="pressed" from="UI/HUD/StartWaveButton" to="." method="start_wave"]

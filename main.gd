@@ -15,6 +15,9 @@ const MAP_HEIGHT := 8
 @onready var tower_shop: TowerShop = $UI/TowerShop
 @onready var tower_info: TowerInfo = $UI/TowerInfo
 
+# Element Unlock UI (wird dynamisch erstellt falls nicht vorhanden)
+var element_unlock_ui: ElementUnlockUI
+
 # Pfad-Definition
 var path_points: Array[Vector2] = [
 	Vector2(0, 4) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
@@ -42,6 +45,7 @@ var hover_sprite: Node2D
 
 func _ready() -> void:
 	_setup_managers()
+	_setup_element_unlock_ui()
 	_connect_signals()
 	_setup_hover_preview()
 	_draw_grid()
@@ -49,17 +53,32 @@ func _ready() -> void:
 
 
 func _setup_managers() -> void:
-	# WaveManager konfigurieren
 	wave_manager.path_points = path_points
 	
-	# TowerManager konfigurieren
 	tower_manager.grid_size = GRID_SIZE
 	tower_manager.map_width = MAP_WIDTH
 	tower_manager.map_height = MAP_HEIGHT
 	tower_manager.set_blocked_cells(path_cells)
 	
-	# TowerInfo mit TowerManager verbinden
 	tower_info.set_tower_manager(tower_manager)
+
+
+func _setup_element_unlock_ui() -> void:
+	# Prüfen ob schon in der Szene vorhanden
+	element_unlock_ui = get_node_or_null("UI/ElementUnlockUI") as ElementUnlockUI
+	
+	# Nur erstellen wenn nicht schon vorhanden
+	if not element_unlock_ui:
+		element_unlock_ui = ElementUnlockUI.new()
+		element_unlock_ui.name = "ElementUnlockUI"
+		$UI.add_child(element_unlock_ui)
+	
+	# Immer zentrieren
+	var viewport_size := get_viewport_rect().size
+	element_unlock_ui.position = Vector2(
+		(viewport_size.x - 350) / 2,
+		(viewport_size.y - 220) / 2
+	)
 
 
 func _connect_signals() -> void:
@@ -69,6 +88,7 @@ func _connect_signals() -> void:
 	
 	# HUD Signals
 	hud.start_wave_pressed.connect(_on_start_wave_pressed)
+	hud.open_element_panel_pressed.connect(_on_open_element_panel)
 	
 	# TowerShop Signals
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
@@ -82,11 +102,29 @@ func _connect_signals() -> void:
 	tower_info.sell_pressed.connect(_on_tower_info_sell)
 	tower_info.upgrade_pressed.connect(_on_tower_info_upgrade)
 	tower_info.close_pressed.connect(_on_tower_info_close)
+	
+	# ElementUnlockUI Signals
+	if element_unlock_ui:
+		element_unlock_ui.element_selected.connect(_on_element_unlocked)
 
 
 # === INPUT HANDLING ===
 
 func _input(event: InputEvent) -> void:
+	# Element Panel mit Taste E öffnen/schließen
+	if event is InputEventKey and event.pressed and event.keycode == KEY_E:
+		if element_unlock_ui:
+			element_unlock_ui.toggle_panel()
+		return
+	
+	# ESC schließt Element Panel
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		if element_unlock_ui and element_unlock_ui.visible:
+			element_unlock_ui.hide_panel()
+			return
+		_deselect_all()
+		return
+	
 	if event is InputEventMouseButton:
 		_handle_mouse_click(event)
 	elif event is InputEventMouseMotion:
@@ -97,20 +135,20 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 	if not event.pressed:
 		return
 	
-	# Rechtsklick: Deselektieren
+	# Ignorieren wenn Element Panel offen
+	if element_unlock_ui and element_unlock_ui.visible:
+		return
+	
 	if event.button_index == MOUSE_BUTTON_RIGHT:
 		_deselect_all()
 		return
 	
-	# Linksklick
 	if event.button_index == MOUSE_BUTTON_LEFT:
-		# Ignorieren wenn über UI
 		if _is_over_ui(event.position):
 			return
 		
 		var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
 		
-		# Klick auf existierenden Tower?
 		var tower := tower_manager.get_tower_at(grid_pos)
 		if tower:
 			_handle_tower_click(grid_pos)
@@ -119,11 +157,9 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 
 
 func _handle_tower_click(grid_pos: Vector2i) -> void:
-	# Shop-Auswahl aufheben
 	tower_shop.deselect()
 	hover_preview.visible = false
 	
-	# Tower auswählen/deselektieren
 	if tower_manager.selected_grid_pos == grid_pos:
 		tower_manager.deselect_tower()
 	else:
@@ -131,10 +167,8 @@ func _handle_tower_click(grid_pos: Vector2i) -> void:
 
 
 func _handle_empty_cell_click(grid_pos: Vector2i, world_pos: Vector2) -> void:
-	# TowerInfo schließen
 	tower_manager.deselect_tower()
 	
-	# Tower platzieren wenn einer ausgewählt ist
 	if tower_shop.has_selection():
 		var tower_type := tower_shop.get_selected_type()
 		if tower_manager.can_place_at(grid_pos, tower_type):
@@ -143,11 +177,10 @@ func _handle_empty_cell_click(grid_pos: Vector2i, world_pos: Vector2) -> void:
 
 
 func _is_over_ui(pos: Vector2) -> bool:
-	# TowerInfo Panel
 	if tower_info.visible and tower_info.get_global_rect().has_point(pos):
 		return true
-	
-	# Weitere UI-Elemente können hier geprüft werden
+	if element_unlock_ui and element_unlock_ui.visible:
+		return true
 	return false
 
 
@@ -177,9 +210,13 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_preview.visible = false
 		return
 	
+	# Nicht anzeigen wenn Element Panel offen
+	if element_unlock_ui and element_unlock_ui.visible:
+		hover_preview.visible = false
+		return
+	
 	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
 	
-	# Außerhalb der Map?
 	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
 		hover_preview.visible = false
 		return
@@ -190,7 +227,6 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 	hover_preview.visible = true
 	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 	
-	# Farbe je nach Platzierbarkeit
 	var can_place := tower_manager.can_place_at(grid_pos, tower_type)
 	if can_place:
 		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
@@ -201,7 +237,6 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 
 
 func _update_hover_appearance(tower_type: String) -> void:
-	# Sprite aktualisieren
 	for child in hover_sprite.get_children():
 		child.queue_free()
 	
@@ -226,7 +261,6 @@ func _update_hover_appearance(tower_type: String) -> void:
 		poly.color.a = 0.6
 		hover_sprite.add_child(poly)
 	
-	# Range Circle aktualisieren
 	hover_range_circle.clear_points()
 	var range_val: float = TowerData.get_stat(tower_type, "range", 0)
 	for i in range(33):
@@ -249,8 +283,17 @@ func _on_game_over() -> void:
 	hud.show_game_over()
 
 
+func _on_open_element_panel() -> void:
+	if element_unlock_ui:
+		element_unlock_ui.show_panel()
+
+
+func _on_element_unlocked(element: String) -> void:
+	print("[Main] Element freigeschaltet: %s" % element)
+	# Hier könnte man zusätzliche Effekte auslösen
+
+
 func _on_shop_tower_selected(tower_type: String) -> void:
-	# TowerInfo schließen wenn Shop-Auswahl
 	tower_manager.deselect_tower()
 	_update_hover_preview(get_viewport().get_mouse_position())
 
@@ -275,7 +318,6 @@ func _on_tower_info_sell() -> void:
 func _on_tower_info_upgrade() -> void:
 	var grid_pos := tower_manager.selected_grid_pos
 	if tower_manager.upgrade_tower(grid_pos):
-		# Display aktualisieren
 		var tower := tower_manager.get_tower_at(grid_pos)
 		if tower:
 			tower_info.show_tower(tower, grid_pos)
