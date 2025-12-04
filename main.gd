@@ -1,24 +1,21 @@
+# main.gd
+# Hauptszene - koordiniert alle Manager und UI-Komponenten
 extends Node2D
 
 const GRID_SIZE := 64
 const MAP_WIDTH := 12
 const MAP_HEIGHT := 8
 
-var tower_scene: PackedScene
-var enemy_scene: PackedScene
+# Manager Referenzen
+@onready var wave_manager: WaveManager = $WaveManager
+@onready var tower_manager: TowerManager = $TowerManager
 
-var selected_tower_type := ""
+# UI Referenzen
+@onready var hud: HUD = $UI/HUD
+@onready var tower_shop: TowerShop = $UI/TowerShop
+@onready var tower_info: TowerInfo = $UI/TowerInfo
 
-var tower_data := {
-	"archer": {"cost": 25, "damage": 15, "range": 150.0, "fire_rate": 0.6, "color": Color(0.2, 0.7, 0.3), "splash": 0.0},
-	"cannon": {"cost": 50, "damage": 40, "range": 120.0, "fire_rate": 1.5, "color": Color(0.7, 0.4, 0.2), "splash": 60.0},
-	"sniper": {"cost": 75, "damage": 80, "range": 250.0, "fire_rate": 2.0, "color": Color(0.3, 0.3, 0.8), "splash": 0.0},
-	"water": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.3, 0.6, 1.0), "splash": 0.0},
-	"fire": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(1.0, 0.4, 0.2), "splash": 0.0},
-	"earth": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.6, 0.4, 0.2), "splash": 0.0},
-	"air": {"cost": 25, "damage": 100, "range": 450.0, "fire_rate": 1.0, "color": Color(0.8, 0.9, 1.0), "splash": 0.0}
-}
-
+# Pfad-Definition
 var path_points: Array[Vector2] = [
 	Vector2(0, 4) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
 	Vector2(3, 4) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
@@ -29,289 +26,140 @@ var path_points: Array[Vector2] = [
 	Vector2(12, 6) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 ]
 
-var placed_towers: Dictionary = {}
-var tower_placed_wave: Dictionary = {}
-var selected_placed_tower: Vector2i = Vector2i(-1, -1)
+var path_cells: Array[Vector2i] = [
+	Vector2i(0,4), Vector2i(1,4), Vector2i(2,4), Vector2i(3,4),
+	Vector2i(3,3), Vector2i(3,2), Vector2i(3,1),
+	Vector2i(4,1), Vector2i(5,1), Vector2i(6,1), Vector2i(7,1),
+	Vector2i(7,2), Vector2i(7,3), Vector2i(7,4), Vector2i(7,5), Vector2i(7,6),
+	Vector2i(8,6), Vector2i(9,6), Vector2i(10,6), Vector2i(11,6)
+]
 
+# Hover Preview
 var hover_preview: Node2D
 var hover_range_circle: Line2D
 var hover_sprite: Node2D
 
-var tower_buttons: Dictionary = {}
-var sell_panel: PanelContainer
-var sell_label: Label
-
-@onready var gold_label: Label = $UI/GoldLabel
-@onready var lives_label: Label = $UI/LivesLabel
-@onready var wave_label: Label = $UI/WaveLabel
-@onready var start_button: Button = $UI/StartWaveButton
-@onready var tower_button_container: VBoxContainer = $UI/TowerButtons
-@onready var wave_manager: WaveManager = $WaveManager
-
-
 
 func _ready() -> void:
-	tower_scene = preload("res://tower.tscn")
-	enemy_scene = preload("res://enemy.tscn")
+	_setup_managers()
+	_connect_signals()
+	_setup_hover_preview()
+	_draw_grid()
+	_draw_path()
+
+
+func _setup_managers() -> void:
+	# WaveManager konfigurieren
 	wave_manager.path_points = path_points
-	wave_manager.enemy_spawned.connect(_on_enemy_spawned)
 	
-	_connect_game_state_signals()
-	create_tower_buttons()
-	create_sell_panel()
-	create_hover_preview()
-	update_ui()
-	draw_grid()
-	draw_path()
+	# TowerManager konfigurieren
+	tower_manager.grid_size = GRID_SIZE
+	tower_manager.map_width = MAP_WIDTH
+	tower_manager.map_height = MAP_HEIGHT
+	tower_manager.set_blocked_cells(path_cells)
+	
+	# TowerInfo mit TowerManager verbinden
+	tower_info.set_tower_manager(tower_manager)
 
 
-func _connect_game_state_signals() -> void:
-	GameState.gold_changed.connect(_on_gold_changed)
-	GameState.lives_changed.connect(_on_lives_changed)
-	GameState.wave_started.connect(_on_wave_started)
-	GameState.wave_completed.connect(_on_wave_completed)
+func _connect_signals() -> void:
+	# GameState Signals
 	GameState.game_over_triggered.connect(_on_game_over)
+	GameState.wave_started.connect(_on_wave_started)
+	
+	# HUD Signals
+	hud.start_wave_pressed.connect(_on_start_wave_pressed)
+	
+	# TowerShop Signals
+	tower_shop.tower_selected.connect(_on_shop_tower_selected)
+	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
+	
+	# TowerManager Signals
+	tower_manager.tower_selected.connect(_on_tower_selected)
+	tower_manager.tower_deselected.connect(_on_tower_deselected)
+	
+	# TowerInfo Signals
+	tower_info.sell_pressed.connect(_on_tower_info_sell)
+	tower_info.upgrade_pressed.connect(_on_tower_info_upgrade)
+	tower_info.close_pressed.connect(_on_tower_info_close)
 
 
-func _on_gold_changed(amount: int) -> void:
-	gold_label.text = "Gold: " + str(amount)
-	update_hover_preview(get_viewport().get_mouse_position())
+# === INPUT HANDLING ===
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		_handle_mouse_click(event)
+	elif event is InputEventMouseMotion:
+		_update_hover_preview(event.position)
 
 
-func _on_lives_changed(amount: int) -> void:
-	lives_label.text = "Leben: " + str(amount)
-
-
-func _on_wave_started(wave: int) -> void:
-	wave_label.text = "Welle: " + str(wave)
-	start_button.disabled = true
-	wave_manager.start_wave(wave)
-	spawn_enemies()
-
-func _on_enemy_spawned(enemy: Node2D) -> void:
-	pass
-
-func _on_wave_completed(wave: int) -> void:
-	start_button.disabled = false
-
-
-func _on_game_over() -> void:
-	get_tree().paused = true
-	var game_over_label := Label.new()
-	game_over_label.text = "GAME OVER\nWelle: " + str(GameState.current_wave)
-	game_over_label.position = Vector2(300, 200)
-	game_over_label.add_theme_font_size_override("font_size", 48)
-	$UI.add_child(game_over_label)
-
-
-func create_tower_buttons() -> void:
-	for child in tower_button_container.get_children():
-		child.queue_free()
-	
-	var tower_types := ["water", "fire", "earth", "air"]
-	
-	for type in tower_types:
-		var btn := create_tower_button(type)
-		tower_button_container.add_child(btn)
-		tower_buttons[type] = btn
-
-
-func create_tower_button(type: String) -> Button:
-	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(64, 80)
-	btn.flat = true
-	
-	var vbox := VBoxContainer.new()
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(vbox)
-	
-	var tex_rect := TextureRect.new()
-	tex_rect.custom_minimum_size = Vector2(48, 48)
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	var texture_path := "res://assets/elemental_tower/tower_" + type + ".png"
-	if ResourceLoader.exists(texture_path):
-		var full_tex: Texture2D = load(texture_path)
-		var atlas := AtlasTexture.new()
-		atlas.atlas = full_tex
-		atlas.region = Rect2(0, 0, 16, 16)
-		tex_rect.texture = atlas
-	
-	vbox.add_child(tex_rect)
-	
-	var cost_label := Label.new()
-	cost_label.text = str(tower_data[type]["cost"]) + "g"
-	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cost_label.add_theme_font_size_override("font_size", 12)
-	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_child(cost_label)
-	
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
-	style.border_width_bottom = 2
-	style.border_width_top = 2
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_color = Color(0.4, 0.4, 0.4)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	btn.add_theme_stylebox_override("normal", style)
-	
-	var hover_style := style.duplicate()
-	hover_style.bg_color = Color(0.3, 0.3, 0.3, 0.9)
-	hover_style.border_color = Color(0.6, 0.6, 0.6)
-	btn.add_theme_stylebox_override("hover", hover_style)
-	
-	var pressed_style := style.duplicate()
-	pressed_style.bg_color = Color(0.2, 0.4, 0.2, 0.9)
-	pressed_style.border_color = Color(0.4, 0.8, 0.4)
-	btn.add_theme_stylebox_override("pressed", pressed_style)
-	
-	btn.pressed.connect(_on_tower_selected.bind(type))
-	
-	return btn
-
-
-func create_sell_panel() -> void:
-	sell_panel = PanelContainer.new()
-	sell_panel.visible = false
-	
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.3, 0.2, 0.2, 0.9)
-	style.border_width_bottom = 2
-	style.border_width_top = 2
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_color = Color(0.8, 0.4, 0.4)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 8
-	style.content_margin_right = 8
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	sell_panel.add_theme_stylebox_override("panel", style)
-	
-	var vbox := VBoxContainer.new()
-	sell_panel.add_child(vbox)
-	
-	sell_label = Label.new()
-	sell_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(sell_label)
-	
-	var sell_btn := Button.new()
-	sell_btn.text = "Verkaufen"
-	sell_btn.pressed.connect(_on_sell_pressed)
-	vbox.add_child(sell_btn)
-	
-	var cancel_btn := Button.new()
-	cancel_btn.text = "Abbrechen"
-	cancel_btn.pressed.connect(deselect_placed_tower)
-	vbox.add_child(cancel_btn)
-	
-	$UI.add_child(sell_panel)
-
-
-func get_sell_value(grid_pos: Vector2i) -> int:
-	if not placed_towers.has(grid_pos):
-		return 0
-	
-	var tower: Tower = placed_towers[grid_pos]
-	var base_cost: int = tower_data[tower.tower_type]["cost"]
-	var placed_wave: int = tower_placed_wave.get(grid_pos, -1)
-	
-	if placed_wave == GameState.current_wave:
-		return base_cost
-	else:
-		return base_cost / 2
-
-
-func select_placed_tower(grid_pos: Vector2i) -> void:
-	selected_placed_tower = grid_pos
-	selected_tower_type = ""
-	update_tower_buttons()
-	hover_preview.visible = false
-	
-	var tower: Tower = placed_towers[grid_pos]
-	var sell_value := get_sell_value(grid_pos)
-	var percent := 100 if sell_value == tower_data[tower.tower_type]["cost"] else 50
-	
-	sell_label.text = tower.tower_type.capitalize() + "\nVerkaufen: " + str(sell_value) + "g (" + str(percent) + "%)"
-	sell_panel.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE + 10, 0)
-	sell_panel.visible = true
-	
-	tower.range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
-
-
-func deselect_placed_tower() -> void:
-	if selected_placed_tower != Vector2i(-1, -1) and placed_towers.has(selected_placed_tower):
-		var tower: Tower = placed_towers[selected_placed_tower]
-		tower.range_circle.default_color = Color(1, 1, 1, 0.15)
-	
-	selected_placed_tower = Vector2i(-1, -1)
-	sell_panel.visible = false
-
-
-func _on_sell_pressed() -> void:
-	if selected_placed_tower == Vector2i(-1, -1):
+func _handle_mouse_click(event: InputEventMouseButton) -> void:
+	if not event.pressed:
 		return
 	
-	var sell_value := get_sell_value(selected_placed_tower)
-	GameState.tower_sold(sell_value)
+	# Rechtsklick: Deselektieren
+	if event.button_index == MOUSE_BUTTON_RIGHT:
+		_deselect_all()
+		return
 	
-	var tower: Tower = placed_towers[selected_placed_tower]
-	tower.queue_free()
-	placed_towers.erase(selected_placed_tower)
-	tower_placed_wave.erase(selected_placed_tower)
-	
-	deselect_placed_tower()
-
-
-func _on_tower_selected(type: String) -> void:
-	selected_tower_type = type
-	update_tower_buttons()
-	update_hover_appearance()
-
-
-func update_tower_buttons() -> void:
-	for type in tower_buttons:
-		var btn: Button = tower_buttons[type]
-		var style: StyleBoxFlat
+	# Linksklick
+	if event.button_index == MOUSE_BUTTON_LEFT:
+		# Ignorieren wenn über UI
+		if _is_over_ui(event.position):
+			return
 		
-		if type == selected_tower_type:
-			style = StyleBoxFlat.new()
-			style.bg_color = Color(0.2, 0.4, 0.2, 0.9)
-			style.border_width_bottom = 2
-			style.border_width_top = 2
-			style.border_width_left = 2
-			style.border_width_right = 2
-			style.border_color = Color(0.4, 1.0, 0.4)
-			style.corner_radius_top_left = 4
-			style.corner_radius_top_right = 4
-			style.corner_radius_bottom_left = 4
-			style.corner_radius_bottom_right = 4
+		var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
+		
+		# Klick auf existierenden Tower?
+		var tower := tower_manager.get_tower_at(grid_pos)
+		if tower:
+			_handle_tower_click(grid_pos)
 		else:
-			style = StyleBoxFlat.new()
-			style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
-			style.border_width_bottom = 2
-			style.border_width_top = 2
-			style.border_width_left = 2
-			style.border_width_right = 2
-			style.border_color = Color(0.4, 0.4, 0.4)
-			style.corner_radius_top_left = 4
-			style.corner_radius_top_right = 4
-			style.corner_radius_bottom_left = 4
-			style.corner_radius_bottom_right = 4
-		
-		btn.add_theme_stylebox_override("normal", style)
+			_handle_empty_cell_click(grid_pos, event.position)
 
 
-func create_hover_preview() -> void:
+func _handle_tower_click(grid_pos: Vector2i) -> void:
+	# Shop-Auswahl aufheben
+	tower_shop.deselect()
+	hover_preview.visible = false
+	
+	# Tower auswählen/deselektieren
+	if tower_manager.selected_grid_pos == grid_pos:
+		tower_manager.deselect_tower()
+	else:
+		tower_manager.select_tower(grid_pos)
+
+
+func _handle_empty_cell_click(grid_pos: Vector2i, world_pos: Vector2) -> void:
+	# TowerInfo schließen
+	tower_manager.deselect_tower()
+	
+	# Tower platzieren wenn einer ausgewählt ist
+	if tower_shop.has_selection():
+		var tower_type := tower_shop.get_selected_type()
+		if tower_manager.can_place_at(grid_pos, tower_type):
+			tower_manager.place_tower(grid_pos, tower_type)
+			_update_hover_preview(world_pos)
+
+
+func _is_over_ui(pos: Vector2) -> bool:
+	# TowerInfo Panel
+	if tower_info.visible and tower_info.get_global_rect().has_point(pos):
+		return true
+	
+	# Weitere UI-Elemente können hier geprüft werden
+	return false
+
+
+func _deselect_all() -> void:
+	tower_shop.deselect()
+	tower_manager.deselect_tower()
+	hover_preview.visible = false
+
+
+# === HOVER PREVIEW ===
+
+func _setup_hover_preview() -> void:
 	hover_preview = Node2D.new()
 	hover_preview.visible = false
 	add_child(hover_preview)
@@ -322,19 +170,42 @@ func create_hover_preview() -> void:
 	hover_range_circle = Line2D.new()
 	hover_range_circle.width = 2
 	hover_preview.add_child(hover_range_circle)
+
+
+func _update_hover_preview(mouse_pos: Vector2) -> void:
+	if not tower_shop.has_selection():
+		hover_preview.visible = false
+		return
 	
-	update_hover_appearance()
+	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
+	
+	# Außerhalb der Map?
+	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
+		hover_preview.visible = false
+		return
+	
+	var tower_type := tower_shop.get_selected_type()
+	_update_hover_appearance(tower_type)
+	
+	hover_preview.visible = true
+	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
+	
+	# Farbe je nach Platzierbarkeit
+	var can_place := tower_manager.can_place_at(grid_pos, tower_type)
+	if can_place:
+		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
+		hover_sprite.modulate = Color(1, 1, 1, 0.7)
+	else:
+		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
+		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
 
 
-func update_hover_appearance() -> void:
+func _update_hover_appearance(tower_type: String) -> void:
+	# Sprite aktualisieren
 	for child in hover_sprite.get_children():
 		child.queue_free()
 	
-	if selected_tower_type == "":
-		hover_range_circle.clear_points()
-		return
-	
-	var texture_path := "res://assets/elemental_tower/tower_" + selected_tower_type + ".png"
+	var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
 	if ResourceLoader.exists(texture_path):
 		var sprite := Sprite2D.new()
 		sprite.texture = load(texture_path)
@@ -350,142 +221,73 @@ func update_hover_appearance() -> void:
 			Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
 			Vector2(0, -25), Vector2(-20, -10)
 		])
-		poly.color = tower_data[selected_tower_type]["color"]
+		var color: Color = TowerData.get_stat(tower_type, "color")
+		poly.color = color
 		poly.color.a = 0.6
 		hover_sprite.add_child(poly)
 	
+	# Range Circle aktualisieren
 	hover_range_circle.clear_points()
-	var range_val: float = tower_data[selected_tower_type]["range"]
+	var range_val: float = TowerData.get_stat(tower_type, "range", 0)
 	for i in range(33):
 		var angle := i * TAU / 32
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
 
 
-func _input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			if sell_panel.visible and sell_panel.get_global_rect().has_point(event.position):
-				return
-			
-			var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
-			
-			if placed_towers.has(grid_pos):
-				if selected_placed_tower == grid_pos:
-					deselect_placed_tower()
-				else:
-					deselect_placed_tower()
-					select_placed_tower(grid_pos)
-			else:
-				deselect_placed_tower()
-				try_place_tower(event.position)
-		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-			deselect_tower()
-			deselect_placed_tower()
-	
-	if event is InputEventMouseMotion:
-		update_hover_preview(event.position)
+# === SIGNAL HANDLERS ===
 
-
-func deselect_tower() -> void:
-	selected_tower_type = ""
-	update_tower_buttons()
-	hover_preview.visible = false
-
-
-func update_hover_preview(mouse_pos: Vector2) -> void:
-	if selected_tower_type == "":
-		hover_preview.visible = false
-		return
-	
-	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
-	
-	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
-		hover_preview.visible = false
-		return
-	
-	hover_preview.visible = true
-	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
-	
-	var can_place := can_place_at(grid_pos)
-	if can_place:
-		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
-		hover_sprite.modulate = Color(1, 1, 1, 0.7)
-	else:
-		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
-		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
-
-
-func can_place_at(grid_pos: Vector2i) -> bool:
-	if selected_tower_type == "":
-		return false
-	if GameState.wave_active:
-		return false
-	if is_on_path(grid_pos):
-		return false
-	if placed_towers.has(grid_pos):
-		return false
-	if not GameState.can_afford(tower_data[selected_tower_type]["cost"]):
-		return false
-	return true
-
-
-func try_place_tower(pos: Vector2) -> void:
-	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
-	
-	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH:
-		return
-	if grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
-		return
-	if not can_place_at(grid_pos):
-		return
-	
-	var cost: int = tower_data[selected_tower_type]["cost"]
-	
-	var tower := tower_scene.instantiate()
-	tower.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
-	tower.setup(tower_data[selected_tower_type], selected_tower_type)
-	add_child(tower)
-	
-	placed_towers[grid_pos] = tower
-	tower_placed_wave[grid_pos] = GameState.current_wave
-	GameState.tower_placed(cost)
-	update_hover_preview(pos)
-
-
-func is_on_path(grid_pos: Vector2i) -> bool:
-	var path_cells := [
-		Vector2i(0,4), Vector2i(1,4), Vector2i(2,4), Vector2i(3,4),
-		Vector2i(3,3), Vector2i(3,2), Vector2i(3,1),
-		Vector2i(4,1), Vector2i(5,1), Vector2i(6,1), Vector2i(7,1),
-		Vector2i(7,2), Vector2i(7,3), Vector2i(7,4), Vector2i(7,5), Vector2i(7,6),
-		Vector2i(8,6), Vector2i(9,6), Vector2i(10,6), Vector2i(11,6)
-	]
-	return grid_pos in path_cells
-
-
-func start_wave() -> void:
+func _on_start_wave_pressed() -> void:
 	GameState.start_wave()
 
 
-func spawn_enemies() -> void:
-	var enemy_count := GameState.enemies_remaining
-	for i in range(enemy_count):
-		await get_tree().create_timer(0.8).timeout
-		if not is_inside_tree():
-			return
-		
-		var enemy := enemy_scene.instantiate()
-		enemy.setup(path_points, 50 + GameState.current_wave * 10, 80 + GameState.current_wave * 5)
-		add_child(enemy)
+func _on_wave_started(wave: int) -> void:
+	wave_manager.start_wave(wave)
 
 
-func update_ui() -> void:
-	gold_label.text = "Gold: " + str(GameState.gold)
-	lives_label.text = "Leben: " + str(GameState.lives)
-	wave_label.text = "Welle: " + str(GameState.current_wave)
+func _on_game_over() -> void:
+	get_tree().paused = true
+	hud.show_game_over()
 
 
-func draw_grid() -> void:
+func _on_shop_tower_selected(tower_type: String) -> void:
+	# TowerInfo schließen wenn Shop-Auswahl
+	tower_manager.deselect_tower()
+	_update_hover_preview(get_viewport().get_mouse_position())
+
+
+func _on_shop_tower_deselected() -> void:
+	hover_preview.visible = false
+
+
+func _on_tower_selected(tower: Node2D, grid_pos: Vector2i) -> void:
+	tower_info.show_tower(tower, grid_pos)
+
+
+func _on_tower_deselected() -> void:
+	tower_info.hide_panel()
+
+
+func _on_tower_info_sell() -> void:
+	var grid_pos := tower_manager.selected_grid_pos
+	tower_manager.sell_tower(grid_pos)
+
+
+func _on_tower_info_upgrade() -> void:
+	var grid_pos := tower_manager.selected_grid_pos
+	if tower_manager.upgrade_tower(grid_pos):
+		# Display aktualisieren
+		var tower := tower_manager.get_tower_at(grid_pos)
+		if tower:
+			tower_info.show_tower(tower, grid_pos)
+
+
+func _on_tower_info_close() -> void:
+	tower_manager.deselect_tower()
+
+
+# === DRAWING ===
+
+func _draw_grid() -> void:
 	for x in range(MAP_WIDTH + 1):
 		var line := Line2D.new()
 		line.add_point(Vector2(x * GRID_SIZE, 0))
@@ -493,6 +295,7 @@ func draw_grid() -> void:
 		line.default_color = Color(0.3, 0.3, 0.3, 0.5)
 		line.width = 1
 		add_child(line)
+	
 	for y in range(MAP_HEIGHT + 1):
 		var line := Line2D.new()
 		line.add_point(Vector2(0, y * GRID_SIZE))
@@ -502,7 +305,7 @@ func draw_grid() -> void:
 		add_child(line)
 
 
-func draw_path() -> void:
+func _draw_path() -> void:
 	var path_line := Line2D.new()
 	for point in path_points:
 		path_line.add_point(point)

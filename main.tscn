@@ -1,61 +1,85 @@
-[gd_scene load_steps=3 format=3 uid="uid://cvnltlult1fsd"]
+[gd_scene load_steps=7 format=3 uid="uid://cvnltlult1fsd"]
 
 [ext_resource type="Script" uid="uid://bmm152d18tq63" path="res://main.gd" id="1_ig7tw"]
 [ext_resource type="Script" uid="uid://b0gdvgdiskijd" path="res://wave_manager.gd" id="2_0xm2m"]
+[ext_resource type="Script" uid="uid://w8chmv7lt7ye" path="res://ui/tower_shop.gd" id="2_1bvp3"]
+[ext_resource type="Script" uid="uid://cia5slmvh3egb" path="res://ui/tower_info.gd" id="3_7mycd"]
+[ext_resource type="Script" uid="uid://c8nxk78gk1q7u" path="res://tower_manager.gd" id="3_h2yge"]
+[ext_resource type="Script" uid="uid://cebxliox85m2b" path="res://ui/hud.gd" id="4_272bh"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_ig7tw")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
-[node name="GoldLabel" type="Label" parent="UI"]
+[node name="TowerShop" type="VBoxContainer" parent="UI"]
+offset_left = 714.0
+offset_top = 3.0
+offset_right = 1102.0
+offset_bottom = 139.0
+script = ExtResource("2_1bvp3")
+
+[node name="WaterBtn" type="Button" parent="UI/TowerShop"]
+layout_mode = 2
+text = "Water (100g)"
+
+[node name="FireBtn" type="Button" parent="UI/TowerShop"]
+layout_mode = 2
+text = "Fire (100g)"
+
+[node name="EarthBtn" type="Button" parent="UI/TowerShop"]
+layout_mode = 2
+text = "Earth (100g)"
+
+[node name="AirBtn" type="Button" parent="UI/TowerShop"]
+layout_mode = 2
+text = "Air (100g)"
+
+[node name="TowerInfo" type="PanelContainer" parent="UI"]
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("3_7mycd")
+
+[node name="HUD" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("4_272bh")
+
+[node name="GoldLabel" type="Label" parent="UI/HUD"]
+layout_mode = 0
 offset_left = 10.0
 offset_top = 490.0
 offset_right = 50.0
 offset_bottom = 513.0
 
-[node name="LivesLabel" type="Label" parent="UI"]
+[node name="LivesLabel" type="Label" parent="UI/HUD"]
+layout_mode = 0
 offset_left = 150.0
 offset_top = 490.0
 offset_right = 190.0
 offset_bottom = 513.0
 
-[node name="WaveLabel" type="Label" parent="UI"]
+[node name="WaveLabel" type="Label" parent="UI/HUD"]
+layout_mode = 0
 offset_left = 300.0
 offset_top = 490.0
 offset_right = 340.0
 offset_bottom = 513.0
 
-[node name="StartWaveButton" type="Button" parent="UI"]
+[node name="StartWaveButton" type="Button" parent="UI/HUD"]
+layout_mode = 0
 offset_left = 500.0
 offset_top = 515.0
-offset_right = 508.0
-offset_bottom = 523.0
+offset_right = 611.0
+offset_bottom = 546.0
 text = "Welle starten"
-
-[node name="TowerButtons" type="VBoxContainer" parent="UI"]
-offset_left = 714.0
-offset_top = 3.0
-offset_right = 1102.0
-offset_bottom = 139.0
-
-[node name="WaterBtn" type="Button" parent="UI/TowerButtons"]
-layout_mode = 2
-text = "Water (100g)"
-
-[node name="FireBtn" type="Button" parent="UI/TowerButtons"]
-layout_mode = 2
-text = "Fire (100g)"
-
-[node name="EarthBtn" type="Button" parent="UI/TowerButtons"]
-layout_mode = 2
-text = "Earth (100g)"
-
-[node name="AirBtn" type="Button" parent="UI/TowerButtons"]
-layout_mode = 2
-text = "Air (100g)"
 
 [node name="WaveManager" type="Node" parent="."]
 script = ExtResource("2_0xm2m")
 
-[connection signal="pressed" from="UI/StartWaveButton" to="." method="start_wave"]
+[node name="TowerManager" type="Node2D" parent="."]
+script = ExtResource("3_h2yge")
+
+[connection signal="pressed" from="UI/HUD/StartWaveButton" to="." method="start_wave"]
