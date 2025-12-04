@@ -1,6 +1,4 @@
 # ground_layer.gd
-# Verwaltet die Boden-Tiles (Gras, Pfad, Übergänge)
-# Als Node2D in Main einbinden, muss erstes Child sein
 extends Node2D
 class_name GroundLayer
 
@@ -15,6 +13,7 @@ var path_cells: Array[Vector2i] = []
 
 
 func _ready() -> void:
+	z_index = -10
 	_load_tiles()
 
 
@@ -32,8 +31,6 @@ func _load_tiles() -> void:
 		var file_path: String = TILE_PATH + tile_name + ".png"
 		if ResourceLoader.exists(file_path):
 			tiles[tile_name] = load(file_path)
-		else:
-			push_warning("[GroundLayer] Tile nicht gefunden: " + file_path)
 	
 	print("[GroundLayer] %d Tiles geladen" % tiles.size())
 
@@ -44,7 +41,6 @@ func setup(cells: Array[Vector2i]) -> void:
 
 
 func _draw_tiles() -> void:
-	# Alte Tiles entfernen
 	for child in get_children():
 		child.queue_free()
 	
@@ -62,17 +58,8 @@ func _create_tile_sprite(cell: Vector2i, tile_name: String) -> void:
 	
 	if tiles.has(tile_name):
 		sprite.texture = tiles[tile_name]
-	elif tiles.has("grass"):
-		sprite.texture = tiles["grass"]
 	else:
-		# Fallback: ColorRect
-		var is_path := cell in path_cells
-		var rect := ColorRect.new()
-		rect.color = Color(0.55, 0.35, 0.2) if is_path else Color(0.3, 0.6, 0.2)
-		rect.size = Vector2(grid_size, grid_size)
-		rect.position = Vector2(cell) * grid_size
-		add_child(rect)
-		return
+		sprite.texture = tiles.get("grass")
 	
 	add_child(sprite)
 
@@ -80,53 +67,58 @@ func _create_tile_sprite(cell: Vector2i, tile_name: String) -> void:
 func _get_tile_for_cell(cell: Vector2i) -> String:
 	var is_path := cell in path_cells
 	
-	# Nachbarn prüfen
+	# Nachbarn
 	var up := Vector2i(cell.x, cell.y - 1) in path_cells
 	var down := Vector2i(cell.x, cell.y + 1) in path_cells
 	var left := Vector2i(cell.x - 1, cell.y) in path_cells
 	var right := Vector2i(cell.x + 1, cell.y) in path_cells
-	
-	# Diagonale Nachbarn
 	var up_left := Vector2i(cell.x - 1, cell.y - 1) in path_cells
 	var up_right := Vector2i(cell.x + 1, cell.y - 1) in path_cells
 	var down_left := Vector2i(cell.x - 1, cell.y + 1) in path_cells
 	var down_right := Vector2i(cell.x + 1, cell.y + 1) in path_cells
 	
-	# Pfad-Zellen bekommen erstmal Gras (werden von Rand-Tiles visuell überdeckt)
+	# === PFAD-ZELLE ===
 	if is_path:
-		return "grass"
+		# Pfad mit Gras-Nachbarn braucht Rand-Tiles
+		var grass_up := not up
+		var grass_down := not down
+		var grass_left := not left
+		var grass_right := not right
+		
+		# Ecken des Pfades (äußere Kurven) - kleine Gras-Ecke
+		# Prüfe ob Gras diagonal UND beide angrenzenden Seiten sind Pfad
+		if not up_left and up and left:
+			return "path_corner_inner_left_up"
+		if not up_right and up and right:
+			return "path_corner_inner_right_up"
+		if not down_left and down and left:
+			return "path_corner_inner_left_down"
+		if not down_right and down and right:
+			return "path_corner_inner_right_down"
+		
+		# Innere Kurven des Pfades - große Gras-Ecke
+		if grass_up and grass_left and not grass_down and not grass_right:
+			return "path_corner_left_up"
+		if grass_up and grass_right and not grass_down and not grass_left:
+			return "path_corner_right_up"
+		if grass_down and grass_left and not grass_up and not grass_right:
+			return "path_corner_left_down"
+		if grass_down and grass_right and not grass_up and not grass_left:
+			return "path_corner_right_down"
+		
+		# Gerade Kanten
+		if grass_up and not grass_down:
+			return "path_up"
+		if grass_down and not grass_up:
+			return "path_down"
+		if grass_left and not grass_right:
+			return "path_left"
+		if grass_right and not grass_left:
+			return "path_right"
+		
+		# Pfad ohne Gras-Nachbarn (Mitte) - hier nehmen wir einfach ein Rand-Tile
+		# oder wir bräuchten ein reines Pfad-Tile
+		return "path_up"  # Fallback
 	
-	# === GRAS-ZELLEN: Prüfen welches Tile passt ===
-	
-	# Innere Ecken (Gras mit Pfad nur diagonal)
-	if not up and not left and up_left:
-		return "path_corner_inner_right_down"
-	if not up and not right and up_right:
-		return "path_corner_inner_left_down"
-	if not down and not left and down_left:
-		return "path_corner_inner_right_up"
-	if not down and not right and down_right:
-		return "path_corner_inner_left_up"
-	
-	# Äußere Ecken (Pfad an zwei angrenzenden Seiten)
-	if up and left:
-		return "path_corner_left_up"
-	if up and right:
-		return "path_corner_right_up"
-	if down and left:
-		return "path_corner_left_down"
-	if down and right:
-		return "path_corner_right_down"
-	
-	# Gerade Kanten (Pfad an einer Seite)
-	if up:
-		return "path_up"
-	if down:
-		return "path_down"
-	if left:
-		return "path_left"
-	if right:
-		return "path_right"
-	
-	# Reines Gras (kein Pfad in der Nähe)
+	# === GRAS-ZELLE ===
 	return "grass"
