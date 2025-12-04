@@ -57,7 +57,7 @@ func setup_extended(data: Dictionary) -> void:
 func _set_speed_for_type(type: String) -> void:
 	match type:
 		"water": speed = 300.0
-		"fire": speed = 350.0
+		"fire": speed = 150.0
 		"earth": speed = 200.0
 		"air": speed = 500.0
 		"sniper": speed = 600.0
@@ -151,7 +151,7 @@ func _process(delta: float) -> void:
 	
 	var direction := (target.position - position).normalized()
 	position += direction * speed * delta
-	rotation = direction.angle()
+	rotation = direction.angle() + PI
 	
 	_update_trail()
 	

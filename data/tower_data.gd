@@ -22,7 +22,7 @@ var towers := {
 		"description": "Brennender Flächenschaden",
 		"cost": 25,
 		"damage": [25, 45, 70],
-		"range": [100.0, 110.0, 120.0],
+		"range": [100.0, 310.0, 320.0],
 		"fire_rate": [1.2, 1.1, 1.0],
 		"splash": [40.0, 50.0, 60.0],
 		"color": Color(1.0, 0.4, 0.2),
