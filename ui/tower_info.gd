@@ -28,22 +28,7 @@ func _ready() -> void:
 
 
 func _setup_panel_style() -> void:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.2, 0.95)
-	style.border_width_bottom = 2
-	style.border_width_top = 2
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_color = Color(0.4, 0.4, 0.5)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	add_theme_stylebox_override("panel", style)
+	UITheme.style_panel(self, "panel_dark")  # Name anpassen falls nötig
 
 
 func _setup_ui() -> void:
@@ -77,12 +62,14 @@ func _setup_ui() -> void:
 	# Upgrade Button
 	upgrade_button = Button.new()
 	upgrade_button.name = "UpgradeButton"
+	upgrade_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	vbox.add_child(upgrade_button)
 	
 	# Sell Button
 	sell_button = Button.new()
 	sell_button.name = "SellButton"
+	sell_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	sell_button.pressed.connect(_on_sell_pressed)
 	vbox.add_child(sell_button)
 	
@@ -90,8 +77,13 @@ func _setup_ui() -> void:
 	close_button = Button.new()
 	close_button.name = "CloseButton"
 	close_button.text = "Schließen"
+	close_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
+	
+	UITheme.style_button(upgrade_button)
+	UITheme.style_button(sell_button)
+	UITheme.style_button(close_button)
 
 
 func set_tower_manager(tm: TowerManager) -> void:

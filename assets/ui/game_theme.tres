@@ -1,0 +1,6 @@
+[gd_resource type="Theme" load_steps=2 format=3 uid="uid://dcl1o6j52w57r"]
+
+[ext_resource type="FontFile" uid="uid://bd5cop5fd6l2k" path="res://assets/fonts/Clarity.ttf" id="1_36qhr"]
+
+[resource]
+default_font = ExtResource("1_36qhr")
