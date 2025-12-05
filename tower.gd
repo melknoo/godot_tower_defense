@@ -88,28 +88,23 @@ func _create_visuals() -> void:
 
 
 func _get_tower_texture_path() -> String:
-	# Level 0 = Basis-Sprite, Level 1+ = level_X Sprite
 	if level == 0:
 		return "res://assets/elemental_tower/tower_%s.png" % tower_type
 	else:
-		# Level 1 -> level_2, Level 2 -> level_3, etc. (da Level 0 = Basis)
 		var display_level := level + 1
 		return "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, display_level]
 
 
 func _update_visuals() -> void:
-	# Alte Sprites entfernen
 	for child in turret.get_children():
 		child.queue_free()
 	
 	var texture_path := _get_tower_texture_path()
 	
-	# Fallback auf Basis-Sprite wenn Level-Sprite nicht existiert
 	if not ResourceLoader.exists(texture_path) and level > 0:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
 		print("[Tower] Level-Sprite nicht gefunden, nutze Basis: %s" % texture_path)
 	
-	# Prüfen ob Tower animiert ist
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
 	
@@ -118,7 +113,6 @@ func _update_visuals() -> void:
 		sprite.texture = load(texture_path)
 		
 		if is_animated:
-			# Animiertes Spritesheet (16x64, 4 Frames)
 			sprite.vframes = 4
 			sprite.hframes = 1
 			sprite.scale = Vector2(3, 3)
@@ -130,14 +124,12 @@ func _update_visuals() -> void:
 			timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % 4)
 			turret.add_child(timer)
 		else:
-			# Statisches Asset (64x64)
 			sprite.vframes = 1
 			sprite.hframes = 1
-			sprite.scale = Vector2(1, 1)  # Keine Skalierung nötig
+			sprite.scale = Vector2(1, 1)
 		
 		turret.add_child(sprite)
 	else:
-		# Fallback Polygon
 		var poly := Polygon2D.new()
 		poly.polygon = PackedVector2Array([
 			Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
@@ -147,13 +139,13 @@ func _update_visuals() -> void:
 		poly.color = color if color else Color.WHITE
 		turret.add_child(poly)
 	
-	# Range Circle
 	range_circle.clear_points()
 	for i in range(33):
 		var angle := i * TAU / 32
 		range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
 	
 	_update_level_indicator()
+
 
 func _update_level_indicator() -> void:
 	for child in level_indicator.get_children():
@@ -217,10 +209,22 @@ func _find_target() -> void:
 func _rotate_towards_target(delta: float) -> void:
 	var data := TowerData.get_tower_data(tower_type)
 	if data.get("animated", true) == false:
-		return  # Funktion hier beenden = KEINE Rotation!
+		return  # Keine Rotation für statische Tower
 	
 	var direction := target.position - position
-	var target_angle := direction.angle() + PI
+	
+	# Ziel links oder rechts vom Tower?
+	var is_facing_left := direction.x < 0
+	
+	# Sprite horizontal spiegeln wenn Ziel links ist
+	if sprite:
+		sprite.flip_h = is_facing_left
+	
+	# Rotation berechnen - X immer positiv behandeln
+	# Dadurch dreht sich der Turret max 90° nach oben/unten
+	var adjusted_direction := Vector2(abs(direction.x), direction.y)
+	var target_angle := adjusted_direction.angle() + TAU
+	
 	turret.rotation = lerp_angle(turret.rotation, target_angle, 10 * delta)
 
 
@@ -236,7 +240,7 @@ func _shoot() -> void:
 		"damage": damage,
 		"splash": splash_radius,
 		"type": tower_type,
-		"level": level,  # Level für Bullet-Sprite
+		"level": level,
 		"special": special_type,
 		"slow_amount": slow_amount,
 		"burn_damage": burn_damage,

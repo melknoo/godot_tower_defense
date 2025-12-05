@@ -11,7 +11,7 @@ const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
 
 var towers := {
 	"archer": {
-		"name": "Bogenschütze",
+		"name": "Base",
 		"description": "Standard Turm",
 		"cost": 25,
 		"damage": [15, 25, 40],

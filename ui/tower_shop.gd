@@ -1,6 +1,5 @@
 # ui/tower_shop.gd
 # Tower-Auswahl - zeigt nur freigeschaltete Tower
-# Kann an beliebigen Container angehängt werden
 extends Container
 class_name TowerShop
 
@@ -9,14 +8,13 @@ signal tower_deselected
 
 var selected_type := ""
 var tower_buttons: Dictionary = {}
-var button_container: VBoxContainer
+var button_container: HBoxContainer
 
 
 func _ready() -> void:
-	# Container für vertikale Anordnung erstellen
-	button_container = VBoxContainer.new()
+	button_container = HBoxContainer.new()
 	button_container.name = "ButtonContainer"
-	button_container.add_theme_constant_override("separation", 8)
+	button_container.add_theme_constant_override("separation", 16)  # Erhöht von 8 auf 16
 	add_child(button_container)
 	
 	_create_tower_buttons()
@@ -25,12 +23,10 @@ func _ready() -> void:
 
 
 func _create_tower_buttons() -> void:
-	# Alte Buttons entfernen
 	for child in button_container.get_children():
 		child.queue_free()
 	tower_buttons.clear()
 	
-	# Buttons nur für verfügbare Tower erstellen
 	var available_types := TowerData.get_available_tower_types()
 	
 	for type in available_types:
@@ -40,48 +36,46 @@ func _create_tower_buttons() -> void:
 
 
 func _on_element_unlocked(_element: String) -> void:
-	# Shop neu aufbauen wenn Element freigeschaltet
 	_create_tower_buttons()
 
 
 func _create_button(type: String) -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(90, 70)
+	btn.custom_minimum_size = Vector2(100, 75)  # Etwas breiter: 90->100
 	btn.flat = true
 	btn.name = type.capitalize() + "Button"
 	
 	var hbox := HBoxContainer.new()
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 6)  # Abstand zwischen Icon und Text
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(hbox)
 	
 	# Tower-Sprite
 	var tex_rect := TextureRect.new()
-	tex_rect.custom_minimum_size = Vector2(40, 40)
+	tex_rect.custom_minimum_size = Vector2(44, 44)  # Etwas größer
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	var texture_path := "res://assets/elemental_tower/tower_%s.png" % type
 	if ResourceLoader.exists(texture_path):
 		var full_tex: Texture2D = load(texture_path)
-		
 		var data := TowerData.get_tower_data(type)
 		var is_animated: bool = data.get("animated", true)
 		
 		if is_animated:
-			# Animiertes Asset - zeige nur ersten Frame (16x64)
 			var atlas := AtlasTexture.new()
 			atlas.atlas = full_tex
 			atlas.region = Rect2(0, 0, 16, 16)
 			tex_rect.texture = atlas
 		else:
-			# Statisches Asset - zeige das ganze Bild (64x64)
 			tex_rect.texture = full_tex
 	
 	hbox.add_child(tex_rect)
 	
-	# Info Container (Name + Kosten)
+	# Info Container
 	var info_vbox := VBoxContainer.new()
+	info_vbox.add_theme_constant_override("separation", 2)
 	info_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hbox.add_child(info_vbox)
 	
@@ -119,7 +113,6 @@ func _create_button(type: String) -> Button:
 	_apply_button_style(btn, false)
 	btn.pressed.connect(_on_tower_button_pressed.bind(type))
 	
-	# Tooltip
 	var desc: String = data.get("description", "")
 	btn.tooltip_text = "%s\n%s\nKosten: %d Gold" % [display_name, desc, cost]
 	
@@ -128,14 +121,18 @@ func _create_button(type: String) -> Button:
 
 func _apply_button_style(btn: Button, is_selected: bool) -> void:
 	var style := StyleBoxFlat.new()
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
 	style.border_width_bottom = 2
 	style.border_width_top = 2
 	style.border_width_left = 2
 	style.border_width_right = 2
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
 	
 	if is_selected:
 		style.bg_color = Color(0.2, 0.4, 0.2, 0.9)
@@ -193,7 +190,7 @@ func _update_button_affordability(btn: Button, type: String) -> void:
 	var cost_label := btn.find_child("CostLabel", true, false) as Label
 	if cost_label:
 		if can_afford:
-			cost_label.remove_theme_color_override("font_color")
+			cost_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
 		else:
 			cost_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
 
