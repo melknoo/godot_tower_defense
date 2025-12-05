@@ -24,16 +24,14 @@ func _ready() -> void:
 
 func _setup_ui() -> void:
 	# Obere Leiste - Ressourcen nebeneinander
-	gold_label = _get_or_create_label("GoldLabel", Vector2(10, 520))
-	lives_label = _get_or_create_label("LivesLabel", Vector2(130, 520))
-	wave_label = _get_or_create_label("WaveLabel", Vector2(250, 520))
-	
-	# Gegner-Anzeige (nur während Wave sichtbar)
-	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(370, 520))
+	gold_label = _get_or_create_label("GoldLabel", Vector2(20, 970))
+	lives_label = _get_or_create_label("LivesLabel", Vector2(200, 970))
+	wave_label = _get_or_create_label("WaveLabel", Vector2(380, 970))
+	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(560, 970))
 	enemies_label.visible = false
 	
 	# Element-Kerne Anzeige - unten links
-	cores_label = _get_or_create_label("CoresLabel", Vector2(10, 545))
+	cores_label = _get_or_create_label("CoresLabel", Vector2(20, 1000))
 	cores_label.add_theme_font_size_override("font_size", 12)
 	cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 	
@@ -43,7 +41,7 @@ func _setup_ui() -> void:
 		cores_button = Button.new()
 		cores_button.name = "CoresButton"
 		cores_button.text = "Elemente"
-		cores_button.position = Vector2(200, 540)
+		cores_button.position = Vector2(300, 1000)
 		cores_button.custom_minimum_size = Vector2(90, 28)
 		cores_button.visible = false
 		add_child(cores_button)
@@ -54,12 +52,12 @@ func _setup_ui() -> void:
 		start_button = Button.new()
 		start_button.name = "StartWaveButton"
 		start_button.text = "Welle starten"
-		start_button.position = Vector2(550, 520)
+		start_button.position = Vector2(1550, 970)
 		start_button.custom_minimum_size = Vector2(130, 35)
 		add_child(start_button)
 	
 	# Wave Preview - über dem Start Button
-	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(550, 495))
+	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(1750, 940))
 	wave_preview_label.add_theme_font_size_override("font_size", 11)
 	wave_preview_label.visible = false
 	

@@ -15,10 +15,10 @@ script = ExtResource("1_ig7tw")
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="TowerShop" type="VBoxContainer" parent="UI"]
-offset_left = 600.0
-offset_top = 3.0
-offset_right = 988.0
-offset_bottom = 169.0
+offset_left = 1742.0
+offset_top = 80.0
+offset_right = 2130.0
+offset_bottom = 246.0
 theme = ExtResource("2_272bh")
 script = ExtResource("2_1bvp3")
 
