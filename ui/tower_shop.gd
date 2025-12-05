@@ -9,12 +9,12 @@ signal tower_deselected
 
 var selected_type := ""
 var tower_buttons: Dictionary = {}
-var button_container: VBoxContainer
+var button_container: HBoxContainer
 
 
 func _ready() -> void:
 	# Container für vertikale Anordnung erstellen
-	button_container = VBoxContainer.new()
+	button_container = HBoxContainer.new()
 	button_container.name = "ButtonContainer"
 	button_container.add_theme_constant_override("separation", 8)
 	add_child(button_container)
