@@ -109,20 +109,33 @@ func _update_visuals() -> void:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
 		print("[Tower] Level-Sprite nicht gefunden, nutze Basis: %s" % texture_path)
 	
+	# Prüfen ob Tower animiert ist
+	var data := TowerData.get_tower_data(tower_type)
+	var is_animated: bool = data.get("animated", true)
+	
 	if ResourceLoader.exists(texture_path):
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
-		sprite.vframes = 4
-		sprite.hframes = 1
-		sprite.scale = Vector2(3, 3)
-		turret.add_child(sprite)
 		
-		var timer := Timer.new()
-		timer.name = "AnimTimer"
-		timer.wait_time = 0.15
-		timer.autostart = true
-		timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % 4)
-		turret.add_child(timer)
+		if is_animated:
+			# Animiertes Spritesheet (16x64, 4 Frames)
+			sprite.vframes = 4
+			sprite.hframes = 1
+			sprite.scale = Vector2(3, 3)
+			
+			var timer := Timer.new()
+			timer.name = "AnimTimer"
+			timer.wait_time = 0.15
+			timer.autostart = true
+			timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % 4)
+			turret.add_child(timer)
+		else:
+			# Statisches Asset (64x64)
+			sprite.vframes = 1
+			sprite.hframes = 1
+			sprite.scale = Vector2(1, 1)  # Keine Skalierung nötig
+		
+		turret.add_child(sprite)
 	else:
 		# Fallback Polygon
 		var poly := Polygon2D.new()
@@ -141,7 +154,6 @@ func _update_visuals() -> void:
 		range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
 	
 	_update_level_indicator()
-
 
 func _update_level_indicator() -> void:
 	for child in level_indicator.get_children():
@@ -203,6 +215,10 @@ func _find_target() -> void:
 
 
 func _rotate_towards_target(delta: float) -> void:
+	var data := TowerData.get_tower_data(tower_type)
+	if data.get("animated", true) == false:
+		return  # Funktion hier beenden = KEINE Rotation!
+	
 	var direction := target.position - position
 	var target_angle := direction.angle() + PI
 	turret.rotation = lerp_angle(turret.rotation, target_angle, 10 * delta)

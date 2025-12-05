@@ -64,10 +64,19 @@ func _create_button(type: String) -> Button:
 	var texture_path := "res://assets/elemental_tower/tower_%s.png" % type
 	if ResourceLoader.exists(texture_path):
 		var full_tex: Texture2D = load(texture_path)
-		var atlas := AtlasTexture.new()
-		atlas.atlas = full_tex
-		atlas.region = Rect2(0, 0, 16, 16)
-		tex_rect.texture = atlas
+		
+		var data := TowerData.get_tower_data(type)
+		var is_animated: bool = data.get("animated", true)
+		
+		if is_animated:
+			# Animiertes Asset - zeige nur ersten Frame (16x64)
+			var atlas := AtlasTexture.new()
+			atlas.atlas = full_tex
+			atlas.region = Rect2(0, 0, 16, 16)
+			tex_rect.texture = atlas
+		else:
+			# Statisches Asset - zeige das ganze Bild (64x64)
+			tex_rect.texture = full_tex
 	
 	hbox.add_child(tex_rect)
 	

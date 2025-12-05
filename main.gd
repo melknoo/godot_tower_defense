@@ -217,14 +217,27 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 func _update_hover_appearance(tower_type: String) -> void:
 	for child in hover_sprite.get_children():
 		child.queue_free()
+	
 	var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
+	var data := TowerData.get_tower_data(tower_type)
+	var is_animated: bool = data.get("animated", true)
+	
 	if ResourceLoader.exists(texture_path):
 		var sprite := Sprite2D.new()
 		sprite.texture = load(texture_path)
-		sprite.vframes = 4
-		sprite.hframes = 1
-		sprite.frame = 0
-		sprite.scale = Vector2(3, 3)
+		
+		if is_animated:
+			# Animiertes Asset (16x64, 4 Frames)
+			sprite.vframes = 4
+			sprite.hframes = 1
+			sprite.frame = 0
+			sprite.scale = Vector2(3, 3)
+		else:
+			# Statisches Asset (64x64)
+			sprite.vframes = 1
+			sprite.hframes = 1
+			sprite.scale = Vector2(1, 1)
+		
 		sprite.modulate.a = 0.6
 		hover_sprite.add_child(sprite)
 	else:
@@ -237,12 +250,12 @@ func _update_hover_appearance(tower_type: String) -> void:
 		poly.color = color
 		poly.color.a = 0.6
 		hover_sprite.add_child(poly)
+	
 	hover_range_circle.clear_points()
 	var range_val: float = TowerData.get_stat(tower_type, "range", 0)
 	for i in range(33):
 		var angle := i * TAU / 32
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
-
 
 func _on_start_wave_pressed() -> void:
 	GameState.start_wave()

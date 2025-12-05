@@ -22,7 +22,8 @@ var towers := {
 		"upgrade_costs": [35, 70],
 		"special": "",
 		"is_base": true,  # Immer verfügbar
-		"combinations": []
+		"combinations": [],
+		"animated": false  # Statisches 64x64 Asset
 	},
 	"water": {
 		"name": "Wasser",
@@ -37,7 +38,8 @@ var towers := {
 		"special": "slow",
 		"slow_amount": [0.3, 0.4, 0.5],
 		"is_base": false,
-		"combinations": ["steam", "ice"]
+		"combinations": ["steam", "ice"],
+		"animated": true
 	},
 	"fire": {
 		"name": "Feuer",
@@ -52,7 +54,8 @@ var towers := {
 		"special": "burn",
 		"burn_damage": [5, 10, 15],
 		"is_base": false,
-		"combinations": ["steam", "lava"]
+		"combinations": ["steam", "lava"],
+		"animated": true
 	},
 	"earth": {
 		"name": "Erde",
@@ -67,7 +70,8 @@ var towers := {
 		"special": "stun",
 		"stun_chance": [0.1, 0.15, 0.2],
 		"is_base": false,
-		"combinations": ["lava", "nature"]
+		"combinations": ["lava", "nature"],
+		"animated": true
 	},
 	"air": {
 		"name": "Luft",
@@ -82,7 +86,8 @@ var towers := {
 		"special": "chain",
 		"chain_targets": [0, 2, 3],
 		"is_base": false,
-		"combinations": ["ice", "nature"]
+		"combinations": ["ice", "nature"],
+		"animated": true
 	}
 }
 
