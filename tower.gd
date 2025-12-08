@@ -26,6 +26,8 @@ var range_circle: Line2D
 var turret: Node2D
 var sprite: Sprite2D
 var level_indicator: Node2D
+var selection_border: Sprite2D
+var selection_tween: Tween
 
 
 func _ready() -> void:
@@ -281,3 +283,62 @@ func _get_muzzle_color() -> Color:
 		"lava": return Color(1.0, 0.3, 0.0)
 		"nature": return Color(0.3, 0.8, 0.2)
 		_: return Color.WHITE
+
+
+func select() -> void:
+	if selection_border:
+		return  # Bereits ausgewählt
+	
+	# Border-Sprite erstellen
+	var border_path := "res://assets/ui/selection_border.png"
+	if ResourceLoader.exists(border_path):
+		selection_border = Sprite2D.new()
+		selection_border.texture = load(border_path)
+		selection_border.scale = Vector2(3, 3)  # Größer skalieren
+		selection_border.z_index = -1  # Hinter dem Tower
+		add_child(selection_border)
+		
+		# Schwebende Animation starten
+		_start_float_animation()
+	
+	# Range Circle hervorheben
+	if range_circle:
+		range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
+
+
+func deselect() -> void:
+	# Border entfernen
+	if selection_border:
+		selection_border.queue_free()
+		selection_border = null
+	
+	# Animation stoppen
+	if selection_tween:
+		selection_tween.kill()
+		selection_tween = null
+	
+	# Range Circle zurücksetzen
+	if range_circle:
+		range_circle.default_color = Color(1, 1, 1, 0.15)
+
+
+func _start_float_animation() -> void:
+	if not selection_border:
+		return
+	
+	# Vorherigen Tween stoppen falls vorhanden
+	if selection_tween:
+		selection_tween.kill()
+	
+	# Startposition
+	var base_y := 0.0
+	var float_amount := 4.0  # Pixel auf/ab
+	var float_duration := 0.8  # Sekunden pro Richtung
+	
+	selection_border.position.y = base_y
+	
+	# Endlos-Animation: hoch -> runter -> hoch -> ...
+	selection_tween = create_tween()
+	selection_tween.set_loops()  # Endlosschleife
+	selection_tween.tween_property(selection_border, "position:y", base_y - float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	selection_tween.tween_property(selection_border, "position:y", base_y + float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
