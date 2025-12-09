@@ -1,5 +1,5 @@
 # tower_manager.gd
-# Verwaltet Tower-Platzierung, Verkauf, Upgrades und Kombinationen
+# Verwaltet Tower-Platzierung, Verkauf, Upgrades und Kombinationen (mit VFX)
 extends Node2D
 class_name TowerManager
 
@@ -15,19 +15,10 @@ signal tower_deselected
 @export var map_width: int = 12
 @export var map_height: int = 8
 
-# Platzierte Türme: grid_pos -> Tower Node
 var placed_towers: Dictionary = {}
-
-# Tracking wann Tower platziert wurde: grid_pos -> wave number
 var tower_placed_wave: Dictionary = {}
-
-# Tower Levels: grid_pos -> level (0, 1, 2)
 var tower_levels: Dictionary = {}
-
-# Aktuell ausgewählter Tower
 var selected_grid_pos: Vector2i = Vector2i(-1, -1)
-
-# Path-Zellen wo keine Türme platziert werden können
 var blocked_cells: Array[Vector2i] = []
 
 
@@ -87,11 +78,17 @@ func sell_tower(grid_pos: Vector2i) -> int:
 		return 0
 	
 	var tower: Node2D = placed_towers[grid_pos]
+	var tower_pos: Vector2 = tower.position
 	var level: int = tower_levels.get(grid_pos, 0)
 	var placed_wave: int = tower_placed_wave.get(grid_pos, -1)
 	var placed_this_wave := placed_wave == GameState.current_wave
 	
 	var sell_value := TowerData.get_sell_value(tower.tower_type, level, placed_this_wave)
+	
+	# VFX vor dem Löschen
+	if VFX:
+		VFX.spawn_sell_effect(tower_pos)
+		VFX.spawn_gold_number(tower_pos, sell_value)
 	
 	tower.queue_free()
 	placed_towers.erase(grid_pos)
@@ -205,6 +202,12 @@ func combine_towers(pos1: Vector2i, pos2: Vector2i) -> Node2D:
 		return null
 	
 	var new_pos := pos1
+	var combine_pos: Vector2 = tower1.position
+	
+	# VFX für Kombination
+	if VFX:
+		VFX.spawn_pixel_burst(tower1.position, tower1.tower_type, 8)
+		VFX.spawn_pixel_burst(tower2.position, tower2.tower_type, 8)
 	
 	placed_towers[pos1].queue_free()
 	placed_towers[pos2].queue_free()
@@ -227,6 +230,11 @@ func combine_towers(pos1: Vector2i, pos2: Vector2i) -> Node2D:
 	
 	GameState.tower_placed(combo_cost)
 	
+	# Extra VFX für neuen kombinierten Tower
+	if VFX:
+		VFX.spawn_pixel_ring(combine_pos, combo_type, 60.0)
+		VFX.screen_flash(Color(1, 1, 1), 0.1)
+	
 	tower_combined.emit(new_tower, new_pos)
 	print("[TowerManager] Kombination: %s + %s = %s" % [tower1.tower_type, tower2.tower_type, combo_type])
 	
@@ -237,17 +245,14 @@ func select_tower(grid_pos: Vector2i) -> void:
 	if not placed_towers.has(grid_pos):
 		return
 	
-	# Vorherige Auswahl aufheben
 	deselect_tower()
 	
 	selected_grid_pos = grid_pos
 	var tower: Node2D = placed_towers[grid_pos]
 	
-	# Tower-eigene Selection-Methode aufrufen
 	if tower.has_method("select"):
 		tower.select()
 	else:
-		# Fallback für alte Tower ohne select()
 		if tower.get("range_circle"):
 			tower.range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
 	
@@ -258,11 +263,9 @@ func deselect_tower() -> void:
 	if selected_grid_pos != Vector2i(-1, -1) and placed_towers.has(selected_grid_pos):
 		var tower: Node2D = placed_towers[selected_grid_pos]
 		
-		# Tower-eigene Deselection-Methode aufrufen
 		if tower.has_method("deselect"):
 			tower.deselect()
 		else:
-			# Fallback
 			if tower.get("range_circle"):
 				tower.range_circle.default_color = Color(1, 1, 1, 0.15)
 	

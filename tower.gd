@@ -1,5 +1,5 @@
 # tower.gd
-# Tower mit Upgrades und Spezialeffekten
+# Tower mit Upgrades, Spezialeffekten und VFX
 extends Node2D
 class_name Tower
 
@@ -29,7 +29,11 @@ var level_indicator: Node2D
 var selection_corners: Node2D
 var selection_tween: Tween
 
-# Corner Textures (static, shared)
+# Idle Animation
+var idle_time := 0.0
+var is_shooting := false
+
+# Corner Textures
 static var corner_textures: Dictionary = {}
 static var corners_loaded := false
 
@@ -39,6 +43,10 @@ func _ready() -> void:
 	_load_corner_textures()
 	_create_visuals()
 	_update_visuals()
+	
+	# Platzierungs-Effekt
+	if VFX:
+		VFX.spawn_place_effect(position, tower_type)
 
 
 func _load_corner_textures() -> void:
@@ -81,6 +89,10 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 	if is_inside_tree():
 		_update_visuals()
 		_show_upgrade_effect()
+		
+		# VFX
+		if VFX:
+			VFX.spawn_upgrade_effect(position, tower_type, new_level)
 
 
 func _load_special_effects() -> void:
@@ -125,7 +137,6 @@ func _update_visuals() -> void:
 	
 	if not ResourceLoader.exists(texture_path) and level > 0:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
-		print("[Tower] Level-Sprite nicht gefunden, nutze Basis: %s" % texture_path)
 	
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
@@ -207,10 +218,22 @@ func _process(delta: float) -> void:
 	_find_target()
 	
 	if target:
+		is_shooting = true
 		_rotate_towards_target(delta)
 		if fire_timer <= 0:
 			_shoot()
 			fire_timer = fire_rate
+	else:
+		is_shooting = false
+		_do_idle_animation(delta)
+
+
+func _do_idle_animation(delta: float) -> void:
+	idle_time += delta
+	
+	# Sanftes Auf und Ab wenn kein Ziel
+	if sprite:
+		sprite.position.y = sin(idle_time * 2.0) * 1.5
 
 
 func _find_target() -> void:
@@ -231,19 +254,15 @@ func _find_target() -> void:
 func _rotate_towards_target(delta: float) -> void:
 	var data := TowerData.get_tower_data(tower_type)
 	if data.get("animated", true) == false:
-		return  # Keine Rotation für statische Tower
+		return
 	
 	var direction := target.position - position
-	
-	# Ziel links oder rechts vom Tower?
 	var is_facing_left := direction.x < 0
 	
-	# Sprite horizontal spiegeln wenn Ziel links ist
 	if sprite:
 		sprite.flip_h = is_facing_left
+		sprite.position.y = 0  # Reset idle bob
 	
-	# Rotation berechnen - X immer positiv behandeln
-	# Dadurch dreht sich der Turret max 90° nach oben/unten
 	var adjusted_direction := Vector2(abs(direction.x), direction.y)
 	var target_angle := adjusted_direction.angle() + TAU
 	
@@ -276,98 +295,81 @@ func _shoot() -> void:
 		bullet.setup(target, damage, splash_radius, tower_type)
 	
 	get_parent().add_child(bullet)
-	_spawn_muzzle_flash()
-
-
-func _spawn_muzzle_flash() -> void:
-	var flash := Polygon2D.new()
-	flash.polygon = PackedVector2Array([Vector2(-5, 0), Vector2(0, -15), Vector2(5, 0)])
-	flash.color = _get_muzzle_color()
-	flash.rotation = turret.rotation - PI/2
-	flash.position = Vector2(0, -20).rotated(turret.rotation)
-	add_child(flash)
 	
-	var tween := flash.create_tween()
-	tween.tween_property(flash, "modulate:a", 0.0, 0.1)
-	tween.tween_callback(flash.queue_free)
+	# VFX Muzzle Flash
+	var direction := (target.position - position).normalized()
+	if VFX:
+		VFX.spawn_muzzle_flash(position + direction * 15, direction, tower_type)
+	
+	_do_recoil()
 
 
-func _get_muzzle_color() -> Color:
-	match tower_type:
-		"water": return Color(0.3, 0.6, 1.0)
-		"fire": return Color(1.0, 0.5, 0.2)
-		"earth": return Color(0.6, 0.4, 0.2)
-		"air": return Color(0.9, 0.95, 1.0)
-		"steam": return Color(0.8, 0.8, 0.9)
-		"ice": return Color(0.7, 0.9, 1.0)
-		"lava": return Color(1.0, 0.3, 0.0)
-		"nature": return Color(0.3, 0.8, 0.2)
-		_: return Color.WHITE
+func _do_recoil() -> void:
+	if not sprite:
+		return
+	
+	# Kurzer Rückstoß
+	var original_pos := sprite.position
+	var recoil_dir := Vector2(0, 3)  # Nach unten
+	
+	var tween := sprite.create_tween()
+	tween.tween_property(sprite, "position", original_pos + recoil_dir, 0.05)
+	tween.tween_property(sprite, "position", original_pos, 0.1).set_trans(Tween.TRANS_ELASTIC)
 
 
 func select() -> void:
 	if selection_corners:
-		return  # Bereits ausgewählt
+		return
 	
 	if corner_textures.size() < 4:
 		return
 	
-	# Container für alle Ecken
 	selection_corners = Node2D.new()
 	selection_corners.name = "SelectionCorners"
 	add_child(selection_corners)
 	
-	var offset := 38.0  # Abstand vom Zentrum
-	var scale := Vector2(3, 3)  # Ecken skalieren
+	var offset := 38.0
+	var scale := Vector2(3, 3)
 	
-	# Top Left
 	var tl := Sprite2D.new()
 	tl.texture = corner_textures["top_left"]
 	tl.scale = scale
 	tl.position = Vector2(-offset, -offset)
 	selection_corners.add_child(tl)
 	
-	# Top Right
 	var tr := Sprite2D.new()
 	tr.texture = corner_textures["top_right"]
 	tr.scale = scale
 	tr.position = Vector2(offset, -offset)
 	selection_corners.add_child(tr)
 	
-	# Bottom Left
 	var bl := Sprite2D.new()
 	bl.texture = corner_textures["bottom_left"]
 	bl.scale = scale
 	bl.position = Vector2(-offset, offset)
 	selection_corners.add_child(bl)
 	
-	# Bottom Right
 	var br := Sprite2D.new()
 	br.texture = corner_textures["bottom_right"]
 	br.scale = scale
 	br.position = Vector2(offset, offset)
 	selection_corners.add_child(br)
 	
-	# Schwebende Animation starten
 	_start_float_animation()
 	
-	# Range Circle hervorheben
 	if range_circle:
 		range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
 
 
 func deselect() -> void:
-	# Corners entfernen
 	if selection_corners:
 		selection_corners.queue_free()
 		selection_corners = null
 	
-	# Animation stoppen
 	if selection_tween:
 		selection_tween.kill()
 		selection_tween = null
 	
-	# Range Circle zurücksetzen
 	if range_circle:
 		range_circle.default_color = Color(1, 1, 1, 0.15)
 
@@ -376,19 +378,16 @@ func _start_float_animation() -> void:
 	if not selection_corners:
 		return
 	
-	# Vorherigen Tween stoppen falls vorhanden
 	if selection_tween:
 		selection_tween.kill()
 	
-	# Startposition
 	var base_y := 0.0
-	var float_amount := 4.0  # Pixel auf/ab
-	var float_duration := 0.8  # Sekunden pro Richtung
+	var float_amount := 4.0
+	var float_duration := 0.8
 	
 	selection_corners.position.y = base_y
 	
-	# Endlos-Animation: hoch -> runter -> hoch -> ...
 	selection_tween = create_tween()
-	selection_tween.set_loops()  # Endlosschleife
+	selection_tween.set_loops()
 	selection_tween.tween_property(selection_corners, "position:y", base_y - float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	selection_tween.tween_property(selection_corners, "position:y", base_y + float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
