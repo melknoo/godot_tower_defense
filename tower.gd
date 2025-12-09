@@ -26,14 +26,34 @@ var range_circle: Line2D
 var turret: Node2D
 var sprite: Sprite2D
 var level_indicator: Node2D
-var selection_border: Sprite2D
+var selection_corners: Node2D
 var selection_tween: Tween
+
+# Corner Textures (static, shared)
+static var corner_textures: Dictionary = {}
+static var corners_loaded := false
 
 
 func _ready() -> void:
 	bullet_scene = preload("res://bullet.tscn")
+	_load_corner_textures()
 	_create_visuals()
 	_update_visuals()
+
+
+func _load_corner_textures() -> void:
+	if corners_loaded:
+		return
+	
+	var base_path := "res://assets/ui/"
+	var corners := ["top_left", "top_right", "bottom_left", "bottom_right"]
+	
+	for corner in corners:
+		var path := base_path + "selection_%s_corner.png" % corner
+		if ResourceLoader.exists(path):
+			corner_textures[corner] = load(path)
+	
+	corners_loaded = true
 
 
 func setup(data: Dictionary, type: String) -> void:
@@ -128,7 +148,7 @@ func _update_visuals() -> void:
 		else:
 			sprite.vframes = 1
 			sprite.hframes = 1
-			sprite.scale = Vector2(1, 1)
+			sprite.scale = Vector2(3, 3)
 		
 		turret.add_child(sprite)
 	else:
@@ -286,20 +306,50 @@ func _get_muzzle_color() -> Color:
 
 
 func select() -> void:
-	if selection_border:
+	if selection_corners:
 		return  # Bereits ausgewählt
 	
-	# Border-Sprite erstellen
-	var border_path := "res://assets/ui/selection_border.png"
-	if ResourceLoader.exists(border_path):
-		selection_border = Sprite2D.new()
-		selection_border.texture = load(border_path)
-		selection_border.scale = Vector2(3, 3)  # Größer skalieren
-		selection_border.z_index = -1  # Hinter dem Tower
-		add_child(selection_border)
-		
-		# Schwebende Animation starten
-		_start_float_animation()
+	if corner_textures.size() < 4:
+		return
+	
+	# Container für alle Ecken
+	selection_corners = Node2D.new()
+	selection_corners.name = "SelectionCorners"
+	add_child(selection_corners)
+	
+	var offset := 38.0  # Abstand vom Zentrum
+	var scale := Vector2(3, 3)  # Ecken skalieren
+	
+	# Top Left
+	var tl := Sprite2D.new()
+	tl.texture = corner_textures["top_left"]
+	tl.scale = scale
+	tl.position = Vector2(-offset, -offset)
+	selection_corners.add_child(tl)
+	
+	# Top Right
+	var tr := Sprite2D.new()
+	tr.texture = corner_textures["top_right"]
+	tr.scale = scale
+	tr.position = Vector2(offset, -offset)
+	selection_corners.add_child(tr)
+	
+	# Bottom Left
+	var bl := Sprite2D.new()
+	bl.texture = corner_textures["bottom_left"]
+	bl.scale = scale
+	bl.position = Vector2(-offset, offset)
+	selection_corners.add_child(bl)
+	
+	# Bottom Right
+	var br := Sprite2D.new()
+	br.texture = corner_textures["bottom_right"]
+	br.scale = scale
+	br.position = Vector2(offset, offset)
+	selection_corners.add_child(br)
+	
+	# Schwebende Animation starten
+	_start_float_animation()
 	
 	# Range Circle hervorheben
 	if range_circle:
@@ -307,10 +357,10 @@ func select() -> void:
 
 
 func deselect() -> void:
-	# Border entfernen
-	if selection_border:
-		selection_border.queue_free()
-		selection_border = null
+	# Corners entfernen
+	if selection_corners:
+		selection_corners.queue_free()
+		selection_corners = null
 	
 	# Animation stoppen
 	if selection_tween:
@@ -323,7 +373,7 @@ func deselect() -> void:
 
 
 func _start_float_animation() -> void:
-	if not selection_border:
+	if not selection_corners:
 		return
 	
 	# Vorherigen Tween stoppen falls vorhanden
@@ -335,10 +385,10 @@ func _start_float_animation() -> void:
 	var float_amount := 4.0  # Pixel auf/ab
 	var float_duration := 0.8  # Sekunden pro Richtung
 	
-	selection_border.position.y = base_y
+	selection_corners.position.y = base_y
 	
 	# Endlos-Animation: hoch -> runter -> hoch -> ...
 	selection_tween = create_tween()
 	selection_tween.set_loops()  # Endlosschleife
-	selection_tween.tween_property(selection_border, "position:y", base_y - float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	selection_tween.tween_property(selection_border, "position:y", base_y + float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	selection_tween.tween_property(selection_corners, "position:y", base_y - float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	selection_tween.tween_property(selection_corners, "position:y", base_y + float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)

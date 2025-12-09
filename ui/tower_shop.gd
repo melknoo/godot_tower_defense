@@ -19,7 +19,7 @@ func _ready() -> void:
 	
 	button_container = HBoxContainer.new()
 	button_container.name = "ButtonContainer"
-	button_container.add_theme_constant_override("separation", 16)
+	button_container.add_theme_constant_override("separation", 32)  # Abstand zwischen Buttons
 	add_child(button_container)
 	
 	_create_tower_buttons()
@@ -89,11 +89,13 @@ func _create_button(type: String) -> Control:
 		var is_animated: bool = data.get("animated", true)
 		
 		if is_animated:
+			# Animiertes Asset - zeige nur ersten Frame (16x16)
 			var atlas := AtlasTexture.new()
 			atlas.atlas = full_tex
 			atlas.region = Rect2(0, 0, 16, 16)
 			tex_rect.texture = atlas
 		else:
+			# Statisches Asset (16x16) - zeige das ganze Bild
 			tex_rect.texture = full_tex
 	
 	hbox.add_child(tex_rect)
