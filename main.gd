@@ -233,10 +233,10 @@ func _update_hover_appearance(tower_type: String) -> void:
 			sprite.frame = 0
 			sprite.scale = Vector2(3, 3)
 		else:
-			# Statisches Asset (64x64)
+			# Statisches Asset (16x16)
 			sprite.vframes = 1
 			sprite.hframes = 1
-			sprite.scale = Vector2(1, 1)
+			sprite.scale = Vector2(3, 3)  # Gleiche Skalierung
 		
 		sprite.modulate.a = 0.6
 		hover_sprite.add_child(sprite)

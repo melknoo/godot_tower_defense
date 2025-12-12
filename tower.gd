@@ -26,12 +26,34 @@ var range_circle: Line2D
 var turret: Node2D
 var sprite: Sprite2D
 var level_indicator: Node2D
+var selection_corners: Node2D
+var selection_tween: Tween
+
+# Corner Textures (static, shared)
+static var corner_textures: Dictionary = {}
+static var corners_loaded := false
 
 
 func _ready() -> void:
 	bullet_scene = preload("res://bullet.tscn")
+	_load_corner_textures()
 	_create_visuals()
 	_update_visuals()
+
+
+func _load_corner_textures() -> void:
+	if corners_loaded:
+		return
+	
+	var base_path := "res://assets/ui/"
+	var corners := ["top_left", "top_right", "bottom_left", "bottom_right"]
+	
+	for corner in corners:
+		var path := base_path + "selection_%s_corner.png" % corner
+		if ResourceLoader.exists(path):
+			corner_textures[corner] = load(path)
+	
+	corners_loaded = true
 
 
 func setup(data: Dictionary, type: String) -> void:
@@ -88,28 +110,23 @@ func _create_visuals() -> void:
 
 
 func _get_tower_texture_path() -> String:
-	# Level 0 = Basis-Sprite, Level 1+ = level_X Sprite
 	if level == 0:
 		return "res://assets/elemental_tower/tower_%s.png" % tower_type
 	else:
-		# Level 1 -> level_2, Level 2 -> level_3, etc. (da Level 0 = Basis)
 		var display_level := level + 1
 		return "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, display_level]
 
 
 func _update_visuals() -> void:
-	# Alte Sprites entfernen
 	for child in turret.get_children():
 		child.queue_free()
 	
 	var texture_path := _get_tower_texture_path()
 	
-	# Fallback auf Basis-Sprite wenn Level-Sprite nicht existiert
 	if not ResourceLoader.exists(texture_path) and level > 0:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
 		print("[Tower] Level-Sprite nicht gefunden, nutze Basis: %s" % texture_path)
 	
-	# Prüfen ob Tower animiert ist
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
 	
@@ -118,7 +135,6 @@ func _update_visuals() -> void:
 		sprite.texture = load(texture_path)
 		
 		if is_animated:
-			# Animiertes Spritesheet (16x64, 4 Frames)
 			sprite.vframes = 4
 			sprite.hframes = 1
 			sprite.scale = Vector2(3, 3)
@@ -130,14 +146,12 @@ func _update_visuals() -> void:
 			timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % 4)
 			turret.add_child(timer)
 		else:
-			# Statisches Asset (64x64)
 			sprite.vframes = 1
 			sprite.hframes = 1
-			sprite.scale = Vector2(1, 1)  # Keine Skalierung nötig
+			sprite.scale = Vector2(3, 3)
 		
 		turret.add_child(sprite)
 	else:
-		# Fallback Polygon
 		var poly := Polygon2D.new()
 		poly.polygon = PackedVector2Array([
 			Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
@@ -147,13 +161,13 @@ func _update_visuals() -> void:
 		poly.color = color if color else Color.WHITE
 		turret.add_child(poly)
 	
-	# Range Circle
 	range_circle.clear_points()
 	for i in range(33):
 		var angle := i * TAU / 32
 		range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
 	
 	_update_level_indicator()
+
 
 func _update_level_indicator() -> void:
 	for child in level_indicator.get_children():
@@ -217,10 +231,22 @@ func _find_target() -> void:
 func _rotate_towards_target(delta: float) -> void:
 	var data := TowerData.get_tower_data(tower_type)
 	if data.get("animated", true) == false:
-		return  # Funktion hier beenden = KEINE Rotation!
+		return  # Keine Rotation für statische Tower
 	
 	var direction := target.position - position
-	var target_angle := direction.angle() + PI
+	
+	# Ziel links oder rechts vom Tower?
+	var is_facing_left := direction.x < 0
+	
+	# Sprite horizontal spiegeln wenn Ziel links ist
+	if sprite:
+		sprite.flip_h = is_facing_left
+	
+	# Rotation berechnen - X immer positiv behandeln
+	# Dadurch dreht sich der Turret max 90° nach oben/unten
+	var adjusted_direction := Vector2(abs(direction.x), direction.y)
+	var target_angle := adjusted_direction.angle() + TAU
+	
 	turret.rotation = lerp_angle(turret.rotation, target_angle, 10 * delta)
 
 
@@ -236,7 +262,7 @@ func _shoot() -> void:
 		"damage": damage,
 		"splash": splash_radius,
 		"type": tower_type,
-		"level": level,  # Level für Bullet-Sprite
+		"level": level,
 		"special": special_type,
 		"slow_amount": slow_amount,
 		"burn_damage": burn_damage,
@@ -277,3 +303,92 @@ func _get_muzzle_color() -> Color:
 		"lava": return Color(1.0, 0.3, 0.0)
 		"nature": return Color(0.3, 0.8, 0.2)
 		_: return Color.WHITE
+
+
+func select() -> void:
+	if selection_corners:
+		return  # Bereits ausgewählt
+	
+	if corner_textures.size() < 4:
+		return
+	
+	# Container für alle Ecken
+	selection_corners = Node2D.new()
+	selection_corners.name = "SelectionCorners"
+	add_child(selection_corners)
+	
+	var offset := 38.0  # Abstand vom Zentrum
+	var scale := Vector2(3, 3)  # Ecken skalieren
+	
+	# Top Left
+	var tl := Sprite2D.new()
+	tl.texture = corner_textures["top_left"]
+	tl.scale = scale
+	tl.position = Vector2(-offset, -offset)
+	selection_corners.add_child(tl)
+	
+	# Top Right
+	var tr := Sprite2D.new()
+	tr.texture = corner_textures["top_right"]
+	tr.scale = scale
+	tr.position = Vector2(offset, -offset)
+	selection_corners.add_child(tr)
+	
+	# Bottom Left
+	var bl := Sprite2D.new()
+	bl.texture = corner_textures["bottom_left"]
+	bl.scale = scale
+	bl.position = Vector2(-offset, offset)
+	selection_corners.add_child(bl)
+	
+	# Bottom Right
+	var br := Sprite2D.new()
+	br.texture = corner_textures["bottom_right"]
+	br.scale = scale
+	br.position = Vector2(offset, offset)
+	selection_corners.add_child(br)
+	
+	# Schwebende Animation starten
+	_start_float_animation()
+	
+	# Range Circle hervorheben
+	if range_circle:
+		range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
+
+
+func deselect() -> void:
+	# Corners entfernen
+	if selection_corners:
+		selection_corners.queue_free()
+		selection_corners = null
+	
+	# Animation stoppen
+	if selection_tween:
+		selection_tween.kill()
+		selection_tween = null
+	
+	# Range Circle zurücksetzen
+	if range_circle:
+		range_circle.default_color = Color(1, 1, 1, 0.15)
+
+
+func _start_float_animation() -> void:
+	if not selection_corners:
+		return
+	
+	# Vorherigen Tween stoppen falls vorhanden
+	if selection_tween:
+		selection_tween.kill()
+	
+	# Startposition
+	var base_y := 0.0
+	var float_amount := 4.0  # Pixel auf/ab
+	var float_duration := 0.8  # Sekunden pro Richtung
+	
+	selection_corners.position.y = base_y
+	
+	# Endlos-Animation: hoch -> runter -> hoch -> ...
+	selection_tween = create_tween()
+	selection_tween.set_loops()  # Endlosschleife
+	selection_tween.tween_property(selection_corners, "position:y", base_y - float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	selection_tween.tween_property(selection_corners, "position:y", base_y + float_amount, float_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
