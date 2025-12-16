@@ -14,7 +14,7 @@ var towers := {
 		"name": "Base",
 		"description": "Standard Turm",
 		"cost": 35,
-		"damage": [15, 25, 40],
+		"damage": [25, 45, 60],
 		"range": [150.0, 170.0, 190.0],
 		"fire_rate": [0.7, 0.6, 0.5],
 		"splash": [0.0, 0.0, 0.0],

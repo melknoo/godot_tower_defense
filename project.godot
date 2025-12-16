@@ -20,7 +20,8 @@ config/icon="res://icon.svg"
 GameState="*res://game_state.gd"
 TowerData="*res://data/tower_data.gd"
 UITheme="*res://ui_theme.gd"
-VFX="*res://vfx_manager.gd"
+VFX="*res://autoload/vfx_manager.gd"
+Sound="*res://autoload/sound_manager.gd"
 
 [display]
 

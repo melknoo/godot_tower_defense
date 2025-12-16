@@ -43,7 +43,7 @@ func _ready() -> void:
 	_load_corner_textures()
 	_create_visuals()
 	_update_visuals()
-	
+	Sound.play_place()
 	# Platzierungs-Effekt
 	if VFX:
 		VFX.spawn_place_effect(position, tower_type)

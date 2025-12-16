@@ -143,6 +143,8 @@ func _on_element_unlocked(_element: String) -> void:
 
 
 func show_panel() -> void:
+	Sound.play_click()
+
 	_update_cores_display()
 	_create_element_buttons()
 	visible = true
@@ -302,6 +304,7 @@ func _show_unlock_effect(element: String) -> void:
 
 
 func _on_close_pressed() -> void:
+	Sound.play_click()
 	hide_panel()
 
 

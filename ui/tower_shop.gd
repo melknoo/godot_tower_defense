@@ -10,7 +10,6 @@ var selected_type := ""
 var tower_buttons: Dictionary = {}
 var button_container: HBoxContainer
 
-# Corner Textures
 var corner_textures: Dictionary = {}
 
 
@@ -19,7 +18,7 @@ func _ready() -> void:
 	
 	button_container = HBoxContainer.new()
 	button_container.name = "ButtonContainer"
-	button_container.add_theme_constant_override("separation", 32)  # Abstand zwischen Buttons
+	button_container.add_theme_constant_override("separation", 32)
 	add_child(button_container)
 	
 	_create_tower_buttons()
@@ -35,8 +34,6 @@ func _load_corner_textures() -> void:
 		var path := base_path + "selection_%s_corner.png" % corner
 		if ResourceLoader.exists(path):
 			corner_textures[corner] = load(path)
-	
-	print("[TowerShop] %d Corner-Textures geladen" % corner_textures.size())
 
 
 func _create_tower_buttons() -> void:
@@ -57,12 +54,10 @@ func _on_element_unlocked(_element: String) -> void:
 
 
 func _create_button(type: String) -> Control:
-	# Container für Button + Ecken
 	var container := Control.new()
 	container.name = type.capitalize() + "Container"
 	container.custom_minimum_size = Vector2(100, 75)
 	
-	# Der eigentliche Button
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(100, 75)
 	btn.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -76,7 +71,6 @@ func _create_button(type: String) -> Control:
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(hbox)
 	
-	# Tower-Sprite
 	var tex_rect := TextureRect.new()
 	tex_rect.custom_minimum_size = Vector2(44, 44)
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -89,24 +83,20 @@ func _create_button(type: String) -> Control:
 		var is_animated: bool = data.get("animated", true)
 		
 		if is_animated:
-			# Animiertes Asset - zeige nur ersten Frame (16x16)
 			var atlas := AtlasTexture.new()
 			atlas.atlas = full_tex
 			atlas.region = Rect2(0, 0, 16, 16)
 			tex_rect.texture = atlas
 		else:
-			# Statisches Asset (16x16) - zeige das ganze Bild
 			tex_rect.texture = full_tex
 	
 	hbox.add_child(tex_rect)
 	
-	# Info Container
 	var info_vbox := VBoxContainer.new()
 	info_vbox.add_theme_constant_override("separation", 2)
 	info_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hbox.add_child(info_vbox)
 	
-	# Name Label
 	var data := TowerData.get_tower_data(type)
 	var display_name: String = data.get("name", type.capitalize())
 	var name_label := Label.new()
@@ -117,7 +107,6 @@ func _create_button(type: String) -> Control:
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info_vbox.add_child(name_label)
 	
-	# Kosten-Label
 	var cost: int = TowerData.get_stat(type, "cost")
 	var cost_label := Label.new()
 	cost_label.name = "CostLabel"
@@ -127,7 +116,6 @@ func _create_button(type: String) -> Control:
 	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info_vbox.add_child(cost_label)
 	
-	# Kombinations-Indikator
 	if TowerData.is_combination(type):
 		var combo_label := Label.new()
 		combo_label.name = "ComboLabel"
@@ -137,10 +125,7 @@ func _create_button(type: String) -> Control:
 		combo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		info_vbox.add_child(combo_label)
 	
-	# Ecken hinzufügen (initial unsichtbar)
 	_add_corners(container)
-	
-	# Button transparent stylen
 	_apply_button_style(btn)
 	btn.pressed.connect(_on_tower_button_pressed.bind(type))
 	
@@ -160,11 +145,10 @@ func _add_corners(container: Control) -> void:
 	container.add_child(corners_node)
 	
 	var size := container.custom_minimum_size
-	var scale := Vector2(2.5, 2.5)  # Größer skalieren
-	var offset_x := -8.0  # Horizontaler Abstand (negativ = weiter außen)
-	var offset_y := -12.0  # Vertikaler Abstand (negativ = weiter außen, mehr nach oben/unten)
+	var scale := Vector2(2.5, 2.5)
+	var offset_x := -8.0
+	var offset_y := -12.0
 	
-	# Top Left
 	var tl := Sprite2D.new()
 	tl.texture = corner_textures["top_left"]
 	tl.scale = scale
@@ -172,7 +156,6 @@ func _add_corners(container: Control) -> void:
 	tl.centered = false
 	corners_node.add_child(tl)
 	
-	# Top Right
 	var tr := Sprite2D.new()
 	tr.texture = corner_textures["top_right"]
 	tr.scale = scale
@@ -181,7 +164,6 @@ func _add_corners(container: Control) -> void:
 	tr.centered = false
 	corners_node.add_child(tr)
 	
-	# Bottom Left
 	var bl := Sprite2D.new()
 	bl.texture = corner_textures["bottom_left"]
 	bl.scale = scale
@@ -190,7 +172,6 @@ func _add_corners(container: Control) -> void:
 	bl.centered = false
 	corners_node.add_child(bl)
 	
-	# Bottom Right
 	var br := Sprite2D.new()
 	br.texture = corner_textures["bottom_right"]
 	br.scale = scale
@@ -202,7 +183,6 @@ func _add_corners(container: Control) -> void:
 
 
 func _apply_button_style(btn: Button) -> void:
-	# Komplett transparenter Style
 	var style := StyleBoxEmpty.new()
 	btn.add_theme_stylebox_override("normal", style)
 	btn.add_theme_stylebox_override("hover", style)
@@ -211,6 +191,9 @@ func _apply_button_style(btn: Button) -> void:
 
 
 func _on_tower_button_pressed(type: String) -> void:
+	# Click Sound
+	Sound.play_click()
+	
 	if selected_type == type:
 		deselect()
 	else:
@@ -218,6 +201,7 @@ func _on_tower_button_pressed(type: String) -> void:
 
 
 func select(type: String) -> void:
+	Sound.play_click()
 	selected_type = type
 	_update_corner_visibility()
 	tower_selected.emit(type)

@@ -122,7 +122,7 @@ func _input(event: InputEvent) -> void:
 		_deselect_all()
 		return
 	
-	if event is InputEventMouseButton:
+	if event is InputEventMouseButton: 
 		_handle_mouse_click(event)
 	elif event is InputEventMouseMotion:
 		_update_hover_preview(event.position)
@@ -258,6 +258,7 @@ func _update_hover_appearance(tower_type: String) -> void:
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
 
 func _on_start_wave_pressed() -> void:
+	Sound.play_click()
 	GameState.start_wave()
 
 func _on_wave_started(wave: int) -> void:

@@ -245,6 +245,10 @@ func select_tower(grid_pos: Vector2i) -> void:
 	if not placed_towers.has(grid_pos):
 		return
 	
+	# Click Sound
+	Sound.play_click()
+
+	
 	deselect_tower()
 	
 	selected_grid_pos = grid_pos

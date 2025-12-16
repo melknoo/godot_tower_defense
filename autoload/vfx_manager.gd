@@ -1,11 +1,6 @@
 # vfx_manager.gd
-# Autoload für Pixel-Art-freundliche Effekte
+# Autoload für Pixel-Art-freundliche visuelle Effekte
 extends Node
-
-# Sound Effects
-var coin_sound: AudioStreamPlayer
-var click_sound: AudioStreamPlayer
-var place_sound: AudioStreamPlayer
 
 # Farb-Paletten für konsistenten Pixel-Look
 const PALETTES := {
@@ -25,52 +20,7 @@ const PALETTES := {
 
 
 func _ready() -> void:
-	_setup_sounds()
 	print("[VFX] Manager geladen")
-
-
-func _setup_sounds() -> void:
-	# Coin Sound
-	coin_sound = AudioStreamPlayer.new()
-	coin_sound.name = "CoinSound"
-	if ResourceLoader.exists("res://assets/sounds/coin_sound.wav"):
-		coin_sound.stream = load("res://assets/sounds/coin_sound.wav")
-	coin_sound.volume_db = -5.0
-	add_child(coin_sound)
-	
-	# Click Sound
-	click_sound = AudioStreamPlayer.new()
-	click_sound.name = "ClickSound"
-	if ResourceLoader.exists("res://assets/sounds/click.wav"):
-		click_sound.stream = load("res://assets/sounds/click.wav")
-	click_sound.volume_db = -5.0
-	add_child(click_sound)
-	
-	# Place Sound
-	place_sound = AudioStreamPlayer.new()
-	place_sound.name = "PlaceSound"
-	if ResourceLoader.exists("res://assets/sounds/tower_place.wav"):
-		place_sound.stream = load("res://assets/sounds/tower_place.wav")
-	place_sound.volume_db = -3.0
-	add_child(place_sound)
-
-
-func play_click_sound() -> void:
-	if click_sound and click_sound.stream:
-		click_sound.pitch_scale = randf_range(0.95, 1.05)
-		click_sound.play()
-
-
-func play_coin_sound() -> void:
-	if coin_sound and coin_sound.stream:
-		coin_sound.pitch_scale = randf_range(0.95, 1.05)
-		coin_sound.play()
-
-
-func play_place_sound() -> void:
-	if place_sound and place_sound.stream:
-		place_sound.pitch_scale = randf_range(0.95, 1.05)
-		place_sound.play()
 
 
 # === PIXEL PARTICLES ===
@@ -150,7 +100,6 @@ func spawn_muzzle_flash(pos: Vector2, direction: Vector2, element: String) -> vo
 	
 	var colors: Array = PALETTES.get(element, PALETTES["fire"])
 	
-	# Zentraler Flash
 	var flash := _create_pixel(colors[2], 6)
 	flash.position = pos
 	parent.add_child(flash)
@@ -160,7 +109,6 @@ func spawn_muzzle_flash(pos: Vector2, direction: Vector2, element: String) -> vo
 	tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.1)
 	tween.tween_callback(flash.queue_free)
 	
-	# Funken in Schussrichtung
 	for i in range(4):
 		var spark := _create_pixel(colors[randi() % colors.size()], 2)
 		spark.position = pos
@@ -189,7 +137,6 @@ func spawn_hit_effect(pos: Vector2, element: String, is_crit: bool = false) -> v
 	else:
 		spawn_pixels(pos, element, 6, 20.0)
 	
-	# Hit-Flash (weißer Blitz)
 	var flash := _create_pixel(Color.WHITE, 8)
 	flash.position = pos
 	flash.modulate.a = 0.9
@@ -208,9 +155,7 @@ func spawn_death_effect(pos: Vector2, enemy_type: String = "normal") -> void:
 	
 	var color := _get_enemy_color(enemy_type)
 	var count := 12 if enemy_type == "boss" else 8
-	var spread := 50.0 if enemy_type == "boss" else 30.0
 	
-	# Pixel-Explosion
 	for i in range(count):
 		var pixel := _create_pixel(color.lerp(Color.WHITE, randf() * 0.3), randi_range(3, 6))
 		pixel.position = pos
@@ -222,7 +167,6 @@ func spawn_death_effect(pos: Vector2, enemy_type: String = "normal") -> void:
 		
 		_animate_pixel_physics(pixel, angle, speed, gravity)
 	
-	# Seelen-Partikel (steigen auf)
 	for i in range(4):
 		var soul := _create_pixel(Color(1, 1, 1, 0.6), 3)
 		soul.position = pos + Vector2(randf_range(-10, 10), 0)
@@ -244,16 +188,9 @@ func spawn_place_effect(pos: Vector2, element: String) -> void:
 	if not parent:
 		return
 	
-	# Sound abspielen
-	play_place_sound()
-	
-	# Staub-Ring vom Boden
 	spawn_pixel_ring(pos + Vector2(0, 20), "earth", 35.0)
-	
-	# Element-Partikel
 	spawn_pixels(pos, element, 10, 40.0)
 	
-	# Aufsteigender Shimmer
 	var colors: Array = PALETTES.get(element, PALETTES["gold"])
 	for i in range(6):
 		var shimmer := _create_pixel(colors[2], 2)
@@ -275,12 +212,10 @@ func spawn_upgrade_effect(pos: Vector2, element: String, new_level: int) -> void
 	if not parent:
 		return
 	
-	# Mehrere Ringe basierend auf Level
 	for i in range(new_level + 1):
 		await parent.get_tree().create_timer(0.1 * i).timeout
 		spawn_pixel_ring(pos, element, 30.0 + i * 15.0)
 	
-	# Sterne aufsteigen
 	spawn_pixel_burst(pos, "gold", 8)
 
 
@@ -301,14 +236,12 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 	label.position = pos + Vector2(randf_range(-12, 12), -25)
 	label.z_index = 100
 	
-	# Custom Font
 	if UITheme and UITheme.game_font:
 		label.add_theme_font_override("font", UITheme.game_font)
 	
 	var size := 18 if is_crit else 13
 	label.add_theme_font_size_override("font_size", size)
 	
-	# Farbe basierend auf Element oder Crit
 	var color := Color(1.0, 1.0, 1.0)
 	if is_crit:
 		color = Color(1.0, 0.9, 0.2)
@@ -321,7 +254,6 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 	
 	parent.add_child(label)
 	
-	# Animation
 	var start_y := label.position.y
 	var peak_y := start_y - (35 if is_crit else 22)
 	
@@ -332,7 +264,6 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 	tween.tween_callback(label.queue_free)
 	
 	if is_crit:
-		# Scale-Punch für Crits
 		label.pivot_offset = Vector2(15, 10)
 		label.scale = Vector2(1.6, 1.6)
 		var scale_tween := label.create_tween()
@@ -344,15 +275,11 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 	if not parent:
 		return
 	
-	# Sound abspielen
-	play_coin_sound()
-	
 	var label := Label.new()
 	label.text = "+%d" % amount
 	label.position = pos + Vector2(-15, -30)
 	label.z_index = 100
 	
-	# Custom Font wenn verfügbar
 	if UITheme and UITheme.game_font:
 		label.add_theme_font_override("font", UITheme.game_font)
 	
@@ -363,7 +290,6 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 	
 	parent.add_child(label)
 	
-	# Animation: Hochspringen mit Bounce
 	var start_y := label.position.y
 	var peak_y := start_y - 35
 	
@@ -373,7 +299,6 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.3).set_delay(0.5)
 	tween.tween_callback(label.queue_free)
 	
-	# Scale-Punch
 	label.pivot_offset = Vector2(20, 10)
 	label.scale = Vector2(1.3, 1.3)
 	var scale_tween := label.create_tween()
@@ -498,6 +423,7 @@ func _get_vfx_parent() -> Node:
 			return vfx_layer
 		return main
 	return null
+
 
 func _get_camera() -> Camera2D:
 	var viewport := get_viewport()

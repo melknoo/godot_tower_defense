@@ -216,7 +216,8 @@ func take_damage(amount: int, trigger_effects: bool = true, element: String = ""
 
 
 func damage_threshold_for_crit() -> int:
-	return max_health / 4
+	# Crit nur bei wirklich hohem Schaden (>40% der max HP in einem Hit)
+	return int(max_health * 0.5)
 
 
 func _do_hit_flash() -> void:
@@ -227,7 +228,7 @@ func _do_hit_flash() -> void:
 
 func _die() -> void:
 	GameState.enemy_died(reward)
-	
+	Sound.play_coin()
 	# VFX
 	if VFX:
 		VFX.spawn_death_effect(position, enemy_type)
