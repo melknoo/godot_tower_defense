@@ -153,7 +153,7 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 	
 	tower_upgraded.emit(tower, new_level)
 	print("[TowerManager] %s upgraded zu Level %d" % [tower.tower_type, new_level])
-	
+	Sound.play_upgrade();
 	return true
 
 

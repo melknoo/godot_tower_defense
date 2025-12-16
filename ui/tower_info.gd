@@ -139,6 +139,9 @@ func _update_display() -> void:
 	stats_label.text = "Schaden: %d\nReichweite: %d\nFeuerrate: %.1f/s" % [
 		damage_val, int(range_val), 1.0 / fire_rate_val
 	]
+	tower_name_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
+	tower_level_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
+	stats_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	
 	# Upgrade Button
 	_update_upgrade_button(tower_type, level)

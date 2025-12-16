@@ -258,7 +258,7 @@ func _update_hover_appearance(tower_type: String) -> void:
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
 
 func _on_start_wave_pressed() -> void:
-	Sound.play_click()
+	Sound.play_wave_start()
 	GameState.start_wave()
 
 func _on_wave_started(wave: int) -> void:

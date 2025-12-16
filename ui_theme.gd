@@ -84,4 +84,5 @@ func style_panel(panel: PanelContainer, panel_type: String = "panel_light") -> v
 
 func style_label(label: Label, size: int = 14) -> void:
 	label.add_theme_font_override("font", game_font)
+	label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	label.add_theme_font_size_override("font_size", size)
