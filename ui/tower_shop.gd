@@ -1,5 +1,5 @@
 # ui/tower_shop.gd
-# Tower-Auswahl mit Scroll-Funktionalität
+# Tower-Auswahl mit Scroll-Funktionalität (einzeilig)
 extends Container
 class_name TowerShop
 
@@ -8,23 +8,20 @@ signal tower_deselected
 
 var selected_type := ""
 var tower_buttons: Dictionary = {}
-var grid_container: GridContainer
+var grid_container: HBoxContainer
 var scroll_left_btn: Button
 var scroll_right_btn: Button
 var clip_container: Control
 
 var corner_textures: Dictionary = {}
 
-const COLUMNS := 5  # Sichtbare Spalten
-const ROWS := 2  # Maximal 2 Zeilen
-const VISIBLE_TOWERS := COLUMNS * ROWS  # 10 Tower sichtbar
+const VISIBLE_TOWERS := 6  # Sichtbare Tower in einer Zeile
 const BUTTON_WIDTH := 95
-const BUTTON_HEIGHT := 65
-const H_SPACING := 12  # Etwas mehr Spacing für Selection-Ecken
-const V_SPACING := 10
-const PADDING := 14  # Mehr Padding für Selection-Ecken
+const BUTTON_HEIGHT := 85  # Passend für 105px Shop-Höhe
+const H_SPACING := 12
+const PADDING := 8
 
-var scroll_offset := 0  # Aktueller Scroll-Index (in Spalten)
+var scroll_offset := 0
 var max_scroll := 0
 
 
@@ -35,32 +32,29 @@ func _ready() -> void:
 	_create_tower_buttons()
 	
 	call_deferred("_position_at_bottom_center")
-	call_deferred("_move_to_front")  # Nach vorne bringen
+	call_deferred("_move_to_front")
 	
 	GameState.gold_changed.connect(_on_gold_changed)
 	TowerData.element_unlocked.connect(_on_element_unlocked)
 
 
 func _move_to_front() -> void:
-	# TowerShop an das Ende der Child-Liste verschieben (wird zuletzt gerendert = oben)
 	var parent := get_parent()
 	if parent:
 		parent.move_child(self, -1)
 
 
 func _setup_frame() -> void:
-	var content_width := COLUMNS * (BUTTON_WIDTH + H_SPACING) + 60 + (PADDING * 2)  # +60 für Scroll-Buttons
-	var content_height := ROWS * (BUTTON_HEIGHT + V_SPACING) + (PADDING * 2)
+	var content_width := VISIBLE_TOWERS * (BUTTON_WIDTH + H_SPACING) + 80 + (PADDING * 2)
+	var content_height := 105  # Feste Höhe wie HUD
 	custom_minimum_size = Vector2(content_width, content_height)
 	
-	# Mouse-Events stoppen, damit sie nicht zum Spielfeld durchgehen
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	
-	# Hintergrund-Panel
 	var style_panel := Panel.new()
 	style_panel.name = "FramePanel"
 	style_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	style_panel.mouse_filter = Control.MOUSE_FILTER_STOP  # Auch hier stoppen
+	style_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.15, 0.15, 0.18, 0.95)
@@ -76,7 +70,6 @@ func _setup_frame() -> void:
 	style_panel.add_theme_stylebox_override("panel", style)
 	add_child(style_panel)
 	
-	# Margin Container für Padding
 	var margin := MarginContainer.new()
 	margin.name = "PaddingMargin"
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -86,45 +79,61 @@ func _setup_frame() -> void:
 	margin.add_theme_constant_override("margin_bottom", PADDING)
 	add_child(margin)
 	
-	# HBox für Layout: [Left Arrow] [Content] [Right Arrow]
 	var hbox := HBoxContainer.new()
 	hbox.name = "MainHBox"
-	hbox.add_theme_constant_override("separation", 5)
+	hbox.add_theme_constant_override("separation", 8)
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	margin.add_child(hbox)
 	
 	# Linker Scroll-Button
 	scroll_left_btn = Button.new()
 	scroll_left_btn.name = "ScrollLeftBtn"
-	scroll_left_btn.custom_minimum_size = Vector2(24, 0)
+	scroll_left_btn.custom_minimum_size = Vector2(32, 50)
 	scroll_left_btn.flat = true
 	scroll_left_btn.visible = false
+	scroll_left_btn.focus_mode = Control.FOCUS_NONE
 	scroll_left_btn.pressed.connect(_on_scroll_left)
+	scroll_left_btn.button_down.connect(_on_left_btn_down)
+	scroll_left_btn.button_up.connect(_on_left_btn_up)
+	_style_arrow_button(scroll_left_btn)
 	hbox.add_child(scroll_left_btn)
 	
-	# Clip-Container für das Grid (versteckt overflow)
+	# Clip-Container für das Grid
 	clip_container = Control.new()
 	clip_container.name = "ClipContainer"
 	clip_container.clip_contents = true
-	clip_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	clip_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	clip_container.custom_minimum_size = Vector2(VISIBLE_TOWERS * (BUTTON_WIDTH + H_SPACING), 85)
+	clip_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	clip_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hbox.add_child(clip_container)
 	
-	# Grid Container
-	grid_container = GridContainer.new()
+	# HBox Container für Tower (einzeilig)
+	grid_container = HBoxContainer.new()
 	grid_container.name = "GridContainer"
-	grid_container.columns = 100  # Sehr hoch, damit alles in einer "Zeile" von Spalten ist
-	grid_container.add_theme_constant_override("h_separation", H_SPACING)
-	grid_container.add_theme_constant_override("v_separation", V_SPACING)
+	grid_container.add_theme_constant_override("separation", H_SPACING)
 	clip_container.add_child(grid_container)
 	
 	# Rechter Scroll-Button
 	scroll_right_btn = Button.new()
 	scroll_right_btn.name = "ScrollRightBtn"
-	scroll_right_btn.custom_minimum_size = Vector2(24, 0)
+	scroll_right_btn.custom_minimum_size = Vector2(32, 50)
 	scroll_right_btn.flat = true
 	scroll_right_btn.visible = false
+	scroll_right_btn.focus_mode = Control.FOCUS_NONE
 	scroll_right_btn.pressed.connect(_on_scroll_right)
+	scroll_right_btn.button_down.connect(_on_right_btn_down)
+	scroll_right_btn.button_up.connect(_on_right_btn_up)
+	_style_arrow_button(scroll_right_btn)
 	hbox.add_child(scroll_right_btn)
+
+
+func _style_arrow_button(btn: Button) -> void:
+	var empty := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", empty)
+	btn.add_theme_stylebox_override("hover", empty)
+	btn.add_theme_stylebox_override("pressed", empty)
+	btn.add_theme_stylebox_override("focus", empty)
+	btn.add_theme_stylebox_override("disabled", empty)
 
 
 var arrow_left_idle: Texture2D
@@ -141,11 +150,9 @@ func _load_arrow_textures() -> void:
 	if ResourceLoader.exists(base_path + "arrow_button_right_pressed.png"):
 		arrow_right_pressed = load(base_path + "arrow_button_right_pressed.png")
 	
-	# Linke Pfeile (separate Assets oder gespiegelte Texturen)
 	if ResourceLoader.exists(base_path + "arrow_button_left_idle.png"):
 		arrow_left_idle = load(base_path + "arrow_button_left_idle.png")
 	elif arrow_right_idle:
-		# Gespiegelte Version erstellen
 		var img := arrow_right_idle.get_image()
 		img.flip_x()
 		arrow_left_idle = ImageTexture.create_from_image(img)
@@ -157,11 +164,30 @@ func _load_arrow_textures() -> void:
 		img.flip_x()
 		arrow_left_pressed = ImageTexture.create_from_image(img)
 	
-	# Texturen zu Buttons zuweisen
 	if arrow_right_idle:
 		scroll_right_btn.icon = arrow_right_idle
 	if arrow_left_idle:
 		scroll_left_btn.icon = arrow_left_idle
+
+
+func _on_left_btn_down() -> void:
+	if arrow_left_pressed:
+		scroll_left_btn.icon = arrow_left_pressed
+
+
+func _on_left_btn_up() -> void:
+	if arrow_left_idle:
+		scroll_left_btn.icon = arrow_left_idle
+
+
+func _on_right_btn_down() -> void:
+	if arrow_right_pressed:
+		scroll_right_btn.icon = arrow_right_pressed
+
+
+func _on_right_btn_up() -> void:
+	if arrow_right_idle:
+		scroll_right_btn.icon = arrow_right_idle
 
 
 func _load_corner_textures() -> void:
@@ -179,62 +205,29 @@ func _position_at_bottom_center() -> void:
 	var shop_width := size.x if size.x > 0 else custom_minimum_size.x
 	var shop_height := size.y if size.y > 0 else custom_minimum_size.y
 	
-	# Horizontal zentriert
 	position.x = (viewport_size.x - shop_width) / 2
-	# Vertikal: Im HUD-Bereich (HUD ist 200px hoch, Shop 10px vom oberen HUD-Rand)
-	position.y = viewport_size.y - 200 + 10
+	position.y = viewport_size.y - shop_height - 5
 
 
 func _create_tower_buttons() -> void:
-	# Alte Corner-Nodes entfernen
-	for child in get_children():
-		if child.name.begins_with("Corners_"):
-			child.queue_free()
-	
 	for child in grid_container.get_children():
 		child.queue_free()
 	tower_buttons.clear()
 	
 	var available_types := TowerData.get_available_tower_types()
 	
-	# Grid mit 2 Zeilen erstellen
-	var tower_columns: Array[Array] = []
-	var col_count := ceili(float(available_types.size()) / ROWS)
-	
-	for i in range(col_count):
-		tower_columns.append([])
-	
-	for i in range(available_types.size()):
-		var col := i / ROWS
-		tower_columns[col].append(available_types[i])
-	
-	# Grid-Columns auf Anzahl der Spalten setzen
-	grid_container.columns = col_count
-	
-	# Erst alle Zeile-1-Tower, dann alle Zeile-2-Tower
-	for row in range(ROWS):
-		for col in range(col_count):
-			if row < tower_columns[col].size():
-				var type: String = tower_columns[col][row]
-				var btn := _create_button(type)
-				grid_container.add_child(btn)
-				tower_buttons[type] = btn
-			else:
-				# Leerer Platzhalter
-				var spacer := Control.new()
-				spacer.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
-				grid_container.add_child(spacer)
+	for type in available_types:
+		var btn := _create_button(type)
+		grid_container.add_child(btn)
+		tower_buttons[type] = btn
 	
 	_update_scroll(available_types.size())
 
 
 func _update_scroll(tower_count: int) -> void:
-	var total_columns := ceili(float(tower_count) / ROWS)
-	max_scroll = maxi(0, total_columns - COLUMNS)
-	
+	max_scroll = maxi(0, tower_count - VISIBLE_TOWERS)
 	scroll_offset = mini(scroll_offset, max_scroll)
 	
-	# Scroll-Buttons anzeigen/verstecken
 	scroll_left_btn.visible = max_scroll > 0
 	scroll_right_btn.visible = max_scroll > 0
 	
@@ -245,7 +238,6 @@ func _apply_scroll() -> void:
 	var offset_x := -scroll_offset * (BUTTON_WIDTH + H_SPACING)
 	grid_container.position.x = offset_x
 	
-	# Button-States aktualisieren
 	scroll_left_btn.disabled = scroll_offset <= 0
 	scroll_right_btn.disabled = scroll_offset >= max_scroll
 	
@@ -363,22 +355,18 @@ func _add_corners(container: Control) -> void:
 	if corner_textures.size() < 4:
 		return
 	
-	# Corners werden zum TowerShop selbst hinzugefügt, nicht zum Button
-	# So werden sie nicht vom clip_container abgeschnitten
+	# Corners werden direkt zum Container hinzugefügt
 	var corners_node := Node2D.new()
-	corners_node.name = "Corners_" + container.name
+	corners_node.name = "CornersNode"
 	corners_node.visible = false
-	corners_node.z_index = 100  # Über allem anderen
+	corners_node.z_index = 100
 	
-	# Speichere Referenz im Container für späteres Zugreifen
 	container.set_meta("corners_node", corners_node)
-	
-	# Zum TowerShop root hinzufügen (nicht zum container!)
-	add_child(corners_node)
+	container.add_child(corners_node)
 	
 	var btn_size := container.custom_minimum_size
 	var scl := Vector2(2.5, 2.5)
-	var offset := 6.0  # Ecken leicht außerhalb
+	var offset := 6.0
 	
 	var tl := Sprite2D.new()
 	tl.texture = corner_textures["top_left"]
@@ -448,9 +436,6 @@ func _update_corner_visibility() -> void:
 		var corners_node: Node2D = container.get_meta("corners_node", null)
 		if corners_node:
 			corners_node.visible = (type == selected_type)
-			if corners_node.visible:
-				# Position der Ecken auf die globale Position des Containers setzen
-				corners_node.global_position = container.global_position
 
 
 func _on_gold_changed(_amount: int) -> void:

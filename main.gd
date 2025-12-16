@@ -3,7 +3,7 @@ extends Node2D
 
 const GRID_SIZE := 64
 const MAP_WIDTH := 30
-const MAP_HEIGHT := 14  # Reduziert von 15 auf 12 für Platz für HUD
+const MAP_HEIGHT := 15  # Vergrößert da Shop jetzt einzeilig ist
 
 @onready var ground_layer: GroundLayer = $GroundLayer
 @onready var wave_manager: WaveManager = $WaveManager
@@ -28,23 +28,14 @@ var path_points: Array[Vector2] = [
 ]
 
 var path_cells: Array[Vector2i] = [
-	# Start links
 	Vector2i(0, 5), Vector2i(1, 5), Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5),
-	# Hoch
 	Vector2i(4, 4), Vector2i(4, 3), Vector2i(4, 2),
-	# Rechts
 	Vector2i(5, 2), Vector2i(6, 2), Vector2i(7, 2), Vector2i(8, 2), Vector2i(9, 2), Vector2i(10, 2),
-	# Runter
 	Vector2i(10, 3), Vector2i(10, 4), Vector2i(10, 5), Vector2i(10, 6), Vector2i(10, 7), Vector2i(10, 8),
-	# Rechts
 	Vector2i(11, 8), Vector2i(12, 8), Vector2i(13, 8), Vector2i(14, 8), Vector2i(15, 8),
-	# Hoch
 	Vector2i(15, 7), Vector2i(15, 6), Vector2i(15, 5), Vector2i(15, 4),
-	# Rechts
 	Vector2i(16, 4), Vector2i(17, 4), Vector2i(18, 4), Vector2i(19, 4), Vector2i(20, 4),
-	# Runter
 	Vector2i(20, 5), Vector2i(20, 6), Vector2i(20, 7), Vector2i(20, 8), Vector2i(20, 9), Vector2i(20, 10),
-	# Rechts zum Ziel
 	Vector2i(21, 10), Vector2i(22, 10), Vector2i(23, 10), Vector2i(24, 10), Vector2i(25, 10),
 	Vector2i(26, 10), Vector2i(27, 10), Vector2i(28, 10), Vector2i(29, 10)
 ]
@@ -139,10 +130,9 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 		if _is_over_ui(event.position):
 			return
 		
-		# Prüfen ob Klick im Spielfeld-Bereich ist
 		var game_area_height := MAP_HEIGHT * GRID_SIZE
 		if event.position.y > game_area_height:
-			return  # Klick ist unterhalb des Spielfelds (im HUD-Bereich)
+			return
 		
 		var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
 		var tower := tower_manager.get_tower_at(grid_pos)
@@ -175,9 +165,8 @@ func _is_over_ui(pos: Vector2) -> bool:
 		return true
 	if element_unlock_ui and element_unlock_ui.visible:
 		return true
-	# Prüfen ob über dem HUD-Bereich (untere 200px)
 	var viewport_size := get_viewport_rect().size
-	if pos.y > viewport_size.y - 200:
+	if pos.y > viewport_size.y - 105:  # Passend zur HUD-Höhe
 		return true
 	return false
 
@@ -207,7 +196,6 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_preview.visible = false
 		return
 	
-	# Nicht anzeigen wenn außerhalb des Spielfelds
 	var game_area_height := MAP_HEIGHT * GRID_SIZE
 	if mouse_pos.y > game_area_height:
 		hover_preview.visible = false

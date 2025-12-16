@@ -29,8 +29,6 @@ theme = ExtResource("2_272bh")
 script = ExtResource("4_272bh")
 
 [node name="TowerShop" type="PanelContainer" parent="UI"]
-offset_right = 388.0
-offset_bottom = 166.0
 theme = ExtResource("2_272bh")
 script = ExtResource("2_1bvp3")
 
