@@ -11,6 +11,10 @@ var element_levels: Dictionary = {}
 # Basis-Elemente die freigeschaltet werden können
 const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
 
+# === TEST: Dummy Tower für Scroll-Test ===
+# Setze auf true um extra Test-Tower anzuzeigen
+const DEBUG_EXTRA_TOWERS := true
+
 var towers := {
 	"archer": {
 		"name": "Base",
@@ -262,6 +266,11 @@ func get_available_tower_types() -> Array[String]:
 		if is_tower_available(combo_name):
 			available.append(combo_name)
 	
+	# === DEBUG: Extra Dummy-Tower für Scroll-Test ===
+	if DEBUG_EXTRA_TOWERS:
+		for i in range(18):
+			available.append("dummy_%d" % i)
+	
 	return available
 
 
@@ -333,6 +342,23 @@ func get_tower_data(tower_type: String) -> Dictionary:
 		return towers[tower_type]
 	if combinations.has(tower_type):
 		return combinations[tower_type]
+	
+	# === DEBUG: Dummy Tower Data ===
+	if tower_type.begins_with("dummy_"):
+		return {
+			"name": "Test %s" % tower_type.substr(6),
+			"description": "Test Tower",
+			"cost": 99,
+			"damage": [10, 20, 30],
+			"range": [100.0, 120.0, 140.0],
+			"fire_rate": [1.0, 0.9, 0.8],
+			"splash": [0.0, 0.0, 0.0],
+			"color": Color(0.5, 0.5, 0.5),
+			"upgrade_costs": [50, 100],
+			"special": "",
+			"animated": false
+		}
+	
 	return {}
 
 

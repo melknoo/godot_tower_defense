@@ -3,7 +3,7 @@ extends Node2D
 
 const GRID_SIZE := 64
 const MAP_WIDTH := 30
-const MAP_HEIGHT := 15
+const MAP_HEIGHT := 14  # Reduziert von 15 auf 12 für Platz für HUD
 
 @onready var ground_layer: GroundLayer = $GroundLayer
 @onready var wave_manager: WaveManager = $WaveManager
@@ -15,38 +15,38 @@ const MAP_HEIGHT := 15
 var element_unlock_ui: ElementUnlockUI
 
 var path_points: Array[Vector2] = [
-	Vector2(0, 7) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(4, 7) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(4, 3) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(10, 3) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(10, 10) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(15, 10) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(15, 5) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(20, 5) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(20, 12) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(30, 12) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(0, 5) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(4, 5) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(4, 2) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(10, 2) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(10, 8) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(15, 8) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(15, 4) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(20, 4) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(20, 10) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
+	Vector2(30, 10) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
 ]
 
 var path_cells: Array[Vector2i] = [
 	# Start links
-	Vector2i(0, 7), Vector2i(1, 7), Vector2i(2, 7), Vector2i(3, 7), Vector2i(4, 7),
+	Vector2i(0, 5), Vector2i(1, 5), Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5),
 	# Hoch
-	Vector2i(4, 6), Vector2i(4, 5), Vector2i(4, 4), Vector2i(4, 3),
+	Vector2i(4, 4), Vector2i(4, 3), Vector2i(4, 2),
 	# Rechts
-	Vector2i(5, 3), Vector2i(6, 3), Vector2i(7, 3), Vector2i(8, 3), Vector2i(9, 3), Vector2i(10, 3),
+	Vector2i(5, 2), Vector2i(6, 2), Vector2i(7, 2), Vector2i(8, 2), Vector2i(9, 2), Vector2i(10, 2),
 	# Runter
-	Vector2i(10, 4), Vector2i(10, 5), Vector2i(10, 6), Vector2i(10, 7), Vector2i(10, 8), Vector2i(10, 9), Vector2i(10, 10),
+	Vector2i(10, 3), Vector2i(10, 4), Vector2i(10, 5), Vector2i(10, 6), Vector2i(10, 7), Vector2i(10, 8),
 	# Rechts
-	Vector2i(11, 10), Vector2i(12, 10), Vector2i(13, 10), Vector2i(14, 10), Vector2i(15, 10),
+	Vector2i(11, 8), Vector2i(12, 8), Vector2i(13, 8), Vector2i(14, 8), Vector2i(15, 8),
 	# Hoch
-	Vector2i(15, 9), Vector2i(15, 8), Vector2i(15, 7), Vector2i(15, 6), Vector2i(15, 5),
+	Vector2i(15, 7), Vector2i(15, 6), Vector2i(15, 5), Vector2i(15, 4),
 	# Rechts
-	Vector2i(16, 5), Vector2i(17, 5), Vector2i(18, 5), Vector2i(19, 5), Vector2i(20, 5),
+	Vector2i(16, 4), Vector2i(17, 4), Vector2i(18, 4), Vector2i(19, 4), Vector2i(20, 4),
 	# Runter
-	Vector2i(20, 6), Vector2i(20, 7), Vector2i(20, 8), Vector2i(20, 9), Vector2i(20, 10), Vector2i(20, 11), Vector2i(20, 12),
+	Vector2i(20, 5), Vector2i(20, 6), Vector2i(20, 7), Vector2i(20, 8), Vector2i(20, 9), Vector2i(20, 10),
 	# Rechts zum Ziel
-	Vector2i(21, 12), Vector2i(22, 12), Vector2i(23, 12), Vector2i(24, 12), Vector2i(25, 12),
-	Vector2i(26, 12), Vector2i(27, 12), Vector2i(28, 12), Vector2i(29, 12)
+	Vector2i(21, 10), Vector2i(22, 10), Vector2i(23, 10), Vector2i(24, 10), Vector2i(25, 10),
+	Vector2i(26, 10), Vector2i(27, 10), Vector2i(28, 10), Vector2i(29, 10)
 ]
 
 var hover_preview: Node2D
@@ -60,7 +60,6 @@ func _ready() -> void:
 	_setup_element_unlock_ui()
 	_connect_signals()
 	_setup_hover_preview()
-	#_draw_grid()
 
 
 func _setup_ground() -> void:
@@ -139,6 +138,12 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		if _is_over_ui(event.position):
 			return
+		
+		# Prüfen ob Klick im Spielfeld-Bereich ist
+		var game_area_height := MAP_HEIGHT * GRID_SIZE
+		if event.position.y > game_area_height:
+			return  # Klick ist unterhalb des Spielfelds (im HUD-Bereich)
+		
 		var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
 		var tower := tower_manager.get_tower_at(grid_pos)
 		if tower:
@@ -170,6 +175,10 @@ func _is_over_ui(pos: Vector2) -> bool:
 		return true
 	if element_unlock_ui and element_unlock_ui.visible:
 		return true
+	# Prüfen ob über dem HUD-Bereich (untere 200px)
+	var viewport_size := get_viewport_rect().size
+	if pos.y > viewport_size.y - 200:
+		return true
 	return false
 
 
@@ -197,6 +206,13 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 	if element_unlock_ui and element_unlock_ui.visible:
 		hover_preview.visible = false
 		return
+	
+	# Nicht anzeigen wenn außerhalb des Spielfelds
+	var game_area_height := MAP_HEIGHT * GRID_SIZE
+	if mouse_pos.y > game_area_height:
+		hover_preview.visible = false
+		return
+	
 	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
 	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
 		hover_preview.visible = false
@@ -227,16 +243,14 @@ func _update_hover_appearance(tower_type: String) -> void:
 		sprite.texture = load(texture_path)
 		
 		if is_animated:
-			# Animiertes Asset (16x64, 4 Frames)
 			sprite.vframes = 4
 			sprite.hframes = 1
 			sprite.frame = 0
 			sprite.scale = Vector2(3, 3)
 		else:
-			# Statisches Asset (16x16)
 			sprite.vframes = 1
 			sprite.hframes = 1
-			sprite.scale = Vector2(3, 3)  # Gleiche Skalierung
+			sprite.scale = Vector2(3, 3)
 		
 		sprite.modulate.a = 0.6
 		hover_sprite.add_child(sprite)
@@ -257,39 +271,50 @@ func _update_hover_appearance(tower_type: String) -> void:
 		var angle := i * TAU / 32
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
 
+
 func _on_start_wave_pressed() -> void:
 	Sound.play_wave_start()
 	GameState.start_wave()
 
+
 func _on_wave_started(wave: int) -> void:
 	wave_manager.start_wave(wave)
+
 
 func _on_game_over() -> void:
 	get_tree().paused = true
 	hud.show_game_over()
 
+
 func _on_open_element_panel() -> void:
 	if element_unlock_ui:
 		element_unlock_ui.show_panel()
 
+
 func _on_element_unlocked(element: String) -> void:
 	print("[Main] Element freigeschaltet: %s" % element)
+
 
 func _on_shop_tower_selected(_tower_type: String) -> void:
 	tower_manager.deselect_tower()
 	_update_hover_preview(get_viewport().get_mouse_position())
 
+
 func _on_shop_tower_deselected() -> void:
 	hover_preview.visible = false
+
 
 func _on_tower_selected(tower: Node2D, grid_pos: Vector2i) -> void:
 	tower_info.show_tower(tower, grid_pos)
 
+
 func _on_tower_deselected() -> void:
 	tower_info.hide_panel()
 
+
 func _on_tower_info_sell() -> void:
 	tower_manager.sell_tower(tower_manager.selected_grid_pos)
+
 
 func _on_tower_info_upgrade() -> void:
 	var grid_pos := tower_manager.selected_grid_pos
@@ -298,22 +323,6 @@ func _on_tower_info_upgrade() -> void:
 		if tower:
 			tower_info.show_tower(tower, grid_pos)
 
+
 func _on_tower_info_close() -> void:
 	tower_manager.deselect_tower()
-
-
-func _draw_grid() -> void:
-	for x in range(MAP_WIDTH + 1):
-		var line := Line2D.new()
-		line.add_point(Vector2(x * GRID_SIZE, 0))
-		line.add_point(Vector2(x * GRID_SIZE, MAP_HEIGHT * GRID_SIZE))
-		line.default_color = Color(0.2, 0.2, 0.2, 0.25)
-		line.width = 1
-		add_child(line)
-	for y in range(MAP_HEIGHT + 1):
-		var line := Line2D.new()
-		line.add_point(Vector2(0, y * GRID_SIZE))
-		line.add_point(Vector2(MAP_WIDTH * GRID_SIZE, y * GRID_SIZE))
-		line.default_color = Color(0.2, 0.2, 0.2, 0.25)
-		line.width = 1
-		add_child(line)

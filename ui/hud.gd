@@ -17,42 +17,86 @@ var wave_preview_label: Label
 
 
 func _ready() -> void:
+	_setup_hud_size()
 	_setup_ui()
 	_connect_signals()
 	update_all()
 
 
+func _setup_hud_size() -> void:
+	# HUD soll am unteren Rand sein und genug Platz für den TowerShop haben
+	var viewport_size := get_viewport_rect().size
+	var hud_height := 200  # Höhe für TowerShop (ca. 170) + Labels + Padding
+	
+	# Anchors auf unteren Rand setzen
+	anchor_left = 0.0
+	anchor_right = 1.0
+	anchor_top = 1.0
+	anchor_bottom = 1.0
+	
+	# Offset so setzen, dass HUD die richtige Höhe hat
+	offset_left = 0
+	offset_right = 0
+	offset_top = -hud_height
+	offset_bottom = 0
+	
+	# Hintergrund für das HUD - niedriger z-index und kein mouse blocking
+	var bg := Panel.new()
+	bg.name = "HUDBackground"
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Wichtig!
+	bg.z_index = -1  # Hinter allem anderen
+	
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.2, 0.22, 0.95)
+	bg.add_theme_stylebox_override("panel", style)
+	add_child(bg)
+	move_child(bg, 0)  # Nach hinten schieben
+
+
 func _setup_ui() -> void:
-	gold_label = _get_or_create_label("GoldLabel", Vector2(20, 970))
-	lives_label = _get_or_create_label("LivesLabel", Vector2(200, 970))
-	wave_label = _get_or_create_label("WaveLabel", Vector2(380, 970))
-	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(560, 970))
+	# Positionen relativ zur HUD-Größe (nicht viewport)
+	var hud_height := 200
+	var bottom_y := hud_height - 25  # Unterste Zeile
+	var second_row_y := hud_height - 50  # Zweite Zeile von unten
+	var third_row_y := hud_height - 75  # Dritte Zeile
+	
+	# Links unten: Gold, Leben, Welle
+	gold_label = _get_or_create_label("GoldLabel", Vector2(20, bottom_y))
+	lives_label = _get_or_create_label("LivesLabel", Vector2(20, second_row_y))
+	wave_label = _get_or_create_label("WaveLabel", Vector2(150, bottom_y))
+	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	enemies_label.visible = false
 	
-	cores_label = _get_or_create_label("CoresLabel", Vector2(20, 1000))
-	cores_label.add_theme_font_size_override("font_size", 12)
+	# Element-Kerne Anzeige - links, dritte Zeile
+	cores_label = _get_or_create_label("CoresLabel", Vector2(20, third_row_y))
+	cores_label.add_theme_font_size_override("font_size", 11)
 	cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 	
+	# Element-Panel Button - neben dem Label
 	cores_button = get_node_or_null("CoresButton")
 	if not cores_button:
 		cores_button = Button.new()
 		cores_button.name = "CoresButton"
-		cores_button.text = "Elemente"
-		cores_button.position = Vector2(350, 1000)
-		cores_button.custom_minimum_size = Vector2(90, 28)
+		cores_button.text = "🔮"
+		cores_button.position = Vector2(180, third_row_y - 5)
+		cores_button.custom_minimum_size = Vector2(40, 28)
 		cores_button.visible = true
 		add_child(cores_button)
 	
+	# Start Button - rechts unten
+	var viewport_size := get_viewport_rect().size
 	start_button = get_node_or_null("StartWaveButton")
 	if not start_button:
 		start_button = Button.new()
 		start_button.name = "StartWaveButton"
-		start_button.text = "Welle starten"
-		start_button.position = Vector2(1550, 970)
-		start_button.custom_minimum_size = Vector2(130, 35)
+		start_button.text = "Nächste Welle"
+		start_button.custom_minimum_size = Vector2(140, 35)
 		add_child(start_button)
+	start_button.position = Vector2(viewport_size.x - 160, bottom_y - 10)
 	
-	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(1750, 940))
+	# Wave Preview - rechts, zweite Zeile
+	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 220, second_row_y))
 	wave_preview_label.add_theme_font_size_override("font_size", 11)
 	wave_preview_label.visible = false
 	
@@ -131,20 +175,18 @@ func _on_cores_changed(amount: int) -> void:
 	var invested := TowerData.get_total_cores_invested()
 	var max_possible := TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL
 	
-	# Zeige verfügbare Kerne und Fortschritt
-	cores_label.text = "Kerne: %d | Investiert: %d/%d" % [amount, invested, max_possible]
+	# Kompaktere Anzeige
+	cores_label.text = "Kerne: %d | %d/%d" % [amount, invested, max_possible]
 	
-	# Button immer sichtbar (man kann auch schauen wenn keine Kerne da sind)
 	cores_button.visible = true
 	
-	# Button hervorheben wenn Kerne verfügbar und noch nicht alles maxed
 	var has_upgradeable := not TowerData.get_upgradeable_elements().is_empty()
 	
 	if amount > 0 and has_upgradeable:
-		cores_button.text = "🔮 (%d)" % amount
+		cores_button.text = "🔮%d" % amount
 		_highlight_cores_button(true)
 	elif not has_upgradeable:
-		cores_button.text = "🔮 MAX"
+		cores_button.text = "🔮✓"
 		_highlight_cores_button(false)
 	else:
 		cores_button.text = "🔮"
