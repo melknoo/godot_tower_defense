@@ -31,8 +31,8 @@ const SOUND_DEFS := {
 		"volume": -3.0,
 		"pitch_var": 0.05
 	},
-	"shoot": {
-		"path": "res://assets/sounds/shoot.wav",
+	"shoot_base": {
+		"path": "res://assets/sounds/shoot_base.wav",
 		"volume": -10.0,
 		"pitch_var": 0.1
 	},
@@ -68,9 +68,17 @@ const SOUND_DEFS := {
 	},
 }
 
+# Tower-Elemente für dynamische Shoot-Sounds
+const TOWER_ELEMENTS := ["base", "water", "fire", "earth", "air", "ice", "steam", "lava", "nature"]
+const MAX_TOWER_LEVEL := 3
+
+# Shoot-Sound Einstellungen
+const SHOOT_VOLUME := -10.0
+const SHOOT_PITCH_VAR := 0.08
 
 func _ready() -> void:
 	_setup_sounds()
+	_setup_shoot_sounds()
 	print("[Sound] Manager geladen - %d Sounds registriert" % sounds.size())
 
 
@@ -87,6 +95,20 @@ func _setup_sounds() -> void:
 			add_child(player)
 			sounds[sound_name] = player
 
+func _setup_shoot_sounds() -> void:
+	# Lade alle shoot_<element>_level_<level>.wav Sounds
+	for element in TOWER_ELEMENTS:
+		for level in range(1, MAX_TOWER_LEVEL + 1):
+			var sound_name := "shoot_%s_level_%d" % [element, level]
+			var path := "res://assets/sounds/%s.wav" % sound_name
+			
+			if ResourceLoader.exists(path):
+				var player := AudioStreamPlayer.new()
+				player.name = sound_name
+				player.stream = load(path)
+				player.volume_db = SHOOT_VOLUME
+				add_child(player)
+				sounds[sound_name] = player
 
 func play(sound_name: String) -> void:
 	if not sounds.has(sound_name):
@@ -117,8 +139,11 @@ func play_place() -> void:
 	play("place")
 
 
-func play_shoot() -> void:
-	play("shoot")
+func play_shoot_base() -> void:
+	play("shoot_base")
+	
+func play_shoot_fire_level_1() -> void:
+	play("shoot_base")
 
 
 func play_hit() -> void:
@@ -147,6 +172,23 @@ func play_sell() -> void:
 func play_element_select() -> void:
 	play("element_core_select")
 
+# Tower-Shoot mit Element und Level
+func play_shoot(element: String = "base", level: int = 0) -> void:
+	# Level 0 = Level 1 Sound, Level 1 = Level 2 Sound, etc.
+	var display_level := level + 1
+	var sound_name := "shoot_%s_level_%d" % [element, display_level]
+	
+	# Fallback-Kette: Element+Level -> Element Level 1 -> Base Level 1
+	if not sounds.has(sound_name):
+		sound_name = "shoot_%s_level_1" % element
+	if not sounds.has(sound_name):
+		sound_name = "shoot_base_level_1"
+	if not sounds.has(sound_name):
+		return
+	
+	var player: AudioStreamPlayer = sounds[sound_name]
+	player.pitch_scale = randf_range(1.0 - SHOOT_PITCH_VAR, 1.0 + SHOOT_PITCH_VAR)
+	player.play()
 
 # Lautstärke-Steuerung
 func set_sfx_volume(volume_db: float) -> void:

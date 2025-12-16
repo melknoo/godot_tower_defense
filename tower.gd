@@ -264,7 +264,7 @@ func _rotate_towards_target(delta: float) -> void:
 		sprite.position.y = 0  # Reset idle bob
 	
 	var adjusted_direction := Vector2(abs(direction.x), direction.y)
-	var target_angle := adjusted_direction.angle() + TAU
+	var target_angle := adjusted_direction.angle() + PI
 	
 	turret.rotation = lerp_angle(turret.rotation, target_angle, 10 * delta)
 
@@ -300,6 +300,9 @@ func _shoot() -> void:
 	var direction := (target.position - position).normalized()
 	if VFX:
 		VFX.spawn_muzzle_flash(position + direction * 15, direction, tower_type)
+	
+	var sound_element := "base" if tower_type == "archer" else tower_type
+	Sound.play_shoot(sound_element, level)
 	
 	_do_recoil()
 
