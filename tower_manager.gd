@@ -84,7 +84,7 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	var placed_this_wave := placed_wave == GameState.current_wave
 	
 	var sell_value := TowerData.get_sell_value(tower.tower_type, level, placed_this_wave)
-	
+	Sound.play_sell();
 	# VFX vor dem Löschen
 	if VFX:
 		VFX.spawn_sell_effect(tower_pos)

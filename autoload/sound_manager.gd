@@ -16,6 +16,11 @@ const SOUND_DEFS := {
 		"volume": -5.0,
 		"pitch_var": 0.05
 	},
+	"element_core_select": {
+		"path": "res://assets/sounds/element_select.wav",
+		"volume": -5.0,
+		"pitch_var": 0.05
+	},
 	"click": {
 		"path": "res://assets/sounds/click.wav",
 		"volume": -5.0,
@@ -57,7 +62,7 @@ const SOUND_DEFS := {
 		"pitch_var": 0.0
 	},
 	"sell": {
-		"path": "res://assets/sounds/sell.wav",
+		"path": "res://assets/sounds/tower_sell.wav",
 		"volume": -4.0,
 		"pitch_var": 0.05
 	},
@@ -138,6 +143,9 @@ func play_error() -> void:
 
 func play_sell() -> void:
 	play("sell")
+
+func play_element_select() -> void:
+	play("element_core_select")
 
 
 # Lautstärke-Steuerung

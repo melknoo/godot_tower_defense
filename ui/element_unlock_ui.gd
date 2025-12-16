@@ -282,6 +282,7 @@ func _update_element_buttons() -> void:
 
 
 func _on_element_button_pressed(element: String) -> void:
+	Sound.play_element_select()
 	if TowerData.unlock_element(element):
 		element_selected.emit(element)
 		_show_unlock_effect(element)
