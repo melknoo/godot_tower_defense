@@ -1,5 +1,5 @@
 # bullet.gd
-# Projektil mit Spezialeffekten und Level-Sprites
+# Projektil mit Spezialeffekten, Level-Sprites und VFX
 extends Node2D
 class_name Bullet
 
@@ -24,11 +24,12 @@ var already_hit: Array[Node2D] = []
 
 # Visuals
 var sprite: Sprite2D
-var trail: Line2D
+var trail_timer: Timer
 
 
 func _ready() -> void:
 	_create_visuals()
+	_start_trail()
 
 
 func setup(t: Node2D, dmg: int, splash: float, type: String) -> void:
@@ -70,7 +71,6 @@ func _set_speed_for_type(type: String) -> void:
 
 
 func _get_bullet_texture_path() -> String:
-	# Level 0 = Basis-Sprite, Level 1+ = level_X Sprite
 	if bullet_level == 0:
 		return "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
 	else:
@@ -81,7 +81,6 @@ func _get_bullet_texture_path() -> String:
 func _create_visuals() -> void:
 	var texture_path := _get_bullet_texture_path()
 	
-	# Fallback auf Basis-Sprite wenn Level-Sprite nicht existiert
 	if not ResourceLoader.exists(texture_path) and bullet_level > 0:
 		texture_path = "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
 	
@@ -89,7 +88,6 @@ func _create_visuals() -> void:
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
 		
-		# Animiertes Spritesheet?
 		if sprite.texture.get_width() > sprite.texture.get_height():
 			var frame_count := sprite.texture.get_width() / sprite.texture.get_height()
 			sprite.hframes = frame_count
@@ -104,7 +102,6 @@ func _create_visuals() -> void:
 		sprite.scale = Vector2(2, 2)
 		add_child(sprite)
 	else:
-		# Fallback Polygon
 		var poly := Polygon2D.new()
 		poly.polygon = PackedVector2Array([
 			Vector2(-6, -3), Vector2(6, -3),
@@ -112,23 +109,11 @@ func _create_visuals() -> void:
 		])
 		poly.color = _get_bullet_color()
 		add_child(poly)
-		#_create_trail()
-	
-	
 
 
-func _create_trail() -> void:
-	trail = Line2D.new()
-	trail.width = 4
-	trail.default_color = _get_bullet_color()
-	trail.default_color.a = 0.5
-	
-	var gradient := Gradient.new()
-	gradient.set_color(0, _get_bullet_color())
-	gradient.set_color(1, Color(_get_bullet_color(), 0))
-	trail.gradient = gradient
-	
-	get_parent().call_deferred("add_child", trail)
+func _start_trail() -> void:
+	if VFX:
+		trail_timer = VFX.create_pixel_trail(self, bullet_type, 0.03)
 
 
 func _get_bullet_color() -> Color:
@@ -153,19 +138,8 @@ func _process(delta: float) -> void:
 	position += direction * speed * delta
 	rotation = direction.angle() + PI
 	
-	_update_trail()
-	
 	if position.distance_to(target.position) < 15:
 		_hit_target()
-
-
-func _update_trail() -> void:
-	if not is_instance_valid(trail):
-		return
-	
-	trail.add_point(position)
-	while trail.get_point_count() > 10:
-		trail.remove_point(0)
 
 
 func _hit_target() -> void:
@@ -185,15 +159,26 @@ func _hit_single(enemy: Node2D) -> void:
 		return
 	
 	already_hit.append(enemy)
-	enemy.take_damage(damage)
+	
+	# Schaden mit Element-Info für VFX
+	if enemy.has_method("take_damage"):
+		enemy.take_damage(damage, true, bullet_type)
+	
 	_apply_special_effects(enemy)
 
 
 func _hit_splash() -> void:
+	var hit_count := 0
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if position.distance_to(enemy.position) <= splash_radius:
 			_hit_single(enemy)
-	_spawn_splash_effect()
+			hit_count += 1
+	
+	# Splash VFX
+	if VFX:
+		VFX.spawn_pixel_ring(position, bullet_type, splash_radius)
+		if hit_count > 3:
+			VFX.screen_shake(3.0, 0.1)
 
 
 func _apply_special_effects(enemy: Node2D) -> void:
@@ -240,7 +225,8 @@ func _do_chain_attack() -> void:
 		if next:
 			_draw_chain_lightning(current.position, next.position)
 			already_hit.append(next)
-			next.take_damage(chain_dmg)
+			if next.has_method("take_damage"):
+				next.take_damage(chain_dmg, true, "air")
 			_apply_special_effects(next)
 			current = next
 			remaining -= 1
@@ -263,28 +249,14 @@ func _draw_chain_lightning(from: Vector2, to: Vector2) -> void:
 	line.add_point(to)
 	
 	get_parent().add_child(line)
+	
+	# VFX an Endpunkt
+	if VFX:
+		VFX.spawn_pixels(to, "air", 4, 15.0)
+	
 	var tw := line.create_tween()
 	tw.tween_property(line, "modulate:a", 0.0, 0.2)
 	tw.tween_callback(line.queue_free)
-
-
-func _spawn_splash_effect() -> void:
-	var exp := Node2D.new()
-	exp.position = position
-	
-	var circ := Polygon2D.new()
-	var pts := PackedVector2Array()
-	for i in range(32):
-		var a := i * TAU / 32
-		pts.append(Vector2(cos(a), sin(a)) * splash_radius)
-	circ.polygon = pts
-	circ.color = Color(_get_bullet_color(), 0.5)
-	exp.add_child(circ)
-	
-	get_parent().add_child(exp)
-	var tw := exp.create_tween()
-	tw.tween_property(circ, "color:a", 0.0, 0.3)
-	tw.tween_callback(exp.queue_free)
 
 
 func _spawn_lava_pool() -> void:
@@ -311,7 +283,12 @@ func _spawn_lava_pool() -> void:
 	tmr.timeout.connect(func():
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if pool.position.distance_to(e.position) <= splash_radius:
-				e.take_damage(pool_dmg, false)
+				if e.has_method("take_damage"):
+					e.take_damage(pool_dmg, false, "lava")
+		
+		# Gelegentlich Partikel
+		if VFX and randf() > 0.5:
+			VFX.spawn_pixels(pool.position + Vector2(randf_range(-20, 20), randf_range(-20, 20)), "lava", 2, 10.0)
 	)
 	
 	var tw := pool.create_tween()
@@ -321,8 +298,11 @@ func _spawn_lava_pool() -> void:
 
 
 func _explode() -> void:
-	if is_instance_valid(trail):
-		var tw := trail.create_tween()
-		tw.tween_property(trail, "modulate:a", 0.0, 0.2)
-		tw.tween_callback(trail.queue_free)
+	# Impact-Partikel
+	if VFX:
+		VFX.spawn_pixels(position, bullet_type, 4, 15.0)
+	
+	if trail_timer:
+		trail_timer.queue_free()
+	
 	queue_free()

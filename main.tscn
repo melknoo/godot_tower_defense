@@ -41,6 +41,9 @@ script = ExtResource("2_0xm2m")
 
 [node name="TowerManager" type="Node2D" parent="."]
 script = ExtResource("3_h2yge")
+grid_size = null
+map_width = null
+map_height = null
 
 [node name="GroundLayer" type="Node2D" parent="."]
 script = ExtResource("8_5vw27")

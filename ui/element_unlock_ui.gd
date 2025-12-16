@@ -1,6 +1,5 @@
 # ui/element_unlock_ui.gd
 # Panel zum Freischalten von Elementen mit Element-Kernen
-# Als Control/PanelContainer in der UI einbinden
 extends PanelContainer
 class_name ElementUnlockUI
 
@@ -13,7 +12,6 @@ var elements_container: HBoxContainer
 var close_button: Button
 var vbox: VBoxContainer
 
-# Element-Farben für Buttons
 const ELEMENT_COLORS := {
 	"water": Color(0.3, 0.6, 1.0),
 	"fire": Color(1.0, 0.4, 0.2),
@@ -37,9 +35,8 @@ func _ready() -> void:
 
 
 func _setup_panel() -> void:
-	custom_minimum_size = Vector2(350, 220)
+	custom_minimum_size = Vector2(400, 240)
 	
-	# Hintergrund Style
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.15, 0.95)
 	style.corner_radius_top_left = 10
@@ -51,10 +48,10 @@ func _setup_panel() -> void:
 	style.border_width_left = 2
 	style.border_width_right = 2
 	style.border_color = Color(0.4, 0.3, 0.6)
-	style.content_margin_left = 15
-	style.content_margin_right = 15
-	style.content_margin_top = 15
-	style.content_margin_bottom = 15
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
 	add_theme_stylebox_override("panel", style)
 
 
@@ -87,11 +84,16 @@ func _setup_ui() -> void:
 	info_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(info_label)
 	
+	# CenterContainer für die Buttons
+	var center := CenterContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(center)
+	
 	# Elements Container
 	elements_container = HBoxContainer.new()
 	elements_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	elements_container.add_theme_constant_override("separation", 20)
-	vbox.add_child(elements_container)
+	elements_container.add_theme_constant_override("separation", 15)
+	center.add_child(elements_container)
 	
 	# Spacer
 	var spacer := Control.new()
@@ -104,14 +106,13 @@ func _setup_ui() -> void:
 	close_button.custom_minimum_size = Vector2(100, 30)
 	close_button.pressed.connect(_on_close_pressed)
 	
-	# Dunkle Schriftfarbe
 	var dark_font := Color(0.1, 0.1, 0.1)
 	close_button.add_theme_color_override("font_color", dark_font)
 	close_button.add_theme_color_override("font_hover_color", dark_font)
 	close_button.add_theme_color_override("font_pressed_color", dark_font)
 	
-	var btn_container := HBoxContainer.new()
-	btn_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	var btn_container := CenterContainer.new()
+	btn_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_container.add_child(close_button)
 	vbox.add_child(btn_container)
 	
@@ -125,20 +126,18 @@ func _connect_signals() -> void:
 	TowerData.element_unlocked.connect(_on_element_unlocked)
 
 
-func _on_cores_changed(amount: int) -> void:
+func _on_cores_changed(_amount: int) -> void:
 	_update_cores_display()
 	_update_element_buttons()
 
 
 func _on_core_earned() -> void:
-	# Panel automatisch öffnen wenn Kern verdient
 	show_panel()
 
 
 func _on_element_unlocked(_element: String) -> void:
 	_update_element_buttons()
 	
-	# Panel schließen wenn alle Elemente freigeschaltet
 	if TowerData.get_locked_elements().is_empty():
 		hide_panel()
 
@@ -147,14 +146,10 @@ func show_panel() -> void:
 	_update_cores_display()
 	_create_element_buttons()
 	visible = true
-	
-	# Spiel pausieren während Auswahl
-	# get_tree().paused = true
 
 
 func hide_panel() -> void:
 	visible = false
-	# get_tree().paused = false
 	panel_closed.emit()
 
 
@@ -172,7 +167,6 @@ func _update_cores_display() -> void:
 
 
 func _create_element_buttons() -> void:
-	# Alte Buttons entfernen
 	for child in elements_container.get_children():
 		child.queue_free()
 	
@@ -192,19 +186,30 @@ func _create_element_buttons() -> void:
 
 func _create_element_button(element: String) -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(70, 80)
+	btn.custom_minimum_size = Vector2(75, 85)
 	btn.name = element.capitalize() + "UnlockBtn"
+	
+	# MarginContainer für inneren Abstand
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	margin.add_theme_constant_override("margin_left", 5)
+	margin.add_theme_constant_override("margin_right", 5)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(margin)
 	
 	var vbox_btn := VBoxContainer.new()
 	vbox_btn.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox_btn.add_theme_constant_override("separation", 5)
 	vbox_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(vbox_btn)
+	margin.add_child(vbox_btn)
 	
 	# Icon
 	var icon_label := Label.new()
 	icon_label.text = ELEMENT_ICONS.get(element, "?")
 	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon_label.add_theme_font_size_override("font_size", 24)
+	icon_label.add_theme_font_size_override("font_size", 28)
 	icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(icon_label)
 	
@@ -213,7 +218,7 @@ func _create_element_button(element: String) -> Button:
 	var name_label := Label.new()
 	name_label.text = data.get("name", element.capitalize())
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 11)
+	name_label.add_theme_font_size_override("font_size", 12)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(name_label)
 	
@@ -264,7 +269,6 @@ func _apply_element_button_style(btn: Button, element: String, is_unlocked: bool
 	btn.add_theme_stylebox_override("normal", style)
 	btn.add_theme_stylebox_override("disabled", style)
 	
-	# Hover Style
 	var hover_style := style.duplicate()
 	hover_style.bg_color = element_color.darkened(0.3)
 	hover_style.border_color = element_color.lightened(0.2)
@@ -280,14 +284,12 @@ func _on_element_button_pressed(element: String) -> void:
 		element_selected.emit(element)
 		_show_unlock_effect(element)
 		
-		# Nach kurzer Verzögerung Buttons aktualisieren
 		await get_tree().create_timer(0.3).timeout
 		_update_element_buttons()
 		_update_cores_display()
 
 
 func _show_unlock_effect(element: String) -> void:
-	# Einfacher visueller Effekt
 	var flash := ColorRect.new()
 	flash.color = ELEMENT_COLORS.get(element, Color.WHITE)
 	flash.color.a = 0.5
@@ -303,7 +305,6 @@ func _on_close_pressed() -> void:
 	hide_panel()
 
 
-# Kann von außen aufgerufen werden um Panel zu togglen
 func toggle_panel() -> void:
 	if visible:
 		hide_panel()
