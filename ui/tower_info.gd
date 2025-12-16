@@ -1,6 +1,5 @@
 # ui/tower_info.gd
 # Panel für Tower-Info, Verkauf und Upgrade
-# Als PanelContainer in der UI einbinden
 extends PanelContainer
 class_name TowerInfo
 
@@ -28,52 +27,44 @@ func _ready() -> void:
 
 
 func _setup_panel_style() -> void:
-	UITheme.style_panel(self, "panel_dark")  # Name anpassen falls nötig
+	UITheme.style_panel(self, "panel_dark")
 
 
 func _setup_ui() -> void:
-	# VBox erstellen
 	vbox = VBoxContainer.new()
 	vbox.name = "VBox"
 	add_child(vbox)
 	
-	# Tower Name Label
 	tower_name_label = Label.new()
 	tower_name_label.name = "TowerNameLabel"
 	tower_name_label.add_theme_font_size_override("font_size", 16)
 	vbox.add_child(tower_name_label)
 	
-	# Level Label
 	tower_level_label = Label.new()
 	tower_level_label.name = "TowerLevelLabel"
 	tower_level_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(tower_level_label)
 	
-	# Stats Label
 	stats_label = Label.new()
 	stats_label.name = "StatsLabel"
 	stats_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(stats_label)
 	
-	# Separator
 	var sep := HSeparator.new()
 	vbox.add_child(sep)
 	
-	# Upgrade Button
 	upgrade_button = Button.new()
 	upgrade_button.name = "UpgradeButton"
 	upgrade_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	vbox.add_child(upgrade_button)
 	
-	# Sell Button
 	sell_button = Button.new()
 	sell_button.name = "SellButton"
 	sell_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	sell_button.pressed.connect(_on_sell_pressed)
 	vbox.add_child(sell_button)
 	
-	# Close Button
 	close_button = Button.new()
 	close_button.name = "CloseButton"
 	close_button.text = "Schließen"
@@ -96,11 +87,9 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	
 	_update_display()
 	
-	# Position neben dem Tower
 	var world_pos := Vector2(grid_pos) * 64 + Vector2(64 + 10, 0)
 	position = world_pos
 	
-	# Sicherstellen dass Panel im Bildschirm bleibt
 	var screen_size := get_viewport_rect().size
 	if position.x + size.x > screen_size.x:
 		position.x = Vector2(grid_pos).x * 64 - size.x - 10
@@ -124,14 +113,18 @@ func _update_display() -> void:
 	var level: int = tower_manager.get_tower_level(current_grid_pos)
 	var data := TowerData.get_tower_data(tower_type)
 	
-	# Name
 	var display_name: String = data.get("name", tower_type.capitalize())
 	tower_name_label.text = display_name
 	
-	# Level
-	tower_level_label.text = "Level %d / %d" % [level + 1, TowerData.MAX_LEVEL + 1]
+	# Level-Anzeige mit Element-Level Info
+	var max_tower_level := TowerData.MAX_LEVEL
+	if tower_type != "archer" and tower_type in TowerData.UNLOCKABLE_ELEMENTS:
+		var elem_level := TowerData.get_element_level(tower_type)
+		var max_allowed := TowerData.get_max_tower_level_for_element(tower_type)
+		tower_level_label.text = "Level %d / %d (Element: %d/3)" % [level + 1, max_allowed + 1, elem_level]
+	else:
+		tower_level_label.text = "Level %d / %d" % [level + 1, TowerData.MAX_LEVEL + 1]
 	
-	# Stats
 	var damage_val: int = TowerData.get_stat(tower_type, "damage", level)
 	var range_val: float = TowerData.get_stat(tower_type, "range", level)
 	var fire_rate_val: float = TowerData.get_stat(tower_type, "fire_rate", level)
@@ -143,34 +136,54 @@ func _update_display() -> void:
 	tower_level_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	stats_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
 	
-	# Upgrade Button
 	_update_upgrade_button(tower_type, level)
-	
-	# Sell Button
 	_update_sell_button()
 
 
 func _update_upgrade_button(tower_type: String, level: int) -> void:
-	if TowerData.can_upgrade(tower_type, level):
-		var cost := TowerData.get_upgrade_cost(tower_type, level)
-		upgrade_button.text = "Upgrade (%dg)" % cost
-		upgrade_button.visible = true
-		
-		if GameState.can_afford(cost) and not GameState.wave_active:
-			upgrade_button.disabled = false
-			var new_damage: int = TowerData.get_stat(tower_type, "damage", level + 1)
-			var new_range: float = TowerData.get_stat(tower_type, "range", level + 1)
-			upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d" % [new_damage, int(new_range)]
-		else:
-			upgrade_button.disabled = true
-			if GameState.wave_active:
-				upgrade_button.tooltip_text = "Nicht während einer Welle"
-			else:
-				upgrade_button.tooltip_text = "Nicht genug Gold"
-	else:
+	var can_upgrade_element := TowerData.can_upgrade(tower_type, level)
+	var at_game_max := level >= TowerData.MAX_LEVEL
+	
+	if at_game_max:
 		upgrade_button.text = "Max Level"
 		upgrade_button.disabled = true
+		upgrade_button.tooltip_text = "Maximales Tower-Level erreicht"
 		upgrade_button.visible = true
+		return
+	
+	if not can_upgrade_element:
+		# Element-Level zu niedrig
+		if tower_type in TowerData.UNLOCKABLE_ELEMENTS:
+			var elem_level := TowerData.get_element_level(tower_type)
+			var needed_level := level + 2  # Um auf Tower Level X zu upgraden braucht man Element Level X+1
+			upgrade_button.text = "Element Lvl %d nötig" % needed_level
+			upgrade_button.tooltip_text = "Investiere mehr Kerne in %s\n(Aktuell: Level %d, Benötigt: Level %d)" % [
+				TowerData.get_tower_data(tower_type).get("name", tower_type),
+				elem_level,
+				needed_level
+			]
+		else:
+			upgrade_button.text = "Upgrade gesperrt"
+			upgrade_button.tooltip_text = "Upgrade nicht verfügbar"
+		upgrade_button.disabled = true
+		upgrade_button.visible = true
+		return
+	
+	var cost := TowerData.get_upgrade_cost(tower_type, level)
+	upgrade_button.text = "Upgrade (%dg)" % cost
+	upgrade_button.visible = true
+	
+	if GameState.can_afford(cost) and not GameState.wave_active:
+		upgrade_button.disabled = false
+		var new_damage: int = TowerData.get_stat(tower_type, "damage", level + 1)
+		var new_range: float = TowerData.get_stat(tower_type, "range", level + 1)
+		upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d" % [new_damage, int(new_range)]
+	else:
+		upgrade_button.disabled = true
+		if GameState.wave_active:
+			upgrade_button.tooltip_text = "Nicht während einer Welle"
+		else:
+			upgrade_button.tooltip_text = "Nicht genug Gold"
 
 
 func _update_sell_button() -> void:

@@ -23,30 +23,26 @@ func _ready() -> void:
 
 
 func _setup_ui() -> void:
-	# Obere Leiste - Ressourcen nebeneinander
 	gold_label = _get_or_create_label("GoldLabel", Vector2(20, 970))
 	lives_label = _get_or_create_label("LivesLabel", Vector2(200, 970))
 	wave_label = _get_or_create_label("WaveLabel", Vector2(380, 970))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(560, 970))
 	enemies_label.visible = false
 	
-	# Element-Kerne Anzeige - unten links
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, 1000))
 	cores_label.add_theme_font_size_override("font_size", 12)
 	cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 	
-	# Element-Panel Button
 	cores_button = get_node_or_null("CoresButton")
 	if not cores_button:
 		cores_button = Button.new()
 		cores_button.name = "CoresButton"
 		cores_button.text = "Elemente"
-		cores_button.position = Vector2(300, 1000)
+		cores_button.position = Vector2(350, 1000)
 		cores_button.custom_minimum_size = Vector2(90, 28)
-		cores_button.visible = false
+		cores_button.visible = true
 		add_child(cores_button)
 	
-	# Start Button - unten rechts
 	start_button = get_node_or_null("StartWaveButton")
 	if not start_button:
 		start_button = Button.new()
@@ -56,7 +52,6 @@ func _setup_ui() -> void:
 		start_button.custom_minimum_size = Vector2(130, 35)
 		add_child(start_button)
 	
-	# Wave Preview - über dem Start Button
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(1750, 940))
 	wave_preview_label.add_theme_font_size_override("font_size", 11)
 	wave_preview_label.visible = false
@@ -65,7 +60,6 @@ func _setup_ui() -> void:
 		UITheme.style_button(start_button)
 		UITheme.style_button(cores_button)
 	
-	# Dunkle Schriftfarbe für Buttons
 	var dark_font := Color(0.1, 0.1, 0.1)
 	start_button.add_theme_color_override("font_color", dark_font)
 	start_button.add_theme_color_override("font_hover_color", dark_font)
@@ -94,8 +88,20 @@ func _connect_signals() -> void:
 	GameState.element_cores_changed.connect(_on_cores_changed)
 	GameState.element_core_earned.connect(_on_core_earned)
 	
+	# Auch auf Element-Investments hören
+	TowerData.element_unlocked.connect(_on_element_invested)
+	TowerData.element_upgraded.connect(_on_element_upgraded)
+	
 	start_button.pressed.connect(_on_start_button_pressed)
 	cores_button.pressed.connect(_on_cores_button_pressed)
+
+
+func _on_element_invested(_element: String) -> void:
+	_on_cores_changed(GameState.element_cores)
+
+
+func _on_element_upgraded(_element: String, _level: int) -> void:
+	_on_cores_changed(GameState.element_cores)
 
 
 func update_all() -> void:
@@ -122,26 +128,30 @@ func _on_lives_changed(amount: int) -> void:
 
 
 func _on_cores_changed(amount: int) -> void:
-	var unlocked := TowerData.get_unlocked_count()
-	var total := TowerData.get_total_unlockable()
+	var invested := TowerData.get_total_cores_invested()
+	var max_possible := TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL
 	
-	cores_label.text = "Kerne: %d  Elemente: %d/%d" % [amount, unlocked, total]
+	# Zeige verfügbare Kerne und Fortschritt
+	cores_label.text = "Kerne: %d | Investiert: %d/%d" % [amount, invested, max_possible]
 	
-	# Button nur anzeigen wenn es noch was freizuschalten gibt
-	var has_locked := not TowerData.get_locked_elements().is_empty()
-	cores_button.visible = has_locked
+	# Button immer sichtbar (man kann auch schauen wenn keine Kerne da sind)
+	cores_button.visible = true
 	
-	# Button hervorheben wenn Kerne verfügbar
-	if amount > 0 and has_locked:
+	# Button hervorheben wenn Kerne verfügbar und noch nicht alles maxed
+	var has_upgradeable := not TowerData.get_upgradeable_elements().is_empty()
+	
+	if amount > 0 and has_upgradeable:
 		cores_button.text = "🔮 (%d)" % amount
 		_highlight_cores_button(true)
+	elif not has_upgradeable:
+		cores_button.text = "🔮 MAX"
+		_highlight_cores_button(false)
 	else:
 		cores_button.text = "🔮"
 		_highlight_cores_button(false)
 
 
 func _on_core_earned() -> void:
-	# Visueller Hinweis dass ein Kern verdient wurde
 	_flash_cores_label()
 
 
@@ -153,8 +163,6 @@ func _highlight_cores_button(highlight: bool) -> void:
 
 
 func _flash_cores_label() -> void:
-	var original_color := cores_label.get_theme_color("font_color")
-	
 	var tween := cores_label.create_tween()
 	tween.tween_property(cores_label, "modulate", Color(1.5, 1.5, 0.5), 0.2)
 	tween.tween_property(cores_label, "modulate", Color.WHITE, 0.3)
@@ -195,7 +203,6 @@ func _update_wave_preview(next_wave: int) -> void:
 		var info := wave_manager.get_wave_info(next_wave)
 		wave_preview_label.text = "Nächste: " + info
 		
-		# Hinweis auf Boss-Welle und Element-Kern
 		if next_wave % 5 == 0:
 			wave_preview_label.text += "\n⚠ Boss-Welle! (+1 Kern)"
 			wave_preview_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
@@ -221,10 +228,10 @@ func show_game_over() -> void:
 	cores_button.visible = false
 	
 	var game_over_label := Label.new()
-	game_over_label.text = "GAME OVER\nWelle: %d\nElemente: %d/%d" % [
+	game_over_label.text = "GAME OVER\nWelle: %d\nKerne investiert: %d/%d" % [
 		GameState.current_wave,
-		TowerData.get_unlocked_count(),
-		TowerData.get_total_unlockable()
+		TowerData.get_total_cores_invested(),
+		TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL
 	]
 	game_over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	game_over_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -244,7 +251,6 @@ func show_game_over() -> void:
 	if UITheme:
 		UITheme.style_button(restart_btn)
 	
-	# Dunkle Schriftfarbe
 	restart_btn.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
 	restart_btn.add_theme_color_override("font_hover_color", Color(0.1, 0.1, 0.1))
 	restart_btn.add_theme_color_override("font_pressed_color", Color(0.1, 0.1, 0.1))

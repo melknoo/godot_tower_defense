@@ -2,9 +2,11 @@
 extends Node
 
 signal element_unlocked(element: String)
+signal element_upgraded(element: String, new_level: int)
 
-# Freigeschaltete Elemente (archer ist immer verfügbar)
-var unlocked_elements: Array[String] = []
+# Statt nur freigeschaltet: Speichert das MAX LEVEL pro Element (0 = nicht freigeschaltet)
+# Level 1 = kann bauen, Level 2 = kann auf Stufe 2 upgraden, Level 3 = kann auf Stufe 3 upgraden
+var element_levels: Dictionary = {}
 
 # Basis-Elemente die freigeschaltet werden können
 const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
@@ -21,9 +23,9 @@ var towers := {
 		"color": Color(0.687, 0.947, 0.913),
 		"upgrade_costs": [50, 110],
 		"special": "",
-		"is_base": true,  # Immer verfügbar
+		"is_base": true,
 		"combinations": [],
-		"animated": false  # Statisches 64x64 Asset
+		"animated": false
 	},
 	"water": {
 		"name": "Wasser",
@@ -146,52 +148,103 @@ var combinations := {
 	}
 }
 
-const MAX_LEVEL := 2
+const MAX_LEVEL := 2  # 0, 1, 2 = 3 Stufen
+const MAX_ELEMENT_LEVEL := 3  # Wie viele Kerne man in ein Element stecken kann
 
 
 func _ready() -> void:
+	# Initialisiere alle Elemente mit Level 0
+	for element in UNLOCKABLE_ELEMENTS:
+		element_levels[element] = 0
 	print("[TowerData] %d Basis-Türme, %d Kombinationen geladen" % [towers.size(), combinations.size()])
 
 
-# === UNLOCK SYSTEM ===
+# === NEUES KERN-SYSTEM ===
 
-func unlock_element(element: String) -> bool:
+# Element freischalten ODER upgraden
+func invest_core_in_element(element: String) -> bool:
 	if element not in UNLOCKABLE_ELEMENTS:
 		print("[TowerData] Ungültiges Element: %s" % element)
 		return false
 	
-	if element in unlocked_elements:
-		print("[TowerData] Element bereits freigeschaltet: %s" % element)
+	var current_level: int = element_levels.get(element, 0)
+	
+	if current_level >= MAX_ELEMENT_LEVEL:
+		print("[TowerData] Element bereits auf Max-Level: %s" % element)
 		return false
 	
 	if not GameState.spend_element_core():
 		print("[TowerData] Keine Element-Kerne verfügbar")
 		return false
 	
-	unlocked_elements.append(element)
-	element_unlocked.emit(element)
-	print("[TowerData] Element freigeschaltet: %s" % element)
+	element_levels[element] = current_level + 1
+	var new_level: int = element_levels[element]
+	
+	if new_level == 1:
+		element_unlocked.emit(element)
+		print("[TowerData] Element freigeschaltet: %s (Level 1)" % element)
+	else:
+		element_upgraded.emit(element, new_level)
+		print("[TowerData] Element aufgewertet: %s -> Level %d" % [element, new_level])
+	
 	return true
 
 
+# Gibt das aktuelle Level eines Elements zurück (0 = nicht freigeschaltet)
+func get_element_level(element: String) -> int:
+	return element_levels.get(element, 0)
+
+
+# Prüft ob ein Element freigeschaltet ist (Level >= 1)
 func is_element_unlocked(element: String) -> bool:
-	return element in unlocked_elements
+	return get_element_level(element) >= 1
+
+
+# Gibt das maximale Tower-Upgrade-Level für ein Element zurück
+# Element Level 1 = Tower kann gebaut werden (Level 0)
+# Element Level 2 = Tower kann auf Level 1 geupgradet werden
+# Element Level 3 = Tower kann auf Level 2 geupgradet werden
+func get_max_tower_level_for_element(element: String) -> int:
+	var elem_level := get_element_level(element)
+	if elem_level == 0:
+		return -1  # Nicht freigeschaltet
+	return elem_level - 1  # Element Level 1 = Tower Level 0, etc.
+
+
+# Prüft ob ein Tower noch geupgradet werden kann (basierend auf Element-Level)
+func can_upgrade(tower_type: String, current_tower_level: int) -> bool:
+	# Archer hat keine Element-Beschränkung
+	if tower_type == "archer":
+		return current_tower_level < MAX_LEVEL
+	
+	# Für Basis-Elemente
+	if towers.has(tower_type) and tower_type in UNLOCKABLE_ELEMENTS:
+		var max_allowed := get_max_tower_level_for_element(tower_type)
+		return current_tower_level < max_allowed and current_tower_level < MAX_LEVEL
+	
+	# Für Kombinationen: Minimum der beiden Element-Levels
+	if combinations.has(tower_type):
+		var requires: Array = combinations[tower_type].get("requires", [])
+		var min_level := MAX_ELEMENT_LEVEL
+		for req in requires:
+			min_level = mini(min_level, get_element_level(req))
+		var max_allowed := min_level - 1
+		return current_tower_level < max_allowed and current_tower_level < MAX_LEVEL
+	
+	return current_tower_level < MAX_LEVEL
 
 
 func is_tower_available(tower_type: String) -> bool:
-	# Archer immer verfügbar
 	if tower_type == "archer":
 		return true
 	
-	# Basis-Element?
 	if towers.has(tower_type):
-		return tower_type in unlocked_elements
+		return is_element_unlocked(tower_type)
 	
-	# Kombination? Prüfen ob beide Basis-Elemente freigeschaltet
 	if combinations.has(tower_type):
 		var requires: Array = combinations[tower_type].get("requires", [])
 		for req in requires:
-			if req not in unlocked_elements:
+			if not is_element_unlocked(req):
 				return false
 		return true
 	
@@ -201,12 +254,10 @@ func is_tower_available(tower_type: String) -> bool:
 func get_available_tower_types() -> Array[String]:
 	var available: Array[String] = ["archer"]
 	
-	# Freigeschaltete Basis-Elemente
-	for element in unlocked_elements:
-		if towers.has(element):
+	for element in UNLOCKABLE_ELEMENTS:
+		if is_element_unlocked(element):
 			available.append(element)
 	
-	# Verfügbare Kombinationen
 	for combo_name in combinations:
 		if is_tower_available(combo_name):
 			available.append(combo_name)
@@ -214,24 +265,47 @@ func get_available_tower_types() -> Array[String]:
 	return available
 
 
-func get_locked_elements() -> Array[String]:
-	var locked: Array[String] = []
+# Gibt Elemente zurück die noch nicht auf Max sind
+func get_upgradeable_elements() -> Array[String]:
+	var upgradeable: Array[String] = []
 	for element in UNLOCKABLE_ELEMENTS:
-		if element not in unlocked_elements:
-			locked.append(element)
-	return locked
+		if get_element_level(element) < MAX_ELEMENT_LEVEL:
+			upgradeable.append(element)
+	return upgradeable
 
 
+# Für Anzeige: Wie viele Kerne wurden insgesamt investiert?
+func get_total_cores_invested() -> int:
+	var total := 0
+	for element in UNLOCKABLE_ELEMENTS:
+		total += get_element_level(element)
+	return total
+
+
+# Für Kompatibilität
 func get_unlocked_count() -> int:
-	return unlocked_elements.size()
+	var count := 0
+	for element in UNLOCKABLE_ELEMENTS:
+		if is_element_unlocked(element):
+			count += 1
+	return count
 
 
 func get_total_unlockable() -> int:
 	return UNLOCKABLE_ELEMENTS.size()
 
 
+func get_locked_elements() -> Array[String]:
+	var locked: Array[String] = []
+	for element in UNLOCKABLE_ELEMENTS:
+		if not is_element_unlocked(element):
+			locked.append(element)
+	return locked
+
+
 func reset_unlocks() -> void:
-	unlocked_elements.clear()
+	for element in UNLOCKABLE_ELEMENTS:
+		element_levels[element] = 0
 	print("[TowerData] Unlocks zurückgesetzt")
 
 
@@ -282,7 +356,7 @@ func get_upgrade_cost(tower_type: String, current_level: int) -> int:
 	if data.is_empty():
 		return -1
 	
-	if current_level >= MAX_LEVEL:
+	if not can_upgrade(tower_type, current_level):
 		return -1
 	
 	var costs: Array = data.get("upgrade_costs", [])
@@ -290,10 +364,6 @@ func get_upgrade_cost(tower_type: String, current_level: int) -> int:
 		return -1
 	
 	return costs[current_level]
-
-
-func can_upgrade(tower_type: String, current_level: int) -> bool:
-	return current_level < MAX_LEVEL and get_upgrade_cost(tower_type, current_level) > 0
 
 
 func get_sell_value(tower_type: String, level: int, placed_this_wave: bool) -> int:
@@ -335,3 +405,14 @@ func get_legacy_data(tower_type: String, level: int = 0) -> Dictionary:
 		"splash": get_stat(tower_type, "splash", level),
 		"color": data.get("color", Color.WHITE)
 	}
+
+
+func get_save_data() -> Dictionary:
+	return {
+		"element_levels": element_levels.duplicate()
+	}
+
+
+func load_save_data(data: Dictionary) -> void:
+	if data.has("element_levels"):
+		element_levels = data["element_levels"].duplicate()
