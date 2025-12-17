@@ -57,14 +57,14 @@ func _setup_ui() -> void:
 	var third_row_y := hud_height - 66
 	
 	# Links: Gold, Leben, Welle
-	gold_label = _get_or_create_label("GoldLabel", Vector2(20, bottom_y))
+	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
 	lives_label = _get_or_create_label("LivesLabel", Vector2(20, second_row_y))
-	wave_label = _get_or_create_label("WaveLabel", Vector2(150, bottom_y))
+	wave_label = _get_or_create_label("WaveLabel", Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	enemies_label.visible = false
 	
 	# Element-Kerne Anzeige
-	cores_label = _get_or_create_label("CoresLabel", Vector2(20, third_row_y))
+	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	cores_label.add_theme_font_size_override("font_size", 11)
 	cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 	
@@ -74,8 +74,8 @@ func _setup_ui() -> void:
 		cores_button = Button.new()
 		cores_button.name = "CoresButton"
 		cores_button.text = "🔮"
-		cores_button.position = Vector2(180, third_row_y - 5)
-		cores_button.custom_minimum_size = Vector2(40, 28)
+		cores_button.position = Vector2(480, third_row_y - 5)
+		cores_button.custom_minimum_size = Vector2(64, 64)
 		cores_button.visible = true
 		add_child(cores_button)
 	
