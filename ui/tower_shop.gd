@@ -289,7 +289,9 @@ func _get_tower_icon_texture(type: String) -> Texture2D:
 		if ResourceLoader.exists(spritesheet_path):
 			var atlas := AtlasTexture.new()
 			atlas.atlas = load(spritesheet_path)
-			atlas.region = Rect2(0, 0, ARCHER_FRAME_SIZE.x, ARCHER_FRAME_SIZE.y)
+			# Nur den zentralen Bereich des 192x192 Frames nehmen (Charakter ist ca. 80x80 in der Mitte)
+			var margin := 56.0  # (192 - 80) / 2
+			atlas.region = Rect2(margin, margin, 80, 80)
 			return atlas
 	
 	# Standard Tower Textur

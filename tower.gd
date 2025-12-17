@@ -47,7 +47,7 @@ var shoot_anim_callback: Callable
 const ARCHER_FRAME_SIZE := Vector2(192, 192)
 const ARCHER_COLUMNS := 8
 const ARCHER_ROWS := 7
-const ARCHER_ANIM_SPEED := 0.1  # Sekunden pro Frame
+var archer_anim_speed := 0.08  # Sekunden pro Frame, wird dynamisch angepasst
 
 # Schuss-Richtungen: Winkel -> Reihe (0-indexed)
 # Reihe 2 (idx 2): Oben, Reihe 3: Oben-Rechts, Reihe 4: Rechts, Reihe 5: Unten-Rechts, Reihe 6: Unten
@@ -94,6 +94,7 @@ func setup(data: Dictionary, type: String) -> void:
 	splash_radius = data.get("splash", 0.0)
 	attack_type = data.get("attack_type", "projectile")
 	_load_special_effects()
+	_update_archer_anim_speed()
 	if is_inside_tree():
 		_update_visuals()
 
@@ -106,6 +107,7 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 	splash_radius = data.get("splash", splash_radius)
 	attack_type = data.get("attack_type", attack_type)
 	_load_special_effects()
+	_update_archer_anim_speed()
 	if is_inside_tree():
 		_update_visuals()
 		_show_upgrade_effect()
@@ -122,6 +124,15 @@ func _load_special_effects() -> void:
 		"burn": burn_damage = TowerData.get_stat(tower_type, "burn_damage", level)
 		"stun": stun_chance = TowerData.get_stat(tower_type, "stun_chance", level)
 		"chain": chain_targets = TowerData.get_stat(tower_type, "chain_targets", level)
+
+
+func _update_archer_anim_speed() -> void:
+	# Archer Animation Speed basierend auf fire_rate anpassen
+	# 8 Frames Schuss-Animation soll in ~80% der fire_rate Zeit abgespielt werden
+	if tower_type == "archer":
+		var shoot_frames := 8
+		var anim_duration := fire_rate * 0.8  # Animation dauert 80% der Cooldown-Zeit
+		archer_anim_speed = anim_duration / shoot_frames
 
 
 func _create_visuals() -> void:
@@ -169,7 +180,7 @@ func _setup_archer_sprite() -> void:
 	archer_sprite.frame = 0  # Start bei Idle
 	
 	# Skalierung anpassen (192px Frame auf gewünschte Größe)
-	var desired_size := 64.0
+	var desired_size := 128.0  # Doppelt so groß (war 64)
 	var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
 	archer_sprite.scale = Vector2(scale_factor, scale_factor)
 	
@@ -298,7 +309,7 @@ func _process(delta: float) -> void:
 func _update_archer_animation(delta: float) -> void:
 	anim_timer += delta
 	
-	if anim_timer >= ARCHER_ANIM_SPEED:
+	if anim_timer >= archer_anim_speed:
 		anim_timer = 0.0
 		current_anim_frame += 1
 		

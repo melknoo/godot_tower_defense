@@ -238,8 +238,8 @@ func _update_hover_appearance(tower_type: String) -> void:
 			sprite.vframes = 7
 			sprite.frame = 0  # Erster Frame (Idle)
 			
-			# Skalierung wie im Tower
-			var desired_size := 64.0
+			# Skalierung wie im Tower (doppelt so groß)
+			var desired_size := 128.0
 			var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
 			sprite.scale = Vector2(scale_factor, scale_factor)
 			sprite.modulate.a = 0.6
