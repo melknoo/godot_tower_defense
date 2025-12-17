@@ -9,6 +9,9 @@ const MAP_HEIGHT := 15
 const ARCHER_FRAME_SIZE := Vector2(192, 192)
 const ARCHER_COLUMNS := 8
 
+const SWORD_FRAME_SIZE := Vector2(192, 192)
+const SWORD_COLUMNS := 6
+
 @onready var ground_layer: GroundLayer = $GroundLayer
 @onready var wave_manager: WaveManager = $WaveManager
 @onready var tower_manager: TowerManager = $TowerManager
@@ -236,11 +239,27 @@ func _update_hover_appearance(tower_type: String) -> void:
 			sprite.texture = load(spritesheet_path)
 			sprite.hframes = ARCHER_COLUMNS
 			sprite.vframes = 7
-			sprite.frame = 0  # Erster Frame (Idle)
+			sprite.frame = 0
 			
-			# Skalierung wie im Tower (doppelt so groß)
 			var desired_size := 128.0
 			var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
+			sprite.scale = Vector2(scale_factor, scale_factor)
+			sprite.modulate.a = 0.6
+			hover_sprite.add_child(sprite)
+		else:
+			_create_fallback_preview(tower_type)
+	# Sword: Ersten Frame aus Spritesheet
+	elif tower_type == "sword":
+		var spritesheet_path := "res://assets/elemental_tower/sword_spritesheet.png"
+		if ResourceLoader.exists(spritesheet_path):
+			var sprite := Sprite2D.new()
+			sprite.texture = load(spritesheet_path)
+			sprite.hframes = SWORD_COLUMNS
+			sprite.vframes = 8
+			sprite.frame = 0
+			
+			var desired_size := 128.0
+			var scale_factor := desired_size / SWORD_FRAME_SIZE.x
 			sprite.scale = Vector2(scale_factor, scale_factor)
 			sprite.modulate.a = 0.6
 			hover_sprite.add_child(sprite)

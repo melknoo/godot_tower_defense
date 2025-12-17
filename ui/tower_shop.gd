@@ -25,6 +25,9 @@ const PADDING := 8
 const ARCHER_FRAME_SIZE := Vector2(192, 192)
 const ARCHER_COLUMNS := 8
 
+const SWORD_FRAME_SIZE := Vector2(192, 192)
+const SWORD_COLUMNS := 6
+
 var scroll_offset := 0
 var max_scroll := 0
 
@@ -289,9 +292,20 @@ func _get_tower_icon_texture(type: String) -> Texture2D:
 		if ResourceLoader.exists(spritesheet_path):
 			var atlas := AtlasTexture.new()
 			atlas.atlas = load(spritesheet_path)
-			# Nur den zentralen Bereich des 192x192 Frames nehmen (Charakter ist ca. 80x80 in der Mitte)
-			var margin := 56.0  # (192 - 80) / 2
-			atlas.region = Rect2(margin, margin, 80, 80)
+			# Kleinerer Ausschnitt: 60x60 aus der Mitte des 192x192 Frames
+			var margin := 66.0  # (192 - 60) / 2
+			atlas.region = Rect2(margin, margin + 10, 60, 60)  # +10 für bessere Zentrierung
+			return atlas
+	
+	# Sword: Ersten Frame aus Spritesheet extrahieren
+	if type == "sword":
+		var spritesheet_path := "res://assets/elemental_tower/sword_spritesheet.png"
+		if ResourceLoader.exists(spritesheet_path):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = load(spritesheet_path)
+			# Kleinerer Ausschnitt: 60x60 aus der Mitte des 192x192 Frames
+			var margin := 66.0
+			atlas.region = Rect2(margin, margin + 10, 60, 60)
 			return atlas
 	
 	# Standard Tower Textur
@@ -302,7 +316,6 @@ func _get_tower_icon_texture(type: String) -> Texture2D:
 		var is_animated: bool = data.get("animated", true)
 		
 		if is_animated:
-			# Ersten Frame aus 16x64 Spritesheet
 			var atlas := AtlasTexture.new()
 			atlas.atlas = full_tex
 			atlas.region = Rect2(0, 0, 16, 16)

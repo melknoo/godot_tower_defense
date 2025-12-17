@@ -38,10 +38,12 @@ var attack_anim_time := 0.0
 
 # Archer Spritesheet Animation
 var archer_sprite: Sprite2D
+var sword_sprite: Sprite2D
 var current_anim_row := 0
 var current_anim_frame := 0
 var anim_timer := 0.0
 var is_playing_shoot_anim := false
+var is_playing_attack_anim := false
 var shoot_anim_callback: Callable
 
 const ARCHER_FRAME_SIZE := Vector2(192, 192)
@@ -49,9 +51,21 @@ const ARCHER_COLUMNS := 8
 const ARCHER_ROWS := 7
 var archer_anim_speed := 0.08  # Sekunden pro Frame, wird dynamisch angepasst
 
+const SWORD_FRAME_SIZE := Vector2(192, 192)
+const SWORD_COLUMNS := 6
+const SWORD_ROWS := 8
+
 # Schuss-Richtungen: Winkel -> Reihe (0-indexed)
 # Reihe 2 (idx 2): Oben, Reihe 3: Oben-Rechts, Reihe 4: Rechts, Reihe 5: Unten-Rechts, Reihe 6: Unten
 const ARCHER_DIRECTION_ROWS := {
+	"up": 2,
+	"up_right": 3,
+	"right": 4,
+	"down_right": 5,
+	"down": 6
+}
+
+const SWORD_DIRECTION_ROWS := {
 	"up": 2,
 	"up_right": 3,
 	"right": 4,
@@ -151,10 +165,13 @@ func _update_visuals() -> void:
 	for child in turret.get_children():
 		child.queue_free()
 	archer_sprite = null
+	sword_sprite = null
 	sprite = null
 	
 	if tower_type == "archer":
 		_setup_archer_sprite()
+	elif tower_type == "sword":
+		_setup_sword_sprite()
 	else:
 		_setup_standard_sprite()
 	
@@ -169,7 +186,6 @@ func _update_visuals() -> void:
 func _setup_archer_sprite() -> void:
 	var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
 	if not ResourceLoader.exists(spritesheet_path):
-		# Fallback zu alter Methode
 		_setup_standard_sprite()
 		return
 	
@@ -177,16 +193,36 @@ func _setup_archer_sprite() -> void:
 	archer_sprite.texture = load(spritesheet_path)
 	archer_sprite.hframes = ARCHER_COLUMNS
 	archer_sprite.vframes = ARCHER_ROWS
-	archer_sprite.frame = 0  # Start bei Idle
+	archer_sprite.frame = 0
 	
-	# Skalierung anpassen (192px Frame auf gewünschte Größe)
-	var desired_size := 128.0  # Doppelt so groß (war 64)
+	var desired_size := 128.0
 	var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
 	archer_sprite.scale = Vector2(scale_factor, scale_factor)
 	
 	turret.add_child(archer_sprite)
 	
-	# Idle Animation starten
+	current_anim_row = 0
+	current_anim_frame = 0
+
+
+func _setup_sword_sprite() -> void:
+	var spritesheet_path := "res://assets/elemental_tower/sword_spritesheet.png"
+	if not ResourceLoader.exists(spritesheet_path):
+		_setup_standard_sprite()
+		return
+	
+	sword_sprite = Sprite2D.new()
+	sword_sprite.texture = load(spritesheet_path)
+	sword_sprite.hframes = SWORD_COLUMNS
+	sword_sprite.vframes = SWORD_ROWS
+	sword_sprite.frame = 0
+	
+	var desired_size := 128.0
+	var scale_factor := desired_size / SWORD_FRAME_SIZE.x
+	sword_sprite.scale = Vector2(scale_factor, scale_factor)
+	
+	turret.add_child(sword_sprite)
+	
 	current_anim_row = 0
 	current_anim_frame = 0
 
@@ -271,12 +307,14 @@ func _show_upgrade_effect() -> void:
 func _process(delta: float) -> void:
 	fire_timer -= delta
 	
-	# Archer Animation Update
+	# Spritesheet Animation Update
 	if archer_sprite:
 		_update_archer_animation(delta)
+	elif sword_sprite:
+		_update_sword_animation(delta)
 	
-	# Melee Attack Animation
-	if is_attacking:
+	# Alte Melee Animation (für nicht-spritesheet Tower)
+	if is_attacking and not sword_sprite:
 		attack_anim_time += delta
 		_do_melee_animation(delta)
 		if attack_anim_time > 0.3:
@@ -290,9 +328,12 @@ func _process(delta: float) -> void:
 		is_shooting = true
 		if attack_type != "melee" and not archer_sprite:
 			_rotate_towards_target(delta)
-		if fire_timer <= 0 and not is_playing_shoot_anim:
+		if fire_timer <= 0 and not is_playing_shoot_anim and not is_playing_attack_anim:
 			if attack_type == "melee":
-				_melee_attack()
+				if sword_sprite:
+					_start_sword_attack_animation()
+				else:
+					_melee_attack()
 				fire_timer = fire_rate
 			elif archer_sprite:
 				_start_archer_shoot_animation()
@@ -302,7 +343,7 @@ func _process(delta: float) -> void:
 				fire_timer = fire_rate
 	else:
 		is_shooting = false
-		if not archer_sprite:
+		if not archer_sprite and not sword_sprite:
 			_do_idle_animation(delta)
 
 
@@ -317,17 +358,37 @@ func _update_archer_animation(delta: float) -> void:
 		
 		if current_anim_frame >= max_frames:
 			if is_playing_shoot_anim:
-				# Schuss-Animation fertig, jetzt wirklich schießen
 				is_playing_shoot_anim = false
 				_shoot()
-				# Zurück zu Idle
 				current_anim_row = 0
 				current_anim_frame = 0
 			else:
-				# Idle Loop
 				current_anim_frame = 0
 		
 		_update_archer_frame()
+
+
+func _update_sword_animation(delta: float) -> void:
+	anim_timer += delta
+	
+	var anim_speed := archer_anim_speed  # Nutzt gleiche Speed-Berechnung
+	
+	if anim_timer >= anim_speed:
+		anim_timer = 0.0
+		current_anim_frame += 1
+		
+		var max_frames := 6  # Alle Reihen haben 6 Frames
+		
+		if current_anim_frame >= max_frames:
+			if is_playing_attack_anim:
+				is_playing_attack_anim = false
+				_execute_melee_damage()
+				current_anim_row = 0
+				current_anim_frame = 0
+			else:
+				current_anim_frame = 0
+		
+		_update_sword_frame()
 
 
 func _update_archer_frame() -> void:
@@ -335,6 +396,13 @@ func _update_archer_frame() -> void:
 		return
 	var frame_index := current_anim_row * ARCHER_COLUMNS + current_anim_frame
 	archer_sprite.frame = frame_index
+
+
+func _update_sword_frame() -> void:
+	if not sword_sprite:
+		return
+	var frame_index := current_anim_row * SWORD_COLUMNS + current_anim_frame
+	sword_sprite.frame = frame_index
 
 
 func _start_archer_shoot_animation() -> void:
@@ -345,20 +413,15 @@ func _start_archer_shoot_animation() -> void:
 	current_anim_frame = 0
 	anim_timer = 0.0
 	
-	# Richtung zum Ziel berechnen
 	var direction := (target.position - position).normalized()
 	var angle := direction.angle()
 	
-	# Flip für linke Seite
 	var is_left := direction.x < 0
 	archer_sprite.flip_h = is_left
 	
-	# Winkel normalisieren (0 = rechts, im Uhrzeigersinn)
 	if is_left:
-		angle = PI - angle  # Spiegeln für linke Seite
+		angle = PI - angle
 	
-	# Richtung zu Reihe mappen
-	# -PI/2 = oben, 0 = rechts, PI/2 = unten
 	if angle < -PI/3:
 		current_anim_row = ARCHER_DIRECTION_ROWS["up"]
 	elif angle < -PI/6:
@@ -371,6 +434,37 @@ func _start_archer_shoot_animation() -> void:
 		current_anim_row = ARCHER_DIRECTION_ROWS["down"]
 	
 	_update_archer_frame()
+
+
+func _start_sword_attack_animation() -> void:
+	if not target or not sword_sprite:
+		return
+	
+	is_playing_attack_anim = true
+	current_anim_frame = 0
+	anim_timer = 0.0
+	
+	var direction := (target.position - position).normalized()
+	var angle := direction.angle()
+	
+	var is_left := direction.x < 0
+	sword_sprite.flip_h = is_left
+	
+	if is_left:
+		angle = PI - angle
+	
+	if angle < -PI/3:
+		current_anim_row = SWORD_DIRECTION_ROWS["up"]
+	elif angle < -PI/6:
+		current_anim_row = SWORD_DIRECTION_ROWS["up_right"]
+	elif angle < PI/6:
+		current_anim_row = SWORD_DIRECTION_ROWS["right"]
+	elif angle < PI/3:
+		current_anim_row = SWORD_DIRECTION_ROWS["down_right"]
+	else:
+		current_anim_row = SWORD_DIRECTION_ROWS["down"]
+	
+	_update_sword_frame()
 
 
 func _do_idle_animation(delta: float) -> void:
@@ -419,7 +513,10 @@ func _rotate_towards_target(delta: float) -> void:
 func _melee_attack() -> void:
 	is_attacking = true
 	attack_anim_time = 0.0
-	
+	_execute_melee_damage()
+
+
+func _execute_melee_damage() -> void:
 	var hit_count := 0
 	var hit_enemies: Array[Node2D] = []
 	
@@ -442,7 +539,6 @@ func _melee_attack() -> void:
 			VFX.screen_shake(2.0, 0.08)
 	
 	Sound.play_shoot("sword", level)
-	_do_recoil()
 
 
 func _apply_melee_effects(enemy: Node2D) -> void:

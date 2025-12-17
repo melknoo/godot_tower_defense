@@ -29,10 +29,10 @@ var towers := {
 	"sword": {
 		"name": "Schwert",
 		"description": "Nahkampf, trifft alle Gegner in Reichweite",
-		"cost": 40,
+		"cost": 25,
 		"damage": [18, 32, 50],
-		"range": [70.0, 80.0, 90.0],
-		"fire_rate": [0.9, 0.8, 0.7],
+		"range": [90.0, 80.0, 90.0],
+		"fire_rate": [0.7, 0.8, 0.7],
 		"splash": [70.0, 80.0, 90.0],  # Splash = Range für Rundumschlag
 		"color": Color(0.8, 0.7, 0.6),
 		"upgrade_costs": [55, 115],
