@@ -25,7 +25,7 @@ func _ready() -> void:
 
 func _setup_hud_size() -> void:
 	var viewport_size := get_viewport_rect().size
-	var hud_height := 105  # Kompakter für einzeiligen Shop
+	var hud_height := 105
 	
 	anchor_left = 0.0
 	anchor_right = 1.0
@@ -56,30 +56,31 @@ func _setup_ui() -> void:
 	var second_row_y := hud_height - 44
 	var third_row_y := hud_height - 66
 	
-	# Links: Gold, Leben, Welle
 	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
 	lives_label = _get_or_create_label("LivesLabel", Vector2(20, second_row_y))
 	wave_label = _get_or_create_label("WaveLabel", Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	enemies_label.visible = false
 	
-	# Element-Kerne Anzeige
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	cores_label.add_theme_font_size_override("font_size", 11)
 	cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 	
-	# Element-Panel Button
 	cores_button = get_node_or_null("CoresButton")
 	if not cores_button:
 		cores_button = Button.new()
 		cores_button.name = "CoresButton"
-		cores_button.text = "🔮"
+		cores_button.text = ""
 		cores_button.position = Vector2(480, third_row_y - 5)
 		cores_button.custom_minimum_size = Vector2(64, 64)
 		cores_button.visible = true
+		cores_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cores_button.expand_icon = true
+		var icon_path := "res://assets/elemental_symbols/four_elements.png"
+		if ResourceLoader.exists(icon_path):
+			cores_button.icon = load(icon_path)
 		add_child(cores_button)
 	
-	# Start Button - rechts unten, weiter ins HUD
 	var viewport_size := get_viewport_rect().size
 	start_button = get_node_or_null("StartWaveButton")
 	if not start_button:
@@ -90,7 +91,6 @@ func _setup_ui() -> void:
 		add_child(start_button)
 	start_button.position = Vector2(viewport_size.x - 245, hud_height - 42)
 	
-	# Wave Preview - rechts, über dem Button
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 200, hud_height - 75))
 	wave_preview_label.add_theme_font_size_override("font_size", 10)
 	wave_preview_label.visible = false
@@ -99,13 +99,16 @@ func _setup_ui() -> void:
 		UITheme.style_button(start_button)
 		UITheme.style_button(cores_button)
 	
+	_apply_button_font_color(start_button)
+	_apply_button_font_color(cores_button)
+
+
+func _apply_button_font_color(btn: Button) -> void:
 	var dark_font := Color(0.1, 0.1, 0.1)
-	start_button.add_theme_color_override("font_color", dark_font)
-	start_button.add_theme_color_override("font_hover_color", dark_font)
-	start_button.add_theme_color_override("font_pressed_color", dark_font)
-	cores_button.add_theme_color_override("font_color", dark_font)
-	cores_button.add_theme_color_override("font_hover_color", dark_font)
-	cores_button.add_theme_color_override("font_pressed_color", dark_font)
+	btn.add_theme_color_override("font_color", dark_font)
+	btn.add_theme_color_override("font_hover_color", dark_font)
+	btn.add_theme_color_override("font_pressed_color", dark_font)
+	btn.add_theme_color_override("font_disabled_color", Color(0.3, 0.3, 0.3))
 
 
 func _get_or_create_label(node_name: String, pos: Vector2) -> Label:
@@ -176,13 +179,13 @@ func _on_cores_changed(amount: int) -> void:
 	var has_upgradeable := not TowerData.get_upgradeable_elements().is_empty()
 	
 	if amount > 0 and has_upgradeable:
-		cores_button.text = "🔮%d" % amount
+		cores_button.text = "%d" % amount
 		_highlight_cores_button(true)
 	elif not has_upgradeable:
-		cores_button.text = "🔮✓"
+		cores_button.text = "✓"
 		_highlight_cores_button(false)
 	else:
-		cores_button.text = "🔮"
+		cores_button.text = ""
 		_highlight_cores_button(false)
 
 
@@ -194,7 +197,7 @@ func _highlight_cores_button(highlight: bool) -> void:
 	if highlight:
 		cores_button.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
 	else:
-		cores_button.remove_theme_color_override("font_color")
+		cores_button.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
 
 
 func _flash_cores_label() -> void:
@@ -286,9 +289,7 @@ func show_game_over() -> void:
 	if UITheme:
 		UITheme.style_button(restart_btn)
 	
-	restart_btn.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
-	restart_btn.add_theme_color_override("font_hover_color", Color(0.1, 0.1, 0.1))
-	restart_btn.add_theme_color_override("font_pressed_color", Color(0.1, 0.1, 0.1))
+	_apply_button_font_color(restart_btn)
 
 
 func _on_restart_pressed() -> void:

@@ -2,27 +2,27 @@
 extends Node
 
 var ui_atlas: Texture2D
-var button_light_tex: Texture2D
+var button_light_idle_tex: Texture2D
+var button_light_pressed_tex: Texture2D
 var button_dark_tex: Texture2D
 var game_font: FontFile
 
 const REGIONS := {
-	# Panels
 	"panel_light": Rect2(8, 168, 86, 79),
 	"panel_medium": Rect2(102, 168, 56, 79),
 	"panel_dark": Rect2(164, 167, 46, 79),
 }
 
-# NinePatch Margins
 const PANEL_MARGINS := 12
 const BUTTON_MARGINS := 8
 
 
 func _ready() -> void:
 	ui_atlas = load("res://assets/ui/ui_sheet.png")
-	button_light_tex = load("res://assets/ui/button_light.png")
+	button_light_idle_tex = load("res://assets/ui/button_light_idle.png")
+	button_light_pressed_tex = load("res://assets/ui/button_light_pressed.png")
 	button_dark_tex = load("res://assets/ui/button_dark.png")
-	game_font = load("res://assets/fonts/Clarity.ttf")  
+	game_font = load("res://assets/fonts/Clarity.ttf")
 	print("[UITheme] Geladen")
 
 
@@ -54,9 +54,43 @@ func create_panel_style(panel_type: String = "panel_light") -> StyleBoxTexture:
 	return style
 
 
+func create_button_style_idle() -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = button_light_idle_tex
+	
+	style.texture_margin_left = BUTTON_MARGINS
+	style.texture_margin_right = BUTTON_MARGINS
+	style.texture_margin_top = BUTTON_MARGINS
+	style.texture_margin_bottom = BUTTON_MARGINS
+	
+	style.content_margin_left = BUTTON_MARGINS + 4
+	style.content_margin_right = BUTTON_MARGINS + 4
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	
+	return style
+
+
+func create_button_style_pressed() -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = button_light_pressed_tex
+	
+	style.texture_margin_left = BUTTON_MARGINS
+	style.texture_margin_right = BUTTON_MARGINS
+	style.texture_margin_top = BUTTON_MARGINS
+	style.texture_margin_bottom = BUTTON_MARGINS
+	
+	style.content_margin_left = BUTTON_MARGINS + 4
+	style.content_margin_right = BUTTON_MARGINS + 4
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	
+	return style
+
+
 func create_button_style(dark: bool = false) -> StyleBoxTexture:
 	var style := StyleBoxTexture.new()
-	style.texture = button_dark_tex if dark else button_light_tex
+	style.texture = button_dark_tex if dark else button_light_idle_tex
 	
 	style.texture_margin_left = BUTTON_MARGINS
 	style.texture_margin_right = BUTTON_MARGINS
@@ -72,9 +106,11 @@ func create_button_style(dark: bool = false) -> StyleBoxTexture:
 
 
 func style_button(btn: Button) -> void:
-	btn.add_theme_stylebox_override("normal", create_button_style(false))
-	btn.add_theme_stylebox_override("hover", create_button_style(true))
-	btn.add_theme_stylebox_override("pressed", create_button_style(true))
+	btn.add_theme_stylebox_override("normal", create_button_style_idle())
+	btn.add_theme_stylebox_override("hover", create_button_style_idle())
+	btn.add_theme_stylebox_override("pressed", create_button_style_pressed())
+	btn.add_theme_stylebox_override("disabled", create_button_style_idle())
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	btn.add_theme_font_override("font", game_font)
 
 
