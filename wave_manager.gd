@@ -19,7 +19,7 @@ var enemy_types := {
 		"health_per_wave": 10,
 		"speed_base": 80.0,
 		"speed_per_wave": 5.0,
-		"reward": 10,
+		"reward": 2,
 		"color": Color(0.8, 0.2, 0.2),
 		"scale": 0.5
 	},
@@ -28,7 +28,7 @@ var enemy_types := {
 		"health_per_wave": 5,
 		"speed_base": 140.0,
 		"speed_per_wave": 8.0,
-		"reward": 8,
+		"reward": 5,
 		"color": Color(0.2, 0.8, 0.2),
 		"scale": 0.4
 	},
@@ -37,12 +37,12 @@ var enemy_types := {
 		"health_per_wave": 30,
 		"speed_base": 50.0,
 		"speed_per_wave": 2.0,
-		"reward": 25,
+		"reward": 10,
 		"color": Color(0.4, 0.4, 0.8),
 		"scale": 0.7
 	},
 	"boss": {
-		"health_base": 500,
+		"health_base": 700,
 		"health_per_wave": 100,
 		"speed_base": 40.0,
 		"speed_per_wave": 1.0,

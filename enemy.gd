@@ -9,7 +9,7 @@ var health := 100
 var max_health := 100
 var speed := 80.0
 var base_speed := 80.0
-var reward := 10
+var reward := 2
 var enemy_type := "normal"
 
 # Status-Effekte

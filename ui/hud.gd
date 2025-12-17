@@ -160,16 +160,8 @@ func update_all() -> void:
 	_update_wave_display()
 	_on_enemy_count_changed(GameState.enemies_remaining)
 	_on_cores_changed(GameState.element_cores)
-	_update_seed_display()
 
 
-func _update_seed_display() -> void:
-	var main := get_node_or_null("/root/Main")
-	if main and main.has_method("get_current_seed"):
-		var seed_val: int = main.get_current_seed()
-		seed_label.text = "Seed: %d" % seed_val
-	else:
-		seed_label.text = ""
 
 
 func _on_gold_changed(amount: int) -> void:
