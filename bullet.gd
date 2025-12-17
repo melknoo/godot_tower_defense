@@ -186,7 +186,7 @@ func _process(delta: float) -> void:
 	position += direction * speed * delta
 	
 	# Rotation: Pfeil zeigt in Flugrichtung
-	rotation = direction.angle()
+	rotation = direction.angle() + PI
 	
 	if position.distance_to(target.position) < 15:
 		_hit_target()

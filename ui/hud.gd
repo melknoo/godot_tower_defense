@@ -98,9 +98,9 @@ func _setup_ui() -> void:
 		start_button.text = "Nächste Welle"
 		start_button.custom_minimum_size = Vector2(130, 32)
 		add_child(start_button)
-	start_button.position = Vector2(viewport_size.x - 245, hud_height - 42)
+	start_button.position = Vector2(viewport_size.x - 400, hud_height - 42)
 	
-	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 200, hud_height - 75))
+	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 75))
 	wave_preview_label.add_theme_font_size_override("font_size", 10)
 	wave_preview_label.visible = false
 	

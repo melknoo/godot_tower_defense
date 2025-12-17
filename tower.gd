@@ -506,7 +506,7 @@ func _rotate_towards_target(delta: float) -> void:
 		sprite.flip_h = is_facing_left
 		sprite.position.y = 0
 	var adjusted_direction := Vector2(abs(direction.x), direction.y)
-	var target_angle := adjusted_direction.angle() + PI
+	var target_angle := adjusted_direction.angle() + TAU
 	turret.rotation = lerp_angle(turret.rotation, target_angle, 10 * delta)
 
 
