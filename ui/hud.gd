@@ -1,5 +1,5 @@
 # ui/hud.gd
-# Zeigt Gold, Leben, Welle, Element-Kerne und Start-Button
+# Zeigt Gold, Leben, Welle, Element-Kerne, Seed und Start-Button
 extends Control
 class_name HUD
 
@@ -14,6 +14,7 @@ var cores_label: Label
 var cores_button: Button
 var start_button: Button
 var wave_preview_label: Label
+var seed_label: Label
 
 
 func _ready() -> void:
@@ -65,6 +66,14 @@ func _setup_ui() -> void:
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	cores_label.add_theme_font_size_override("font_size", 11)
 	cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
+	
+	# Seed-Anzeige (oben links im Spielfeld, nicht im HUD)
+	seed_label = Label.new()
+	seed_label.name = "SeedLabel"
+	seed_label.position = Vector2(10, -hud_height - 25)  # Über dem HUD
+	seed_label.add_theme_font_size_override("font_size", 10)
+	seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.7))
+	add_child(seed_label)
 	
 	cores_button = get_node_or_null("CoresButton")
 	if not cores_button:
@@ -151,6 +160,16 @@ func update_all() -> void:
 	_update_wave_display()
 	_on_enemy_count_changed(GameState.enemies_remaining)
 	_on_cores_changed(GameState.element_cores)
+	_update_seed_display()
+
+
+func _update_seed_display() -> void:
+	var main := get_node_or_null("/root/Main")
+	if main and main.has_method("get_current_seed"):
+		var seed_val: int = main.get_current_seed()
+		seed_label.text = "Seed: %d" % seed_val
+	else:
+		seed_label.text = ""
 
 
 func _on_gold_changed(amount: int) -> void:
@@ -265,11 +284,18 @@ func show_game_over() -> void:
 	start_button.visible = false
 	cores_button.visible = false
 	
+	# Seed im Game Over anzeigen
+	var main := get_node_or_null("/root/Main")
+	var seed_text := ""
+	if main and main.has_method("get_current_seed"):
+		seed_text = "\nSeed: %d" % main.get_current_seed()
+	
 	var game_over_label := Label.new()
-	game_over_label.text = "GAME OVER\nWelle: %d\nKerne investiert: %d/%d" % [
+	game_over_label.text = "GAME OVER\nWelle: %d\nKerne investiert: %d/%d%s" % [
 		GameState.current_wave,
 		TowerData.get_total_cores_invested(),
-		TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL
+		TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL,
+		seed_text
 	]
 	game_over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	game_over_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

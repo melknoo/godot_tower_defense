@@ -5,10 +5,8 @@ const GRID_SIZE := 64
 const MAP_WIDTH := 30
 const MAP_HEIGHT := 15
 
-# Archer Spritesheet Konstanten
 const ARCHER_FRAME_SIZE := Vector2(192, 192)
 const ARCHER_COLUMNS := 8
-
 const SWORD_FRAME_SIZE := Vector2(192, 192)
 const SWORD_COLUMNS := 6
 
@@ -20,32 +18,12 @@ const SWORD_COLUMNS := 6
 @onready var tower_info: TowerInfo = $UI/TowerInfo
 
 var element_unlock_ui: ElementUnlockUI
+var path_generator: PathGenerator
 
-var path_points: Array[Vector2] = [
-	Vector2(0, 5) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(4, 5) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(4, 2) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(10, 2) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(10, 8) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(15, 8) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(15, 4) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(20, 4) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(20, 10) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-	Vector2(30, 10) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2),
-]
-
-var path_cells: Array[Vector2i] = [
-	Vector2i(0, 5), Vector2i(1, 5), Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5),
-	Vector2i(4, 4), Vector2i(4, 3), Vector2i(4, 2),
-	Vector2i(5, 2), Vector2i(6, 2), Vector2i(7, 2), Vector2i(8, 2), Vector2i(9, 2), Vector2i(10, 2),
-	Vector2i(10, 3), Vector2i(10, 4), Vector2i(10, 5), Vector2i(10, 6), Vector2i(10, 7), Vector2i(10, 8),
-	Vector2i(11, 8), Vector2i(12, 8), Vector2i(13, 8), Vector2i(14, 8), Vector2i(15, 8),
-	Vector2i(15, 7), Vector2i(15, 6), Vector2i(15, 5), Vector2i(15, 4),
-	Vector2i(16, 4), Vector2i(17, 4), Vector2i(18, 4), Vector2i(19, 4), Vector2i(20, 4),
-	Vector2i(20, 5), Vector2i(20, 6), Vector2i(20, 7), Vector2i(20, 8), Vector2i(20, 9), Vector2i(20, 10),
-	Vector2i(21, 10), Vector2i(22, 10), Vector2i(23, 10), Vector2i(24, 10), Vector2i(25, 10),
-	Vector2i(26, 10), Vector2i(27, 10), Vector2i(28, 10), Vector2i(29, 10)
-]
+# Dynamisch generierte Pfad-Daten
+var path_points: Array[Vector2] = []
+var path_cells: Array[Vector2i] = []
+var current_seed: int = 0
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
@@ -53,11 +31,45 @@ var hover_sprite: Node2D
 
 
 func _ready() -> void:
+	_setup_path_generator()
+	_generate_new_path()
 	_setup_ground()
 	_setup_managers()
 	_setup_element_unlock_ui()
 	_connect_signals()
 	_setup_hover_preview()
+
+
+func _setup_path_generator() -> void:
+	path_generator = PathGenerator.new()
+	path_generator.name = "PathGenerator"
+	add_child(path_generator)
+
+
+func _generate_new_path(seed_value: int = -1) -> void:
+	# Seed setzen (für reproduzierbare Pfade oder zufällig)
+	if seed_value >= 0:
+		current_seed = seed_value
+		path_generator.set_seed(seed_value)
+	else:
+		current_seed = randi()
+		path_generator.set_seed(current_seed)
+	
+	# Pfad generieren
+	var path_data := path_generator.generate()
+	path_generator.print_path_info(path_data)
+	
+	# Daten übernehmen
+	path_cells.clear()
+	path_points.clear()
+	
+	for cell in path_data["cells"]:
+		path_cells.append(cell)
+	
+	for point in path_data["points"]:
+		path_points.append(point)
+	
+	print("[Main] Neuer Pfad generiert - Seed: %d" % current_seed)
 
 
 func _setup_ground() -> void:
@@ -123,6 +135,31 @@ func _input(event: InputEvent) -> void:
 		_handle_mouse_click(event)
 	elif event is InputEventMouseMotion:
 		_update_hover_preview(event.position)
+
+
+func _regenerate_map() -> void:
+	# Alle Tower entfernen
+	for tower in tower_manager.get_all_towers():
+		tower.queue_free()
+	tower_manager.placed_towers.clear()
+	tower_manager.tower_levels.clear()
+	tower_manager.tower_placed_wave.clear()
+	
+	# Neuen Pfad generieren
+	_generate_new_path()
+	
+	# Ground Layer neu zeichnen
+	ground_layer.setup(path_cells)
+	
+	# Manager aktualisieren
+	wave_manager.path_points = path_points
+	tower_manager.set_blocked_cells(path_cells)
+	
+	# VFX
+	if VFX:
+		VFX.screen_flash(Color(1, 1, 1), 0.2)
+	
+	print("[Main] Map regeneriert!")
 
 
 func _handle_mouse_click(event: InputEventMouseButton) -> void:
@@ -231,7 +268,6 @@ func _update_hover_appearance(tower_type: String) -> void:
 	
 	var data := TowerData.get_tower_data(tower_type)
 	
-	# Archer: Ersten Frame aus Spritesheet
 	if tower_type == "archer":
 		var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
 		if ResourceLoader.exists(spritesheet_path):
@@ -240,7 +276,6 @@ func _update_hover_appearance(tower_type: String) -> void:
 			sprite.hframes = ARCHER_COLUMNS
 			sprite.vframes = 7
 			sprite.frame = 0
-			
 			var desired_size := 128.0
 			var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
 			sprite.scale = Vector2(scale_factor, scale_factor)
@@ -248,7 +283,6 @@ func _update_hover_appearance(tower_type: String) -> void:
 			hover_sprite.add_child(sprite)
 		else:
 			_create_fallback_preview(tower_type)
-	# Sword: Ersten Frame aus Spritesheet
 	elif tower_type == "sword":
 		var spritesheet_path := "res://assets/elemental_tower/sword_spritesheet.png"
 		if ResourceLoader.exists(spritesheet_path):
@@ -257,7 +291,6 @@ func _update_hover_appearance(tower_type: String) -> void:
 			sprite.hframes = SWORD_COLUMNS
 			sprite.vframes = 8
 			sprite.frame = 0
-			
 			var desired_size := 128.0
 			var scale_factor := desired_size / SWORD_FRAME_SIZE.x
 			sprite.scale = Vector2(scale_factor, scale_factor)
@@ -266,14 +299,12 @@ func _update_hover_appearance(tower_type: String) -> void:
 		else:
 			_create_fallback_preview(tower_type)
 	else:
-		# Standard Tower Preview
 		var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
 		var is_animated: bool = data.get("animated", true)
 		
 		if ResourceLoader.exists(texture_path):
 			var sprite := Sprite2D.new()
 			sprite.texture = load(texture_path)
-			
 			if is_animated:
 				sprite.vframes = 4
 				sprite.hframes = 1
@@ -283,13 +314,11 @@ func _update_hover_appearance(tower_type: String) -> void:
 				sprite.vframes = 1
 				sprite.hframes = 1
 				sprite.scale = Vector2(3, 3)
-			
 			sprite.modulate.a = 0.6
 			hover_sprite.add_child(sprite)
 		else:
 			_create_fallback_preview(tower_type)
 	
-	# Range Circle
 	hover_range_circle.clear_points()
 	var range_val: float = TowerData.get_stat(tower_type, "range", 0)
 	for i in range(33):
@@ -363,3 +392,8 @@ func _on_tower_info_upgrade() -> void:
 
 func _on_tower_info_close() -> void:
 	tower_manager.deselect_tower()
+
+
+# Getter für den aktuellen Seed (für Sharing/Replay)
+func get_current_seed() -> int:
+	return current_seed
