@@ -79,20 +79,20 @@ func _setup_ui() -> void:
 		cores_button.visible = true
 		add_child(cores_button)
 	
-	# Start Button - rechts unten
+	# Start Button - rechts unten, weiter ins HUD
 	var viewport_size := get_viewport_rect().size
 	start_button = get_node_or_null("StartWaveButton")
 	if not start_button:
 		start_button = Button.new()
 		start_button.name = "StartWaveButton"
 		start_button.text = "Nächste Welle"
-		start_button.custom_minimum_size = Vector2(140, 35)
+		start_button.custom_minimum_size = Vector2(130, 32)
 		add_child(start_button)
-	start_button.position = Vector2(viewport_size.x - 160, bottom_y - 10)
+	start_button.position = Vector2(viewport_size.x - 245, hud_height - 42)
 	
-	# Wave Preview
-	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 220, second_row_y))
-	wave_preview_label.add_theme_font_size_override("font_size", 11)
+	# Wave Preview - rechts, über dem Button
+	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 200, hud_height - 75))
+	wave_preview_label.add_theme_font_size_override("font_size", 10)
 	wave_preview_label.visible = false
 	
 	if UITheme:

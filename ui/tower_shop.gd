@@ -88,10 +88,12 @@ func _setup_frame() -> void:
 	# Linker Scroll-Button
 	scroll_left_btn = Button.new()
 	scroll_left_btn.name = "ScrollLeftBtn"
-	scroll_left_btn.custom_minimum_size = Vector2(32, 50)
+	scroll_left_btn.custom_minimum_size = Vector2(40, 70)
 	scroll_left_btn.flat = true
 	scroll_left_btn.visible = false
 	scroll_left_btn.focus_mode = Control.FOCUS_NONE
+	scroll_left_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scroll_left_btn.expand_icon = true
 	scroll_left_btn.pressed.connect(_on_scroll_left)
 	scroll_left_btn.button_down.connect(_on_left_btn_down)
 	scroll_left_btn.button_up.connect(_on_left_btn_up)
@@ -116,10 +118,12 @@ func _setup_frame() -> void:
 	# Rechter Scroll-Button
 	scroll_right_btn = Button.new()
 	scroll_right_btn.name = "ScrollRightBtn"
-	scroll_right_btn.custom_minimum_size = Vector2(32, 50)
+	scroll_right_btn.custom_minimum_size = Vector2(40, 70)
 	scroll_right_btn.flat = true
 	scroll_right_btn.visible = false
 	scroll_right_btn.focus_mode = Control.FOCUS_NONE
+	scroll_right_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scroll_right_btn.expand_icon = true
 	scroll_right_btn.pressed.connect(_on_scroll_right)
 	scroll_right_btn.button_down.connect(_on_right_btn_down)
 	scroll_right_btn.button_up.connect(_on_right_btn_up)
@@ -144,6 +148,7 @@ var arrow_right_pressed: Texture2D
 
 func _load_arrow_textures() -> void:
 	var base_path := "res://assets/ui/"
+	var scale_factor := 4.0  # Skalierungsfaktor für die Pfeile
 	
 	if ResourceLoader.exists(base_path + "arrow_button_right_idle.png"):
 		arrow_right_idle = load(base_path + "arrow_button_right_idle.png")
@@ -164,10 +169,25 @@ func _load_arrow_textures() -> void:
 		img.flip_x()
 		arrow_left_pressed = ImageTexture.create_from_image(img)
 	
+	# Skalierte Versionen erstellen
+	arrow_right_idle = _scale_texture(arrow_right_idle, scale_factor)
+	arrow_right_pressed = _scale_texture(arrow_right_pressed, scale_factor)
+	arrow_left_idle = _scale_texture(arrow_left_idle, scale_factor)
+	arrow_left_pressed = _scale_texture(arrow_left_pressed, scale_factor)
+	
 	if arrow_right_idle:
 		scroll_right_btn.icon = arrow_right_idle
 	if arrow_left_idle:
 		scroll_left_btn.icon = arrow_left_idle
+
+
+func _scale_texture(tex: Texture2D, scale: float) -> ImageTexture:
+	if tex == null:
+		return null
+	var img := tex.get_image()
+	var new_size := Vector2i(int(img.get_width() * scale), int(img.get_height() * scale))
+	img.resize(new_size.x, new_size.y, Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(img)
 
 
 func _on_left_btn_down() -> void:
@@ -279,12 +299,16 @@ func _create_button(type: String) -> Control:
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	hbox.add_theme_constant_override("separation", 5)
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hbox.set_anchors_preset(Control.PRESET_CENTER)
+	hbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hbox.grow_vertical = Control.GROW_DIRECTION_BOTH
 	btn.add_child(hbox)
 	
 	var tex_rect := TextureRect.new()
 	tex_rect.custom_minimum_size = Vector2(36, 36)
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tex_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	
 	var texture_path := "res://assets/elemental_tower/tower_%s.png" % type
 	if ResourceLoader.exists(texture_path):
@@ -364,39 +388,37 @@ func _add_corners(container: Control) -> void:
 	container.set_meta("corners_node", corners_node)
 	container.add_child(corners_node)
 	
-	var btn_size := container.custom_minimum_size
-	var scl := Vector2(2.5, 2.5)
-	var offset := 6.0
+	var btn_width := BUTTON_WIDTH
+	var btn_height := BUTTON_HEIGHT
+	var scl := Vector2(1.5, 1.5)  # Kleiner skaliert
+	var corner_size := 8.0 * scl.x
+	var offset := 8.0  # Mehr Abstand zum Rand
 	
 	var tl := Sprite2D.new()
 	tl.texture = corner_textures["top_left"]
 	tl.scale = scl
-	tl.position = Vector2(-offset, -offset)
+	tl.position = Vector2(offset, offset)
 	tl.centered = false
 	corners_node.add_child(tl)
 	
 	var tr := Sprite2D.new()
 	tr.texture = corner_textures["top_right"]
 	tr.scale = scl
-	var tr_width := tr.texture.get_width() * scl.x
-	tr.position = Vector2(btn_size.x - tr_width + offset, -offset)
+	tr.position = Vector2(btn_width - corner_size - offset, offset)
 	tr.centered = false
 	corners_node.add_child(tr)
 	
 	var bl := Sprite2D.new()
 	bl.texture = corner_textures["bottom_left"]
 	bl.scale = scl
-	var bl_height := bl.texture.get_height() * scl.y
-	bl.position = Vector2(-offset, btn_size.y - bl_height + offset)
+	bl.position = Vector2(offset, btn_height - corner_size - offset)
 	bl.centered = false
 	corners_node.add_child(bl)
 	
 	var br := Sprite2D.new()
 	br.texture = corner_textures["bottom_right"]
 	br.scale = scl
-	var br_width := br.texture.get_width() * scl.x
-	var br_height := br.texture.get_height() * scl.y
-	br.position = Vector2(btn_size.x - br_width + offset, btn_size.y - br_height + offset)
+	br.position = Vector2(btn_width - corner_size - offset, btn_height - corner_size - offset)
 	br.centered = false
 	corners_node.add_child(br)
 
