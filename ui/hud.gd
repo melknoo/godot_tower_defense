@@ -1,31 +1,51 @@
 # ui/hud.gd
-# Zeigt Gold, Leben, Welle, Element-Kerne, Seed und Start-Button
+# Zeigt Gold, Leben, Welle, Element-Kerne, Seed, Start-Button und Fast-Forward
+# Nodes können im Editor platziert werden - fehlende werden automatisch erstellt
 extends Control
 class_name HUD
 
 signal start_wave_pressed
 signal open_element_panel_pressed
 
-var gold_label: Label
-var lives_label: Label
-var wave_label: Label
-var enemies_label: Label
-var cores_label: Label
-var cores_button: Button
-var start_button: Button
-var wave_preview_label: Label
-var seed_label: Label
+# Diese Nodes können im Editor als Children angelegt und positioniert werden
+@export var gold_label: Label
+@export var lives_label: Label
+@export var wave_label: Label
+@export var enemies_label: Label
+@export var cores_label: Label
+@export var cores_button: Button
+@export var start_button: Button
+@export var wave_preview_label: Label
+@export var seed_label: Label
+@export var fast_forward_button: Button
+
+# Fast-Forward State
+var is_fast_forward := false
+const FAST_FORWARD_SPEED := 2.0
+
+# Fast-Forward Texturen
+var ff_idle_tex: Texture2D
+var ff_pressed_tex: Texture2D
 
 
 func _ready() -> void:
+	_load_fast_forward_textures()
 	_setup_hud_size()
-	_setup_ui()
+	_find_or_create_ui_elements()
+	_apply_styles()
 	_connect_signals()
 	update_all()
 
 
+func _load_fast_forward_textures() -> void:
+	var base_path := "res://assets/ui/"
+	if ResourceLoader.exists(base_path + "fast_forward_idle.png"):
+		ff_idle_tex = load(base_path + "fast_forward_idle.png")
+	if ResourceLoader.exists(base_path + "fast_forward_pressed.png"):
+		ff_pressed_tex = load(base_path + "fast_forward_pressed.png")
+
+
 func _setup_hud_size() -> void:
-	var viewport_size := get_viewport_rect().size
 	var hud_height := 105
 	
 	anchor_left = 0.0
@@ -38,72 +58,107 @@ func _setup_hud_size() -> void:
 	offset_top = -hud_height
 	offset_bottom = 0
 	
-	var bg := Panel.new()
-	bg.name = "HUDBackground"
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.z_index = -1
-	
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.2, 0.2, 0.22, 0.95)
-	bg.add_theme_stylebox_override("panel", style)
-	add_child(bg)
-	move_child(bg, 0)
+	# Background nur erstellen wenn nicht vorhanden
+	if not has_node("HUDBackground"):
+		var bg := Panel.new()
+		bg.name = "HUDBackground"
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bg.z_index = -1
+		
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.2, 0.2, 0.22, 0.95)
+		bg.add_theme_stylebox_override("panel", style)
+		add_child(bg)
+		move_child(bg, 0)
 
 
-func _setup_ui() -> void:
+func _find_or_create_ui_elements() -> void:
 	var hud_height := 105
 	var bottom_y := hud_height - 22
 	var second_row_y := hud_height - 44
 	var third_row_y := hud_height - 66
+	var viewport_size := get_viewport_rect().size
 	
+	# Labels - nutze vorhandene oder erstelle neue
 	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
 	lives_label = _get_or_create_label("LivesLabel", Vector2(20, second_row_y))
 	wave_label = _get_or_create_label("WaveLabel", Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
+	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
+	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
+	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 75))
+	
+	# Buttons - nutze vorhandene oder erstelle neue
+	cores_button = _get_or_create_button("CoresButton", Vector2(480, third_row_y - 5), Vector2(64, 64))
+	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 400, hud_height - 42), Vector2(130, 32))
+	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 255, hud_height - 52), Vector2(48, 48))
+
+
+func _get_or_create_label(node_name: String, default_pos: Vector2) -> Label:
+	# Erst im Editor zugewiesene Variable prüfen, dann als Child suchen
+	var label: Label = get(node_name.to_snake_case()) as Label
+	if not label:
+		label = get_node_or_null(node_name) as Label
+	
+	if not label:
+		label = Label.new()
+		label.name = node_name
+		label.position = default_pos
+		add_child(label)
+	# Position wird NICHT überschrieben wenn Node schon existiert!
+	
+	return label
+
+
+func _get_or_create_button(node_name: String, default_pos: Vector2, default_size: Vector2) -> Button:
+	var btn: Button = get_node_or_null(node_name) as Button
+	
+	if not btn:
+		btn = Button.new()
+		btn.name = node_name
+		btn.position = default_pos
+		btn.custom_minimum_size = default_size
+		add_child(btn)
+	# Position wird NICHT überschrieben wenn Node schon existiert!
+	
+	return btn
+
+
+func _apply_styles() -> void:
+	# Label Styles
 	enemies_label.visible = false
 	
-	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	cores_label.add_theme_font_size_override("font_size", 11)
 	cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 	
-	# Seed-Anzeige (oben links im Spielfeld, nicht im HUD)
-	seed_label = Label.new()
-	seed_label.name = "SeedLabel"
-	seed_label.position = Vector2(10, -hud_height - 25)  # Über dem HUD
 	seed_label.add_theme_font_size_override("font_size", 10)
 	seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.7))
-	add_child(seed_label)
 	
-	cores_button = get_node_or_null("CoresButton")
-	if not cores_button:
-		cores_button = Button.new()
-		cores_button.name = "CoresButton"
-		cores_button.text = ""
-		cores_button.position = Vector2(480, third_row_y - 5)
-		cores_button.custom_minimum_size = Vector2(64, 64)
-		cores_button.visible = true
-		cores_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cores_button.expand_icon = true
-		var icon_path := "res://assets/elemental_symbols/four_elements.png"
-		if ResourceLoader.exists(icon_path):
-			cores_button.icon = load(icon_path)
-		add_child(cores_button)
-	
-	var viewport_size := get_viewport_rect().size
-	start_button = get_node_or_null("StartWaveButton")
-	if not start_button:
-		start_button = Button.new()
-		start_button.name = "StartWaveButton"
-		start_button.text = "Nächste Welle"
-		start_button.custom_minimum_size = Vector2(130, 32)
-		add_child(start_button)
-	start_button.position = Vector2(viewport_size.x - 400, hud_height - 42)
-	
-	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 75))
 	wave_preview_label.add_theme_font_size_override("font_size", 10)
 	wave_preview_label.visible = false
 	
+	# Cores Button
+	cores_button.text = ""
+	cores_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cores_button.expand_icon = true
+	var icon_path := "res://assets/elemental_symbols/four_elements.png"
+	if ResourceLoader.exists(icon_path):
+		cores_button.icon = load(icon_path)
+	
+	# Start Button
+	start_button.text = "Nächste Welle"
+	
+	# Fast Forward Button
+	fast_forward_button.text = ""
+	fast_forward_button.visible = false
+	fast_forward_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fast_forward_button.expand_icon = true
+	fast_forward_button.flat = true
+	_update_fast_forward_icon()
+	_style_fast_forward_button()
+	
+	# UITheme anwenden
 	if UITheme:
 		UITheme.style_button(start_button)
 		UITheme.style_button(cores_button)
@@ -112,22 +167,28 @@ func _setup_ui() -> void:
 	_apply_button_font_color(cores_button)
 
 
+func _style_fast_forward_button() -> void:
+	var empty := StyleBoxEmpty.new()
+	fast_forward_button.add_theme_stylebox_override("normal", empty)
+	fast_forward_button.add_theme_stylebox_override("hover", empty)
+	fast_forward_button.add_theme_stylebox_override("pressed", empty)
+	fast_forward_button.add_theme_stylebox_override("focus", empty)
+	fast_forward_button.add_theme_stylebox_override("disabled", empty)
+
+
+func _update_fast_forward_icon() -> void:
+	if is_fast_forward and ff_pressed_tex:
+		fast_forward_button.icon = ff_pressed_tex
+	elif ff_idle_tex:
+		fast_forward_button.icon = ff_idle_tex
+
+
 func _apply_button_font_color(btn: Button) -> void:
 	var dark_font := Color(0.1, 0.1, 0.1)
 	btn.add_theme_color_override("font_color", dark_font)
 	btn.add_theme_color_override("font_hover_color", dark_font)
 	btn.add_theme_color_override("font_pressed_color", dark_font)
 	btn.add_theme_color_override("font_disabled_color", Color(0.3, 0.3, 0.3))
-
-
-func _get_or_create_label(node_name: String, pos: Vector2) -> Label:
-	var label := get_node_or_null(node_name) as Label
-	if not label:
-		label = Label.new()
-		label.name = node_name
-		label.position = pos
-		add_child(label)
-	return label
 
 
 func _connect_signals() -> void:
@@ -144,6 +205,7 @@ func _connect_signals() -> void:
 	
 	start_button.pressed.connect(_on_start_button_pressed)
 	cores_button.pressed.connect(_on_cores_button_pressed)
+	fast_forward_button.pressed.connect(_on_fast_forward_pressed)
 
 
 func _on_element_invested(_element: String) -> void:
@@ -160,8 +222,6 @@ func update_all() -> void:
 	_update_wave_display()
 	_on_enemy_count_changed(GameState.enemies_remaining)
 	_on_cores_changed(GameState.element_cores)
-
-
 
 
 func _on_gold_changed(amount: int) -> void:
@@ -222,12 +282,18 @@ func _on_wave_started(wave: int) -> void:
 	start_button.disabled = true
 	start_button.text = "Wave läuft..."
 	wave_preview_label.visible = false
+	fast_forward_button.visible = true
+	
+	_set_fast_forward(false)
 
 
 func _on_wave_completed(wave: int) -> void:
 	start_button.disabled = false
 	start_button.text = "Nächste Welle"
 	_update_wave_preview(wave + 1)
+	fast_forward_button.visible = false
+	
+	_set_fast_forward(false)
 
 
 func _on_enemy_count_changed(count: int) -> void:
@@ -272,11 +338,28 @@ func _on_cores_button_pressed() -> void:
 	open_element_panel_pressed.emit()
 
 
+func _on_fast_forward_pressed() -> void:
+	Sound.play_click()
+	_set_fast_forward(not is_fast_forward)
+
+
+func _set_fast_forward(enabled: bool) -> void:
+	is_fast_forward = enabled
+	_update_fast_forward_icon()
+	
+	if enabled:
+		Engine.time_scale = FAST_FORWARD_SPEED
+	else:
+		Engine.time_scale = 1.0
+
+
 func show_game_over() -> void:
+	_set_fast_forward(false)
+	
 	start_button.visible = false
 	cores_button.visible = false
+	fast_forward_button.visible = false
 	
-	# Seed im Game Over anzeigen
 	var main := get_node_or_null("/root/Main")
 	var seed_text := ""
 	if main and main.has_method("get_current_seed"):

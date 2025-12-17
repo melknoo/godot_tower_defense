@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://r8hvt375kr03"
-path="res://.godot/imported/fast_worward_idle.png-420c27d16322b6bcd7e4f187c6049f20.ctex"
+uid="uid://cd7q78pwd4erv"
+path="res://.godot/imported/fast_forward_pressed.png-affb8dfb1bc66dbefc06d7f635b2f368.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/fast_worward_idle.png"
-dest_files=["res://.godot/imported/fast_worward_idle.png-420c27d16322b6bcd7e4f187c6049f20.ctex"]
+source_file="res://assets/ui/fast_forward_pressed.png"
+dest_files=["res://.godot/imported/fast_forward_pressed.png-affb8dfb1bc66dbefc06d7f635b2f368.ctex"]
 
 [params]
 
