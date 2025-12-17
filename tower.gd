@@ -1,9 +1,9 @@
 # tower.gd
-# Tower mit Upgrades, Spezialeffekten, Melee-Attacken und VFX
+# Tower mit Upgrades, Spezialeffekten, Melee-Attacken und animierten Spritesheets
 extends Node2D
 class_name Tower
 
-var tower_type := "water"
+var tower_type := "archer"
 var tower_range := 150.0
 var fire_rate := 1.0
 var damage := 20
@@ -35,6 +35,29 @@ var idle_time := 0.0
 var is_shooting := false
 var is_attacking := false
 var attack_anim_time := 0.0
+
+# Archer Spritesheet Animation
+var archer_sprite: Sprite2D
+var current_anim_row := 0
+var current_anim_frame := 0
+var anim_timer := 0.0
+var is_playing_shoot_anim := false
+var shoot_anim_callback: Callable
+
+const ARCHER_FRAME_SIZE := Vector2(192, 192)
+const ARCHER_COLUMNS := 8
+const ARCHER_ROWS := 7
+const ARCHER_ANIM_SPEED := 0.1  # Sekunden pro Frame
+
+# Schuss-Richtungen: Winkel -> Reihe (0-indexed)
+# Reihe 2 (idx 2): Oben, Reihe 3: Oben-Rechts, Reihe 4: Rechts, Reihe 5: Unten-Rechts, Reihe 6: Unten
+const ARCHER_DIRECTION_ROWS := {
+	"up": 2,
+	"up_right": 3,
+	"right": 4,
+	"down_right": 5,
+	"down": 6
+}
 
 # Corner Textures
 static var corner_textures: Dictionary = {}
@@ -113,20 +136,55 @@ func _create_visuals() -> void:
 	add_child(level_indicator)
 
 
-func _get_tower_texture_path() -> String:
-	if level == 0:
-		return "res://assets/elemental_tower/tower_%s.png" % tower_type
-	else:
-		var display_level := level + 1
-		return "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, display_level]
-
-
 func _update_visuals() -> void:
 	for child in turret.get_children():
 		child.queue_free()
+	archer_sprite = null
+	sprite = null
+	
+	if tower_type == "archer":
+		_setup_archer_sprite()
+	else:
+		_setup_standard_sprite()
+	
+	# Range Circle
+	range_circle.clear_points()
+	for i in range(33):
+		var angle := i * TAU / 32
+		range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
+	_update_level_indicator()
+
+
+func _setup_archer_sprite() -> void:
+	var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
+	if not ResourceLoader.exists(spritesheet_path):
+		# Fallback zu alter Methode
+		_setup_standard_sprite()
+		return
+	
+	archer_sprite = Sprite2D.new()
+	archer_sprite.texture = load(spritesheet_path)
+	archer_sprite.hframes = ARCHER_COLUMNS
+	archer_sprite.vframes = ARCHER_ROWS
+	archer_sprite.frame = 0  # Start bei Idle
+	
+	# Skalierung anpassen (192px Frame auf gewünschte Größe)
+	var desired_size := 64.0
+	var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
+	archer_sprite.scale = Vector2(scale_factor, scale_factor)
+	
+	turret.add_child(archer_sprite)
+	
+	# Idle Animation starten
+	current_anim_row = 0
+	current_anim_frame = 0
+
+
+func _setup_standard_sprite() -> void:
 	var texture_path := _get_tower_texture_path()
 	if not ResourceLoader.exists(texture_path) and level > 0:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
+	
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
 	
@@ -157,12 +215,14 @@ func _update_visuals() -> void:
 		var color: Variant = TowerData.get_stat(tower_type, "color")
 		poly.color = color if color else Color.WHITE
 		turret.add_child(poly)
-	
-	range_circle.clear_points()
-	for i in range(33):
-		var angle := i * TAU / 32
-		range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
-	_update_level_indicator()
+
+
+func _get_tower_texture_path() -> String:
+	if level == 0:
+		return "res://assets/elemental_tower/tower_%s.png" % tower_type
+	else:
+		var display_level := level + 1
+		return "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, display_level]
 
 
 func _update_level_indicator() -> void:
@@ -180,22 +240,29 @@ func _update_level_indicator() -> void:
 
 
 func _show_upgrade_effect() -> void:
-	if not sprite:
+	var current_sprite: Sprite2D = archer_sprite if archer_sprite else sprite
+	if not current_sprite:
 		return
 	var flash := Sprite2D.new()
-	flash.texture = sprite.texture
-	flash.vframes = 4
-	flash.scale = Vector2(3.5, 3.5)
+	flash.texture = current_sprite.texture
+	flash.hframes = current_sprite.hframes
+	flash.vframes = current_sprite.vframes
+	flash.frame = current_sprite.frame
+	flash.scale = current_sprite.scale * 1.2
 	flash.modulate = Color(1, 1, 1, 0.8)
 	turret.add_child(flash)
 	var tween := flash.create_tween()
-	tween.tween_property(flash, "scale", Vector2(5, 5), 0.3)
+	tween.tween_property(flash, "scale", current_sprite.scale * 1.5, 0.3)
 	tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.3)
 	tween.tween_callback(flash.queue_free)
 
 
 func _process(delta: float) -> void:
 	fire_timer -= delta
+	
+	# Archer Animation Update
+	if archer_sprite:
+		_update_archer_animation(delta)
 	
 	# Melee Attack Animation
 	if is_attacking:
@@ -210,17 +277,89 @@ func _process(delta: float) -> void:
 	
 	if target:
 		is_shooting = true
-		if attack_type != "melee":
+		if attack_type != "melee" and not archer_sprite:
 			_rotate_towards_target(delta)
-		if fire_timer <= 0:
+		if fire_timer <= 0 and not is_playing_shoot_anim:
 			if attack_type == "melee":
 				_melee_attack()
+				fire_timer = fire_rate
+			elif archer_sprite:
+				_start_archer_shoot_animation()
+				fire_timer = fire_rate
 			else:
 				_shoot()
-			fire_timer = fire_rate
+				fire_timer = fire_rate
 	else:
 		is_shooting = false
-		_do_idle_animation(delta)
+		if not archer_sprite:
+			_do_idle_animation(delta)
+
+
+func _update_archer_animation(delta: float) -> void:
+	anim_timer += delta
+	
+	if anim_timer >= ARCHER_ANIM_SPEED:
+		anim_timer = 0.0
+		current_anim_frame += 1
+		
+		var max_frames := 6 if current_anim_row == 0 else 8
+		
+		if current_anim_frame >= max_frames:
+			if is_playing_shoot_anim:
+				# Schuss-Animation fertig, jetzt wirklich schießen
+				is_playing_shoot_anim = false
+				_shoot()
+				# Zurück zu Idle
+				current_anim_row = 0
+				current_anim_frame = 0
+			else:
+				# Idle Loop
+				current_anim_frame = 0
+		
+		_update_archer_frame()
+
+
+func _update_archer_frame() -> void:
+	if not archer_sprite:
+		return
+	var frame_index := current_anim_row * ARCHER_COLUMNS + current_anim_frame
+	archer_sprite.frame = frame_index
+
+
+func _start_archer_shoot_animation() -> void:
+	if not target or not archer_sprite:
+		return
+	
+	is_playing_shoot_anim = true
+	current_anim_frame = 0
+	anim_timer = 0.0
+	
+	# Richtung zum Ziel berechnen
+	var direction := (target.position - position).normalized()
+	var angle := direction.angle()
+	
+	# Flip für linke Seite
+	var is_left := direction.x < 0
+	archer_sprite.flip_h = is_left
+	
+	# Winkel normalisieren (0 = rechts, im Uhrzeigersinn)
+	if is_left:
+		angle = PI - angle  # Spiegeln für linke Seite
+	
+	# Richtung zu Reihe mappen
+	# -PI/2 = oben, 0 = rechts, PI/2 = unten
+	if angle < -PI/3:
+		current_anim_row = ARCHER_DIRECTION_ROWS["up"]
+	elif angle < -PI/6:
+		current_anim_row = ARCHER_DIRECTION_ROWS["up_right"]
+	elif angle < PI/6:
+		current_anim_row = ARCHER_DIRECTION_ROWS["right"]
+	elif angle < PI/3:
+		current_anim_row = ARCHER_DIRECTION_ROWS["down_right"]
+	else:
+		current_anim_row = ARCHER_DIRECTION_ROWS["down"]
+	
+	_update_archer_frame()
 
 
 func _do_idle_animation(delta: float) -> void:
@@ -232,7 +371,6 @@ func _do_idle_animation(delta: float) -> void:
 func _do_melee_animation(delta: float) -> void:
 	if not sprite:
 		return
-	# Schwung-Animation: Rotation + Scale-Punch
 	var progress := attack_anim_time / 0.3
 	var swing_angle := sin(progress * PI) * 0.5
 	turret.rotation = swing_angle
@@ -271,7 +409,6 @@ func _melee_attack() -> void:
 	is_attacking = true
 	attack_anim_time = 0.0
 	
-	# Alle Gegner in Reichweite treffen
 	var hit_count := 0
 	var hit_enemies: Array[Node2D] = []
 	
@@ -281,13 +418,11 @@ func _melee_attack() -> void:
 			hit_enemies.append(enemy)
 			hit_count += 1
 	
-	# Schaden verteilen
 	for enemy in hit_enemies:
 		if enemy.has_method("take_damage"):
 			enemy.take_damage(damage, true, tower_type)
 		_apply_melee_effects(enemy)
 	
-	# VFX: Schwert-Schwung Effekt
 	if VFX:
 		VFX.spawn_cleave_effect(position, tower_range, tower_type)
 		if hit_count > 0:
@@ -295,10 +430,7 @@ func _melee_attack() -> void:
 		if hit_count >= 3:
 			VFX.screen_shake(2.0, 0.08)
 	
-	# Sound
 	Sound.play_shoot("sword", level)
-	
-	# Visueller Feedback
 	_do_recoil()
 
 
@@ -307,7 +439,7 @@ func _apply_melee_effects(enemy: Node2D) -> void:
 		return
 	match special_type:
 		"cleave":
-			pass  # Basis-Effekt, trifft alle
+			pass
 		"stun":
 			if randf() < stun_chance and enemy.has_method("apply_stun"):
 				enemy.apply_stun(0.5)
@@ -335,22 +467,27 @@ func _shoot() -> void:
 	else:
 		bullet.setup(target, damage, splash_radius, tower_type)
 	get_parent().add_child(bullet)
+	
 	var direction := (target.position - position).normalized()
-	if VFX:
+	if VFX and tower_type != "archer":
 		VFX.spawn_muzzle_flash(position + direction * 15, direction, tower_type)
+	
 	var sound_element := "base" if tower_type == "archer" else tower_type
 	Sound.play_shoot(sound_element, level)
-	_do_recoil()
+	
+	if not archer_sprite:
+		_do_recoil()
 
 
 func _do_recoil() -> void:
-	if not sprite:
+	var current_sprite: Sprite2D = archer_sprite if archer_sprite else sprite
+	if not current_sprite:
 		return
-	var original_pos := sprite.position
+	var original_pos := current_sprite.position
 	var recoil_dir := Vector2(0, 3)
-	var tween := sprite.create_tween()
-	tween.tween_property(sprite, "position", original_pos + recoil_dir, 0.05)
-	tween.tween_property(sprite, "position", original_pos, 0.1).set_trans(Tween.TRANS_ELASTIC)
+	var tween := current_sprite.create_tween()
+	tween.tween_property(current_sprite, "position", original_pos + recoil_dir, 0.05)
+	tween.tween_property(current_sprite, "position", original_pos, 0.1).set_trans(Tween.TRANS_ELASTIC)
 
 
 func select() -> void:

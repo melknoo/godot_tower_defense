@@ -3,7 +3,11 @@ extends Node2D
 
 const GRID_SIZE := 64
 const MAP_WIDTH := 30
-const MAP_HEIGHT := 15  # Vergrößert da Shop jetzt einzeilig ist
+const MAP_HEIGHT := 15
+
+# Archer Spritesheet Konstanten
+const ARCHER_FRAME_SIZE := Vector2(192, 192)
+const ARCHER_COLUMNS := 8
 
 @onready var ground_layer: GroundLayer = $GroundLayer
 @onready var wave_manager: WaveManager = $WaveManager
@@ -166,7 +170,7 @@ func _is_over_ui(pos: Vector2) -> bool:
 	if element_unlock_ui and element_unlock_ui.visible:
 		return true
 	var viewport_size := get_viewport_rect().size
-	if pos.y > viewport_size.y - 105:  # Passend zur HUD-Höhe
+	if pos.y > viewport_size.y - 105:
 		return true
 	return false
 
@@ -222,42 +226,68 @@ func _update_hover_appearance(tower_type: String) -> void:
 	for child in hover_sprite.get_children():
 		child.queue_free()
 	
-	var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
 	var data := TowerData.get_tower_data(tower_type)
-	var is_animated: bool = data.get("animated", true)
 	
-	if ResourceLoader.exists(texture_path):
-		var sprite := Sprite2D.new()
-		sprite.texture = load(texture_path)
-		
-		if is_animated:
-			sprite.vframes = 4
-			sprite.hframes = 1
-			sprite.frame = 0
-			sprite.scale = Vector2(3, 3)
+	# Archer: Ersten Frame aus Spritesheet
+	if tower_type == "archer":
+		var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
+		if ResourceLoader.exists(spritesheet_path):
+			var sprite := Sprite2D.new()
+			sprite.texture = load(spritesheet_path)
+			sprite.hframes = ARCHER_COLUMNS
+			sprite.vframes = 7
+			sprite.frame = 0  # Erster Frame (Idle)
+			
+			# Skalierung wie im Tower
+			var desired_size := 64.0
+			var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
+			sprite.scale = Vector2(scale_factor, scale_factor)
+			sprite.modulate.a = 0.6
+			hover_sprite.add_child(sprite)
 		else:
-			sprite.vframes = 1
-			sprite.hframes = 1
-			sprite.scale = Vector2(3, 3)
-		
-		sprite.modulate.a = 0.6
-		hover_sprite.add_child(sprite)
+			_create_fallback_preview(tower_type)
 	else:
-		var poly := Polygon2D.new()
-		poly.polygon = PackedVector2Array([
-			Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
-			Vector2(0, -25), Vector2(-20, -10)
-		])
-		var color: Color = TowerData.get_stat(tower_type, "color")
-		poly.color = color
-		poly.color.a = 0.6
-		hover_sprite.add_child(poly)
+		# Standard Tower Preview
+		var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
+		var is_animated: bool = data.get("animated", true)
+		
+		if ResourceLoader.exists(texture_path):
+			var sprite := Sprite2D.new()
+			sprite.texture = load(texture_path)
+			
+			if is_animated:
+				sprite.vframes = 4
+				sprite.hframes = 1
+				sprite.frame = 0
+				sprite.scale = Vector2(3, 3)
+			else:
+				sprite.vframes = 1
+				sprite.hframes = 1
+				sprite.scale = Vector2(3, 3)
+			
+			sprite.modulate.a = 0.6
+			hover_sprite.add_child(sprite)
+		else:
+			_create_fallback_preview(tower_type)
 	
+	# Range Circle
 	hover_range_circle.clear_points()
 	var range_val: float = TowerData.get_stat(tower_type, "range", 0)
 	for i in range(33):
 		var angle := i * TAU / 32
 		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
+
+
+func _create_fallback_preview(tower_type: String) -> void:
+	var poly := Polygon2D.new()
+	poly.polygon = PackedVector2Array([
+		Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
+		Vector2(0, -25), Vector2(-20, -10)
+	])
+	var color: Color = TowerData.get_stat(tower_type, "color")
+	poly.color = color
+	poly.color.a = 0.6
+	hover_sprite.add_child(poly)
 
 
 func _on_start_wave_pressed() -> void:

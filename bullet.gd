@@ -1,5 +1,5 @@
 # bullet.gd
-# Projektil mit Spezialeffekten, Level-Sprites und VFX
+# Projektil mit Spezialeffekten, Arrow-Sprite und VFX
 extends Node2D
 class_name Bullet
 
@@ -26,10 +26,14 @@ var already_hit: Array[Node2D] = []
 var sprite: Sprite2D
 var trail_timer: Timer
 
+# Arrow spezifisch
+const ARROW_FRAME_SIZE := Vector2(64, 64)
+
 
 func _ready() -> void:
 	_create_visuals()
-	_start_trail()
+	if bullet_type != "archer":
+		_start_trail()
 
 
 func setup(t: Node2D, dmg: int, splash: float, type: String) -> void:
@@ -57,6 +61,7 @@ func setup_extended(data: Dictionary) -> void:
 
 func _set_speed_for_type(type: String) -> void:
 	match type:
+		"archer": speed = 450.0  # Schneller Pfeil
 		"water": speed = 300.0
 		"fire": speed = 150.0
 		"earth": speed = 200.0
@@ -70,15 +75,49 @@ func _set_speed_for_type(type: String) -> void:
 		_: speed = 400.0
 
 
-func _get_bullet_texture_path() -> String:
-	if bullet_level == 0:
-		return "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
-	else:
-		var display_level := bullet_level + 1
-		return "res://assets/elemental_bullets/bullet_%s_level_%d.png" % [bullet_type, display_level]
-
-
 func _create_visuals() -> void:
+	if bullet_type == "archer":
+		_create_arrow_sprite()
+	else:
+		_create_standard_bullet()
+
+
+func _create_arrow_sprite() -> void:
+	var arrow_path := "res://assets/elemental_bullets/arrow.png"
+	
+	if ResourceLoader.exists(arrow_path):
+		sprite = Sprite2D.new()
+		sprite.texture = load(arrow_path)
+		
+		# Nur ersten Frame nutzen (64x64 von 64x128)
+		sprite.vframes = 2
+		sprite.hframes = 1
+		sprite.frame = 0
+		
+		# Skalierung
+		var desired_size := 32.0
+		var scale_factor := desired_size / ARROW_FRAME_SIZE.x
+		sprite.scale = Vector2(scale_factor, scale_factor)
+		
+		add_child(sprite)
+	else:
+		# Fallback: Einfacher Pfeil als Polygon
+		_create_arrow_polygon()
+
+
+func _create_arrow_polygon() -> void:
+	var poly := Polygon2D.new()
+	poly.polygon = PackedVector2Array([
+		Vector2(-12, -2), Vector2(8, -2),
+		Vector2(8, -5), Vector2(15, 0),
+		Vector2(8, 5), Vector2(8, 2),
+		Vector2(-12, 2)
+	])
+	poly.color = Color(0.6, 0.5, 0.3)
+	add_child(poly)
+
+
+func _create_standard_bullet() -> void:
 	var texture_path := _get_bullet_texture_path()
 	
 	if not ResourceLoader.exists(texture_path) and bullet_level > 0:
@@ -111,6 +150,14 @@ func _create_visuals() -> void:
 		add_child(poly)
 
 
+func _get_bullet_texture_path() -> String:
+	if bullet_level == 0:
+		return "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
+	else:
+		var display_level := bullet_level + 1
+		return "res://assets/elemental_bullets/bullet_%s_level_%d.png" % [bullet_type, display_level]
+
+
 func _start_trail() -> void:
 	if VFX:
 		trail_timer = VFX.create_pixel_trail(self, bullet_type, 0.03)
@@ -126,6 +173,7 @@ func _get_bullet_color() -> Color:
 		"steam": return Color(0.7, 0.7, 0.8)
 		"lava": return Color(1.0, 0.3, 0.0)
 		"nature": return Color(0.3, 0.8, 0.2)
+		"archer": return Color(0.6, 0.5, 0.3)
 		_: return Color.WHITE
 
 
@@ -136,7 +184,9 @@ func _process(delta: float) -> void:
 	
 	var direction := (target.position - position).normalized()
 	position += direction * speed * delta
-	rotation = direction.angle() + PI
+	
+	# Rotation: Pfeil zeigt in Flugrichtung
+	rotation = direction.angle()
 	
 	if position.distance_to(target.position) < 15:
 		_hit_target()
@@ -160,7 +210,6 @@ func _hit_single(enemy: Node2D) -> void:
 	
 	already_hit.append(enemy)
 	
-	# Schaden mit Element-Info für VFX
 	if enemy.has_method("take_damage"):
 		enemy.take_damage(damage, true, bullet_type)
 	
@@ -174,7 +223,6 @@ func _hit_splash() -> void:
 			_hit_single(enemy)
 			hit_count += 1
 	
-	# Splash VFX
 	if VFX:
 		VFX.spawn_pixel_ring(position, bullet_type, splash_radius)
 		if hit_count > 3:
@@ -250,7 +298,6 @@ func _draw_chain_lightning(from: Vector2, to: Vector2) -> void:
 	
 	get_parent().add_child(line)
 	
-	# VFX an Endpunkt
 	if VFX:
 		VFX.spawn_pixels(to, "air", 4, 15.0)
 	
@@ -286,7 +333,6 @@ func _spawn_lava_pool() -> void:
 				if e.has_method("take_damage"):
 					e.take_damage(pool_dmg, false, "lava")
 		
-		# Gelegentlich Partikel
 		if VFX and randf() > 0.5:
 			VFX.spawn_pixels(pool.position + Vector2(randf_range(-20, 20), randf_range(-20, 20)), "lava", 2, 10.0)
 	)
@@ -298,9 +344,12 @@ func _spawn_lava_pool() -> void:
 
 
 func _explode() -> void:
-	# Impact-Partikel
+	# Archer hat subtileren Impact
 	if VFX:
-		VFX.spawn_pixels(position, bullet_type, 4, 15.0)
+		if bullet_type == "archer":
+			VFX.spawn_pixels(position, "archer", 3, 10.0)
+		else:
+			VFX.spawn_pixels(position, bullet_type, 4, 15.0)
 	
 	if trail_timer:
 		trail_timer.queue_free()

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bm8d24jl1ji06"
-path="res://.godot/imported/bullet_archer.png-4a7dee6850e0de570874335154fa4051.ctex"
+uid="uid://dkt8j1miiolua"
+path="res://.godot/imported/arrow.png-952d26deeeb1024190b16f34a110a97a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/bullet_archer.png"
-dest_files=["res://.godot/imported/bullet_archer.png-4a7dee6850e0de570874335154fa4051.ctex"]
+source_file="res://assets/elemental_bullets/arrow.png"
+dest_files=["res://.godot/imported/arrow.png-952d26deeeb1024190b16f34a110a97a.ctex"]
 
 [params]
 

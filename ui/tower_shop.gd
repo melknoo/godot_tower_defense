@@ -15,11 +15,15 @@ var clip_container: Control
 
 var corner_textures: Dictionary = {}
 
-const VISIBLE_TOWERS := 6  # Sichtbare Tower in einer Zeile
+const VISIBLE_TOWERS := 6
 const BUTTON_WIDTH := 95
-const BUTTON_HEIGHT := 85  # Passend für 105px Shop-Höhe
+const BUTTON_HEIGHT := 85
 const H_SPACING := 12
 const PADDING := 8
+
+# Archer Spritesheet Konstanten
+const ARCHER_FRAME_SIZE := Vector2(192, 192)
+const ARCHER_COLUMNS := 8
 
 var scroll_offset := 0
 var max_scroll := 0
@@ -46,7 +50,7 @@ func _move_to_front() -> void:
 
 func _setup_frame() -> void:
 	var content_width := VISIBLE_TOWERS * (BUTTON_WIDTH + H_SPACING) + 80 + (PADDING * 2)
-	var content_height := 105  # Feste Höhe wie HUD
+	var content_height := 105
 	custom_minimum_size = Vector2(content_width, content_height)
 	
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -85,7 +89,6 @@ func _setup_frame() -> void:
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	margin.add_child(hbox)
 	
-	# Linker Scroll-Button
 	scroll_left_btn = Button.new()
 	scroll_left_btn.name = "ScrollLeftBtn"
 	scroll_left_btn.custom_minimum_size = Vector2(40, 70)
@@ -100,7 +103,6 @@ func _setup_frame() -> void:
 	_style_arrow_button(scroll_left_btn)
 	hbox.add_child(scroll_left_btn)
 	
-	# Clip-Container für das Grid
 	clip_container = Control.new()
 	clip_container.name = "ClipContainer"
 	clip_container.clip_contents = true
@@ -109,13 +111,11 @@ func _setup_frame() -> void:
 	clip_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hbox.add_child(clip_container)
 	
-	# HBox Container für Tower (einzeilig)
 	grid_container = HBoxContainer.new()
 	grid_container.name = "GridContainer"
 	grid_container.add_theme_constant_override("separation", H_SPACING)
 	clip_container.add_child(grid_container)
 	
-	# Rechter Scroll-Button
 	scroll_right_btn = Button.new()
 	scroll_right_btn.name = "ScrollRightBtn"
 	scroll_right_btn.custom_minimum_size = Vector2(40, 70)
@@ -148,7 +148,7 @@ var arrow_right_pressed: Texture2D
 
 func _load_arrow_textures() -> void:
 	var base_path := "res://assets/ui/"
-	var scale_factor := 4.0  # Skalierungsfaktor für die Pfeile
+	var scale_factor := 4.0
 	
 	if ResourceLoader.exists(base_path + "arrow_button_right_idle.png"):
 		arrow_right_idle = load(base_path + "arrow_button_right_idle.png")
@@ -169,7 +169,6 @@ func _load_arrow_textures() -> void:
 		img.flip_x()
 		arrow_left_pressed = ImageTexture.create_from_image(img)
 	
-	# Skalierte Versionen erstellen
 	arrow_right_idle = _scale_texture(arrow_right_idle, scale_factor)
 	arrow_right_pressed = _scale_texture(arrow_right_pressed, scale_factor)
 	arrow_left_idle = _scale_texture(arrow_left_idle, scale_factor)
@@ -283,6 +282,35 @@ func _on_element_unlocked(_element: String) -> void:
 	_create_tower_buttons()
 
 
+func _get_tower_icon_texture(type: String) -> Texture2D:
+	# Archer: Ersten Frame aus Spritesheet extrahieren
+	if type == "archer":
+		var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
+		if ResourceLoader.exists(spritesheet_path):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = load(spritesheet_path)
+			atlas.region = Rect2(0, 0, ARCHER_FRAME_SIZE.x, ARCHER_FRAME_SIZE.y)
+			return atlas
+	
+	# Standard Tower Textur
+	var texture_path := "res://assets/elemental_tower/tower_%s.png" % type
+	if ResourceLoader.exists(texture_path):
+		var full_tex: Texture2D = load(texture_path)
+		var data := TowerData.get_tower_data(type)
+		var is_animated: bool = data.get("animated", true)
+		
+		if is_animated:
+			# Ersten Frame aus 16x64 Spritesheet
+			var atlas := AtlasTexture.new()
+			atlas.atlas = full_tex
+			atlas.region = Rect2(0, 0, 16, 16)
+			return atlas
+		else:
+			return full_tex
+	
+	return null
+
+
 func _create_button(type: String) -> Control:
 	var container := Control.new()
 	container.name = type.capitalize() + "Container"
@@ -310,19 +338,9 @@ func _create_button(type: String) -> Control:
 	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tex_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	
-	var texture_path := "res://assets/elemental_tower/tower_%s.png" % type
-	if ResourceLoader.exists(texture_path):
-		var full_tex: Texture2D = load(texture_path)
-		var data := TowerData.get_tower_data(type)
-		var is_animated: bool = data.get("animated", true)
-		
-		if is_animated:
-			var atlas := AtlasTexture.new()
-			atlas.atlas = full_tex
-			atlas.region = Rect2(0, 0, 16, 16)
-			tex_rect.texture = atlas
-		else:
-			tex_rect.texture = full_tex
+	var icon_texture := _get_tower_icon_texture(type)
+	if icon_texture:
+		tex_rect.texture = icon_texture
 	
 	hbox.add_child(tex_rect)
 	
@@ -379,7 +397,6 @@ func _add_corners(container: Control) -> void:
 	if corner_textures.size() < 4:
 		return
 	
-	# Corners werden direkt zum Container hinzugefügt
 	var corners_node := Node2D.new()
 	corners_node.name = "CornersNode"
 	corners_node.visible = false
@@ -390,9 +407,9 @@ func _add_corners(container: Control) -> void:
 	
 	var btn_width := BUTTON_WIDTH
 	var btn_height := BUTTON_HEIGHT
-	var scl := Vector2(1.5, 1.5)  # Kleiner skaliert
+	var scl := Vector2(1.5, 1.5)
 	var corner_size := 8.0 * scl.x
-	var offset := 8.0  # Mehr Abstand zum Rand
+	var offset := 8.0
 	
 	var tl := Sprite2D.new()
 	tl.texture = corner_textures["top_left"]
