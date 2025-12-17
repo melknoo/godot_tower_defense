@@ -69,7 +69,7 @@ const SOUND_DEFS := {
 }
 
 # Tower-Elemente für dynamische Shoot-Sounds
-const TOWER_ELEMENTS := ["base", "water", "fire", "earth", "air", "ice", "steam", "lava", "nature"]
+const TOWER_ELEMENTS := ["base", "sword", "water", "fire", "earth", "air", "ice", "steam", "lava", "nature"]
 const MAX_TOWER_LEVEL := 3
 
 # Shoot-Sound Einstellungen

@@ -25,7 +25,7 @@ var lives := 20:
 
 var element_cores := 0:
 	set(value):
-		element_cores = max(0, value+3)
+		element_cores = max(0, value)
 		element_cores_changed.emit(element_cores)
 
 var current_wave := 0
