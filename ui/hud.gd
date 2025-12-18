@@ -14,19 +14,31 @@ signal open_element_panel_pressed
 @export var cores_button: Button
 @export var start_button: Button
 @export var wave_preview_label: Label
-@export var wave_element_icon: TextureRect  # NEU
-@export var wave_element_label: Label  # NEU
+@export var wave_element_icon: TextureRect
+@export var wave_element_label: Label
 @export var seed_label: Label
 @export var fast_forward_button: Button
 
 var is_fast_forward := false
-const FAST_FORWARD_SPEED := 2.0
+const FAST_FORWARD_SPEED := 2.5
 
 var ff_idle_tex: Texture2D
 var ff_pressed_tex: Texture2D
 
-# Element-Texturen
+# Element-Texturen (elemental_symbols)
 var element_textures: Dictionary = {}
+
+# --- Tooltip ---
+var wave_tooltip: PanelContainer
+var wave_tooltip_title: Label
+var wave_tooltip_weak_icon: TextureRect
+var wave_tooltip_weak_label: Label
+var wave_tooltip_resist_icon: TextureRect
+var wave_tooltip_resist_label: Label
+var _tooltip_visible := false
+
+# Speichert das Element der "Nächsten Welle" (Preview), damit Tooltip korrekt ist
+var _next_wave_element: String = "neutral"
 
 
 func _ready() -> void:
@@ -36,6 +48,8 @@ func _ready() -> void:
 	_find_or_create_ui_elements()
 	_apply_styles()
 	_connect_signals()
+	_create_wave_tooltip()
+	_connect_tooltip_hover()
 	update_all()
 
 
@@ -65,7 +79,7 @@ func _setup_hud_size() -> void:
 	offset_right = 0
 	offset_top = -hud_height
 	offset_bottom = 0
-	
+
 	if not has_node("HUDBackground"):
 		var bg := Panel.new()
 		bg.name = "HUDBackground"
@@ -85,19 +99,20 @@ func _find_or_create_ui_elements() -> void:
 	var second_row_y := hud_height - 44
 	var third_row_y := hud_height - 66
 	var viewport_size := get_viewport_rect().size
-	
+
 	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
 	lives_label = _get_or_create_label("LivesLabel", Vector2(20, second_row_y))
 	wave_label = _get_or_create_label("WaveLabel", Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
+
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 85))
-	
-	# NEU: Wave Element Anzeige (Icon + Label)
+
+	# Nächste Welle: Elementanzeige (Icon + Name)
 	wave_element_icon = _get_or_create_texture_rect("WaveElementIcon", Vector2(viewport_size.x - 400, hud_height - 55), Vector2(24, 24))
 	wave_element_label = _get_or_create_label("WaveElementLabel", Vector2(viewport_size.x - 370, hud_height - 52))
-	
+
 	cores_button = _get_or_create_button("CoresButton", Vector2(380, third_row_y - 5), Vector2(64, 64))
 	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 650, hud_height - 90), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 450, hud_height - 100), Vector2(48, 48))
@@ -140,26 +155,26 @@ func _get_or_create_texture_rect(node_name: String, default_pos: Vector2, defaul
 func _apply_styles() -> void:
 	if enemies_label:
 		enemies_label.visible = false
-	
+
 	if cores_label:
 		cores_label.add_theme_font_size_override("font_size", 11)
 		cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
-	
+
 	if seed_label:
 		seed_label.add_theme_font_size_override("font_size", 10)
 		seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.7))
-	
+
 	if wave_preview_label:
 		wave_preview_label.add_theme_font_size_override("font_size", 10)
 		wave_preview_label.visible = false
-	
+
 	if wave_element_icon:
 		wave_element_icon.visible = false
-	
+
 	if wave_element_label:
 		wave_element_label.add_theme_font_size_override("font_size", 11)
 		wave_element_label.visible = false
-	
+
 	if cores_button:
 		cores_button.text = ""
 		cores_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -167,10 +182,10 @@ func _apply_styles() -> void:
 		var icon_path := "res://assets/elemental_symbols/four_elements.png"
 		if ResourceLoader.exists(icon_path):
 			cores_button.icon = load(icon_path)
-	
+
 	if start_button:
 		start_button.text = "Nächste Welle"
-	
+
 	if fast_forward_button:
 		fast_forward_button.text = ""
 		fast_forward_button.visible = false
@@ -179,13 +194,13 @@ func _apply_styles() -> void:
 		fast_forward_button.flat = true
 		_update_fast_forward_icon()
 		_style_fast_forward_button()
-	
+
 	if UITheme:
 		if start_button:
 			UITheme.style_button(start_button)
 		if cores_button:
 			UITheme.style_button(cores_button)
-	
+
 	if start_button:
 		_apply_button_font_color(start_button)
 	if cores_button:
@@ -230,10 +245,10 @@ func _connect_signals() -> void:
 	GameState.enemy_count_changed.connect(_on_enemy_count_changed)
 	GameState.element_cores_changed.connect(_on_cores_changed)
 	GameState.element_core_earned.connect(_on_core_earned)
-	
+
 	TowerData.element_unlocked.connect(_on_element_invested)
 	TowerData.element_upgraded.connect(_on_element_upgraded)
-	
+
 	if start_button:
 		start_button.pressed.connect(_on_start_button_pressed)
 	if cores_button:
@@ -278,14 +293,14 @@ func _on_lives_changed(amount: int) -> void:
 func _on_cores_changed(amount: int) -> void:
 	var invested := TowerData.get_total_cores_invested()
 	var max_possible := TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL
-	
+
 	if cores_label:
 		cores_label.text = "Kerne: %d | %d/%d" % [amount, invested, max_possible]
 		if amount > 0:
 			cores_label.add_theme_color_override("font_color", Color(0.2, 0.6, 0.2))
 		else:
 			cores_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
-	
+
 	if cores_button:
 		cores_button.visible = true
 		var has_upgradeable := not TowerData.get_upgradeable_elements().is_empty()
@@ -321,17 +336,21 @@ func _flash_cores_label() -> void:
 	tween.tween_property(cores_label, "modulate", Color.WHITE, 0.3)
 
 
-func _on_wave_started(wave: int) -> void:
+func _on_wave_started(_wave: int) -> void:
 	_update_wave_display()
+	_hide_wave_tooltip()
+
 	if start_button:
 		start_button.disabled = true
 		start_button.text = "Wave läuft..."
+
 	if wave_preview_label:
 		wave_preview_label.visible = false
 	if wave_element_icon:
 		wave_element_icon.visible = false
 	if wave_element_label:
 		wave_element_label.visible = false
+
 	if fast_forward_button:
 		fast_forward_button.visible = true
 	_set_fast_forward(false)
@@ -342,6 +361,7 @@ func _on_wave_completed(wave: int) -> void:
 		start_button.disabled = false
 		start_button.text = "Nächste Welle"
 	_update_wave_preview(wave + 1)
+
 	if fast_forward_button:
 		fast_forward_button.visible = false
 	_set_fast_forward(false)
@@ -369,71 +389,66 @@ func _update_wave_display() -> void:
 func _update_wave_preview(next_wave: int) -> void:
 	if not wave_preview_label:
 		return
-	
+
 	wave_preview_label.visible = true
-	
+
 	var wave_manager := get_node_or_null("/root/Main/WaveManager") as WaveManager
 	if not wave_manager:
 		wave_preview_label.text = "Nächste Welle bereit"
+		_next_wave_element = "neutral"
+		_update_wave_element_display(_next_wave_element)
 		return
-	
+
 	var info := wave_manager.get_wave_info(next_wave)
 	var preview := wave_manager.get_wave_preview(next_wave)
-	var wave_elem: String = preview.get("wave_element", "neutral")
-	
+	var wave_elem: String = String(preview.get("wave_element", "neutral")).to_lower()
+
+	_next_wave_element = wave_elem
+
 	# Gegner-Info Text
 	wave_preview_label.text = "Nächste Welle: " + info
-	
+
 	if next_wave % 5 == 0:
-		wave_preview_label.text += "\n⚠ Boss-Welle! (+1 Kern)"
+		wave_preview_label.text += "\nBoss-Welle! (+1 Kern)"
 		wave_preview_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
 	elif next_wave == 1:
 		wave_preview_label.text += "\n(+1 Kern nach Welle 1)"
 		wave_preview_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 	else:
 		wave_preview_label.remove_theme_color_override("font_color")
-	
-	# Element-Anzeige mit Icon
+
 	_update_wave_element_display(wave_elem)
 
 
 func _update_wave_element_display(wave_elem: String) -> void:
 	if not wave_element_icon or not wave_element_label:
 		return
-	
+
+	wave_elem = String(wave_elem).to_lower()
 	wave_element_icon.visible = true
 	wave_element_label.visible = true
-	
-	if wave_elem == "neutral":
+
+	# Nur Element anzeigen (keine Schwäche/Resistenz im Haupttext)
+	if wave_elem == "neutral" or wave_elem == "":
 		wave_element_icon.texture = null
 		wave_element_icon.visible = false
-		wave_element_label.text = "○ Neutrale Gegner"
+		wave_element_label.text = "Neutral"
 		wave_element_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	elif wave_elem == "mixed":
 		wave_element_icon.texture = null
 		wave_element_icon.visible = false
-		wave_element_label.text = "🌀 Gemischte Elemente"
+		wave_element_label.text = "Gemischt"
 		wave_element_label.add_theme_color_override("font_color", Color(0.9, 0.7, 1.0))
 	else:
-		# Element-Icon anzeigen
 		if element_textures.has(wave_elem):
 			wave_element_icon.texture = element_textures[wave_elem]
 			wave_element_icon.visible = true
 		else:
+			wave_element_icon.texture = null
 			wave_element_icon.visible = false
-		
-		# Element-Name und Schwäche-Info
-		var elem_name := wave_elem.capitalize()
-		var effective_elem := ""
-		if ElementalSystem:
-			effective_elem = ElementalSystem.get_effective_element(wave_elem)
-		
-		if effective_elem != "" and effective_elem != "neutral" and element_textures.has(effective_elem):
-			wave_element_label.text = "%s-Gegner (schwach gegen %s)" % [elem_name, effective_elem.capitalize()]
-		else:
-			wave_element_label.text = "%s-Gegner" % elem_name
-		
-		# Farbe passend zum Element
+
+		wave_element_label.text = wave_elem.capitalize()
+
 		var elem_color := Color.WHITE
 		if ElementalSystem:
 			elem_color = ElementalSystem.get_element_color(wave_elem)
@@ -459,21 +474,170 @@ func _set_fast_forward(enabled: bool) -> void:
 	Engine.time_scale = FAST_FORWARD_SPEED if enabled else 1.0
 
 
+# -------------------------
+# Tooltip (Hover über Element)
+# -------------------------
+
+func _create_wave_tooltip() -> void:
+	wave_tooltip = PanelContainer.new()
+	wave_tooltip.visible = false
+	wave_tooltip.z_index = 9999
+	wave_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Hintergrund
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.12, 0.14, 0.95)
+	style.border_color = Color(0.35, 0.35, 0.4, 0.9)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	wave_tooltip.add_theme_stylebox_override("panel", style)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 6)
+	vb.custom_minimum_size = Vector2(240, 0)
+	wave_tooltip.add_child(vb)
+
+	wave_tooltip_title = Label.new()
+	wave_tooltip_title.add_theme_font_size_override("font_size", 12)
+	wave_tooltip_title.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
+	vb.add_child(wave_tooltip_title)
+
+	# Schwach gegen
+	var weak_row := HBoxContainer.new()
+	weak_row.add_theme_constant_override("separation", 8)
+	vb.add_child(weak_row)
+
+	var weak_text := Label.new()
+	weak_text.text = "Schwach gegen:"
+	weak_text.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	weak_row.add_child(weak_text)
+
+	wave_tooltip_weak_icon = TextureRect.new()
+	wave_tooltip_weak_icon.custom_minimum_size = Vector2(18, 18)
+	wave_tooltip_weak_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	wave_tooltip_weak_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	weak_row.add_child(wave_tooltip_weak_icon)
+
+	wave_tooltip_weak_label = Label.new()
+	wave_tooltip_weak_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
+	weak_row.add_child(wave_tooltip_weak_label)
+
+	# Resistent gegen
+	var resist_row := HBoxContainer.new()
+	resist_row.add_theme_constant_override("separation", 8)
+	vb.add_child(resist_row)
+
+	var resist_text := Label.new()
+	resist_text.text = "Resistent gegen:"
+	resist_text.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	resist_row.add_child(resist_text)
+
+	wave_tooltip_resist_icon = TextureRect.new()
+	wave_tooltip_resist_icon.custom_minimum_size = Vector2(18, 18)
+	wave_tooltip_resist_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	wave_tooltip_resist_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	resist_row.add_child(wave_tooltip_resist_icon)
+
+	wave_tooltip_resist_label = Label.new()
+	wave_tooltip_resist_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
+	resist_row.add_child(wave_tooltip_resist_label)
+
+	add_child(wave_tooltip)
+
+
+func _connect_tooltip_hover() -> void:
+	# Hover auf Icon + Label (beides anklickbar/hoverbar)
+	if wave_element_icon:
+		wave_element_icon.mouse_filter = Control.MOUSE_FILTER_STOP
+		wave_element_icon.mouse_entered.connect(_on_wave_element_hover_enter)
+		wave_element_icon.mouse_exited.connect(_on_wave_element_hover_exit)
+
+	if wave_element_label:
+		wave_element_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		wave_element_label.mouse_entered.connect(_on_wave_element_hover_enter)
+		wave_element_label.mouse_exited.connect(_on_wave_element_hover_exit)
+
+
+func _on_wave_element_hover_enter() -> void:
+	_show_wave_tooltip()
+
+
+func _on_wave_element_hover_exit() -> void:
+	_hide_wave_tooltip()
+
+
+func _show_wave_tooltip() -> void:
+	if not wave_tooltip:
+		return
+
+	# Tooltip nur für echte Elemente
+	var wave_elem := String(_next_wave_element).to_lower()
+	if wave_elem == "" or wave_elem == "neutral" or wave_elem == "mixed":
+		wave_tooltip.visible = false
+		_tooltip_visible = false
+		return
+
+	var weak_against := ""
+	var resists := ""
+
+	if ElementalSystem:
+		weak_against = String(ElementalSystem.get_effective_element(wave_elem)).to_lower()
+		resists = String(ElementalSystem.RESISTANCES.get(wave_elem, "")).to_lower()
+
+	wave_tooltip_title.text = "%s Gegner" % wave_elem.capitalize()
+
+	# Schwach gegen
+	if weak_against != "" and weak_against != "neutral" and element_textures.has(weak_against):
+		wave_tooltip_weak_icon.texture = element_textures[weak_against]
+		wave_tooltip_weak_label.text = weak_against.capitalize()
+	else:
+		wave_tooltip_weak_icon.texture = null
+		wave_tooltip_weak_label.text = "-"
+
+	# Resistent gegen
+	if resists != "" and element_textures.has(resists):
+		wave_tooltip_resist_icon.texture = element_textures[resists]
+		wave_tooltip_resist_label.text = resists.capitalize()
+	else:
+		wave_tooltip_resist_icon.texture = null
+		wave_tooltip_resist_label.text = "-"
+
+	# Position neben Icon
+	if wave_element_icon:
+		wave_tooltip.global_position = wave_element_icon.get_global_position() + Vector2(28, -8)
+
+	wave_tooltip.visible = true
+	_tooltip_visible = true
+
+
+func _hide_wave_tooltip() -> void:
+	if wave_tooltip:
+		wave_tooltip.visible = false
+	_tooltip_visible = false
+
+
 func show_game_over() -> void:
 	_set_fast_forward(false)
-	
+	_hide_wave_tooltip()
+
 	if start_button:
 		start_button.visible = false
 	if cores_button:
 		cores_button.visible = false
 	if fast_forward_button:
 		fast_forward_button.visible = false
-	
+
 	var main := get_node_or_null("/root/Main")
 	var seed_text := ""
 	if main and main.has_method("get_current_seed"):
 		seed_text = "\nSeed: %d" % main.get_current_seed()
-	
+
 	var game_over_label := Label.new()
 	game_over_label.text = "GAME OVER\nWelle: %d\nKerne investiert: %d/%d%s" % [
 		GameState.current_wave,
@@ -488,14 +652,14 @@ func show_game_over() -> void:
 	game_over_label.position = Vector2(280, 100)
 	game_over_label.name = "GameOverLabel"
 	add_child(game_over_label)
-	
+
 	var restart_btn := Button.new()
 	restart_btn.text = "Neustart"
 	restart_btn.position = Vector2(350, 240)
 	restart_btn.custom_minimum_size = Vector2(100, 35)
 	restart_btn.pressed.connect(_on_restart_pressed)
 	add_child(restart_btn)
-	
+
 	if UITheme:
 		UITheme.style_button(restart_btn)
 	_apply_button_font_color(restart_btn)
