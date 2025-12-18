@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rhml7onc0ycx"
-path="res://.godot/imported/bullet_fire_3.png-11c20a09e18cd9467843c74a2565e17e.ctex"
+uid="uid://bmvbl86n7gol"
+path="res://.godot/imported/earth_enemy_level_1.png-995b6b911b8fc108df6f2f165651c8d2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/bullet_fire_3.png"
-dest_files=["res://.godot/imported/bullet_fire_3.png-11c20a09e18cd9467843c74a2565e17e.ctex"]
+source_file="res://assets/enemies/earth_enemy_level_1.png"
+dest_files=["res://.godot/imported/earth_enemy_level_1.png-995b6b911b8fc108df6f2f165651c8d2.ctex"]
 
 [params]
 

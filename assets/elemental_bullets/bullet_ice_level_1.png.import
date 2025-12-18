@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d3wrcm1dmvo2c"
-path="res://.godot/imported/Geyser.png-4b8f70c60028dd053085028649bf1d5b.ctex"
+uid="uid://dn4trxyuht77m"
+path="res://.godot/imported/bullet_ice_level_1.png-a1134c31ed7105959e27d76241c3858a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/Geyser.png"
-dest_files=["res://.godot/imported/Geyser.png-4b8f70c60028dd053085028649bf1d5b.ctex"]
+source_file="res://assets/elemental_bullets/bullet_ice_level_1.png"
+dest_files=["res://.godot/imported/bullet_ice_level_1.png-a1134c31ed7105959e27d76241c3858a.ctex"]
 
 [params]
 

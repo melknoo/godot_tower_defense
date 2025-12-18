@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bugj8wfwd3wwo"
-path="res://.godot/imported/bullet_air_level_4.png-afd2540b536240ceb85b72de99f921e2.ctex"
+uid="uid://4j12hl33p87a"
+path="res://.godot/imported/air_enemy_level_1.png-94621a30823197027ec92d38dfef9ae8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/bullet_air_level_4.png"
-dest_files=["res://.godot/imported/bullet_air_level_4.png-afd2540b536240ceb85b72de99f921e2.ctex"]
+source_file="res://assets/enemies/air_enemy_level_1.png"
+dest_files=["res://.godot/imported/air_enemy_level_1.png-94621a30823197027ec92d38dfef9ae8.ctex"]
 
 [params]
 

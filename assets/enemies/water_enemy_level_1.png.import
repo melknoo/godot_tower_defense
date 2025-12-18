@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bmaoqh5mffywo"
-path="res://.godot/imported/bullet_earth.png-f72a0459409f6521b822b047f0cda5df.ctex"
+uid="uid://dgs3edv0jpkw3"
+path="res://.godot/imported/water_enemy_level_1.png-512a9f4a916049bea65f0208bd8acc17.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/bullet_earth.png"
-dest_files=["res://.godot/imported/bullet_earth.png-f72a0459409f6521b822b047f0cda5df.ctex"]
+source_file="res://assets/enemies/water_enemy_level_1.png"
+dest_files=["res://.godot/imported/water_enemy_level_1.png-512a9f4a916049bea65f0208bd8acc17.ctex"]
 
 [params]
 
