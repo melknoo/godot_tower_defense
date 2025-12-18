@@ -283,9 +283,6 @@ func _create_element_button(element: String) -> Button:
 	if is_maxed:
 		status_label.text = "MAX"
 		status_label.add_theme_color_override("font_color", Color(0.7, 0.5, 0.1))
-	elif current_level == 0:
-		status_label.text = "Freischalten"
-		status_label.add_theme_color_override("font_color", Color(0.2, 0.5, 0.7))
 	else:
 		status_label.text = "Aufwerten"
 		status_label.add_theme_color_override("font_color", Color(0.2, 0.6, 0.2))

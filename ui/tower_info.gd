@@ -27,7 +27,16 @@ func _ready() -> void:
 	visible = false
 	_setup_panel_style()
 	_setup_ui()
+	top_level = true
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	z_as_relative = false
+	z_index = 200
+	
 
+func _bring_to_front() -> void:
+	var p := get_parent()
+	if p:
+		p.move_child(self, p.get_child_count() - 1)
 
 func _setup_panel_style() -> void:
 	UITheme.style_panel(self, "panel_dark")
@@ -109,17 +118,36 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	current_grid_pos = grid_pos
 	
 	_update_display()
-	
-	var world_pos := Vector2(grid_pos) * 64 + Vector2(64 + 10, 0)
-	position = world_pos
-	
-	var screen_size := get_viewport_rect().size
-	if position.x + size.x > screen_size.x:
-		position.x = Vector2(grid_pos).x * 64 - size.x - 10
-	if position.y + size.y > screen_size.y:
-		position.y = screen_size.y - size.y - 10
-	
 	visible = true
+
+	
+	# Stelle sicher, dass die Größe aktuell ist (für korrektes Positioning)
+	size = get_combined_minimum_size()
+
+	var screen_size := get_viewport_rect().size
+	var margin := 10.0
+	var tile := 64.0
+
+	# Tower-Referenzpunkt (Screen/UI Koordinaten)
+	var tower_y := float(grid_pos.y) * tile + tile * 0.5
+	var open_up := tower_y > screen_size.y * 0.5
+
+	# Standard: rechts neben dem Tower, Y je nach Hälfte nach oben/unten
+	position.x = float(grid_pos.x) * tile + tile + margin
+	position.y = (tower_y - size.y - margin) if open_up else (tower_y + margin)
+
+	# Wenn rechts kein Platz ist -> nach links flippen
+	if position.x + size.x > screen_size.x - margin:
+		position.x = float(grid_pos.x) * tile - size.x - margin
+
+	# Clamp, damit es nicht aus dem Screen läuft
+	position.x = clamp(position.x, margin, screen_size.x - size.x - margin)
+	position.y = clamp(position.y, margin, screen_size.y - size.y - margin)
+
+	# Immer über HUD/TowerShop zeichnen
+	call_deferred("_bring_to_front")
+
+
 
 
 func hide_panel() -> void:

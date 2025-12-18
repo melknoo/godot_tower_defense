@@ -507,6 +507,8 @@ func _set_fast_forward(enabled: bool) -> void:
 # -------------------------
 
 func _create_wave_tooltip() -> void:
+	if is_instance_valid(wave_tooltip):
+		return
 	# Tooltip in eigenem CanvasLayer, damit er sicher über anderen UI-Layern liegt
 	var tip_layer := CanvasLayer.new()
 	tip_layer.name = "TooltipLayer"
@@ -590,8 +592,6 @@ func _create_wave_tooltip() -> void:
 	wave_tooltip_resist_label = Label.new()
 	wave_tooltip_resist_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
 	resist_row.add_child(wave_tooltip_resist_label)
-
-	add_child(wave_tooltip)
 
 
 func _connect_tooltip_hover_area() -> void:
