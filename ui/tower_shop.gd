@@ -227,7 +227,7 @@ func _position_at_bottom_center() -> void:
 	var shop_width := size.x if size.x > 0 else custom_minimum_size.x
 	var shop_height := size.y if size.y > 0 else custom_minimum_size.y
 	
-	position.x = (viewport_size.x - shop_width) / 2
+	position.x = (viewport_size.x - shop_width) / 2 - 100
 	position.y = viewport_size.y - shop_height - 5
 
 

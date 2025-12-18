@@ -1,17 +1,20 @@
 # ui/tower_info.gd
-# Panel für Tower-Info, Verkauf und Upgrade
+# Panel für Tower-Info, Verkauf, Upgrade und Engraving
 extends PanelContainer
 class_name TowerInfo
 
 signal sell_pressed
 signal upgrade_pressed
 signal close_pressed
+signal engrave_pressed(element: String)
 
 var tower_name_label: Label
 var tower_level_label: Label
 var stats_label: Label
+var element_label: Label  # NEU
 var sell_button: Button
 var upgrade_button: Button
+var engrave_container: HBoxContainer  # NEU
 var close_button: Button
 var vbox: VBoxContainer
 
@@ -45,6 +48,13 @@ func _setup_ui() -> void:
 	tower_level_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(tower_level_label)
 	
+	# NEU: Element-Anzeige
+	element_label = Label.new()
+	element_label.name = "ElementLabel"
+	element_label.add_theme_font_size_override("font_size", 11)
+	element_label.visible = false
+	vbox.add_child(element_label)
+	
 	stats_label = Label.new()
 	stats_label.name = "StatsLabel"
 	stats_label.add_theme_font_size_override("font_size", 11)
@@ -53,22 +63,35 @@ func _setup_ui() -> void:
 	var sep := HSeparator.new()
 	vbox.add_child(sep)
 	
+	# NEU: Engraving Container
+	engrave_container = HBoxContainer.new()
+	engrave_container.name = "EngraveContainer"
+	engrave_container.add_theme_constant_override("separation", 4)
+	engrave_container.visible = false
+	vbox.add_child(engrave_container)
+	
+	var engrave_label := Label.new()
+	engrave_label.text = "Gravieren:"
+	engrave_label.add_theme_font_size_override("font_size", 10)
+	engrave_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	engrave_container.add_child(engrave_label)
+	
 	upgrade_button = Button.new()
 	upgrade_button.name = "UpgradeButton"
-	upgrade_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
+	upgrade_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	vbox.add_child(upgrade_button)
 	
 	sell_button = Button.new()
 	sell_button.name = "SellButton"
-	sell_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
+	sell_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
 	sell_button.pressed.connect(_on_sell_pressed)
 	vbox.add_child(sell_button)
 	
 	close_button = Button.new()
 	close_button.name = "CloseButton"
 	close_button.text = "Schließen"
-	close_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
+	close_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 	
@@ -114,16 +137,24 @@ func _update_display() -> void:
 	var data := TowerData.get_tower_data(tower_type)
 	
 	var display_name: String = data.get("name", tower_type.capitalize())
-	tower_name_label.text = display_name
 	
-	# Level-Anzeige mit Element-Level Info
-	var max_tower_level := TowerData.MAX_LEVEL
-	if tower_type != "archer" and tower_type in TowerData.UNLOCKABLE_ELEMENTS:
+	# Name mit Gravur-Info
+	if current_tower.is_engraved():
+		var elem_symbol := ElementalSystem.get_element_symbol(current_tower.engraved_element) if ElementalSystem else ""
+		tower_name_label.text = "%s %s" % [display_name, elem_symbol]
+	else:
+		tower_name_label.text = display_name
+	
+	# Level-Anzeige
+	if tower_type in TowerData.UNLOCKABLE_ELEMENTS:
 		var elem_level := TowerData.get_element_level(tower_type)
 		var max_allowed := TowerData.get_max_tower_level_for_element(tower_type)
 		tower_level_label.text = "Level %d / %d (Element: %d/3)" % [level + 1, max_allowed + 1, elem_level]
 	else:
 		tower_level_label.text = "Level %d / %d" % [level + 1, TowerData.MAX_LEVEL + 1]
+	
+	# Element-Info anzeigen
+	_update_element_display()
 	
 	var damage_val: int = TowerData.get_stat(tower_type, "damage", level)
 	var range_val: float = TowerData.get_stat(tower_type, "range", level)
@@ -132,12 +163,80 @@ func _update_display() -> void:
 	stats_label.text = "Schaden: %d\nReichweite: %d\nFeuerrate: %.1f/s" % [
 		damage_val, int(range_val), 1.0 / fire_rate_val
 	]
-	tower_name_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
-	tower_level_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
-	stats_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094, 1.0))
+	
+	var dark_color := Color(0.094, 0.094, 0.094)
+	tower_name_label.add_theme_color_override("font_color", dark_color)
+	tower_level_label.add_theme_color_override("font_color", dark_color)
+	stats_label.add_theme_color_override("font_color", dark_color)
 	
 	_update_upgrade_button(tower_type, level)
 	_update_sell_button()
+	_update_engrave_buttons()
+
+
+func _update_element_display() -> void:
+	if not current_tower:
+		element_label.visible = false
+		return
+	
+	var effective_elem: String = current_tower.get_effective_element()
+	if effective_elem == "":
+		element_label.visible = false
+		return
+	
+	element_label.visible = true
+	var elem_color := ElementalSystem.get_element_color(effective_elem) if ElementalSystem else Color.WHITE
+	var elem_symbol := ElementalSystem.get_element_symbol(effective_elem) if ElementalSystem else ""
+	
+	# Zeige Effektivitäts-Info
+	var effectiveness_info := ""
+	if ElementalSystem:
+		for defender in ["water", "fire", "earth", "air"]:
+			if ElementalSystem.is_effective(effective_elem, defender):
+				var def_symbol := ElementalSystem.get_element_symbol(defender)
+				effectiveness_info = "Effektiv gegen: %s" % def_symbol
+				break
+	
+	element_label.text = "%s %s" % [elem_symbol, effectiveness_info]
+	element_label.add_theme_color_override("font_color", elem_color)
+
+
+func _update_engrave_buttons() -> void:
+	# Alte Buttons entfernen
+	for child in engrave_container.get_children():
+		if child is Button:
+			child.queue_free()
+	
+	if not current_tower or not current_tower.can_be_engraved():
+		engrave_container.visible = false
+		return
+	
+	var available := TowerData.get_available_engravings()
+	if available.is_empty():
+		engrave_container.visible = false
+		return
+	
+	engrave_container.visible = true
+	var cost := TowerData.get_engraving_cost()
+	var can_afford := TowerData.can_afford_engraving()
+	
+	for element in available:
+		var btn := Button.new()
+		var symbol := ElementalSystem.get_element_symbol(element) if ElementalSystem else element.substr(0, 1).to_upper()
+		btn.text = symbol
+		btn.custom_minimum_size = Vector2(32, 28)
+		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [element.capitalize(), cost]
+		
+		var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
+		btn.add_theme_color_override("font_color", elem_color)
+		
+		if not can_afford or GameState.wave_active:
+			btn.disabled = true
+			btn.modulate.a = 0.5
+		
+		btn.pressed.connect(_on_engrave_button_pressed.bind(element))
+		UITheme.style_button(btn)
+		engrave_container.add_child(btn)
 
 
 func _update_upgrade_button(tower_type: String, level: int) -> void:
@@ -152,15 +251,12 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 		return
 	
 	if not can_upgrade_element:
-		# Element-Level zu niedrig
 		if tower_type in TowerData.UNLOCKABLE_ELEMENTS:
 			var elem_level := TowerData.get_element_level(tower_type)
-			var needed_level := level + 2  # Um auf Tower Level X zu upgraden braucht man Element Level X+1
+			var needed_level := level + 2
 			upgrade_button.text = "Element Lvl %d nötig" % needed_level
 			upgrade_button.tooltip_text = "Investiere mehr Kerne in %s\n(Aktuell: Level %d, Benötigt: Level %d)" % [
-				TowerData.get_tower_data(tower_type).get("name", tower_type),
-				elem_level,
-				needed_level
+				TowerData.get_tower_data(tower_type).get("name", tower_type), elem_level, needed_level
 			]
 		else:
 			upgrade_button.text = "Upgrade gesperrt"
@@ -180,15 +276,17 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 		upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d" % [new_damage, int(new_range)]
 	else:
 		upgrade_button.disabled = true
-		if GameState.wave_active:
-			upgrade_button.tooltip_text = "Nicht während einer Welle"
-		else:
-			upgrade_button.tooltip_text = "Nicht genug Gold"
+		upgrade_button.tooltip_text = "Nicht wÃ¤hrend einer Welle" if GameState.wave_active else "Nicht genug Gold"
 
 
 func _update_sell_button() -> void:
 	var sell_value := tower_manager.get_sell_value(current_grid_pos)
 	var sell_percent := tower_manager.get_sell_percent(current_grid_pos)
+	
+	# Gravur-Kosten beim Verkauf berücksichtigen
+	if current_tower and current_tower.is_engraved():
+		var engrave_refund := TowerData.get_engraving_cost() / 2 if sell_percent < 100 else TowerData.get_engraving_cost()
+		sell_value += engrave_refund
 	
 	sell_button.text = "Verkaufen: %dg (%d%%)" % [sell_value, sell_percent]
 	
@@ -196,6 +294,15 @@ func _update_sell_button() -> void:
 		sell_button.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
 	else:
 		sell_button.remove_theme_color_override("font_color")
+
+
+func _on_engrave_button_pressed(element: String) -> void:
+	if current_tower and current_tower.engrave(element):
+		engrave_pressed.emit(element)
+		_update_display()
+		
+		if VFX:
+			VFX.spawn_pixel_burst(current_tower.position, element, 12)
 
 
 func _on_upgrade_pressed() -> void:

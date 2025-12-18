@@ -1,5 +1,5 @@
 # enemy.gd
-# Gegner mit verschiedenen Typen, Effekten und VFX
+# Gegner mit Elementar-Typen, Schwächen und VFX
 extends Node2D
 class_name Enemy
 
@@ -11,6 +11,7 @@ var speed := 80.0
 var base_speed := 80.0
 var reward := 2
 var enemy_type := "normal"
+var element := "neutral"  # NEU: Elementar-Typ
 
 # Status-Effekte
 var slow_amount := 0.0
@@ -31,6 +32,7 @@ var health_bar_bg: Line2D
 var health_bar: Line2D
 var status_indicator: Node2D
 var shadow: Polygon2D
+var element_indicator: Label  # NEU: Element-Anzeige
 
 
 func _ready() -> void:
@@ -72,6 +74,13 @@ func _create_visuals() -> void:
 	health_bar.width = 4
 	add_child(health_bar)
 	
+	# Element Indicator
+	element_indicator = Label.new()
+	element_indicator.position = Vector2(-8, -38)
+	element_indicator.add_theme_font_size_override("font_size", 12)
+	element_indicator.visible = false
+	add_child(element_indicator)
+	
 	# Status Indicator
 	status_indicator = Node2D.new()
 	status_indicator.position = Vector2(0, -30)
@@ -95,20 +104,52 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 	base_speed = speed
 	reward = data.get("reward", 10)
 	enemy_type = data.get("type", "normal")
+	element = data.get("element", "neutral")  # NEU
 	
 	position = path[0] if path.size() > 0 else Vector2.ZERO
 	
 	var enemy_scale: float = data.get("scale", 0.5)
-	var enemy_color: Color = data.get("color", Color.WHITE)
+	var base_color: Color = data.get("color", Color.WHITE)
 	
+	# Farbe basierend auf Element anpassen
+	var final_color := _calculate_element_color(base_color)
+	original_modulate = final_color
+	
+	# Nur aktualisieren wenn Visuals bereits existieren
 	if sprite:
 		sprite.scale = Vector2(enemy_scale, enemy_scale)
-		sprite.modulate = enemy_color
-		original_modulate = enemy_color
+		sprite.modulate = final_color
 	
-	# Schatten anpassen
 	if shadow:
 		shadow.scale = Vector2(enemy_scale * 1.5, enemy_scale)
+	
+	# Element-Indikator aktualisieren (mit Null-Check in der Funktion)
+	_update_element_indicator()
+
+
+func _calculate_element_color(base_color: Color) -> Color:
+	if element == "neutral" or element == "":
+		return base_color
+	
+	var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
+	# Mische Basis-Farbe mit Element-Farbe
+	return base_color.lerp(elem_color, 0.5)
+
+
+func _update_element_indicator() -> void:
+	if not element_indicator:
+		return
+	
+	if element == "neutral" or element == "":
+		element_indicator.visible = false
+		return
+	
+	element_indicator.visible = true
+	element_indicator.text = ElementalSystem.get_element_symbol(element) if ElementalSystem else element.substr(0, 1).to_upper()
+	
+	# Outline für bessere Sichtbarkeit
+	element_indicator.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	element_indicator.add_theme_constant_override("outline_size", 2)
 
 
 func _process(delta: float) -> void:
@@ -177,7 +218,6 @@ func _move(delta: float) -> void:
 func _reach_end() -> void:
 	GameState.enemy_reached_end()
 	
-	# Screen Shake wenn Enemy durchkommt
 	if VFX:
 		VFX.screen_shake(8.0, 0.3)
 		VFX.screen_flash(Color(1, 0, 0), 0.15)
@@ -198,25 +238,44 @@ func _update_status_effects(delta: float) -> void:
 		take_damage(int(burn_damage * delta), false, "fire")
 
 
-func take_damage(amount: int, trigger_effects: bool = true, element: String = "") -> void:
-	health -= amount
+# NEU: Damage mit Elementar-Multiplikator
+func take_damage(amount: int, trigger_effects: bool = true, attacker_element: String = "") -> void:
+	var final_damage := amount
+	var multiplier := 1.0
+	
+	# Elementar-Multiplikator berechnen
+	if attacker_element != "" and ElementalSystem:
+		multiplier = ElementalSystem.get_damage_multiplier(attacker_element, element)
+		final_damage = int(amount * multiplier)
+	
+	health -= final_damage
 	
 	if trigger_effects:
-		GameState.record_damage(amount)
+		GameState.record_damage(final_damage)
 		_do_hit_flash()
 		
 		# VFX spawnen
 		if VFX:
-			var is_crit := amount > damage_threshold_for_crit()
-			VFX.spawn_hit_effect(position, element if element != "" else "damage", is_crit)
-			VFX.spawn_damage_number(position, amount, is_crit, element)
+			var is_crit := final_damage > damage_threshold_for_crit()
+			var is_effective := multiplier > 1.0
+			var is_resisted := multiplier < 1.0
+			
+			# Spezielle VFX für effektive/resistierte Treffer
+			if is_effective:
+				VFX.spawn_pixel_burst(position, attacker_element, 10)
+				VFX.spawn_damage_number(position, final_damage, true, attacker_element)
+			elif is_resisted:
+				VFX.spawn_pixels(position, element, 4, 15.0)
+				VFX.spawn_damage_number(position, final_damage, false, "")
+			else:
+				VFX.spawn_hit_effect(position, attacker_element if attacker_element != "" else "damage", is_crit)
+				VFX.spawn_damage_number(position, final_damage, is_crit, attacker_element)
 	
 	if health <= 0:
 		_die()
 
 
 func damage_threshold_for_crit() -> int:
-	# Crit nur bei wirklich hohem Schaden (>40% der max HP in einem Hit)
 	return int(max_health * 0.5)
 
 
@@ -229,12 +288,15 @@ func _do_hit_flash() -> void:
 func _die() -> void:
 	GameState.enemy_died(reward)
 	Sound.play_coin()
-	# VFX
+	
 	if VFX:
 		VFX.spawn_death_effect(position, enemy_type)
 		VFX.spawn_gold_number(position, reward)
 		
-		# Screen Shake bei Boss
+		# Extra VFX für elementare Gegner
+		if element != "neutral" and element != "":
+			VFX.spawn_pixel_ring(position, element, 30.0)
+		
 		if enemy_type == "boss":
 			VFX.screen_shake(12.0, 0.4)
 			VFX.screen_flash(Color(1, 0.8, 0.3), 0.2)
@@ -252,7 +314,6 @@ func apply_slow(amount: float, duration: float) -> void:
 	if sprite:
 		sprite.modulate = original_modulate.lerp(Color(0.5, 0.5, 1.0), 0.5)
 	
-	# Eis-Partikel
 	if VFX:
 		VFX.spawn_pixels(position, "ice", 4, 15.0)
 
@@ -263,7 +324,6 @@ func apply_burn(damage_per_second: int, duration: float) -> void:
 	
 	_show_status_icon("burn")
 	
-	# Feuer-Partikel
 	if VFX:
 		VFX.spawn_pixels(position, "fire", 4, 15.0)
 
@@ -275,7 +335,6 @@ func apply_stun(duration: float) -> void:
 	if sprite:
 		sprite.modulate = Color(1.0, 1.0, 0.5)
 	
-	# Blitz-Effekt
 	if VFX:
 		VFX.spawn_pixels(position, "air", 6, 20.0)
 
@@ -288,7 +347,6 @@ func apply_freeze(duration: float) -> void:
 		sprite.modulate = Color(0.7, 0.9, 1.0)
 		sprite.modulate.a = 0.7
 	
-	# Eis-Ring
 	if VFX:
 		VFX.spawn_pixel_ring(position, "ice", 25.0)
 
@@ -298,7 +356,13 @@ func apply_freeze(duration: float) -> void:
 func _update_health_bar() -> void:
 	var health_percent := float(health) / max_health
 	health_bar.set_point_position(1, Vector2(-15 + 30 * health_percent, -22))
-	health_bar.default_color = Color(1 - health_percent, health_percent, 0)
+	
+	# Farbe basierend auf Element und HP
+	var bar_color := Color(1 - health_percent, health_percent, 0)
+	if element != "neutral" and element != "":
+		var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
+		bar_color = bar_color.lerp(elem_color, 0.3)
+	health_bar.default_color = bar_color
 
 
 func _show_status_icon(effect_type: String) -> void:
@@ -311,12 +375,9 @@ func _show_status_icon(effect_type: String) -> void:
 	icon.add_theme_font_size_override("font_size", 10)
 	
 	match effect_type:
-		"burn":
-			icon.text = "🔥"
-		"slow":
-			icon.text = "❄"
-		"stun":
-			icon.text = "⚡"
+		"burn": icon.text = "🔥"
+		"slow": icon.text = "❄"
+		"stun": icon.text = "⚡"
 	
 	status_indicator.add_child(icon)
 
@@ -329,3 +390,7 @@ func get_progress() -> float:
 
 func get_remaining_health_percent() -> float:
 	return float(health) / max_health
+
+
+func get_element() -> String:
+	return element
