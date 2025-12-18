@@ -28,6 +28,9 @@ var ff_pressed_tex: Texture2D
 # Element-Texturen (elemental_symbols)
 var element_textures: Dictionary = {}
 
+# --- Hover Area (unsichtbar) ---
+var wave_element_area: Control
+
 # --- Tooltip ---
 var wave_tooltip: PanelContainer
 var wave_tooltip_title: Label
@@ -37,7 +40,7 @@ var wave_tooltip_resist_icon: TextureRect
 var wave_tooltip_resist_label: Label
 var _tooltip_visible := false
 
-# Speichert das Element der "Nächsten Welle" (Preview), damit Tooltip korrekt ist
+# Speichert das Element der "Nächsten Welle" (Preview)
 var _next_wave_element: String = "neutral"
 
 
@@ -49,7 +52,7 @@ func _ready() -> void:
 	_apply_styles()
 	_connect_signals()
 	_create_wave_tooltip()
-	_connect_tooltip_hover()
+	_connect_tooltip_hover_area()
 	update_all()
 
 
@@ -109,9 +112,15 @@ func _find_or_create_ui_elements() -> void:
 
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 85))
 
-	# Nächste Welle: Elementanzeige (Icon + Name)
-	wave_element_icon = _get_or_create_texture_rect("WaveElementIcon", Vector2(viewport_size.x - 400, hud_height - 55), Vector2(24, 24))
-	wave_element_label = _get_or_create_label("WaveElementLabel", Vector2(viewport_size.x - 370, hud_height - 52))
+	# --- Unsichtbarer Hover-Rahmen für "Nächste Welle" Element (Icon + Name)
+	# Position entspricht ungefähr deiner bisherigen Icon-Position
+	var area_pos := Vector2(viewport_size.x - 410, hud_height - 60)
+	var area_size := Vector2(190, 34)
+	wave_element_area = _get_or_create_control("WaveElementArea", area_pos, area_size)
+
+	# Elementanzeige (Icon + Name) als Children der Area
+	wave_element_icon = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon", Vector2(8, 5), Vector2(24, 24))
+	wave_element_label = _get_or_create_label_child(wave_element_area, "WaveElementLabel", Vector2(40, 8))
 
 	cores_button = _get_or_create_button("CoresButton", Vector2(380, third_row_y - 5), Vector2(64, 64))
 	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 650, hud_height - 90), Vector2(130, 32))
@@ -128,6 +137,16 @@ func _get_or_create_label(node_name: String, default_pos: Vector2) -> Label:
 	return label
 
 
+func _get_or_create_label_child(parent: Node, node_name: String, local_pos: Vector2) -> Label:
+	var label: Label = parent.get_node_or_null(node_name) as Label
+	if not label:
+		label = Label.new()
+		label.name = node_name
+		label.position = local_pos
+		parent.add_child(label)
+	return label
+
+
 func _get_or_create_button(node_name: String, default_pos: Vector2, default_size: Vector2) -> Button:
 	var btn: Button = get_node_or_null(node_name) as Button
 	if not btn:
@@ -139,16 +158,28 @@ func _get_or_create_button(node_name: String, default_pos: Vector2, default_size
 	return btn
 
 
-func _get_or_create_texture_rect(node_name: String, default_pos: Vector2, default_size: Vector2) -> TextureRect:
-	var tex_rect: TextureRect = get_node_or_null(node_name) as TextureRect
+func _get_or_create_control(node_name: String, default_pos: Vector2, default_size: Vector2) -> Control:
+	var c: Control = get_node_or_null(node_name) as Control
+	if not c:
+		c = Control.new()
+		c.name = node_name
+		c.position = default_pos
+		c.custom_minimum_size = default_size
+		c.size = default_size
+		add_child(c)
+	return c
+
+
+func _get_or_create_texture_rect_child(parent: Node, node_name: String, local_pos: Vector2, default_size: Vector2) -> TextureRect:
+	var tex_rect: TextureRect = parent.get_node_or_null(node_name) as TextureRect
 	if not tex_rect:
 		tex_rect = TextureRect.new()
 		tex_rect.name = node_name
-		tex_rect.position = default_pos
+		tex_rect.position = local_pos
 		tex_rect.custom_minimum_size = default_size
 		tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		add_child(tex_rect)
+		parent.add_child(tex_rect)
 	return tex_rect
 
 
@@ -168,12 +199,13 @@ func _apply_styles() -> void:
 		wave_preview_label.add_theme_font_size_override("font_size", 10)
 		wave_preview_label.visible = false
 
-	if wave_element_icon:
-		wave_element_icon.visible = false
+	if wave_element_area:
+		wave_element_area.visible = false
+		# Hover muss Events bekommen, aber selbst unsichtbar bleiben:
+		wave_element_area.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	if wave_element_label:
 		wave_element_label.add_theme_font_size_override("font_size", 11)
-		wave_element_label.visible = false
 
 	if cores_button:
 		cores_button.text = ""
@@ -346,10 +378,8 @@ func _on_wave_started(_wave: int) -> void:
 
 	if wave_preview_label:
 		wave_preview_label.visible = false
-	if wave_element_icon:
-		wave_element_icon.visible = false
-	if wave_element_label:
-		wave_element_label.visible = false
+	if wave_element_area:
+		wave_element_area.visible = false
 
 	if fast_forward_button:
 		fast_forward_button.visible = true
@@ -421,14 +451,13 @@ func _update_wave_preview(next_wave: int) -> void:
 
 
 func _update_wave_element_display(wave_elem: String) -> void:
-	if not wave_element_icon or not wave_element_label:
+	if not wave_element_area or not wave_element_icon or not wave_element_label:
 		return
 
 	wave_elem = String(wave_elem).to_lower()
-	wave_element_icon.visible = true
-	wave_element_label.visible = true
+	wave_element_area.visible = true
 
-	# Nur Element anzeigen (keine Schwäche/Resistenz im Haupttext)
+	# Nur Element anzeigen
 	if wave_elem == "neutral" or wave_elem == "":
 		wave_element_icon.texture = null
 		wave_element_icon.visible = false
@@ -448,7 +477,6 @@ func _update_wave_element_display(wave_elem: String) -> void:
 			wave_element_icon.visible = false
 
 		wave_element_label.text = wave_elem.capitalize()
-
 		var elem_color := Color.WHITE
 		if ElementalSystem:
 			elem_color = ElementalSystem.get_element_color(wave_elem)
@@ -475,14 +503,22 @@ func _set_fast_forward(enabled: bool) -> void:
 
 
 # -------------------------
-# Tooltip (Hover über Element)
+# Tooltip (Hover über Element-Area)
 # -------------------------
 
 func _create_wave_tooltip() -> void:
+	# Tooltip in eigenem CanvasLayer, damit er sicher über anderen UI-Layern liegt
+	var tip_layer := CanvasLayer.new()
+	tip_layer.name = "TooltipLayer"
+	tip_layer.layer = 250  # höher als Standard-UI; bei Bedarf erhöhen
+	add_child(tip_layer)
+
 	wave_tooltip = PanelContainer.new()
 	wave_tooltip.visible = false
-	wave_tooltip.z_index = 9999
+	wave_tooltip.z_index = 200  # im erlaubten Bereich, reicht innerhalb des Layers
 	wave_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	tip_layer.add_child(wave_tooltip)
 
 	# Hintergrund
 	var style := StyleBoxFlat.new()
@@ -498,10 +534,17 @@ func _create_wave_tooltip() -> void:
 	style.corner_radius_bottom_right = 8
 	wave_tooltip.add_theme_stylebox_override("panel", style)
 
+	var marginc := MarginContainer.new()
+	marginc.add_theme_constant_override("margin_left", 10)
+	marginc.add_theme_constant_override("margin_right", 10)
+	marginc.add_theme_constant_override("margin_top", 8)
+	marginc.add_theme_constant_override("margin_bottom", 8)
+	wave_tooltip.add_child(marginc)
+
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 6)
 	vb.custom_minimum_size = Vector2(240, 0)
-	wave_tooltip.add_child(vb)
+	marginc.add_child(vb)
 
 	wave_tooltip_title = Label.new()
 	wave_tooltip_title.add_theme_font_size_override("font_size", 12)
@@ -551,17 +594,11 @@ func _create_wave_tooltip() -> void:
 	add_child(wave_tooltip)
 
 
-func _connect_tooltip_hover() -> void:
-	# Hover auf Icon + Label (beides anklickbar/hoverbar)
-	if wave_element_icon:
-		wave_element_icon.mouse_filter = Control.MOUSE_FILTER_STOP
-		wave_element_icon.mouse_entered.connect(_on_wave_element_hover_enter)
-		wave_element_icon.mouse_exited.connect(_on_wave_element_hover_exit)
-
-	if wave_element_label:
-		wave_element_label.mouse_filter = Control.MOUSE_FILTER_STOP
-		wave_element_label.mouse_entered.connect(_on_wave_element_hover_enter)
-		wave_element_label.mouse_exited.connect(_on_wave_element_hover_exit)
+func _connect_tooltip_hover_area() -> void:
+	if not wave_element_area:
+		return
+	wave_element_area.mouse_entered.connect(_on_wave_element_hover_enter)
+	wave_element_area.mouse_exited.connect(_on_wave_element_hover_exit)
 
 
 func _on_wave_element_hover_enter() -> void:
@@ -576,7 +613,6 @@ func _show_wave_tooltip() -> void:
 	if not wave_tooltip:
 		return
 
-	# Tooltip nur für echte Elemente
 	var wave_elem := String(_next_wave_element).to_lower()
 	if wave_elem == "" or wave_elem == "neutral" or wave_elem == "mixed":
 		wave_tooltip.visible = false
@@ -585,7 +621,6 @@ func _show_wave_tooltip() -> void:
 
 	var weak_against := ""
 	var resists := ""
-
 	if ElementalSystem:
 		weak_against = String(ElementalSystem.get_effective_element(wave_elem)).to_lower()
 		resists = String(ElementalSystem.RESISTANCES.get(wave_elem, "")).to_lower()
@@ -608,9 +643,36 @@ func _show_wave_tooltip() -> void:
 		wave_tooltip_resist_icon.texture = null
 		wave_tooltip_resist_label.text = "-"
 
-	# Position neben Icon
-	if wave_element_icon:
-		wave_tooltip.global_position = wave_element_icon.get_global_position() + Vector2(28, -8)
+	var margin: float = 10.0
+	var viewport_size: Vector2 = get_viewport_rect().size
+
+	# Tooltip-Größe ermitteln
+	var tip_size: Vector2 = wave_tooltip.get_combined_minimum_size()
+	if tip_size == Vector2.ZERO:
+		tip_size = wave_tooltip.size
+
+	var desired_pos: Vector2 = Vector2.ZERO
+	if wave_element_area:
+		var area_pos: Vector2 = wave_element_area.get_global_position()
+		var right_pos: Vector2 = area_pos + Vector2(wave_element_area.size.x + 10.0, -8.0)
+		var left_pos: Vector2 = area_pos + Vector2(-tip_size.x - 10.0, -8.0)
+
+		# Flip nach links, wenn rechts kein Platz wäre
+		if right_pos.x + tip_size.x + margin > viewport_size.x:
+			desired_pos = left_pos
+		else:
+			desired_pos = right_pos
+	else:
+		desired_pos = Vector2(margin, margin)
+
+	# Clamp (dein bestehender Teil bleibt gleich)
+	var max_x: float = viewport_size.x - tip_size.x - margin
+	var max_y: float = viewport_size.y - tip_size.y - margin
+
+	var clamped_x: float = clampf(desired_pos.x, margin, max_x)
+	var clamped_y: float = clampf(desired_pos.y, margin, max_y)
+
+	wave_tooltip.global_position = Vector2(clamped_x, clamped_y)
 
 	wave_tooltip.visible = true
 	_tooltip_visible = true
