@@ -50,7 +50,11 @@ const ENEMY_SCALE := 3.0  # Skalierung für bessere Sichtbarkeit
 
 var walk_bob := 0.0
 var wobble_time := 0.0
+# Shadow FX
 var shadow_offset_y := 8.0
+var shadow_base_scale := Vector2.ONE
+var shadow_bob_t := 0.0
+var shadow_stun_t := 0.0
 
 
 
@@ -129,16 +133,17 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 
 	element = String(data.get("element", "neutral")).to_lower()
 
-	# Schatten-Position je nach Gegnertyp anpassen
+	# Schatten-Defaults je nach Gegnerart
 	if element == "neutral" or element == "":
-		# Normaler Gegner ist höher -> Schatten weiter nach unten
 		shadow_offset_y = 26.0
+		shadow_base_scale = Vector2(1.1, 0.6)
 	else:
-		# Kleine elementare Gegner
 		shadow_offset_y = 8.0
+		shadow_base_scale = Vector2(1.0, 1.0)
 
 	if shadow:
 		shadow.position.y = shadow_offset_y
+		shadow.scale = shadow_base_scale
 		
 	if shadow and (element == "neutral" or element == ""):
 		shadow.scale = Vector2(1.1, 0.6)
@@ -168,6 +173,7 @@ func _setup_sprite() -> void:
 
 	var elem := String(element if element != null else "neutral").to_lower()
 	var sprite_path := ""
+	print("[Enemy] element=", element, " path=", "res://assets/enemies/%s_enemy_level_1.png" % element)
 
 	# Elementare Gegner: 1 Reihe, 4 Frames
 	if elem != "" and elem != "neutral":
@@ -235,6 +241,7 @@ func _process(delta: float) -> void:
 	if stun_timer > 0:
 		stun_timer -= delta
 		_do_stun_wobble(delta)
+		_update_shadow_fx(delta)
 		return
 
 	if is_frozen:
@@ -243,12 +250,15 @@ func _process(delta: float) -> void:
 			is_frozen = false
 			if sprite:
 				sprite.modulate = original_modulate
+		_update_shadow_fx(delta)
 		return
 
 	_update_status_effects(delta)
 	_move(delta)
 	_update_health_bar()
 	_update_animation(delta)
+	_update_shadow_fx(delta)
+
 
 
 func _update_animation(delta: float) -> void:
@@ -324,6 +334,34 @@ func _reach_end() -> void:
 
 	queue_free()
 
+func _update_shadow_fx(delta: float) -> void:
+	if not shadow:
+		return
+
+	# Basis
+	var y := shadow_offset_y
+	var scale := shadow_base_scale
+
+	# Bobbing beim Laufen (nur wenn nicht stunned/frozen)
+	if stun_timer <= 0.0 and not is_frozen:
+		shadow_bob_t += delta * 8.0
+		var bob := (sin(shadow_bob_t) + 1.0) * 0.5  # 0..1
+		# leicht "atmen": minimal größer/kleiner
+		scale *= Vector2(1.0 + bob * 0.08, 1.0 - bob * 0.08)
+
+	# Freeze: Schatten kleiner & "näher" am Boden
+	if is_frozen:
+		scale *= Vector2(0.85, 0.85)
+		y += 2.0
+
+	# Stun: leichtes Zittern (Position + Mini-Scale wobble)
+	if stun_timer > 0.0:
+		shadow_stun_t += delta * 45.0
+		y += sin(shadow_stun_t) * 0.8
+		scale *= Vector2(1.0 + sin(shadow_stun_t * 0.7) * 0.03, 1.0)
+
+	shadow.position.y = y
+	shadow.scale = scale
 
 func _update_status_effects(delta: float) -> void:
 	if slow_timer > 0:

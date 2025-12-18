@@ -13,6 +13,8 @@ signal enemy_spawned(enemy: Node2D)
 var is_spawning := false
 var spawn_queue: Array[Dictionary] = []
 var current_spawn_index := 0
+var _rng := RandomNumberGenerator.new()
+var _base_seed: int = 0
 
 # Wave-Element tracking
 var current_wave_element := "neutral"
@@ -47,6 +49,13 @@ const ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
 func _ready() -> void:
 	if enemy_scene == null:
 		enemy_scene = preload("res://enemy.tscn")
+
+	var main := get_node_or_null("/root/Main")
+	if main and main.has_method("get_current_seed"):
+		_base_seed = int(main.get_current_seed())
+	else:
+		_base_seed = 0
+
 	print("[WaveManager] Initialisiert mit Elementar-System")
 
 
@@ -63,22 +72,15 @@ func start_wave(wave_number: int) -> void:
 	_spawn_next()
 
 
-# Bestimmt das Element für eine Welle
 func _determine_wave_element(wave: int) -> String:
-	# Wave 1-2: Nur neutrale Gegner (Tutorial)
 	if wave <= 2:
 		return "neutral"
-	
-	# Wave 3-5: Ein zufälliges Element für die ganze Welle
-	if wave <= 5:
-		return ELEMENTS[randi() % ELEMENTS.size()]
-	
-	# Wave 6-10: Hauptsächlich ein Element
-	if wave <= 10:
-		return ELEMENTS[randi() % ELEMENTS.size()]
-	
-	# Wave 11+: Gemischt (return "mixed" als Signal)
-	return "mixed"
+
+	if wave > 10:
+		return "mixed"
+
+	_rng.seed = _base_seed + wave * 10007
+	return ELEMENTS[_rng.randi_range(0, ELEMENTS.size() - 1)]
 
 
 func generate_wave_composition(wave: int) -> Array[Dictionary]:
@@ -128,7 +130,8 @@ func _create_enemy_data(type: String, wave: int) -> Dictionary:
 	# Element basierend auf Wave-Phase bestimmen
 	var element := _get_enemy_element(wave)
 	#var element := "fire"
-	
+	print("[WaveManager] wave=", wave, " current_wave_element=", current_wave_element, " enemy_element=", element)
+
 	# Elementare Gegner sind etwas stärker
 	var elem_bonus := 1.0
 	if element != "neutral":
@@ -188,7 +191,7 @@ func _spawn_enemy(data: Dictionary) -> void:
 		return
 
 	var enemy := enemy_scene.instantiate()
-	get_parent().add_child(enemy)  # <-- WICHTIG: erst in den Tree
+	get_parent().add_child(enemy) # <-- erst adden!
 
 	if enemy.has_method("setup_extended"):
 		enemy.setup_extended(path_points, data)
