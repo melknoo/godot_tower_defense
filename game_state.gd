@@ -64,6 +64,8 @@ func _ready() -> void:
 func start_wave() -> void:
 	if wave_active:
 		return
+	if get_tree() and get_tree().get_nodes_in_group("enemies").size() > 0:
+		return
 	current_wave += 1
 	wave_active = true
 	enemies_remaining = calculate_enemies_for_wave(current_wave)

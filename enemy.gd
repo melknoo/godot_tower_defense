@@ -12,6 +12,8 @@ var base_speed := 80.0
 var reward := 2
 var enemy_type := "normal"
 var element := "neutral"
+var _resolved := false
+
 
 # Status-Effekte
 var slow_amount := 0.0
@@ -232,6 +234,8 @@ func _update_element_indicator() -> void:
 
 func _process(delta: float) -> void:
 	# Hit-Flash abklingen
+	if _resolved:
+		return
 	if flash_timer > 0:
 		flash_timer -= delta
 		if flash_timer <= 0 and sprite:
@@ -326,6 +330,9 @@ func _move(delta: float) -> void:
 
 
 func _reach_end() -> void:
+	if _resolved:
+		return
+	_resolved = true
 	GameState.enemy_reached_end()
 
 	if VFX:
@@ -378,6 +385,8 @@ func _update_status_effects(delta: float) -> void:
 
 # NEU: Damage mit Elementar-Multiplikator
 func take_damage(amount: int, trigger_effects: bool = true, attacker_element: String = "") -> void:
+	if _resolved:
+		return
 	var final_damage := amount
 	var multiplier := 1.0
 
@@ -424,6 +433,9 @@ func _do_hit_flash() -> void:
 
 
 func _die() -> void:
+	if _resolved:
+		return
+	_resolved = true
 	GameState.enemy_died(reward)
 	Sound.play_coin()
 
