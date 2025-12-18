@@ -39,6 +39,10 @@ var anim_timer := 0.0
 var anim_frame := 3  # Start bei Frame 3, läuft rückwärts
 const ANIM_SPEED := 0.15  # Sekunden pro Frame
 const FRAME_COUNT := 4
+var anim_col := 0
+var anim_row := 0
+const NORMAL_COLS := 3
+const NORMAL_ROWS := 4
 
 # Sprite-Konstanten
 const FRAME_SIZE := Vector2(16, 16)
@@ -46,6 +50,8 @@ const ENEMY_SCALE := 3.0  # Skalierung für bessere Sichtbarkeit
 
 var walk_bob := 0.0
 var wobble_time := 0.0
+var shadow_offset_y := 8.0
+
 
 
 func _ready() -> void:
@@ -58,11 +64,14 @@ func _create_visuals() -> void:
 	# Schatten
 	shadow = Polygon2D.new()
 	shadow.polygon = PackedVector2Array([
-		Vector2(-12, 4), Vector2(12, 4),
-		Vector2(10, 8), Vector2(-10, 8)
+		Vector2(-12, 0),
+		Vector2(12, 0),
+		Vector2(10, 4),
+		Vector2(-10, 4)
 	])
 	shadow.color = Color(0, 0, 0, 0.3)
 	shadow.z_index = -1
+	shadow.position.y = shadow_offset_y
 	add_child(shadow)
 
 	# Sprite
@@ -118,8 +127,21 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 	reward = data.get("reward", 10)
 	enemy_type = data.get("type", "normal")
 
-	# >>> FIX: Element immer in lowercase (wichtig für Dateinamen!)
 	element = String(data.get("element", "neutral")).to_lower()
+
+	# Schatten-Position je nach Gegnertyp anpassen
+	if element == "neutral" or element == "":
+		# Normaler Gegner ist höher -> Schatten weiter nach unten
+		shadow_offset_y = 26.0
+	else:
+		# Kleine elementare Gegner
+		shadow_offset_y = 8.0
+
+	if shadow:
+		shadow.position.y = shadow_offset_y
+		
+	if shadow and (element == "neutral" or element == ""):
+		shadow.scale = Vector2(1.1, 0.6)
 
 	position = path[0] if path.size() > 0 else Vector2.ZERO
 
@@ -147,43 +169,34 @@ func _setup_sprite() -> void:
 	var elem := String(element if element != null else "neutral").to_lower()
 	var sprite_path := ""
 
-	# 1) Elementares Sprite
+	# Elementare Gegner: 1 Reihe, 4 Frames
 	if elem != "" and elem != "neutral":
 		sprite_path = "res://assets/enemies/%s_enemy_level_1.png" % elem
 	else:
-		sprite_path = "res://assets/enemy.png"
+		# NEU: Normale Gegner nutzen jetzt das neue animierte Sheet
+		sprite_path = "res://assets/enemies/normal_enemy_level_1.png"
 
-	# Debug-Ausgabe (hilft sofort beim Finden des Problems)
 	print("[Enemy] element=", elem, " sprite_path=", sprite_path, " exists=", ResourceLoader.exists(sprite_path))
 
 	if ResourceLoader.exists(sprite_path):
 		sprite.texture = load(sprite_path)
-
-		# Wenn elementares Sheet: Frames setzen
-		if elem != "" and elem != "neutral":
-			sprite.hframes = FRAME_COUNT
-			sprite.vframes = 1
-			anim_frame = clampi(anim_frame, 0, FRAME_COUNT - 1)
-			sprite.frame = anim_frame
-			if element_indicator:
-				element_indicator.visible = false
-		else:
-			# Fallback-Sprite hat keine Animation
-			sprite.hframes = 1
-			sprite.vframes = 1
-			sprite.frame = 0
-
-		# Wichtig: nicht aus Versehen auf unsichtbar lassen
 		sprite.visible = true
+
+		if elem != "" and elem != "neutral":
+			# Elementar: 4 Frames in einer Reihe
+			sprite.hframes = 4
+			sprite.vframes = 1
+			anim_frame = clampi(anim_frame, 0, 3)
+			sprite.frame = anim_frame
+		else:
+			# Normal: 3x4 (3 Frames pro Richtung)
+			sprite.hframes = 3
+			sprite.vframes = 4
+			# Start: nach unten, Frame 0
+			sprite.frame_coords = Vector2i(0, 0)
 	else:
 		push_warning("[Enemy] Sprite nicht gefunden: %s" % sprite_path)
 		sprite.texture = null
-
-		# Zur Not wenigstens über Modulate sichtbar machen (wenn später eine Texture gesetzt wird)
-		var base_color: Color = Color(0.8, 0.2, 0.2)
-		var final_color := _calculate_element_color(base_color)
-		sprite.modulate = final_color
-		original_modulate = final_color
 
 
 func _calculate_element_color(base_color: Color) -> Color:
@@ -239,14 +252,24 @@ func _process(delta: float) -> void:
 
 
 func _update_animation(delta: float) -> void:
-	if not sprite or sprite.hframes <= 1:
-		# Fallback: Einfaches Bobbing für nicht-animierte Sprites
-		walk_bob += delta * 12.0
-		if sprite:
-			sprite.position.y = sin(walk_bob) * 2
+	if not sprite or sprite.texture == null:
 		return
 
-	# Spritesheet Animation (rückwärts: 3 → 2 → 1 → 0 → 3 ...)
+	# Normaler Gegner (3x4 Sheet)
+	if element == "neutral" or element == "":
+		anim_timer += delta
+		if anim_timer >= ANIM_SPEED:
+			anim_timer = 0.0
+			anim_col = (anim_col + 1) % NORMAL_COLS
+			sprite.frame_coords = Vector2i(anim_col, anim_row)
+		return
+
+	# Elementare Gegner (4 Frames, 1 Reihe) – dein altes Verhalten
+	if sprite.hframes <= 1:
+		walk_bob += delta * 12.0
+		sprite.position.y = sin(walk_bob) * 2
+		return
+
 	anim_timer += delta
 	if anim_timer >= ANIM_SPEED:
 		anim_timer = 0.0
@@ -273,11 +296,19 @@ func _move(delta: float) -> void:
 
 	var target_pos := path[path_index]
 	var direction := (target_pos - position).normalized()
+	# Für normalen Gegner: Reihe anhand Bewegungsrichtung setzen
+	if element == "neutral" or element == "":
+		if abs(direction.x) > abs(direction.y):
+			# Links/Rechts
+			anim_row = 2 if direction.x > 0 else 1
+		else:
+			# Hoch/Runter
+			anim_row = 0 if direction.y > 0 else 3
 	position += direction * current_speed * delta
 
 	# Sprite spiegeln basierend auf Bewegungsrichtung
 	# Sprites schauen standardmäßig nach links, also flip wenn nach rechts
-	if sprite and direction.length() > 0:
+	if sprite and (element != "neutral" and element != "") and direction.length() > 0:
 		sprite.flip_h = direction.x > 0
 
 	if position.distance_to(target_pos) < 5:
