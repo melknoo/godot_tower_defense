@@ -127,6 +127,7 @@ func _create_enemy_data(type: String, wave: int) -> Dictionary:
 	
 	# Element basierend auf Wave-Phase bestimmen
 	var element := _get_enemy_element(wave)
+	#var element := "fire"
 	
 	# Elementare Gegner sind etwas stärker
 	var elem_bonus := 1.0
@@ -185,16 +186,16 @@ func _spawn_next() -> void:
 func _spawn_enemy(data: Dictionary) -> void:
 	if not is_inside_tree():
 		return
-	
+
 	var enemy := enemy_scene.instantiate()
-	
+	get_parent().add_child(enemy)  # <-- WICHTIG: erst in den Tree
+
 	if enemy.has_method("setup_extended"):
 		enemy.setup_extended(path_points, data)
 	else:
 		enemy.setup(path_points, data["health"], data["speed"])
-	
+
 	enemy_spawned.emit(enemy)
-	get_parent().add_child(enemy)
 
 
 func cancel_wave() -> void:

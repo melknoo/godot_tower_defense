@@ -1,5 +1,5 @@
 # enemy.gd
-# Gegner mit Elementar-Typen, Schwächen und VFX
+# Gegner mit Elementar-Typen, animierten Sprites und VFX
 extends Node2D
 class_name Enemy
 
@@ -11,7 +11,7 @@ var speed := 80.0
 var base_speed := 80.0
 var reward := 2
 var enemy_type := "normal"
-var element := "neutral"  # NEU: Elementar-Typ
+var element := "neutral"
 
 # Status-Effekte
 var slow_amount := 0.0
@@ -32,10 +32,24 @@ var health_bar_bg: Line2D
 var health_bar: Line2D
 var status_indicator: Node2D
 var shadow: Polygon2D
-var element_indicator: Label  # NEU: Element-Anzeige
+var element_indicator: Label
+
+# Animation
+var anim_timer := 0.0
+var anim_frame := 3  # Start bei Frame 3, läuft rückwärts
+const ANIM_SPEED := 0.15  # Sekunden pro Frame
+const FRAME_COUNT := 4
+
+# Sprite-Konstanten
+const FRAME_SIZE := Vector2(16, 16)
+const ENEMY_SCALE := 3.0  # Skalierung für bessere Sichtbarkeit
+
+var walk_bob := 0.0
+var wobble_time := 0.0
 
 
 func _ready() -> void:
+	print("[Enemy] _ready script=", get_script().resource_path, " name=", name)
 	add_to_group("enemies")
 	_create_visuals()
 
@@ -50,40 +64,38 @@ func _create_visuals() -> void:
 	shadow.color = Color(0, 0, 0, 0.3)
 	shadow.z_index = -1
 	add_child(shadow)
-	
+
 	# Sprite
 	sprite = Sprite2D.new()
-	if ResourceLoader.exists("res://assets/enemy.png"):
-		sprite.texture = preload("res://assets/enemy.png")
-	sprite.scale = Vector2(0.5, 0.5)
+	sprite.scale = Vector2(ENEMY_SCALE, ENEMY_SCALE)
 	add_child(sprite)
-	
+
 	# Health Bar Background
 	health_bar_bg = Line2D.new()
-	health_bar_bg.add_point(Vector2(-15, -22))
-	health_bar_bg.add_point(Vector2(15, -22))
+	health_bar_bg.add_point(Vector2(-15, -28))
+	health_bar_bg.add_point(Vector2(15, -28))
 	health_bar_bg.default_color = Color(0.2, 0.2, 0.2, 0.8)
 	health_bar_bg.width = 6
 	add_child(health_bar_bg)
-	
+
 	# Health Bar
 	health_bar = Line2D.new()
-	health_bar.add_point(Vector2(-15, -22))
-	health_bar.add_point(Vector2(15, -22))
+	health_bar.add_point(Vector2(-15, -28))
+	health_bar.add_point(Vector2(15, -28))
 	health_bar.default_color = Color(0, 1, 0)
 	health_bar.width = 4
 	add_child(health_bar)
-	
+
 	# Element Indicator
 	element_indicator = Label.new()
-	element_indicator.position = Vector2(-8, -38)
+	element_indicator.position = Vector2(-8, -44)
 	element_indicator.add_theme_font_size_override("font_size", 12)
 	element_indicator.visible = false
 	add_child(element_indicator)
-	
+
 	# Status Indicator
 	status_indicator = Node2D.new()
-	status_indicator.position = Vector2(0, -30)
+	status_indicator.position = Vector2(0, -36)
 	add_child(status_indicator)
 
 
@@ -97,6 +109,7 @@ func setup(path_points: Array[Vector2], hp: int, spd: float) -> void:
 
 
 func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
+	print("[Enemy] setup_extended script=", get_script().resource_path, " data=", data)
 	path = path_points
 	health = data.get("health", 100)
 	max_health = health
@@ -104,33 +117,79 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 	base_speed = speed
 	reward = data.get("reward", 10)
 	enemy_type = data.get("type", "normal")
-	element = data.get("element", "neutral")  # NEU
-	
+
+	# >>> FIX: Element immer in lowercase (wichtig für Dateinamen!)
+	element = String(data.get("element", "neutral")).to_lower()
+
 	position = path[0] if path.size() > 0 else Vector2.ZERO
-	
-	var enemy_scale: float = data.get("scale", 0.5)
-	var base_color: Color = data.get("color", Color.WHITE)
-	
-	# Farbe basierend auf Element anpassen
-	var final_color := _calculate_element_color(base_color)
-	original_modulate = final_color
-	
-	# Nur aktualisieren wenn Visuals bereits existieren
+
+	# Sprite laden basierend auf Element
+	_setup_sprite()
+
+	# Größe basierend auf Gegner-Typ
+	var type_scale: float = data.get("scale", 0.5)
+	var final_scale := ENEMY_SCALE * (type_scale / 0.5)  # Normalisiert auf Basis-Scale
+
 	if sprite:
-		sprite.scale = Vector2(enemy_scale, enemy_scale)
-		sprite.modulate = final_color
-	
+		sprite.scale = Vector2(final_scale, final_scale)
+		original_modulate = sprite.modulate
+
 	if shadow:
-		shadow.scale = Vector2(enemy_scale * 1.5, enemy_scale)
-	
-	# Element-Indikator aktualisieren (mit Null-Check in der Funktion)
+		shadow.scale = Vector2(final_scale * 0.8, final_scale * 0.4)
+
 	_update_element_indicator()
+
+
+func _setup_sprite() -> void:
+	if not sprite:
+		return
+
+	var elem := String(element if element != null else "neutral").to_lower()
+	var sprite_path := ""
+
+	# 1) Elementares Sprite
+	if elem != "" and elem != "neutral":
+		sprite_path = "res://assets/enemies/%s_enemy_level_1.png" % elem
+	else:
+		sprite_path = "res://assets/enemy.png"
+
+	# Debug-Ausgabe (hilft sofort beim Finden des Problems)
+	print("[Enemy] element=", elem, " sprite_path=", sprite_path, " exists=", ResourceLoader.exists(sprite_path))
+
+	if ResourceLoader.exists(sprite_path):
+		sprite.texture = load(sprite_path)
+
+		# Wenn elementares Sheet: Frames setzen
+		if elem != "" and elem != "neutral":
+			sprite.hframes = FRAME_COUNT
+			sprite.vframes = 1
+			anim_frame = clampi(anim_frame, 0, FRAME_COUNT - 1)
+			sprite.frame = anim_frame
+			if element_indicator:
+				element_indicator.visible = false
+		else:
+			# Fallback-Sprite hat keine Animation
+			sprite.hframes = 1
+			sprite.vframes = 1
+			sprite.frame = 0
+
+		# Wichtig: nicht aus Versehen auf unsichtbar lassen
+		sprite.visible = true
+	else:
+		push_warning("[Enemy] Sprite nicht gefunden: %s" % sprite_path)
+		sprite.texture = null
+
+		# Zur Not wenigstens über Modulate sichtbar machen (wenn später eine Texture gesetzt wird)
+		var base_color: Color = Color(0.8, 0.2, 0.2)
+		var final_color := _calculate_element_color(base_color)
+		sprite.modulate = final_color
+		original_modulate = final_color
 
 
 func _calculate_element_color(base_color: Color) -> Color:
 	if element == "neutral" or element == "":
 		return base_color
-	
+
 	var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
 	# Mische Basis-Farbe mit Element-Farbe
 	return base_color.lerp(elem_color, 0.5)
@@ -139,14 +198,14 @@ func _calculate_element_color(base_color: Color) -> Color:
 func _update_element_indicator() -> void:
 	if not element_indicator:
 		return
-	
+
 	if element == "neutral" or element == "":
 		element_indicator.visible = false
 		return
-	
+
 	element_indicator.visible = true
 	element_indicator.text = ElementalSystem.get_element_symbol(element) if ElementalSystem else element.substr(0, 1).to_upper()
-	
+
 	# Outline für bessere Sichtbarkeit
 	element_indicator.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	element_indicator.add_theme_constant_override("outline_size", 2)
@@ -158,13 +217,13 @@ func _process(delta: float) -> void:
 		flash_timer -= delta
 		if flash_timer <= 0 and sprite:
 			sprite.modulate = original_modulate
-	
+
 	# Gestunned oder eingefroren?
 	if stun_timer > 0:
 		stun_timer -= delta
 		_do_stun_wobble(delta)
 		return
-	
+
 	if is_frozen:
 		freeze_timer -= delta
 		if freeze_timer <= 0:
@@ -172,22 +231,30 @@ func _process(delta: float) -> void:
 			if sprite:
 				sprite.modulate = original_modulate
 		return
-	
+
 	_update_status_effects(delta)
 	_move(delta)
 	_update_health_bar()
-	_do_walk_animation(delta)
+	_update_animation(delta)
 
 
-var walk_bob := 0.0
+func _update_animation(delta: float) -> void:
+	if not sprite or sprite.hframes <= 1:
+		# Fallback: Einfaches Bobbing für nicht-animierte Sprites
+		walk_bob += delta * 12.0
+		if sprite:
+			sprite.position.y = sin(walk_bob) * 2
+		return
 
-func _do_walk_animation(delta: float) -> void:
-	walk_bob += delta * 12.0
-	if sprite:
-		sprite.position.y = sin(walk_bob) * 2
+	# Spritesheet Animation (rückwärts: 3 → 2 → 1 → 0 → 3 ...)
+	anim_timer += delta
+	if anim_timer >= ANIM_SPEED:
+		anim_timer = 0.0
+		anim_frame -= 1
+		if anim_frame < 0:
+			anim_frame = FRAME_COUNT - 1
+		sprite.frame = anim_frame
 
-
-var wobble_time := 0.0
 
 func _do_stun_wobble(delta: float) -> void:
 	wobble_time += delta * 20.0
@@ -199,29 +266,31 @@ func _move(delta: float) -> void:
 	if path_index >= path.size():
 		_reach_end()
 		return
-	
+
 	var current_speed := base_speed
 	if slow_timer > 0:
 		current_speed *= (1.0 - slow_amount)
-	
+
 	var target_pos := path[path_index]
 	var direction := (target_pos - position).normalized()
 	position += direction * current_speed * delta
-	
-	if direction.length() > 0:
-		sprite.rotation = direction.angle() + PI/2
-	
+
+	# Sprite spiegeln basierend auf Bewegungsrichtung
+	# Sprites schauen standardmäßig nach links, also flip wenn nach rechts
+	if sprite and direction.length() > 0:
+		sprite.flip_h = direction.x > 0
+
 	if position.distance_to(target_pos) < 5:
 		path_index += 1
 
 
 func _reach_end() -> void:
 	GameState.enemy_reached_end()
-	
+
 	if VFX:
 		VFX.screen_shake(8.0, 0.3)
 		VFX.screen_flash(Color(1, 0, 0), 0.15)
-	
+
 	queue_free()
 
 
@@ -232,7 +301,7 @@ func _update_status_effects(delta: float) -> void:
 			slow_amount = 0.0
 			if sprite:
 				sprite.modulate = original_modulate
-	
+
 	if burn_timer > 0:
 		burn_timer -= delta
 		take_damage(int(burn_damage * delta), false, "fire")
@@ -242,24 +311,24 @@ func _update_status_effects(delta: float) -> void:
 func take_damage(amount: int, trigger_effects: bool = true, attacker_element: String = "") -> void:
 	var final_damage := amount
 	var multiplier := 1.0
-	
+
 	# Elementar-Multiplikator berechnen
 	if attacker_element != "" and ElementalSystem:
 		multiplier = ElementalSystem.get_damage_multiplier(attacker_element, element)
 		final_damage = int(amount * multiplier)
-	
+
 	health -= final_damage
-	
+
 	if trigger_effects:
 		GameState.record_damage(final_damage)
 		_do_hit_flash()
-		
+
 		# VFX spawnen
 		if VFX:
 			var is_crit := final_damage > damage_threshold_for_crit()
 			var is_effective := multiplier > 1.0
 			var is_resisted := multiplier < 1.0
-			
+
 			# Spezielle VFX für effektive/resistierte Treffer
 			if is_effective:
 				VFX.spawn_pixel_burst(position, attacker_element, 10)
@@ -270,7 +339,7 @@ func take_damage(amount: int, trigger_effects: bool = true, attacker_element: St
 			else:
 				VFX.spawn_hit_effect(position, attacker_element if attacker_element != "" else "damage", is_crit)
 				VFX.spawn_damage_number(position, final_damage, is_crit, attacker_element)
-	
+
 	if health <= 0:
 		_die()
 
@@ -288,19 +357,19 @@ func _do_hit_flash() -> void:
 func _die() -> void:
 	GameState.enemy_died(reward)
 	Sound.play_coin()
-	
+
 	if VFX:
 		VFX.spawn_death_effect(position, enemy_type)
 		VFX.spawn_gold_number(position, reward)
-		
+
 		# Extra VFX für elementare Gegner
 		if element != "neutral" and element != "":
 			VFX.spawn_pixel_ring(position, element, 30.0)
-		
+
 		if enemy_type == "boss":
 			VFX.screen_shake(12.0, 0.4)
 			VFX.screen_flash(Color(1, 0.8, 0.3), 0.2)
-	
+
 	queue_free()
 
 
@@ -310,10 +379,10 @@ func apply_slow(amount: float, duration: float) -> void:
 	if amount > slow_amount:
 		slow_amount = amount
 	slow_timer = maxf(slow_timer, duration)
-	
+
 	if sprite:
 		sprite.modulate = original_modulate.lerp(Color(0.5, 0.5, 1.0), 0.5)
-	
+
 	if VFX:
 		VFX.spawn_pixels(position, "ice", 4, 15.0)
 
@@ -321,9 +390,9 @@ func apply_slow(amount: float, duration: float) -> void:
 func apply_burn(damage_per_second: int, duration: float) -> void:
 	burn_damage = damage_per_second
 	burn_timer = maxf(burn_timer, duration)
-	
+
 	_show_status_icon("burn")
-	
+
 	if VFX:
 		VFX.spawn_pixels(position, "fire", 4, 15.0)
 
@@ -331,10 +400,10 @@ func apply_burn(damage_per_second: int, duration: float) -> void:
 func apply_stun(duration: float) -> void:
 	stun_timer = maxf(stun_timer, duration)
 	wobble_time = 0.0
-	
+
 	if sprite:
 		sprite.modulate = Color(1.0, 1.0, 0.5)
-	
+
 	if VFX:
 		VFX.spawn_pixels(position, "air", 6, 20.0)
 
@@ -342,11 +411,11 @@ func apply_stun(duration: float) -> void:
 func apply_freeze(duration: float) -> void:
 	is_frozen = true
 	freeze_timer = duration
-	
+
 	if sprite:
 		sprite.modulate = Color(0.7, 0.9, 1.0)
 		sprite.modulate.a = 0.7
-	
+
 	if VFX:
 		VFX.spawn_pixel_ring(position, "ice", 25.0)
 
@@ -355,8 +424,8 @@ func apply_freeze(duration: float) -> void:
 
 func _update_health_bar() -> void:
 	var health_percent := float(health) / max_health
-	health_bar.set_point_position(1, Vector2(-15 + 30 * health_percent, -22))
-	
+	health_bar.set_point_position(1, Vector2(-15 + 30 * health_percent, -28))
+
 	# Farbe basierend auf Element und HP
 	var bar_color := Color(1 - health_percent, health_percent, 0)
 	if element != "neutral" and element != "":
@@ -369,16 +438,16 @@ func _show_status_icon(effect_type: String) -> void:
 	for child in status_indicator.get_children():
 		if child.name == effect_type:
 			return
-	
+
 	var icon := Label.new()
 	icon.name = effect_type
 	icon.add_theme_font_size_override("font_size", 10)
-	
+
 	match effect_type:
 		"burn": icon.text = "🔥"
 		"slow": icon.text = "❄"
 		"stun": icon.text = "⚡"
-	
+
 	status_indicator.add_child(icon)
 
 
