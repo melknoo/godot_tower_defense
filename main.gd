@@ -298,6 +298,18 @@ func _update_hover_appearance(tower_type: String) -> void:
 			hover_sprite.add_child(sprite)
 		else:
 			_create_fallback_preview(tower_type)
+	elif tower_type == "farm":
+		# Farm: 32x48 Asset
+		var texture_path := "res://assets/elemental_tower/farm.png"
+		if ResourceLoader.exists(texture_path):
+			var sprite := Sprite2D.new()
+			sprite.texture = load(texture_path)
+			sprite.scale = Vector2(2.0, 2.0)
+			sprite.offset.y = -8
+			sprite.modulate.a = 0.6
+			hover_sprite.add_child(sprite)
+		else:
+			_create_fallback_preview(tower_type)
 	else:
 		var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
 		var is_animated: bool = data.get("animated", true)
@@ -319,11 +331,14 @@ func _update_hover_appearance(tower_type: String) -> void:
 		else:
 			_create_fallback_preview(tower_type)
 	
+	# Range Circle - nicht für Farm (attack_type == "none")
 	hover_range_circle.clear_points()
-	var range_val: float = TowerData.get_stat(tower_type, "range", 0)
-	for i in range(33):
-		var angle := i * TAU / 32
-		hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
+	var attack_type: String = data.get("attack_type", "projectile")
+	if attack_type != "none":
+		var range_val: float = TowerData.get_stat(tower_type, "range", 0)
+		for i in range(33):
+			var angle := i * TAU / 32
+			hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
 
 
 func _create_fallback_preview(tower_type: String) -> void:

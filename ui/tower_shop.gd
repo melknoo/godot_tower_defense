@@ -285,6 +285,8 @@ func _on_element_unlocked(_element: String) -> void:
 	_create_tower_buttons()
 
 
+# In tower_shop.gd, ersetze die _get_tower_icon_texture Funktion:
+
 func _get_tower_icon_texture(type: String) -> Texture2D:
 	# Archer: Ersten Frame aus Spritesheet extrahieren
 	if type == "archer":
@@ -305,6 +307,17 @@ func _get_tower_icon_texture(type: String) -> Texture2D:
 			var margin := 66.0
 			atlas.region = Rect2(margin, margin + 10, 60, 60)
 			return atlas
+	
+	# Farm: 32x48 Asset - oberen Bereich als quadratisches Icon
+	if type == "farm":
+		var farm_path := "res://assets/elemental_tower/farm.png"
+		if ResourceLoader.exists(farm_path):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = load(farm_path)
+			# Quadratischer Ausschnitt 32x32 vom oberen Teil
+			atlas.region = Rect2(0, 0, 32, 48)
+			return atlas
+		return null
 	
 	# Standard Tower Textur
 	var texture_path := "res://assets/elemental_tower/tower_%s.png" % type

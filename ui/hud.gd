@@ -19,6 +19,7 @@ signal open_element_panel_pressed
 @export var seed_label: Label
 @export var fast_forward_button: Button
 @export var bonus_preview_label: Label  # NEU: Zeigt Wellen-Ende Bonus
+@export var supply_label: Label  # Supply-Anzeige
 
 var is_fast_forward := false
 const FAST_FORWARD_SPEED := 2.5
@@ -97,7 +98,7 @@ func _find_or_create_ui_elements() -> void:
 	var bottom_y := hud_height - 22
 	var second_row_y := hud_height - 44
 	var third_row_y := hud_height - 66
-	var fourth_row_y := hud_height - 88
+	var first_row_y := hud_height - 88
 	var viewport_size := get_viewport_rect().size
 
 	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
@@ -108,7 +109,10 @@ func _find_or_create_ui_elements() -> void:
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
 	
 	# NEU: Bonus Preview Label
-	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, fourth_row_y))
+	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
+	
+	# NEU: Supply Label
+	supply_label = _get_or_create_label("SupplyLabel", Vector2(280, second_row_y))
 
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 85))
 
@@ -207,6 +211,11 @@ func _apply_styles() -> void:
 	if bonus_preview_label:
 		bonus_preview_label.add_theme_font_size_override("font_size", 11)
 		bonus_preview_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	
+	# NEU: Supply Label Styling
+	if supply_label:
+		supply_label.add_theme_font_size_override("font_size", 11)
+		supply_label.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
 
 	if cores_button:
 		cores_button.text = ""
@@ -278,6 +287,7 @@ func _connect_signals() -> void:
 	GameState.enemy_count_changed.connect(_on_enemy_count_changed)
 	GameState.element_cores_changed.connect(_on_cores_changed)
 	GameState.element_core_earned.connect(_on_core_earned)
+	GameState.supply_changed.connect(_on_supply_changed)
 
 	TowerData.element_unlocked.connect(_on_element_invested)
 	TowerData.element_upgraded.connect(_on_element_upgraded)
@@ -304,6 +314,7 @@ func update_all() -> void:
 	_update_wave_display()
 	_on_enemy_count_changed(GameState.enemies_remaining)
 	_on_cores_changed(GameState.element_cores)
+	_on_supply_changed(GameState.supply_used, GameState.supply_max)
 	_update_bonus_preview()
 
 
@@ -353,6 +364,23 @@ func _on_cores_changed(amount: int) -> void:
 
 func _on_core_earned() -> void:
 	_flash_cores_label()
+
+
+func _on_supply_changed(used: int, max_supply: int) -> void:
+	if not supply_label:
+		return
+	
+	var available := max_supply - used
+	supply_label.text = "⛺ %d/%d" % [used, max_supply]
+	supply_label.tooltip_text = "Supply: %d verwendet von %d\n%d verfügbar" % [used, max_supply, available]
+	
+	# Farbe basierend auf verfügbarer Supply
+	if available <= 0:
+		supply_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	elif available <= 1:
+		supply_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+	else:
+		supply_label.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
 
 
 func _highlight_cores_button(highlight: bool) -> void:

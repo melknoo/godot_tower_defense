@@ -1,5 +1,5 @@
 # tower_manager.gd
-# Verwaltet Tower-Platzierung, Verkauf, Upgrades und Kombinationen (mit VFX)
+# Verwaltet Tower-Platzierung, Verkauf, Upgrades mit Supply-System
 extends Node2D
 class_name TowerManager
 
@@ -46,6 +46,10 @@ func can_place_at(grid_pos: Vector2i, tower_type: String) -> bool:
 	var cost: int = TowerData.get_stat(tower_type, "cost")
 	if not GameState.can_afford(cost):
 		return false
+	# Supply-Check (Supply-Gebäude kosten kein Supply)
+	if not TowerData.is_supply_building(tower_type):
+		if not GameState.can_use_supply(TowerData.get_supply_cost_place()):
+			return false
 	return true
 
 
@@ -67,8 +71,19 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	
 	GameState.tower_placed(cost)
 	
+	# Supply-Gebäude kosten kein Supply
+	if not TowerData.is_supply_building(tower_type):
+		GameState.use_supply(TowerData.get_supply_cost_place())
+	
+	# Wenn Supply-Gebäude, max_supply erhöhen
+	if TowerData.is_supply_building(tower_type):
+		var bonus := TowerData.get_supply_bonus(tower_type)
+		GameState.add_max_supply(bonus)
+	
 	tower_placed.emit(tower, grid_pos)
-	print("[TowerManager] %s platziert bei %s" % [tower_type, grid_pos])
+	print("[TowerManager] %s platziert bei %s (Supply: %d/%d)" % [
+		tower_type, grid_pos, GameState.supply_used, GameState.supply_max
+	])
 	
 	return tower
 
@@ -79,16 +94,29 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	
 	var tower: Node2D = placed_towers[grid_pos]
 	var tower_pos: Vector2 = tower.position
+	var tower_type: String = tower.tower_type
 	var level: int = tower_levels.get(grid_pos, 0)
 	var placed_wave: int = tower_placed_wave.get(grid_pos, -1)
 	var placed_this_wave := placed_wave == GameState.current_wave
 	
-	var sell_value := TowerData.get_sell_value(tower.tower_type, level, placed_this_wave)
-	Sound.play_sell();
+	var sell_value := TowerData.get_sell_value(tower_type, level, placed_this_wave)
+	Sound.play_sell()
+	
 	# VFX vor dem Löschen
 	if VFX:
 		VFX.spawn_sell_effect(tower_pos)
 		VFX.spawn_gold_number(tower_pos, sell_value)
+	
+	# Supply freigeben (nur für Nicht-Supply-Gebäude)
+	if not TowerData.is_supply_building(tower_type):
+		var supply_to_free := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
+		GameState.free_supply(supply_to_free)
+	
+	# Wenn Supply-Gebäude, max_supply reduzieren
+	if TowerData.is_supply_building(tower_type):
+		var bonus := TowerData.get_supply_bonus(tower_type)
+		GameState.supply_max = max(GameState.STARTING_MAX_SUPPLY, GameState.supply_max - bonus)
+		GameState.supply_changed.emit(GameState.supply_used, GameState.supply_max)
 	
 	tower.queue_free()
 	placed_towers.erase(grid_pos)
@@ -101,7 +129,9 @@ func sell_tower(grid_pos: Vector2i) -> int:
 		deselect_tower()
 	
 	tower_sold.emit(grid_pos, sell_value)
-	print("[TowerManager] Tower verkauft für %d Gold" % sell_value)
+	print("[TowerManager] Tower verkauft für %d Gold (Supply: %d/%d)" % [
+		sell_value, GameState.supply_used, GameState.supply_max
+	])
 	
 	return sell_value
 
@@ -141,9 +171,14 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 	if GameState.wave_active:
 		return false
 	
+	# Supply-Check für Upgrade
+	if not GameState.can_use_supply(TowerData.get_supply_cost_upgrade()):
+		return false
+	
 	var new_level := current_level + 1
 	tower_levels[grid_pos] = new_level
 	GameState.tower_placed(upgrade_cost)
+	GameState.use_supply(TowerData.get_supply_cost_upgrade())
 	
 	var new_data := TowerData.get_legacy_data(tower.tower_type, new_level)
 	if tower.has_method("upgrade"):
@@ -152,8 +187,10 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 		tower.setup(new_data, tower.tower_type)
 	
 	tower_upgraded.emit(tower, new_level)
-	print("[TowerManager] %s upgraded zu Level %d" % [tower.tower_type, new_level])
-	Sound.play_upgrade();
+	print("[TowerManager] %s upgraded zu Level %d (Supply: %d/%d)" % [
+		tower.tower_type, new_level, GameState.supply_used, GameState.supply_max
+	])
+	Sound.play_upgrade()
 	return true
 
 
@@ -180,7 +217,14 @@ func can_upgrade_at(grid_pos: Vector2i) -> bool:
 		return false
 	
 	var cost := TowerData.get_upgrade_cost(tower.tower_type, current_level)
-	return GameState.can_afford(cost)
+	if not GameState.can_afford(cost):
+		return false
+	
+	# Supply-Check
+	if not GameState.can_use_supply(TowerData.get_supply_cost_upgrade()):
+		return false
+	
+	return true
 
 
 func combine_towers(pos1: Vector2i, pos2: Vector2i) -> Node2D:
@@ -209,6 +253,12 @@ func combine_towers(pos1: Vector2i, pos2: Vector2i) -> Node2D:
 		VFX.spawn_pixel_burst(tower1.position, tower1.tower_type, 8)
 		VFX.spawn_pixel_burst(tower2.position, tower2.tower_type, 8)
 	
+	# Supply der alten Tower freigeben
+	var level1: int = tower_levels.get(pos1, 0)
+	var level2: int = tower_levels.get(pos2, 0)
+	var supply_freed := (TowerData.get_supply_cost_place() * 2) + ((level1 + level2) * TowerData.get_supply_cost_upgrade())
+	GameState.free_supply(supply_freed)
+	
 	placed_towers[pos1].queue_free()
 	placed_towers[pos2].queue_free()
 	placed_towers.erase(pos1)
@@ -229,6 +279,7 @@ func combine_towers(pos1: Vector2i, pos2: Vector2i) -> Node2D:
 	tower_levels[new_pos] = 0
 	
 	GameState.tower_placed(combo_cost)
+	GameState.use_supply(TowerData.get_supply_cost_place())
 	
 	# Extra VFX für neuen kombinierten Tower
 	if VFX:
@@ -245,10 +296,7 @@ func select_tower(grid_pos: Vector2i) -> void:
 	if not placed_towers.has(grid_pos):
 		return
 	
-	# Click Sound
 	Sound.play_click()
-
-	
 	deselect_tower()
 	
 	selected_grid_pos = grid_pos

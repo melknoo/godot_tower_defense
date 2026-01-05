@@ -9,10 +9,14 @@ signal game_over_triggered
 signal enemy_count_changed(count: int)
 signal element_cores_changed(new_amount: int)
 signal element_core_earned  # Für UI-Popup
+signal supply_changed(used: int, max_supply: int)
 
 # Zinsen-Konstanten
 const INTEREST_RATE := 0.10  # 10% Zinsen
 const MAX_INTEREST := 50     # Maximale Zinsen pro Welle
+
+# Supply-Konstanten
+const STARTING_MAX_SUPPLY := 4
 
 var gold := 100:
 	set(value):
@@ -31,6 +35,9 @@ var element_cores := 0:
 	set(value):
 		element_cores = max(0, value)
 		element_cores_changed.emit(element_cores)
+
+var supply_used := 0
+var supply_max := STARTING_MAX_SUPPLY
 
 var current_wave := 0
 var wave_active := false
@@ -154,6 +161,38 @@ func has_element_cores() -> bool:
 	return element_cores > 0
 
 
+# === SUPPLY SYSTEM ===
+
+func can_use_supply(amount: int = 1) -> bool:
+	return supply_used + amount <= supply_max
+
+
+func use_supply(amount: int = 1) -> bool:
+	if not can_use_supply(amount):
+		return false
+	supply_used += amount
+	supply_changed.emit(supply_used, supply_max)
+	return true
+
+
+func free_supply(amount: int = 1) -> void:
+	supply_used = max(0, supply_used - amount)
+	supply_changed.emit(supply_used, supply_max)
+
+
+func add_max_supply(amount: int = 1) -> void:
+	supply_max += amount
+	supply_changed.emit(supply_used, supply_max)
+
+
+func get_supply_info() -> Dictionary:
+	return {
+		"used": supply_used,
+		"max": supply_max,
+		"available": supply_max - supply_used
+	}
+
+
 func tower_placed(cost: int) -> void:
 	gold -= cost
 	stats["towers_placed"] += 1
@@ -183,6 +222,8 @@ func reset() -> void:
 	current_wave = 0
 	wave_active = false
 	enemies_remaining = 0
+	supply_used = 0
+	supply_max = STARTING_MAX_SUPPLY
 	stats = {
 		"towers_placed": 0,
 		"towers_sold": 0,
@@ -203,6 +244,8 @@ func get_save_data() -> Dictionary:
 		"element_cores": element_cores,
 		"current_wave": current_wave,
 		"stats": stats,
+		"supply_used": supply_used,
+		"supply_max": supply_max,
 		"unlocked_elements": TowerData.unlocked_elements.duplicate() if TowerData else []
 	}
 
@@ -213,5 +256,7 @@ func load_save_data(data: Dictionary) -> void:
 	element_cores = data.get("element_cores", 0)
 	current_wave = data.get("current_wave", 0)
 	stats = data.get("stats", stats)
+	supply_used = data.get("supply_used", 0)
+	supply_max = data.get("supply_max", STARTING_MAX_SUPPLY)
 	if TowerData and data.has("unlocked_elements"):
 		TowerData.unlocked_elements = data.get("unlocked_elements", [])

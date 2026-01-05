@@ -10,7 +10,7 @@ var damage := 20
 var splash_radius := 0.0
 var level := 0
 var attack_type := "projectile"
-var engraved_element := ""  # NEU: Graviertes Element
+var engraved_element := ""
 
 # Spezialeffekte
 var special_type := ""
@@ -30,7 +30,7 @@ var sprite: Sprite2D
 var level_indicator: Node2D
 var selection_corners: Node2D
 var selection_tween: Tween
-var engraving_indicator: Label  # NEU
+var engraving_indicator: Label
 
 # Animation
 var idle_time := 0.0
@@ -113,7 +113,6 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 			VFX.spawn_upgrade_effect(position, get_effective_element(), new_level)
 
 
-# NEU: Elemental Engraving
 func engrave(element: String) -> bool:
 	if not TowerData.can_engrave(tower_type):
 		return false
@@ -124,8 +123,6 @@ func engrave(element: String) -> bool:
 	
 	GameState.gold -= TowerData.get_engraving_cost()
 	engraved_element = element
-	
-	# Spezialeffekt des Elements laden
 	_load_engraving_effects()
 	
 	if is_inside_tree():
@@ -140,11 +137,10 @@ func _load_engraving_effects() -> void:
 	if engraved_element == "":
 		return
 	
-	# Gravierte Türme bekommen abgeschwächte Elementar-Effekte
 	match engraved_element:
 		"water":
 			special_type = "slow"
-			slow_amount = 0.15 + level * 0.05  # Schwächer als echter Wasser-Turm
+			slow_amount = 0.15 + level * 0.05
 		"fire":
 			special_type = "burn"
 			burn_damage = 2 + level * 2
@@ -153,7 +149,7 @@ func _load_engraving_effects() -> void:
 			stun_chance = 0.05 + level * 0.03
 		"air":
 			special_type = "chain"
-			chain_targets = level  # 0, 1, 2 bei Level 0, 1, 2
+			chain_targets = level
 
 
 func _show_engraving_effect() -> void:
@@ -164,14 +160,13 @@ func _show_engraving_effect() -> void:
 
 
 func get_effective_element() -> String:
-	# Gibt das Element zurück das für Damage-Berechnung verwendet wird
 	if engraved_element != "":
 		return engraved_element
 	if tower_type in TowerData.UNLOCKABLE_ELEMENTS:
 		return tower_type
 	if TowerData.is_combination(tower_type):
-		return tower_type  # Kombis haben eigenes Element
-	return ""  # Neutral
+		return tower_type
+	return ""
 
 
 func is_engraved() -> bool:
@@ -183,7 +178,6 @@ func can_be_engraved() -> bool:
 
 
 func _load_special_effects() -> void:
-	# Wenn graviert, nutze Gravur-Effekte
 	if engraved_element != "":
 		_load_engraving_effects()
 		return
@@ -216,7 +210,6 @@ func _create_visuals() -> void:
 	level_indicator.position = Vector2(20, -20)
 	add_child(level_indicator)
 	
-	# NEU: Engraving Indicator
 	engraving_indicator = Label.new()
 	engraving_indicator.position = Vector2(-25, -45)
 	engraving_indicator.add_theme_font_size_override("font_size", 14)
@@ -237,22 +230,60 @@ func _update_visuals() -> void:
 		_setup_archer_sprite()
 	elif tower_type == "sword":
 		_setup_sword_sprite()
+	elif tower_type == "farm":
+		_setup_farm_sprite()
 	else:
 		_setup_standard_sprite()
 	
-	# Range Circle mit Element-Farbe wenn graviert
+	# Range Circle - versteckt für Farm
 	range_circle.clear_points()
-	for i in range(33):
-		var angle := i * TAU / 32
-		range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
-	
-	if engraved_element != "":
-		var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
-		range_circle.default_color = elem_color.lerp(Color.WHITE, 0.7)
-		range_circle.default_color.a = 0.2
+	if attack_type != "none" and tower_range > 0:
+		for i in range(33):
+			var angle := i * TAU / 32
+			range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
+		
+		if engraved_element != "":
+			var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
+			range_circle.default_color = elem_color.lerp(Color.WHITE, 0.7)
+			range_circle.default_color.a = 0.2
+	else:
+		range_circle.visible = false
 	
 	_update_level_indicator()
 	_update_engraving_indicator()
+
+
+func _setup_farm_sprite() -> void:
+	# Versuche farm.png zu laden, sonst Fallback
+	# Farm Asset ist 128x192 Pixel
+	var texture_path := "res://assets/elemental_tower/farm.png"
+	
+	if ResourceLoader.exists(texture_path):
+		sprite = Sprite2D.new()
+		sprite.texture = load(texture_path)
+		# Skalierung für 128x192 Asset (Ziel: ~64px Breite)
+		sprite.scale = Vector2(2.0, 2.0)
+		# Leicht nach oben verschieben da das Asset höher als breit ist
+		sprite.offset.y = -8
+		turret.add_child(sprite)
+	else:
+		# Fallback: Grünes Haus-Symbol
+		var poly := Polygon2D.new()
+		poly.polygon = PackedVector2Array([
+			Vector2(-20, 20), Vector2(20, 20), Vector2(20, 0),
+			Vector2(25, 0), Vector2(0, -25), Vector2(-25, 0),
+			Vector2(-20, 0)
+		])
+		poly.color = Color(0.5, 0.7, 0.3)
+		turret.add_child(poly)
+		
+		# Tür
+		var door := Polygon2D.new()
+		door.polygon = PackedVector2Array([
+			Vector2(-6, 20), Vector2(6, 20), Vector2(6, 5), Vector2(-6, 5)
+		])
+		door.color = Color(0.4, 0.3, 0.2)
+		turret.add_child(door)
 
 
 func _update_engraving_indicator() -> void:
@@ -266,7 +297,6 @@ func _update_engraving_indicator() -> void:
 	var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
 	engraving_indicator.add_theme_color_override("font_color", elem_color)
 	
-	# Sprite leicht einfärben
 	var current_sprite: Sprite2D = archer_sprite if archer_sprite else (sword_sprite if sword_sprite else sprite)
 	if current_sprite:
 		current_sprite.modulate = Color.WHITE.lerp(elem_color, 0.25)
@@ -391,6 +421,11 @@ func _show_upgrade_effect() -> void:
 
 
 func _process(delta: float) -> void:
+	# Farm greift nicht an
+	if attack_type == "none":
+		_do_idle_animation(delta)
+		return
+	
 	fire_timer -= delta
 	
 	if archer_sprite:

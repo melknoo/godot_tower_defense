@@ -1,5 +1,5 @@
 # tower_data.gd
-# Mit Elemental Engraving für Basis-Türme
+# Mit Elemental Engraving und Supply-System
 extends Node
 
 signal element_unlocked(element: String)
@@ -8,8 +8,13 @@ signal element_upgraded(element: String, new_level: int)
 var element_levels: Dictionary = {}
 
 const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
-const ENGRAVABLE_TOWERS: Array[String] = ["archer", "sword"]  # NEU: Türme die graviert werden können
+const ENGRAVABLE_TOWERS: Array[String] = ["archer", "sword"]
+const SUPPLY_BUILDINGS: Array[String] = ["farm"]  # Gebäude die max_supply erhöhen
 const DEBUG_EXTRA_TOWERS := false
+
+# Supply-Kosten
+const SUPPLY_COST_PLACE := 1      # Supply pro Tower-Platzierung
+const SUPPLY_COST_UPGRADE := 1    # Supply pro Upgrade
 
 var towers := {
 	"archer": {
@@ -24,7 +29,7 @@ var towers := {
 		"upgrade_costs": [50, 110],
 		"special": "",
 		"is_base": true,
-		"engravable": true,  # NEU
+		"engravable": true,
 		"combinations": [],
 		"animated": false,
 		"attack_type": "projectile"
@@ -42,10 +47,29 @@ var towers := {
 		"special": "cleave",
 		"cleave_angle": [360.0, 360.0, 360.0],
 		"is_base": true,
-		"engravable": true,  # NEU
+		"engravable": true,
 		"combinations": [],
 		"animated": true,
 		"attack_type": "melee"
+	},
+	"farm": {
+		"name": "Farm",
+		"description": "Erhöht max. Supply um 3\nKein Angriff",
+		"cost": 75,
+		"damage": [0],
+		"range": [0.0],
+		"fire_rate": [0.0],
+		"splash": [0.0],
+		"color": Color(0.6, 0.8, 0.4),
+		"upgrade_costs": [],
+		"special": "",
+		"is_base": true,
+		"is_supply_building": true,
+		"supply_bonus": 3,
+		"engravable": false,
+		"combinations": [],
+		"animated": false,
+		"attack_type": "none"
 	},
 	"water": {
 		"name": "Wasser",
@@ -154,13 +178,38 @@ var combinations := {
 
 const MAX_LEVEL := 2
 const MAX_ELEMENT_LEVEL := 3
-const ENGRAVING_COST := 30  # Gold-Kosten für Gravur
+const ENGRAVING_COST := 30
 
 
 func _ready() -> void:
 	for element in UNLOCKABLE_ELEMENTS:
 		element_levels[element] = 0
 	print("[TowerData] %d Basis-Türme, %d Kombinationen geladen" % [towers.size(), combinations.size()])
+
+
+# === SUPPLY HELPERS ===
+
+func get_supply_cost_place() -> int:
+	return SUPPLY_COST_PLACE
+
+
+func get_supply_cost_upgrade() -> int:
+	return SUPPLY_COST_UPGRADE
+
+
+func is_supply_building(tower_type: String) -> bool:
+	var data := get_tower_data(tower_type)
+	return data.get("is_supply_building", false)
+
+
+func get_supply_bonus(tower_type: String) -> int:
+	var data := get_tower_data(tower_type)
+	return data.get("supply_bonus", 0)
+
+
+func is_attackable_tower(tower_type: String) -> bool:
+	var data := get_tower_data(tower_type)
+	return data.get("attack_type", "projectile") != "none"
 
 
 # === ELEMENT INVESTMENT ===
@@ -222,6 +271,9 @@ func can_afford_engraving() -> bool:
 # === TOWER AVAILABILITY ===
 
 func can_upgrade(tower_type: String, current_tower_level: int) -> bool:
+	# Farm kann nicht geupgradet werden
+	if is_supply_building(tower_type):
+		return false
 	if tower_type in ENGRAVABLE_TOWERS:
 		return current_tower_level < MAX_LEVEL
 	if towers.has(tower_type) and tower_type in UNLOCKABLE_ELEMENTS:
@@ -238,6 +290,9 @@ func can_upgrade(tower_type: String, current_tower_level: int) -> bool:
 
 
 func is_tower_available(tower_type: String) -> bool:
+	# Farm ist immer verfügbar
+	if tower_type in SUPPLY_BUILDINGS:
+		return true
 	if tower_type in ENGRAVABLE_TOWERS:
 		return true
 	if towers.has(tower_type):
@@ -252,7 +307,7 @@ func is_tower_available(tower_type: String) -> bool:
 
 
 func get_available_tower_types() -> Array[String]:
-	var available: Array[String] = ["archer", "sword"]
+	var available: Array[String] = ["archer", "sword", "farm"]
 	for element in UNLOCKABLE_ELEMENTS:
 		if is_element_unlocked(element):
 			available.append(element)
