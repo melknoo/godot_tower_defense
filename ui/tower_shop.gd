@@ -15,10 +15,10 @@ var clip_container: Control
 
 var corner_textures: Dictionary = {}
 
-const VISIBLE_TOWERS := 6
-const BUTTON_WIDTH := 95
+const VISIBLE_TOWERS := 5
+const BUTTON_WIDTH := 70
 const BUTTON_HEIGHT := 85
-const H_SPACING := 12
+const H_SPACING := 20
 const PADDING := 8
 
 # Archer Spritesheet Konstanten
@@ -292,9 +292,8 @@ func _get_tower_icon_texture(type: String) -> Texture2D:
 		if ResourceLoader.exists(spritesheet_path):
 			var atlas := AtlasTexture.new()
 			atlas.atlas = load(spritesheet_path)
-			# Kleinerer Ausschnitt: 60x60 aus der Mitte des 192x192 Frames
-			var margin := 66.0  # (192 - 60) / 2
-			atlas.region = Rect2(margin, margin + 10, 60, 60)  # +10 für bessere Zentrierung
+			var margin := 66.0
+			atlas.region = Rect2(margin, margin + 10, 60, 60)
 			return atlas
 	
 	# Sword: Ersten Frame aus Spritesheet extrahieren
@@ -303,7 +302,6 @@ func _get_tower_icon_texture(type: String) -> Texture2D:
 		if ResourceLoader.exists(spritesheet_path):
 			var atlas := AtlasTexture.new()
 			atlas.atlas = load(spritesheet_path)
-			# Kleinerer Ausschnitt: 60x60 aus der Mitte des 192x192 Frames
 			var margin := 66.0
 			atlas.region = Rect2(margin, margin + 10, 60, 60)
 			return atlas
@@ -338,72 +336,74 @@ func _create_button(type: String) -> Control:
 	btn.name = "Button"
 	container.add_child(btn)
 	
-	var hbox := HBoxContainer.new()
-	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_theme_constant_override("separation", 5)
-	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hbox.set_anchors_preset(Control.PRESET_CENTER)
-	hbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	hbox.grow_vertical = Control.GROW_DIRECTION_BOTH
-	btn.add_child(hbox)
+	# Vertikales Layout: Bild oben, Text unten
+	var vbox := VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 2)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 4
+	vbox.offset_right = -4
+	vbox.offset_top = 4
+	vbox.offset_bottom = -4
+	btn.add_child(vbox)
 	
+	# Icon Container (für Overlay - wie position:relative in CSS)
+	var icon_container := Control.new()
+	icon_container.custom_minimum_size = Vector2(50, 50)
+	icon_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(icon_container)
+	
+	# Icon zentriert im Container
 	var tex_rect := TextureRect.new()
-	tex_rect.custom_minimum_size = Vector2(36, 36)
+	tex_rect.custom_minimum_size = Vector2(50, 50)
+	tex_rect.size = Vector2(50, 50)
+	tex_rect.position = Vector2(0, 0)
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tex_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	
 	var icon_texture := _get_tower_icon_texture(type)
 	if icon_texture:
 		tex_rect.texture = icon_texture
 	
-	hbox.add_child(tex_rect)
+	icon_container.add_child(tex_rect)
 	
-	var info_vbox := VBoxContainer.new()
-	info_vbox.add_theme_constant_override("separation", 1)
-	info_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hbox.add_child(info_vbox)
+	# Kosten Overlay oben links auf dem Icon (wie position:absolute in CSS)
+	var cost: int = TowerData.get_stat(type, "cost")
+	var cost_label := Label.new()
+	cost_label.name = "CostLabel"
+	cost_label.text = "🪙%d" % cost
+	cost_label.position = Vector2(-2, -2)  # Oben links
+	if UITheme and UITheme.game_font:
+		cost_label.add_theme_font_override("font", UITheme.game_font)
+	cost_label.add_theme_font_size_override("font_size", 12)
+	cost_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	cost_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	cost_label.add_theme_constant_override("outline_size", 3)
+	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_container.add_child(cost_label)
 	
+	# Name Label zentriert
 	var data := TowerData.get_tower_data(type)
 	var display_name: String = data.get("name", type.capitalize())
 	var name_label := Label.new()
 	name_label.name = "NameLabel"
 	name_label.text = display_name
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if UITheme and UITheme.game_font:
 		name_label.add_theme_font_override("font", UITheme.game_font)
 	name_label.add_theme_font_size_override("font_size", 10)
 	name_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info_vbox.add_child(name_label)
-	
-	var cost: int = TowerData.get_stat(type, "cost")
-	var cost_label := Label.new()
-	cost_label.name = "CostLabel"
-	cost_label.text = "%dg" % cost
-	if UITheme and UITheme.game_font:
-		cost_label.add_theme_font_override("font", UITheme.game_font)
-	cost_label.add_theme_font_size_override("font_size", 11)
-	cost_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info_vbox.add_child(cost_label)
-	
-	if TowerData.is_combination(type):
-		var combo_label := Label.new()
-		combo_label.name = "ComboLabel"
-		combo_label.text = "★"
-		if UITheme and UITheme.game_font:
-			combo_label.add_theme_font_override("font", UITheme.game_font)
-		combo_label.add_theme_font_size_override("font_size", 9)
-		combo_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2))
-		combo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		info_vbox.add_child(combo_label)
+	vbox.add_child(name_label)
 	
 	_add_corners(container)
 	_apply_button_style(btn)
 	btn.pressed.connect(_on_tower_button_pressed.bind(type))
 	
 	var desc: String = data.get("description", "")
-	btn.tooltip_text = "%s\n%s\nKosten: %d Gold" % [display_name, desc, cost]
+	btn.tooltip_text = "%s\n%s\n🪙 %d" % [display_name, desc, cost]
 	
 	return container
 
@@ -424,7 +424,7 @@ func _add_corners(container: Control) -> void:
 	var btn_height := BUTTON_HEIGHT
 	var scl := Vector2(1.5, 1.5)
 	var corner_size := 8.0 * scl.x
-	var offset := 8.0
+	var offset := 1.0
 	
 	var tl := Sprite2D.new()
 	tl.texture = corner_textures["top_left"]
