@@ -18,8 +18,9 @@ signal open_element_panel_pressed
 @export var wave_element_label: Label
 @export var seed_label: Label
 @export var fast_forward_button: Button
-@export var bonus_preview_label: Label  # NEU: Zeigt Wellen-Ende Bonus
-@export var supply_label: Label  # Supply-Anzeige
+@export var bonus_preview_label: Label
+@export var supply_label: Label
+@export var blocked_warning_label: Label  # NEU: Warnung für blockierte Türme
 
 var is_fast_forward := false
 const FAST_FORWARD_SPEED := 2.5
@@ -39,6 +40,7 @@ var wave_tooltip_resist_label: Label
 var _tooltip_visible := false
 
 var _next_wave_element: String = "neutral"
+var _blocked_tower_count: int = 0
 
 
 func _ready() -> void:
@@ -108,11 +110,11 @@ func _find_or_create_ui_elements() -> void:
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
 	
-	# NEU: Bonus Preview Label
 	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
-	
-	# NEU: Supply Label
 	supply_label = _get_or_create_label("SupplyLabel", Vector2(280, second_row_y))
+	
+	# NEU: Blocked-Warnung (prominent über dem Start-Button)
+	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 650, hud_height - 110))
 
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 85))
 
@@ -207,15 +209,21 @@ func _apply_styles() -> void:
 	if wave_element_label:
 		wave_element_label.add_theme_font_size_override("font_size", 11)
 	
-	# NEU: Bonus Preview Styling
 	if bonus_preview_label:
 		bonus_preview_label.add_theme_font_size_override("font_size", 11)
 		bonus_preview_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	
-	# NEU: Supply Label Styling
 	if supply_label:
 		supply_label.add_theme_font_size_override("font_size", 11)
 		supply_label.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
+	
+	# NEU: Blocked-Warnung Styling
+	if blocked_warning_label:
+		blocked_warning_label.add_theme_font_size_override("font_size", 12)
+		blocked_warning_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+		blocked_warning_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+		blocked_warning_label.add_theme_constant_override("outline_size", 2)
+		blocked_warning_label.visible = false
 
 	if cores_button:
 		cores_button.text = ""
@@ -318,10 +326,48 @@ func update_all() -> void:
 	_update_bonus_preview()
 
 
+# NEU: Blockierte Türme Warnung aktualisieren
+func update_blocked_towers_warning(count: int) -> void:
+	_blocked_tower_count = count
+	
+	if not blocked_warning_label:
+		return
+	
+	if count > 0:
+		blocked_warning_label.visible = true
+		blocked_warning_label.text = "⚠ %d Turm(e) auf Pfad! Umplatzieren!" % count
+		
+		# Pulsierender Effekt
+		if not blocked_warning_label.has_meta("pulse_tween"):
+			var tween := blocked_warning_label.create_tween().set_loops()
+			tween.tween_property(blocked_warning_label, "modulate:a", 0.5, 0.4)
+			tween.tween_property(blocked_warning_label, "modulate:a", 1.0, 0.4)
+			blocked_warning_label.set_meta("pulse_tween", tween)
+		
+		# Start-Button deaktivieren
+		if start_button:
+			start_button.disabled = true
+			start_button.text = "Türme umplatzieren!"
+	else:
+		blocked_warning_label.visible = false
+		blocked_warning_label.modulate.a = 1.0
+		
+		# Pulse-Tween stoppen
+		if blocked_warning_label.has_meta("pulse_tween"):
+			var tween: Tween = blocked_warning_label.get_meta("pulse_tween")
+			if tween:
+				tween.kill()
+			blocked_warning_label.remove_meta("pulse_tween")
+		
+		# Start-Button wieder aktivieren (wenn nicht wave_active)
+		if start_button and not GameState.wave_active:
+			start_button.disabled = false
+			start_button.text = "Nächste Welle"
+
+
 func _on_gold_changed(amount: int) -> void:
 	if gold_label:
 		gold_label.text = "Gold: %d" % amount
-	# NEU: Bonus Preview aktualisieren wenn sich Gold ändert
 	_update_bonus_preview()
 
 
@@ -355,7 +401,7 @@ func _on_cores_changed(amount: int) -> void:
 			cores_button.text = "%d" % amount
 			_highlight_cores_button(true)
 		elif not has_upgradeable:
-			cores_button.text = "✓"
+			cores_button.text = "✔"
 			_highlight_cores_button(false)
 		else:
 			cores_button.text = ""
@@ -374,7 +420,6 @@ func _on_supply_changed(used: int, max_supply: int) -> void:
 	supply_label.text = "⛺ %d/%d" % [used, max_supply]
 	supply_label.tooltip_text = "Supply: %d verwendet von %d\n%d verfügbar" % [used, max_supply, available]
 	
-	# Farbe basierend auf verfügbarer Supply
 	if available <= 0:
 		supply_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 	elif available <= 1:
@@ -400,7 +445,6 @@ func _flash_cores_label() -> void:
 	tween.tween_property(cores_label, "modulate", Color.WHITE, 0.3)
 
 
-# NEU: Bonus Preview aktualisieren
 func _update_bonus_preview() -> void:
 	if not bonus_preview_label:
 		return
@@ -411,7 +455,6 @@ func _update_bonus_preview() -> void:
 	var interest: int = preview["interest"]
 	var total: int = preview["total"]
 	
-	# Format: "Wellen-Ende: +30 (Bonus) +10 (Zinsen) = 40"
 	if interest > 0:
 		bonus_preview_label.text = "Wellen-Ende: +%d +%d💰 = %d" % [flat, interest, total]
 		bonus_preview_label.tooltip_text = "Flat Bonus: %d\nZinsen (%d%% auf %d Gold): %d\nMax Zinsen: %d" % [
@@ -425,7 +468,7 @@ func _update_bonus_preview() -> void:
 func _on_wave_started(_wave: int) -> void:
 	_update_wave_display()
 	_hide_wave_tooltip()
-	_update_bonus_preview()  # Versteckt während Welle
+	_update_bonus_preview()
 
 	if start_button:
 		start_button.disabled = true
@@ -435,6 +478,8 @@ func _on_wave_started(_wave: int) -> void:
 		wave_preview_label.visible = false
 	if wave_element_area:
 		wave_element_area.visible = false
+	if blocked_warning_label:
+		blocked_warning_label.visible = false
 
 	if fast_forward_button:
 		fast_forward_button.visible = true
@@ -443,10 +488,16 @@ func _on_wave_started(_wave: int) -> void:
 
 func _on_wave_completed(wave: int) -> void:
 	if start_button:
-		start_button.disabled = false
-		start_button.text = "Nächste Welle"
+		# Nur aktivieren wenn keine blockierten Türme
+		if _blocked_tower_count <= 0:
+			start_button.disabled = false
+			start_button.text = "Nächste Welle"
+		else:
+			start_button.disabled = true
+			start_button.text = "Türme umplatzieren!"
+	
 	_update_wave_preview(wave + 1)
-	_update_bonus_preview()  # Zeigt neue Preview
+	_update_bonus_preview()
 
 	if fast_forward_button:
 		fast_forward_button.visible = false
@@ -735,6 +786,8 @@ func show_game_over() -> void:
 		fast_forward_button.visible = false
 	if bonus_preview_label:
 		bonus_preview_label.visible = false
+	if blocked_warning_label:
+		blocked_warning_label.visible = false
 
 	var main := get_node_or_null("/root/Main")
 	var seed_text := ""

@@ -20,7 +20,6 @@ const SWORD_COLUMNS := 6
 var element_unlock_ui: ElementUnlockUI
 var path_generator: PathGenerator
 
-# Dynamisch generierte Pfad-Daten
 var path_points: Array[Vector2] = []
 var path_cells: Array[Vector2i] = []
 var current_seed: int = 0
@@ -28,6 +27,9 @@ var current_seed: int = 0
 var hover_preview: Node2D
 var hover_range_circle: Line2D
 var hover_sprite: Node2D
+
+# Pickup-Preview Modus
+var is_showing_pickup_preview := false
 
 
 func _ready() -> void:
@@ -47,7 +49,6 @@ func _setup_path_generator() -> void:
 
 
 func _generate_new_path(seed_value: int = -1) -> void:
-	# Seed setzen (für reproduzierbare Pfade oder zufällig)
 	if seed_value >= 0:
 		current_seed = seed_value
 		path_generator.set_seed(seed_value)
@@ -55,11 +56,9 @@ func _generate_new_path(seed_value: int = -1) -> void:
 		current_seed = randi()
 		path_generator.set_seed(current_seed)
 	
-	# Pfad generieren
 	var path_data := path_generator.generate()
 	path_generator.print_path_info(path_data)
 	
-	# Daten übernehmen
 	path_cells.clear()
 	path_points.clear()
 	
@@ -105,15 +104,20 @@ func _setup_element_unlock_ui() -> void:
 func _connect_signals() -> void:
 	GameState.game_over_triggered.connect(_on_game_over)
 	GameState.wave_started.connect(_on_wave_started)
+	GameState.wave_completed.connect(_on_wave_completed)
 	hud.start_wave_pressed.connect(_on_start_wave_pressed)
 	hud.open_element_panel_pressed.connect(_on_open_element_panel)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
 	tower_manager.tower_selected.connect(_on_tower_selected)
 	tower_manager.tower_deselected.connect(_on_tower_deselected)
+	tower_manager.tower_picked_up.connect(_on_tower_picked_up)
+	tower_manager.tower_relocated.connect(_on_tower_relocated)
+	tower_manager.blocked_towers_changed.connect(_on_blocked_towers_changed)
 	tower_info.sell_pressed.connect(_on_tower_info_sell)
 	tower_info.upgrade_pressed.connect(_on_tower_info_upgrade)
 	tower_info.close_pressed.connect(_on_tower_info_close)
+	tower_info.pickup_pressed.connect(_on_tower_info_pickup)
 	if element_unlock_ui:
 		element_unlock_ui.element_selected.connect(_on_element_unlocked)
 
@@ -128,6 +132,11 @@ func _input(event: InputEvent) -> void:
 		if element_unlock_ui and element_unlock_ui.visible:
 			element_unlock_ui.hide_panel()
 			return
+		# Pickup abbrechen wenn aktiv
+		if tower_manager.has_picked_up_tower():
+			tower_manager.cancel_pickup()
+			_end_pickup_preview()
+			return
 		_deselect_all()
 		return
 	
@@ -138,12 +147,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _regenerate_map() -> void:
-	# Alle Tower entfernen
-	for tower in tower_manager.get_all_towers():
-		tower.queue_free()
-	tower_manager.placed_towers.clear()
-	tower_manager.tower_levels.clear()
-	tower_manager.tower_placed_wave.clear()
+	# Pickup abbrechen falls aktiv
+	if tower_manager.has_picked_up_tower():
+		tower_manager.cancel_pickup()
+		_end_pickup_preview()
 	
 	# Neuen Pfad generieren
 	_generate_new_path()
@@ -159,7 +166,7 @@ func _regenerate_map() -> void:
 	if VFX:
 		VFX.screen_flash(Color(1, 1, 1), 0.2)
 	
-	print("[Main] Map regeneriert!")
+	print("[Main] Map regeneriert! Blockierte Türme: %d" % tower_manager.get_blocked_tower_count())
 
 
 func _handle_mouse_click(event: InputEventMouseButton) -> void:
@@ -167,9 +174,16 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 		return
 	if element_unlock_ui and element_unlock_ui.visible:
 		return
+	
 	if event.button_index == MOUSE_BUTTON_RIGHT:
-		_deselect_all()
+		# Rechtsklick: Pickup abbrechen oder alles deselektieren
+		if tower_manager.has_picked_up_tower():
+			tower_manager.cancel_pickup()
+			_end_pickup_preview()
+		else:
+			_deselect_all()
 		return
+	
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		if _is_over_ui(event.position):
 			return
@@ -179,11 +193,25 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 			return
 		
 		var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
+		
+		# Pickup-Modus: Turm umplatzieren
+		if tower_manager.has_picked_up_tower():
+			_handle_relocate_click(grid_pos)
+			return
+		
 		var tower := tower_manager.get_tower_at(grid_pos)
 		if tower:
 			_handle_tower_click(grid_pos)
 		else:
 			_handle_empty_cell_click(grid_pos, event.position)
+
+
+func _handle_relocate_click(grid_pos: Vector2i) -> void:
+	if tower_manager.can_relocate_to(grid_pos):
+		tower_manager.relocate_tower(grid_pos)
+		_end_pickup_preview()
+	else:
+		Sound.play_error()
 
 
 func _handle_tower_click(grid_pos: Vector2i) -> void:
@@ -233,6 +261,11 @@ func _setup_hover_preview() -> void:
 
 
 func _update_hover_preview(mouse_pos: Vector2) -> void:
+	# Pickup-Preview hat Priorität
+	if tower_manager.has_picked_up_tower():
+		_update_pickup_hover_preview(mouse_pos)
+		return
+	
 	if not tower_shop.has_selection():
 		hover_preview.visible = false
 		return
@@ -250,7 +283,7 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_preview.visible = false
 		return
 	var tower_type := tower_shop.get_selected_type()
-	_update_hover_appearance(tower_type)
+	_update_hover_appearance(tower_type, 0)
 	hover_preview.visible = true
 	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 	var can_place := tower_manager.can_place_at(grid_pos, tower_type)
@@ -262,7 +295,45 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
 
 
-func _update_hover_appearance(tower_type: String) -> void:
+func _update_pickup_hover_preview(mouse_pos: Vector2) -> void:
+	var game_area_height := MAP_HEIGHT * GRID_SIZE
+	if mouse_pos.y > game_area_height:
+		hover_preview.visible = false
+		return
+	
+	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
+	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
+		hover_preview.visible = false
+		return
+	
+	var tower_type := tower_manager.get_picked_up_tower_type()
+	var tower_level := tower_manager.get_picked_up_tower_level()
+	
+	_update_hover_appearance(tower_type, tower_level)
+	hover_preview.visible = true
+	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
+	
+	var can_relocate := tower_manager.can_relocate_to(grid_pos)
+	if can_relocate:
+		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
+		hover_sprite.modulate = Color(1, 1, 1, 0.7)
+	else:
+		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
+		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
+
+
+func _start_pickup_preview() -> void:
+	is_showing_pickup_preview = true
+	tower_shop.deselect()
+	tower_info.hide_panel()
+
+
+func _end_pickup_preview() -> void:
+	is_showing_pickup_preview = false
+	hover_preview.visible = false
+
+
+func _update_hover_appearance(tower_type: String, level: int = 0) -> void:
 	for child in hover_sprite.get_children():
 		child.queue_free()
 	
@@ -299,7 +370,6 @@ func _update_hover_appearance(tower_type: String) -> void:
 		else:
 			_create_fallback_preview(tower_type)
 	elif tower_type == "farm":
-		# Farm: 32x48 Asset
 		var texture_path := "res://assets/elemental_tower/farm.png"
 		if ResourceLoader.exists(texture_path):
 			var sprite := Sprite2D.new()
@@ -331,11 +401,20 @@ func _update_hover_appearance(tower_type: String) -> void:
 		else:
 			_create_fallback_preview(tower_type)
 	
-	# Range Circle - nicht für Farm (attack_type == "none")
+	# Level-Indikator für Pickup-Preview
+	if level > 0:
+		var level_label := Label.new()
+		level_label.text = "★".repeat(level)
+		level_label.position = Vector2(15, -25)
+		level_label.add_theme_font_size_override("font_size", 10)
+		level_label.add_theme_color_override("font_color", Color(1, 0.85, 0))
+		hover_sprite.add_child(level_label)
+	
+	# Range Circle
 	hover_range_circle.clear_points()
 	var attack_type: String = data.get("attack_type", "projectile")
 	if attack_type != "none":
-		var range_val: float = TowerData.get_stat(tower_type, "range", 0)
+		var range_val: float = TowerData.get_stat(tower_type, "range", level)
 		for i in range(33):
 			var angle := i * TAU / 32
 			hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
@@ -354,12 +433,24 @@ func _create_fallback_preview(tower_type: String) -> void:
 
 
 func _on_start_wave_pressed() -> void:
+	# Prüfen ob blockierte Türme vorhanden sind
+	if tower_manager.has_blocked_towers():
+		Sound.play_error()
+		print("[Main] Kann Welle nicht starten - %d Türme auf Pfad!" % tower_manager.get_blocked_tower_count())
+		return
+	
 	Sound.play_wave_start()
 	GameState.start_wave()
 
 
 func _on_wave_started(wave: int) -> void:
 	wave_manager.start_wave(wave)
+
+
+func _on_wave_completed(_wave: int) -> void:
+	# Nach Wellen-Ende: Pfad regenerieren
+	print("[Main] Welle abgeschlossen - regeneriere Pfad...")
+	_regenerate_map()
 
 
 func _on_game_over() -> void:
@@ -377,12 +468,17 @@ func _on_element_unlocked(element: String) -> void:
 
 
 func _on_shop_tower_selected(_tower_type: String) -> void:
+	# Pickup abbrechen wenn Shop-Auswahl
+	if tower_manager.has_picked_up_tower():
+		tower_manager.cancel_pickup()
+		_end_pickup_preview()
 	tower_manager.deselect_tower()
 	_update_hover_preview(get_viewport().get_mouse_position())
 
 
 func _on_shop_tower_deselected() -> void:
-	hover_preview.visible = false
+	if not tower_manager.has_picked_up_tower():
+		hover_preview.visible = false
 
 
 func _on_tower_selected(tower: Node2D, grid_pos: Vector2i) -> void:
@@ -391,6 +487,21 @@ func _on_tower_selected(tower: Node2D, grid_pos: Vector2i) -> void:
 
 func _on_tower_deselected() -> void:
 	tower_info.hide_panel()
+
+
+func _on_tower_picked_up(_tower: Node2D, _grid_pos: Vector2i) -> void:
+	_start_pickup_preview()
+
+
+func _on_tower_relocated(_tower: Node2D, _old_pos: Vector2i, _new_pos: Vector2i) -> void:
+	_end_pickup_preview()
+
+
+func _on_blocked_towers_changed(count: int) -> void:
+	print("[Main] Blockierte Türme geändert: %d" % count)
+	# HUD aktualisieren
+	if hud:
+		hud.update_blocked_towers_warning(count)
 
 
 func _on_tower_info_sell() -> void:
@@ -409,6 +520,11 @@ func _on_tower_info_close() -> void:
 	tower_manager.deselect_tower()
 
 
-# Getter für den aktuellen Seed (für Sharing/Replay)
+func _on_tower_info_pickup() -> void:
+	var grid_pos := tower_manager.selected_grid_pos
+	if tower_manager.pickup_tower(grid_pos):
+		_start_pickup_preview()
+
+
 func get_current_seed() -> int:
 	return current_seed

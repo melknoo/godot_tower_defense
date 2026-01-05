@@ -1,5 +1,5 @@
 # ui/tower_info.gd
-# Panel für Tower-Info, Verkauf, Upgrade und Engraving
+# Panel für Tower-Info, Verkauf, Upgrade, Engraving und Pickup
 extends PanelContainer
 class_name TowerInfo
 
@@ -7,14 +7,17 @@ signal sell_pressed
 signal upgrade_pressed
 signal close_pressed
 signal engrave_pressed(element: String)
+signal pickup_pressed  # NEU
 
 var tower_name_label: Label
 var tower_level_label: Label
 var stats_label: Label
 var element_label: Label
-var supply_info_label: Label  # NEU
+var supply_info_label: Label
+var blocked_info_label: Label  # NEU: Zeigt "Auf Pfad" Warnung
 var sell_button: Button
 var upgrade_button: Button
+var pickup_button: Button  # NEU
 var engrave_container: HBoxContainer
 var close_button: Button
 var vbox: VBoxContainer
@@ -59,7 +62,6 @@ func _setup_ui() -> void:
 	tower_level_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(tower_level_label)
 	
-	# NEU: Element-Anzeige
 	element_label = Label.new()
 	element_label.name = "ElementLabel"
 	element_label.add_theme_font_size_override("font_size", 11)
@@ -71,17 +73,23 @@ func _setup_ui() -> void:
 	stats_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(stats_label)
 	
-	# NEU: Supply Info Label
 	supply_info_label = Label.new()
 	supply_info_label.name = "SupplyInfoLabel"
 	supply_info_label.add_theme_font_size_override("font_size", 10)
 	supply_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
 	vbox.add_child(supply_info_label)
 	
+	# NEU: Blocked-Info Label
+	blocked_info_label = Label.new()
+	blocked_info_label.name = "BlockedInfoLabel"
+	blocked_info_label.add_theme_font_size_override("font_size", 11)
+	blocked_info_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	blocked_info_label.visible = false
+	vbox.add_child(blocked_info_label)
+	
 	var sep := HSeparator.new()
 	vbox.add_child(sep)
 	
-	# NEU: Engraving Container
 	engrave_container = HBoxContainer.new()
 	engrave_container.name = "EngraveContainer"
 	engrave_container.add_theme_constant_override("separation", 4)
@@ -93,6 +101,14 @@ func _setup_ui() -> void:
 	engrave_label.add_theme_font_size_override("font_size", 10)
 	engrave_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
 	engrave_container.add_child(engrave_label)
+	
+	# NEU: Pickup Button (für Umplatzierung)
+	pickup_button = Button.new()
+	pickup_button.name = "PickupButton"
+	pickup_button.text = "Aufnehmen"
+	pickup_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	pickup_button.pressed.connect(_on_pickup_pressed)
+	vbox.add_child(pickup_button)
 	
 	upgrade_button = Button.new()
 	upgrade_button.name = "UpgradeButton"
@@ -113,6 +129,7 @@ func _setup_ui() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 	
+	UITheme.style_button(pickup_button)
 	UITheme.style_button(upgrade_button)
 	UITheme.style_button(sell_button)
 	UITheme.style_button(close_button)
@@ -163,17 +180,16 @@ func _update_display() -> void:
 	var tower_type: String = current_tower.tower_type
 	var level: int = tower_manager.get_tower_level(current_grid_pos)
 	var data := TowerData.get_tower_data(tower_type)
+	var is_blocked := tower_manager.is_tower_blocked(current_grid_pos)
 	
 	var display_name: String = data.get("name", tower_type.capitalize())
 	
-	# Name mit Gravur-Info
 	if current_tower.has_method("is_engraved") and current_tower.is_engraved():
 		var elem_symbol := ElementalSystem.get_element_symbol(current_tower.engraved_element) if ElementalSystem else ""
 		tower_name_label.text = "%s %s" % [display_name, elem_symbol]
 	else:
 		tower_name_label.text = display_name
 	
-	# Level-Anzeige (nicht für Farm)
 	if TowerData.is_supply_building(tower_type):
 		tower_level_label.text = "Supply-Gebäude"
 	elif tower_type in TowerData.UNLOCKABLE_ELEMENTS:
@@ -183,10 +199,8 @@ func _update_display() -> void:
 	else:
 		tower_level_label.text = "Level %d / %d" % [level + 1, TowerData.MAX_LEVEL + 1]
 	
-	# Element-Info anzeigen
 	_update_element_display()
 	
-	# Stats (nicht für Farm)
 	if TowerData.is_supply_building(tower_type):
 		var bonus := TowerData.get_supply_bonus(tower_type)
 		stats_label.text = "Supply Bonus: +%d" % bonus
@@ -199,27 +213,57 @@ func _update_display() -> void:
 			damage_val, int(range_val), 1.0 / fire_rate_val if fire_rate_val > 0 else 0
 		]
 	
-	# Supply Info
 	_update_supply_info(level)
+	_update_blocked_info(is_blocked)
 	
 	var dark_color := Color(0.094, 0.094, 0.094)
 	tower_name_label.add_theme_color_override("font_color", dark_color)
 	tower_level_label.add_theme_color_override("font_color", dark_color)
 	stats_label.add_theme_color_override("font_color", dark_color)
 	
+	_update_pickup_button(is_blocked)
 	_update_upgrade_button(tower_type, level)
 	_update_sell_button(level)
 	_update_engrave_buttons()
 
 
+func _update_blocked_info(is_blocked: bool) -> void:
+	if is_blocked:
+		blocked_info_label.visible = true
+		blocked_info_label.text = "⚠ Steht auf dem Pfad!\nKlicke 'Aufnehmen' zum Umplatzieren"
+	else:
+		blocked_info_label.visible = false
+
+
+func _update_pickup_button(is_blocked: bool) -> void:
+	if not pickup_button:
+		return
+	
+	pickup_button.visible = true
+	
+	if GameState.wave_active:
+		pickup_button.disabled = true
+		pickup_button.text = "Aufnehmen"
+		pickup_button.tooltip_text = "Nicht während einer Welle"
+	else:
+		pickup_button.disabled = false
+		if is_blocked:
+			pickup_button.text = "⚠ Aufnehmen"
+			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
+			# Hervorheben wenn blockiert
+			pickup_button.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
+		else:
+			pickup_button.text = "Aufnehmen"
+			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
+			pickup_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+
+
 func _update_supply_info(level: int) -> void:
-	# Supply-Gebäude kosten kein Supply
 	if TowerData.is_supply_building(current_tower.tower_type):
 		supply_info_label.text = "⛺ Supply: 0 (gratis!)"
 		supply_info_label.tooltip_text = "Supply-Gebäude kosten kein Supply"
 		return
 	
-	# Zeigt Supply-Kosten dieses Towers
 	var supply_used := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
 	supply_info_label.text = "⛺ Supply: %d" % supply_used
 	supply_info_label.tooltip_text = "Dieser Tower verwendet %d Supply\n(1 Basis + %d für Upgrades)" % [supply_used, level]
@@ -297,7 +341,6 @@ func _update_engrave_buttons() -> void:
 
 
 func _update_upgrade_button(tower_type: String, level: int) -> void:
-	# Farm kann nicht geupgradet werden
 	if TowerData.is_supply_building(tower_type):
 		upgrade_button.visible = false
 		return
@@ -355,12 +398,10 @@ func _update_sell_button(level: int) -> void:
 	var sell_value := tower_manager.get_sell_value(current_grid_pos)
 	var sell_percent := tower_manager.get_sell_percent(current_grid_pos)
 	
-	# Gravur-Kosten beim Verkauf berücksichtigen
 	if current_tower and current_tower.has_method("is_engraved") and current_tower.is_engraved():
 		var engrave_refund := TowerData.get_engraving_cost() / 2 if sell_percent < 100 else TowerData.get_engraving_cost()
 		sell_value += engrave_refund
 	
-	# Supply-Rückgabe (nicht für Supply-Gebäude)
 	if TowerData.is_supply_building(current_tower.tower_type):
 		sell_button.text = "Verkaufen: %dg (%d%%)" % [sell_value, sell_percent]
 	else:
@@ -380,6 +421,10 @@ func _on_engrave_button_pressed(element: String) -> void:
 		
 		if VFX:
 			VFX.spawn_pixel_burst(current_tower.position, element, 12)
+
+
+func _on_pickup_pressed() -> void:
+	pickup_pressed.emit()
 
 
 func _on_upgrade_pressed() -> void:

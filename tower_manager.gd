@@ -1,5 +1,5 @@
 # tower_manager.gd
-# Verwaltet Tower-Platzierung, Verkauf, Upgrades mit Supply-System
+# Verwaltet Tower-Platzierung, Verkauf, Upgrades mit Supply-System und Relocate
 extends Node2D
 class_name TowerManager
 
@@ -9,6 +9,9 @@ signal tower_upgraded(tower: Node2D, new_level: int)
 signal tower_combined(new_tower: Node2D, grid_pos: Vector2i)
 signal tower_selected(tower: Node2D, grid_pos: Vector2i)
 signal tower_deselected
+signal tower_picked_up(tower: Node2D, grid_pos: Vector2i)
+signal tower_relocated(tower: Node2D, old_pos: Vector2i, new_pos: Vector2i)
+signal blocked_towers_changed(count: int)
 
 @export var tower_scene: PackedScene
 @export var grid_size: int = 64
@@ -21,6 +24,11 @@ var tower_levels: Dictionary = {}
 var selected_grid_pos: Vector2i = Vector2i(-1, -1)
 var blocked_cells: Array[Vector2i] = []
 
+# Pickup/Relocate System
+var picked_up_tower: Node2D = null
+var picked_up_from_pos: Vector2i = Vector2i(-1, -1)
+var blocked_tower_positions: Array[Vector2i] = []  # Türme die auf Pfad stehen
+
 
 func _ready() -> void:
 	if tower_scene == null:
@@ -30,6 +38,34 @@ func _ready() -> void:
 
 func set_blocked_cells(cells: Array[Vector2i]) -> void:
 	blocked_cells = cells
+	_update_blocked_towers()
+
+
+func _update_blocked_towers() -> void:
+	var old_count := blocked_tower_positions.size()
+	blocked_tower_positions.clear()
+	
+	for grid_pos in placed_towers:
+		if grid_pos in blocked_cells:
+			blocked_tower_positions.append(grid_pos)
+			var tower: Node2D = placed_towers[grid_pos]
+			if tower.has_method("set_blocked"):
+				tower.set_blocked(true)
+		else:
+			var tower: Node2D = placed_towers[grid_pos]
+			if tower.has_method("set_blocked"):
+				tower.set_blocked(false)
+	
+	if blocked_tower_positions.size() != old_count:
+		blocked_towers_changed.emit(blocked_tower_positions.size())
+
+
+func get_blocked_tower_count() -> int:
+	return blocked_tower_positions.size()
+
+
+func has_blocked_towers() -> bool:
+	return blocked_tower_positions.size() > 0
 
 
 func can_place_at(grid_pos: Vector2i, tower_type: String) -> bool:
@@ -40,18 +76,160 @@ func can_place_at(grid_pos: Vector2i, tower_type: String) -> bool:
 	if grid_pos in blocked_cells:
 		return false
 	if placed_towers.has(grid_pos):
+		# Erlaubt wenn wir einen Turm aufgenommen haben und das sein alter Platz ist
+		if picked_up_tower and grid_pos == picked_up_from_pos:
+			return false  # Kann nicht auf den gleichen Platz zurück während pickup
 		return false
 	if GameState.wave_active:
 		return false
+	
+	# Beim Relocate keine Kosten prüfen
+	if picked_up_tower:
+		return true
+	
 	var cost: int = TowerData.get_stat(tower_type, "cost")
 	if not GameState.can_afford(cost):
 		return false
-	# Supply-Check (Supply-Gebäude kosten kein Supply)
 	if not TowerData.is_supply_building(tower_type):
 		if not GameState.can_use_supply(TowerData.get_supply_cost_place()):
 			return false
 	return true
 
+
+func can_relocate_to(grid_pos: Vector2i) -> bool:
+	if not picked_up_tower:
+		return false
+	if grid_pos.x < 0 or grid_pos.x >= map_width:
+		return false
+	if grid_pos.y < 0 or grid_pos.y >= map_height:
+		return false
+	if grid_pos in blocked_cells:
+		return false
+	if placed_towers.has(grid_pos):
+		return false
+	if GameState.wave_active:
+		return false
+	return true
+
+
+# === PICKUP SYSTEM ===
+
+func pickup_tower(grid_pos: Vector2i) -> bool:
+	if not placed_towers.has(grid_pos):
+		return false
+	if GameState.wave_active:
+		return false
+	if picked_up_tower:
+		# Bereits einen Turm aufgenommen - erst ablegen
+		return false
+	
+	var tower: Node2D = placed_towers[grid_pos]
+	picked_up_tower = tower
+	picked_up_from_pos = grid_pos
+	
+	# Turm unsichtbar machen (wird als Preview angezeigt)
+	tower.visible = false
+	
+	# Aus placed_towers entfernen (temporär)
+	placed_towers.erase(grid_pos)
+	
+	# Deselektieren
+	if selected_grid_pos == grid_pos:
+		deselect_tower()
+	
+	tower_picked_up.emit(tower, grid_pos)
+	Sound.play_click()
+	print("[TowerManager] Turm aufgenommen von %s" % grid_pos)
+	return true
+
+
+func cancel_pickup() -> void:
+	if not picked_up_tower:
+		return
+	
+	# Turm zurück an alte Position
+	picked_up_tower.visible = true
+	placed_towers[picked_up_from_pos] = picked_up_tower
+	
+	# Blocked-Status aktualisieren
+	if picked_up_from_pos in blocked_cells:
+		if picked_up_tower.has_method("set_blocked"):
+			picked_up_tower.set_blocked(true)
+	
+	print("[TowerManager] Pickup abgebrochen, Turm zurück bei %s" % picked_up_from_pos)
+	
+	picked_up_tower = null
+	picked_up_from_pos = Vector2i(-1, -1)
+	
+	_update_blocked_towers()
+
+
+func relocate_tower(new_grid_pos: Vector2i) -> bool:
+	if not picked_up_tower:
+		return false
+	if not can_relocate_to(new_grid_pos):
+		return false
+	
+	var tower := picked_up_tower
+	var old_pos := picked_up_from_pos
+	
+	# Neue Position setzen
+	tower.position = Vector2(new_grid_pos) * grid_size + Vector2(grid_size / 2, grid_size / 2)
+	tower.visible = true
+	
+	# In placed_towers eintragen
+	placed_towers[new_grid_pos] = tower
+	
+	# Metadata übertragen
+	if tower_levels.has(old_pos):
+		tower_levels[new_grid_pos] = tower_levels[old_pos]
+		tower_levels.erase(old_pos)
+	if tower_placed_wave.has(old_pos):
+		tower_placed_wave[new_grid_pos] = tower_placed_wave[old_pos]
+		tower_placed_wave.erase(old_pos)
+	
+	# Blocked-Status aktualisieren
+	if tower.has_method("set_blocked"):
+		tower.set_blocked(false)
+	
+	# VFX
+	if VFX:
+		VFX.spawn_place_effect(tower.position, tower.tower_type)
+	
+	Sound.play_place()
+	
+	tower_relocated.emit(tower, old_pos, new_grid_pos)
+	print("[TowerManager] Turm umplatziert von %s nach %s" % [old_pos, new_grid_pos])
+	
+	# Pickup beenden
+	picked_up_tower = null
+	picked_up_from_pos = Vector2i(-1, -1)
+	
+	_update_blocked_towers()
+	return true
+
+
+func has_picked_up_tower() -> bool:
+	return picked_up_tower != null
+
+
+func get_picked_up_tower() -> Node2D:
+	return picked_up_tower
+
+
+func get_picked_up_tower_type() -> String:
+	if picked_up_tower:
+		return picked_up_tower.tower_type
+	return ""
+
+
+func get_picked_up_tower_level() -> int:
+	if picked_up_tower and tower_levels.has(picked_up_from_pos):
+		return tower_levels[picked_up_from_pos]
+	return 0
+
+
+# === STANDARD PLACEMENT ===
 
 func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	if not can_place_at(grid_pos, tower_type):
@@ -71,11 +249,9 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	
 	GameState.tower_placed(cost)
 	
-	# Supply-Gebäude kosten kein Supply
 	if not TowerData.is_supply_building(tower_type):
 		GameState.use_supply(TowerData.get_supply_cost_place())
 	
-	# Wenn Supply-Gebäude, max_supply erhöhen
 	if TowerData.is_supply_building(tower_type):
 		var bonus := TowerData.get_supply_bonus(tower_type)
 		GameState.add_max_supply(bonus)
@@ -102,17 +278,14 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	var sell_value := TowerData.get_sell_value(tower_type, level, placed_this_wave)
 	Sound.play_sell()
 	
-	# VFX vor dem Löschen
 	if VFX:
 		VFX.spawn_sell_effect(tower_pos)
 		VFX.spawn_gold_number(tower_pos, sell_value)
 	
-	# Supply freigeben (nur für Nicht-Supply-Gebäude)
 	if not TowerData.is_supply_building(tower_type):
 		var supply_to_free := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
 		GameState.free_supply(supply_to_free)
 	
-	# Wenn Supply-Gebäude, max_supply reduzieren
 	if TowerData.is_supply_building(tower_type):
 		var bonus := TowerData.get_supply_bonus(tower_type)
 		GameState.supply_max = max(GameState.STARTING_MAX_SUPPLY, GameState.supply_max - bonus)
@@ -128,6 +301,7 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	if selected_grid_pos == grid_pos:
 		deselect_tower()
 	
+	_update_blocked_towers()
 	tower_sold.emit(grid_pos, sell_value)
 	print("[TowerManager] Tower verkauft für %d Gold (Supply: %d/%d)" % [
 		sell_value, GameState.supply_used, GameState.supply_max
@@ -171,7 +345,6 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 	if GameState.wave_active:
 		return false
 	
-	# Supply-Check für Upgrade
 	if not GameState.can_use_supply(TowerData.get_supply_cost_upgrade()):
 		return false
 	
@@ -220,7 +393,6 @@ func can_upgrade_at(grid_pos: Vector2i) -> bool:
 	if not GameState.can_afford(cost):
 		return false
 	
-	# Supply-Check
 	if not GameState.can_use_supply(TowerData.get_supply_cost_upgrade()):
 		return false
 	
@@ -248,12 +420,10 @@ func combine_towers(pos1: Vector2i, pos2: Vector2i) -> Node2D:
 	var new_pos := pos1
 	var combine_pos: Vector2 = tower1.position
 	
-	# VFX für Kombination
 	if VFX:
 		VFX.spawn_pixel_burst(tower1.position, tower1.tower_type, 8)
 		VFX.spawn_pixel_burst(tower2.position, tower2.tower_type, 8)
 	
-	# Supply der alten Tower freigeben
 	var level1: int = tower_levels.get(pos1, 0)
 	var level2: int = tower_levels.get(pos2, 0)
 	var supply_freed := (TowerData.get_supply_cost_place() * 2) + ((level1 + level2) * TowerData.get_supply_cost_upgrade())
@@ -281,7 +451,6 @@ func combine_towers(pos1: Vector2i, pos2: Vector2i) -> Node2D:
 	GameState.tower_placed(combo_cost)
 	GameState.use_supply(TowerData.get_supply_cost_place())
 	
-	# Extra VFX für neuen kombinierten Tower
 	if VFX:
 		VFX.spawn_pixel_ring(combine_pos, combo_type, 60.0)
 		VFX.screen_flash(Color(1, 1, 1), 0.1)
@@ -356,3 +525,7 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 
 func grid_to_world(grid_pos: Vector2i) -> Vector2:
 	return Vector2(grid_pos) * grid_size + Vector2(grid_size / 2, grid_size / 2)
+
+
+func is_tower_blocked(grid_pos: Vector2i) -> bool:
+	return grid_pos in blocked_tower_positions

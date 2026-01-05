@@ -1,5 +1,5 @@
 # tower.gd
-# Tower mit Elemental Engraving, Upgrades und Spezialeffekten
+# Tower mit Elemental Engraving, Upgrades, Spezialeffekten und Blocked-Status
 extends Node2D
 class_name Tower
 
@@ -22,6 +22,11 @@ var chain_targets := 0
 var bullet_scene: PackedScene
 var fire_timer := 0.0
 var target: Node2D = null
+
+# Blocked Status (Turm steht auf Pfad)
+var is_blocked := false
+var blocked_overlay: ColorRect
+var blocked_pulse_tween: Tween
 
 # Visuals
 var range_circle: Line2D
@@ -133,6 +138,58 @@ func engrave(element: String) -> bool:
 	return true
 
 
+# === BLOCKED STATUS ===
+
+func set_blocked(blocked: bool) -> void:
+	if is_blocked == blocked:
+		return
+	
+	is_blocked = blocked
+	
+	if is_blocked:
+		_show_blocked_overlay()
+	else:
+		_hide_blocked_overlay()
+
+
+func _show_blocked_overlay() -> void:
+	if blocked_overlay:
+		return
+	
+	# Rotes Overlay über dem Turm
+	blocked_overlay = ColorRect.new()
+	blocked_overlay.color = Color(1.0, 0.2, 0.2, 0.4)
+	blocked_overlay.size = Vector2(64, 64)
+	blocked_overlay.position = Vector2(-32, -32)
+	blocked_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(blocked_overlay)
+	
+	# Pulsierender Effekt
+	_start_blocked_pulse()
+
+
+func _hide_blocked_overlay() -> void:
+	if blocked_pulse_tween:
+		blocked_pulse_tween.kill()
+		blocked_pulse_tween = null
+	
+	if blocked_overlay:
+		blocked_overlay.queue_free()
+		blocked_overlay = null
+
+
+func _start_blocked_pulse() -> void:
+	if not blocked_overlay:
+		return
+	
+	if blocked_pulse_tween:
+		blocked_pulse_tween.kill()
+	
+	blocked_pulse_tween = create_tween().set_loops()
+	blocked_pulse_tween.tween_property(blocked_overlay, "color:a", 0.6, 0.5)
+	blocked_pulse_tween.tween_property(blocked_overlay, "color:a", 0.25, 0.5)
+
+
 func _load_engraving_effects() -> void:
 	if engraved_element == "":
 		return
@@ -235,7 +292,6 @@ func _update_visuals() -> void:
 	else:
 		_setup_standard_sprite()
 	
-	# Range Circle - versteckt für Farm
 	range_circle.clear_points()
 	if attack_type != "none" and tower_range > 0:
 		for i in range(33):
@@ -254,20 +310,15 @@ func _update_visuals() -> void:
 
 
 func _setup_farm_sprite() -> void:
-	# Versuche farm.png zu laden, sonst Fallback
-	# Farm Asset ist 128x192 Pixel
 	var texture_path := "res://assets/elemental_tower/farm.png"
 	
 	if ResourceLoader.exists(texture_path):
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
-		# Skalierung für 128x192 Asset (Ziel: ~64px Breite)
 		sprite.scale = Vector2(2.0, 2.0)
-		# Leicht nach oben verschieben da das Asset höher als breit ist
 		sprite.offset.y = -8
 		turret.add_child(sprite)
 	else:
-		# Fallback: Grünes Haus-Symbol
 		var poly := Polygon2D.new()
 		poly.polygon = PackedVector2Array([
 			Vector2(-20, 20), Vector2(20, 20), Vector2(20, 0),
@@ -277,7 +328,6 @@ func _setup_farm_sprite() -> void:
 		poly.color = Color(0.5, 0.7, 0.3)
 		turret.add_child(poly)
 		
-		# Tür
 		var door := Polygon2D.new()
 		door.polygon = PackedVector2Array([
 			Vector2(-6, 20), Vector2(6, 20), Vector2(6, 5), Vector2(-6, 5)
@@ -421,7 +471,6 @@ func _show_upgrade_effect() -> void:
 
 
 func _process(delta: float) -> void:
-	# Farm greift nicht an
 	if attack_type == "none":
 		_do_idle_animation(delta)
 		return
