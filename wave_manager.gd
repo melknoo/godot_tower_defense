@@ -76,9 +76,6 @@ func _determine_wave_element(wave: int) -> String:
 	if wave <= 2:
 		return "neutral"
 
-	if wave > 10:
-		return "mixed"
-
 	_rng.seed = _base_seed + wave * 10007
 	return ELEMENTS[_rng.randi_range(0, ELEMENTS.size() - 1)]
 
