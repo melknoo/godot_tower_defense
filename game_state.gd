@@ -10,6 +10,10 @@ signal enemy_count_changed(count: int)
 signal element_cores_changed(new_amount: int)
 signal element_core_earned  # Für UI-Popup
 
+# Zinsen-Konstanten
+const INTEREST_RATE := 0.10  # 10% Zinsen
+const MAX_INTEREST := 50     # Maximale Zinsen pro Welle
+
 var gold := 100:
 	set(value):
 		gold = max(0, value)
@@ -48,10 +52,8 @@ const DEFAULT_GOLD := 100
 const DEFAULT_LIVES := 20
 
 # Wellen nach denen man Element-Kerne bekommt
-# Wave 1 = erster Kern, dann nach jedem Boss (5, 10, 15...)
 func _get_core_reward_waves() -> Array[int]:
 	var waves: Array[int] = [1]
-	# Boss-Wellen: 5, 10, 15, 20...
 	for i in range(5, 101, 5):
 		waves.append(i)
 	return waves
@@ -59,6 +61,31 @@ func _get_core_reward_waves() -> Array[int]:
 
 func _ready() -> void:
 	print("[GameState] Initialisiert")
+
+
+# === WAVE END BONUS BERECHNUNG ===
+
+func get_flat_bonus(wave: int) -> int:
+	return 25 + wave * 5
+
+
+func get_interest_bonus() -> int:
+	var interest := int(gold * INTEREST_RATE)
+	return mini(interest, MAX_INTEREST)
+
+
+func get_wave_end_bonus_preview() -> Dictionary:
+	# Gibt Preview für das HUD zurück (für nächste Welle)
+	var next_wave := current_wave + 1 if not wave_active else current_wave
+	var flat := get_flat_bonus(next_wave)
+	var interest := get_interest_bonus()
+	return {
+		"flat": flat,
+		"interest": interest,
+		"total": flat + interest,
+		"interest_rate": INTEREST_RATE,
+		"max_interest": MAX_INTEREST
+	}
 
 
 func start_wave() -> void:
@@ -94,9 +121,14 @@ func enemy_reached_end() -> void:
 func _check_wave_end() -> void:
 	if enemies_remaining <= 0 and wave_active:
 		wave_active = false
-		var bonus := 25 + current_wave * 5
-		gold += bonus
-		stats["gold_earned"] += bonus
+		
+		# Flat Bonus + Zinsen
+		var flat_bonus := get_flat_bonus(current_wave)
+		var interest_bonus := get_interest_bonus()
+		var total_bonus := flat_bonus + interest_bonus
+		
+		gold += total_bonus
+		stats["gold_earned"] += total_bonus
 		
 		# Element-Kern prüfen
 		if current_wave in _get_core_reward_waves():
@@ -105,7 +137,9 @@ func _check_wave_end() -> void:
 			print("[GameState] Element-Kern erhalten! Gesamt: %d" % element_cores)
 		
 		wave_completed.emit(current_wave)
-		print("[GameState] Wave %d abgeschlossen - Bonus: %d Gold" % [current_wave, bonus])
+		print("[GameState] Wave %d abgeschlossen - Bonus: %d (Flat: %d, Zinsen: %d)" % [
+			current_wave, total_bonus, flat_bonus, interest_bonus
+		])
 
 
 func spend_element_core() -> bool:
@@ -157,7 +191,6 @@ func reset() -> void:
 		"damage_dealt": 0,
 		"elements_unlocked": 0
 	}
-	# TowerData auch zurücksetzen
 	if TowerData:
 		TowerData.reset_unlocks()
 	print("[GameState] Zurückgesetzt")

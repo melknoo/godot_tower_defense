@@ -18,6 +18,7 @@ signal open_element_panel_pressed
 @export var wave_element_label: Label
 @export var seed_label: Label
 @export var fast_forward_button: Button
+@export var bonus_preview_label: Label  # NEU: Zeigt Wellen-Ende Bonus
 
 var is_fast_forward := false
 const FAST_FORWARD_SPEED := 2.5
@@ -25,13 +26,9 @@ const FAST_FORWARD_SPEED := 2.5
 var ff_idle_tex: Texture2D
 var ff_pressed_tex: Texture2D
 
-# Element-Texturen (elemental_symbols)
 var element_textures: Dictionary = {}
 
-# --- Hover Area (unsichtbar) ---
 var wave_element_area: Control
-
-# --- Tooltip ---
 var wave_tooltip: PanelContainer
 var wave_tooltip_title: Label
 var wave_tooltip_weak_icon: TextureRect
@@ -40,7 +37,6 @@ var wave_tooltip_resist_icon: TextureRect
 var wave_tooltip_resist_label: Label
 var _tooltip_visible := false
 
-# Speichert das Element der "Nächsten Welle" (Preview)
 var _next_wave_element: String = "neutral"
 
 
@@ -101,6 +97,7 @@ func _find_or_create_ui_elements() -> void:
 	var bottom_y := hud_height - 22
 	var second_row_y := hud_height - 44
 	var third_row_y := hud_height - 66
+	var fourth_row_y := hud_height - 88
 	var viewport_size := get_viewport_rect().size
 
 	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
@@ -109,16 +106,16 @@ func _find_or_create_ui_elements() -> void:
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
+	
+	# NEU: Bonus Preview Label
+	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, fourth_row_y))
 
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 85))
 
-	# --- Unsichtbarer Hover-Rahmen für "Nächste Welle" Element (Icon + Name)
-	# Position entspricht ungefähr deiner bisherigen Icon-Position
 	var area_pos := Vector2(viewport_size.x - 410, hud_height - 60)
 	var area_size := Vector2(190, 34)
 	wave_element_area = _get_or_create_control("WaveElementArea", area_pos, area_size)
 
-	# Elementanzeige (Icon + Name) als Children der Area
 	wave_element_icon = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon", Vector2(8, 5), Vector2(24, 24))
 	wave_element_label = _get_or_create_label_child(wave_element_area, "WaveElementLabel", Vector2(40, 8))
 
@@ -201,11 +198,15 @@ func _apply_styles() -> void:
 
 	if wave_element_area:
 		wave_element_area.visible = false
-		# Hover muss Events bekommen, aber selbst unsichtbar bleiben:
 		wave_element_area.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	if wave_element_label:
 		wave_element_label.add_theme_font_size_override("font_size", 11)
+	
+	# NEU: Bonus Preview Styling
+	if bonus_preview_label:
+		bonus_preview_label.add_theme_font_size_override("font_size", 11)
+		bonus_preview_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 
 	if cores_button:
 		cores_button.text = ""
@@ -303,11 +304,14 @@ func update_all() -> void:
 	_update_wave_display()
 	_on_enemy_count_changed(GameState.enemies_remaining)
 	_on_cores_changed(GameState.element_cores)
+	_update_bonus_preview()
 
 
 func _on_gold_changed(amount: int) -> void:
 	if gold_label:
 		gold_label.text = "Gold: %d" % amount
+	# NEU: Bonus Preview aktualisieren wenn sich Gold ändert
+	_update_bonus_preview()
 
 
 func _on_lives_changed(amount: int) -> void:
@@ -368,9 +372,32 @@ func _flash_cores_label() -> void:
 	tween.tween_property(cores_label, "modulate", Color.WHITE, 0.3)
 
 
+# NEU: Bonus Preview aktualisieren
+func _update_bonus_preview() -> void:
+	if not bonus_preview_label:
+		return
+	
+	bonus_preview_label.visible = true
+	var preview := GameState.get_wave_end_bonus_preview()
+	var flat: int = preview["flat"]
+	var interest: int = preview["interest"]
+	var total: int = preview["total"]
+	
+	# Format: "Wellen-Ende: +30 (Bonus) +10 (Zinsen) = 40"
+	if interest > 0:
+		bonus_preview_label.text = "Wellen-Ende: +%d +%d💰 = %d" % [flat, interest, total]
+		bonus_preview_label.tooltip_text = "Flat Bonus: %d\nZinsen (%d%% auf %d Gold): %d\nMax Zinsen: %d" % [
+			flat, int(preview["interest_rate"] * 100), GameState.gold, interest, preview["max_interest"]
+		]
+	else:
+		bonus_preview_label.text = "Wellen-Ende: +%d" % flat
+		bonus_preview_label.tooltip_text = "Flat Bonus: %d\nZinsen: 0 (spare Gold für Zinsen!)" % flat
+
+
 func _on_wave_started(_wave: int) -> void:
 	_update_wave_display()
 	_hide_wave_tooltip()
+	_update_bonus_preview()  # Versteckt während Welle
 
 	if start_button:
 		start_button.disabled = true
@@ -391,6 +418,7 @@ func _on_wave_completed(wave: int) -> void:
 		start_button.disabled = false
 		start_button.text = "Nächste Welle"
 	_update_wave_preview(wave + 1)
+	_update_bonus_preview()  # Zeigt neue Preview
 
 	if fast_forward_button:
 		fast_forward_button.visible = false
@@ -435,7 +463,6 @@ func _update_wave_preview(next_wave: int) -> void:
 
 	_next_wave_element = wave_elem
 
-	# Gegner-Info Text
 	wave_preview_label.text = "Nächste Welle: " + info
 
 	if next_wave % 5 == 0:
@@ -457,7 +484,6 @@ func _update_wave_element_display(wave_elem: String) -> void:
 	wave_elem = String(wave_elem).to_lower()
 	wave_element_area.visible = true
 
-	# Nur Element anzeigen
 	if wave_elem == "neutral" or wave_elem == "":
 		wave_element_icon.texture = null
 		wave_element_icon.visible = false
@@ -502,27 +528,21 @@ func _set_fast_forward(enabled: bool) -> void:
 	Engine.time_scale = FAST_FORWARD_SPEED if enabled else 1.0
 
 
-# -------------------------
-# Tooltip (Hover über Element-Area)
-# -------------------------
-
 func _create_wave_tooltip() -> void:
 	if is_instance_valid(wave_tooltip):
 		return
-	# Tooltip in eigenem CanvasLayer, damit er sicher über anderen UI-Layern liegt
 	var tip_layer := CanvasLayer.new()
 	tip_layer.name = "TooltipLayer"
-	tip_layer.layer = 250  # höher als Standard-UI; bei Bedarf erhöhen
+	tip_layer.layer = 250
 	add_child(tip_layer)
 
 	wave_tooltip = PanelContainer.new()
 	wave_tooltip.visible = false
-	wave_tooltip.z_index = 200  # im erlaubten Bereich, reicht innerhalb des Layers
+	wave_tooltip.z_index = 200
 	wave_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	tip_layer.add_child(wave_tooltip)
 
-	# Hintergrund
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.14, 0.95)
 	style.border_color = Color(0.35, 0.35, 0.4, 0.9)
@@ -553,7 +573,6 @@ func _create_wave_tooltip() -> void:
 	wave_tooltip_title.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
 	vb.add_child(wave_tooltip_title)
 
-	# Schwach gegen
 	var weak_row := HBoxContainer.new()
 	weak_row.add_theme_constant_override("separation", 8)
 	vb.add_child(weak_row)
@@ -573,7 +592,6 @@ func _create_wave_tooltip() -> void:
 	wave_tooltip_weak_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
 	weak_row.add_child(wave_tooltip_weak_label)
 
-	# Resistent gegen
 	var resist_row := HBoxContainer.new()
 	resist_row.add_theme_constant_override("separation", 8)
 	vb.add_child(resist_row)
@@ -627,7 +645,6 @@ func _show_wave_tooltip() -> void:
 
 	wave_tooltip_title.text = "%s Gegner" % wave_elem.capitalize()
 
-	# Schwach gegen
 	if weak_against != "" and weak_against != "neutral" and element_textures.has(weak_against):
 		wave_tooltip_weak_icon.texture = element_textures[weak_against]
 		wave_tooltip_weak_label.text = weak_against.capitalize()
@@ -635,7 +652,6 @@ func _show_wave_tooltip() -> void:
 		wave_tooltip_weak_icon.texture = null
 		wave_tooltip_weak_label.text = "-"
 
-	# Resistent gegen
 	if resists != "" and element_textures.has(resists):
 		wave_tooltip_resist_icon.texture = element_textures[resists]
 		wave_tooltip_resist_label.text = resists.capitalize()
@@ -645,8 +661,6 @@ func _show_wave_tooltip() -> void:
 
 	var margin: float = 10.0
 	var viewport_size: Vector2 = get_viewport_rect().size
-
-	# Tooltip-Größe ermitteln
 	var tip_size: Vector2 = wave_tooltip.get_combined_minimum_size()
 	if tip_size == Vector2.ZERO:
 		tip_size = wave_tooltip.size
@@ -657,7 +671,6 @@ func _show_wave_tooltip() -> void:
 		var right_pos: Vector2 = area_pos + Vector2(wave_element_area.size.x + 10.0, -8.0)
 		var left_pos: Vector2 = area_pos + Vector2(-tip_size.x - 10.0, -8.0)
 
-		# Flip nach links, wenn rechts kein Platz wäre
 		if right_pos.x + tip_size.x + margin > viewport_size.x:
 			desired_pos = left_pos
 		else:
@@ -665,7 +678,6 @@ func _show_wave_tooltip() -> void:
 	else:
 		desired_pos = Vector2(margin, margin)
 
-	# Clamp (dein bestehender Teil bleibt gleich)
 	var max_x: float = viewport_size.x - tip_size.x - margin
 	var max_y: float = viewport_size.y - tip_size.y - margin
 
@@ -673,7 +685,6 @@ func _show_wave_tooltip() -> void:
 	var clamped_y: float = clampf(desired_pos.y, margin, max_y)
 
 	wave_tooltip.global_position = Vector2(clamped_x, clamped_y)
-
 	wave_tooltip.visible = true
 	_tooltip_visible = true
 
@@ -694,6 +705,8 @@ func show_game_over() -> void:
 		cores_button.visible = false
 	if fast_forward_button:
 		fast_forward_button.visible = false
+	if bonus_preview_label:
+		bonus_preview_label.visible = false
 
 	var main := get_node_or_null("/root/Main")
 	var seed_text := ""
