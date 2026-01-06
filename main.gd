@@ -18,11 +18,15 @@ const SWORD_COLUMNS := 6
 @onready var tower_info: TowerInfo = $UI/TowerInfo
 
 var element_unlock_ui: ElementUnlockUI
+var wave_upgrade_ui: WaveUpgradeUI
 var path_generator: PathGenerator
 
 var path_points: Array[Vector2] = []
 var path_cells: Array[Vector2i] = []
 var current_seed: int = 0
+
+# Tracking für Panel-Reihenfolge
+var pending_element_core := false
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
@@ -32,11 +36,11 @@ var hover_sprite: Node2D
 var is_showing_pickup_preview := false
 
 # Drag & Drop
-var is_drag_potential := false  # Maus gedrückt, aber noch nicht bewegt
-var is_dragging := false        # Tatsächlicher Drag aktiv
+var is_drag_potential := false
+var is_dragging := false
 var drag_start_pos: Vector2 = Vector2.ZERO
 var drag_start_grid: Vector2i = Vector2i(-1, -1)
-const DRAG_THRESHOLD := 8.0     # Pixel bevor Drag startet
+const DRAG_THRESHOLD := 8.0
 
 
 func _ready() -> void:
@@ -45,6 +49,7 @@ func _ready() -> void:
 	_setup_ground()
 	_setup_managers()
 	_setup_element_unlock_ui()
+	_setup_wave_upgrade_ui()
 	_connect_signals()
 	_setup_hover_preview()
 
@@ -108,10 +113,19 @@ func _setup_element_unlock_ui() -> void:
 	)
 
 
+func _setup_wave_upgrade_ui() -> void:
+	wave_upgrade_ui = WaveUpgradeUI.new()
+	wave_upgrade_ui.name = "WaveUpgradeUI"
+	add_child(wave_upgrade_ui)
+	wave_upgrade_ui.upgrade_chosen.connect(_on_upgrade_chosen)
+	print("[Main] WaveUpgradeUI erstellt und Signal verbunden")
+
+
 func _connect_signals() -> void:
 	GameState.game_over_triggered.connect(_on_game_over)
 	GameState.wave_started.connect(_on_wave_started)
 	GameState.wave_completed.connect(_on_wave_completed)
+	GameState.element_core_earned.connect(_on_element_core_earned)
 	hud.start_wave_pressed.connect(_on_start_wave_pressed)
 	hud.open_element_panel_pressed.connect(_on_open_element_panel)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
@@ -139,7 +153,6 @@ func _input(event: InputEvent) -> void:
 		if element_unlock_ui and element_unlock_ui.visible:
 			element_unlock_ui.hide_panel()
 			return
-		# Drag/Pickup abbrechen wenn aktiv
 		if is_dragging or is_drag_potential or tower_manager.has_picked_up_tower():
 			_cancel_drag_or_pickup()
 			is_drag_potential = false
@@ -147,41 +160,32 @@ func _input(event: InputEvent) -> void:
 		_deselect_all()
 		return
 	
-	if event is InputEventMouseButton: 
+	if event is InputEventMouseButton:
 		_handle_mouse_click(event)
 	elif event is InputEventMouseMotion:
 		_update_hover_preview(event.position)
 
 
 func _regenerate_map() -> void:
-	# Drag/Pickup abbrechen falls aktiv
 	_cancel_drag_or_pickup()
 	is_drag_potential = false
-	
-	# Neuen Pfad generieren
 	_generate_new_path()
-	
-	# Ground Layer neu zeichnen
 	ground_layer.setup(path_cells)
-	
-	# Manager aktualisieren
 	wave_manager.path_points = path_points
 	tower_manager.set_blocked_cells(path_cells)
-	
-	# VFX
 	if VFX:
 		VFX.screen_flash(Color(1, 1, 1), 0.2)
-	
 	print("[Main] Map regeneriert! Blockierte Türme: %d" % tower_manager.get_blocked_tower_count())
 
 
 func _handle_mouse_click(event: InputEventMouseButton) -> void:
 	if element_unlock_ui and element_unlock_ui.visible:
 		return
+	if wave_upgrade_ui and wave_upgrade_ui.visible:
+		return
 	
 	if event.button_index == MOUSE_BUTTON_RIGHT:
 		if event.pressed:
-			# Rechtsklick: Pickup/Drag abbrechen oder alles deselektieren
 			_cancel_drag_or_pickup()
 		return
 	
@@ -202,12 +206,10 @@ func _on_left_mouse_pressed(pos: Vector2) -> void:
 	
 	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
 	
-	# Wenn wir bereits einen Turm aufgenommen haben (via Button), platzieren
 	if tower_manager.has_picked_up_tower():
 		_handle_relocate_click(grid_pos)
 		return
 	
-	# Wenn Shop-Auswahl aktiv -> Turm platzieren (hat Priorität vor Drag)
 	if tower_shop.has_selection():
 		tower_manager.deselect_tower()
 		var tower_type := tower_shop.get_selected_type()
@@ -216,7 +218,6 @@ func _on_left_mouse_pressed(pos: Vector2) -> void:
 			_update_hover_preview(pos)
 		return
 	
-	# Prüfen ob auf Turm geklickt wurde -> Drag potential starten
 	var tower := tower_manager.get_tower_at(grid_pos)
 	if tower and not GameState.wave_active:
 		is_drag_potential = true
@@ -224,7 +225,6 @@ func _on_left_mouse_pressed(pos: Vector2) -> void:
 		drag_start_grid = grid_pos
 		return
 	
-	# Klick auf leeres Feld ohne Shop-Auswahl -> deselektieren
 	tower_manager.deselect_tower()
 
 
@@ -233,23 +233,19 @@ func _on_left_mouse_released(pos: Vector2) -> void:
 	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
 	
 	if is_dragging:
-		# Drop ausführen
 		if pos.y <= game_area_height and tower_manager.can_relocate_to(grid_pos):
 			tower_manager.relocate_tower(grid_pos)
 			_end_pickup_preview()
 			tower_manager.deselect_tower()
 		else:
-			# Ungültige Position -> abbrechen
 			tower_manager.cancel_pickup()
 			_end_pickup_preview()
-		
 		is_dragging = false
 		is_drag_potential = false
 		drag_start_grid = Vector2i(-1, -1)
 		return
 	
 	if is_drag_potential:
-		# Kein Drag passiert -> normaler Klick (Selektion)
 		is_drag_potential = false
 		_handle_tower_click(drag_start_grid)
 		drag_start_grid = Vector2i(-1, -1)
@@ -273,14 +269,10 @@ func _cancel_drag_or_pickup() -> void:
 func _check_drag_start(current_pos: Vector2) -> void:
 	if not is_drag_potential:
 		return
-	
 	var distance := current_pos.distance_to(drag_start_pos)
 	if distance >= DRAG_THRESHOLD:
-		# Drag starten
 		is_drag_potential = false
 		is_dragging = true
-		
-		# Turm aufnehmen
 		if tower_manager.pickup_tower(drag_start_grid):
 			_start_pickup_preview()
 		else:
@@ -318,6 +310,8 @@ func _is_over_ui(pos: Vector2) -> bool:
 		return true
 	if element_unlock_ui and element_unlock_ui.visible:
 		return true
+	if wave_upgrade_ui and wave_upgrade_ui.visible:
+		return true
 	var viewport_size := get_viewport_rect().size
 	if pos.y > viewport_size.y - 105:
 		return true
@@ -345,10 +339,8 @@ func _setup_hover_preview() -> void:
 
 
 func _update_hover_preview(mouse_pos: Vector2) -> void:
-	# Prüfen ob Drag gestartet werden soll
 	_check_drag_start(mouse_pos)
 	
-	# Pickup/Drag-Preview hat Priorität
 	if tower_manager.has_picked_up_tower() or is_dragging:
 		_update_pickup_hover_preview(mouse_pos)
 		return
@@ -357,6 +349,9 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_preview.visible = false
 		return
 	if element_unlock_ui and element_unlock_ui.visible:
+		hover_preview.visible = false
+		return
+	if wave_upgrade_ui and wave_upgrade_ui.visible:
 		hover_preview.visible = false
 		return
 	
@@ -488,7 +483,6 @@ func _update_hover_appearance(tower_type: String, level: int = 0) -> void:
 		else:
 			_create_fallback_preview(tower_type)
 	
-	# Level-Indikator für Pickup-Preview
 	if level > 0:
 		var level_label := Label.new()
 		level_label.text = "★".repeat(level)
@@ -497,7 +491,6 @@ func _update_hover_appearance(tower_type: String, level: int = 0) -> void:
 		level_label.add_theme_color_override("font_color", Color(1, 0.85, 0))
 		hover_sprite.add_child(level_label)
 	
-	# Range Circle
 	hover_range_circle.clear_points()
 	var attack_type: String = data.get("attack_type", "projectile")
 	if attack_type != "none":
@@ -520,12 +513,10 @@ func _create_fallback_preview(tower_type: String) -> void:
 
 
 func _on_start_wave_pressed() -> void:
-	# Prüfen ob blockierte Türme vorhanden sind
 	if tower_manager.has_blocked_towers():
 		Sound.play_error()
 		print("[Main] Kann Welle nicht starten - %d Türme auf Pfad!" % tower_manager.get_blocked_tower_count())
 		return
-	
 	Sound.play_wave_start()
 	GameState.start_wave()
 
@@ -534,15 +525,47 @@ func _on_wave_started(wave: int) -> void:
 	wave_manager.start_wave(wave)
 
 
-func _on_wave_completed(_wave: int) -> void:
-	# Nach Wellen-Ende: Pfad regenerieren
-	print("[Main] Welle abgeschlossen - regeneriere Pfad...")
+func _on_wave_completed(wave: int) -> void:
+	print("[Main] Welle %d abgeschlossen - regeneriere Pfad..." % wave)
 	_regenerate_map()
 	
-	# HUD Wave-Preview NACH der Map-Regeneration aktualisieren
-	# (damit der neue Seed für die Element-Berechnung verwendet wird)
 	if hud:
 		hud.update_wave_preview_after_regen()
+	
+	print("[Main] wave_upgrade_ui existiert: %s" % (wave_upgrade_ui != null))
+	if wave_upgrade_ui:
+		print("[Main] Zeige Upgrade-Panel...")
+		wave_upgrade_ui.show_upgrades(wave)
+	else:
+		push_error("[Main] wave_upgrade_ui ist null!")
+
+
+func _on_element_core_earned() -> void:
+	pending_element_core = true
+
+
+func _on_upgrade_chosen(upgrade_id: String) -> void:
+	if upgrade_id != "":
+		print("[Main] Upgrade gewählt: %s" % upgrade_id)
+		_refresh_all_tower_stats()
+	
+	tower_shop._create_tower_buttons()
+	
+	if pending_element_core:
+		pending_element_core = false
+		await get_tree().create_timer(0.3).timeout
+		if element_unlock_ui and GameState.has_element_cores():
+			element_unlock_ui.show_panel()
+
+
+func _refresh_all_tower_stats() -> void:
+	for grid_pos in tower_manager.placed_towers:
+		var tower: Node2D = tower_manager.placed_towers[grid_pos]
+		var level: int = tower_manager.tower_levels.get(grid_pos, 0)
+		var tower_data := TowerData.get_legacy_data(tower.tower_type, level)
+		if tower.has_method("setup"):
+			tower.setup(tower_data, tower.tower_type)
+			tower.level = level
 
 
 func _on_game_over() -> void:
@@ -560,7 +583,6 @@ func _on_element_unlocked(element: String) -> void:
 
 
 func _on_shop_tower_selected(_tower_type: String) -> void:
-	# Nur Drag/Pickup abbrechen, NICHT den Shop deselektieren
 	if is_dragging:
 		tower_manager.cancel_pickup()
 		_end_pickup_preview()
@@ -568,7 +590,6 @@ func _on_shop_tower_selected(_tower_type: String) -> void:
 	elif tower_manager.has_picked_up_tower():
 		tower_manager.cancel_pickup()
 		_end_pickup_preview()
-	
 	is_drag_potential = false
 	drag_start_grid = Vector2i(-1, -1)
 	tower_manager.deselect_tower()
@@ -594,13 +615,11 @@ func _on_tower_picked_up(_tower: Node2D, _grid_pos: Vector2i) -> void:
 
 func _on_tower_relocated(_tower: Node2D, _old_pos: Vector2i, _new_pos: Vector2i) -> void:
 	_end_pickup_preview()
-	# Nach Umplatzierung deselektieren
 	tower_manager.deselect_tower()
 
 
 func _on_blocked_towers_changed(count: int) -> void:
 	print("[Main] Blockierte Türme geändert: %d" % count)
-	# HUD aktualisieren
 	if hud:
 		hud.update_blocked_towers_warning(count)
 

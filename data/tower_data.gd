@@ -202,9 +202,29 @@ func is_supply_building(tower_type: String) -> bool:
 	return data.get("is_supply_building", false)
 
 
+
 func get_supply_bonus(tower_type: String) -> int:
 	var data := get_tower_data(tower_type)
-	return data.get("supply_bonus", 0)
+	var base_bonus: int = data.get("supply_bonus", 0)
+	
+	# Upgrade-Bonus für Farmen
+	if tower_type == "farm" and UpgradeSystem:
+		base_bonus += UpgradeSystem.get_farm_supply_bonus()
+	
+	return base_bonus
+
+
+# Tower-Kosten mit Upgrade-Discount
+func get_tower_cost(tower_type: String) -> int:
+	var base_cost: int = get_stat(tower_type, "cost")
+	if base_cost == null:
+		return 0
+	
+	var discount := 0.0
+	if UpgradeSystem:
+		discount = UpgradeSystem.get_tower_cost_discount()
+	
+	return int(base_cost * (1.0 - discount))
 
 
 func is_attackable_tower(tower_type: String) -> bool:

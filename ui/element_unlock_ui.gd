@@ -125,7 +125,6 @@ func _setup_ui() -> void:
 
 func _connect_signals() -> void:
 	GameState.element_cores_changed.connect(_on_cores_changed)
-	GameState.element_core_earned.connect(_on_core_earned)
 	TowerData.element_unlocked.connect(_on_element_changed)
 	TowerData.element_upgraded.connect(_on_element_upgraded)
 

@@ -383,10 +383,17 @@ func _create_button(type: String) -> Control:
 	icon_container.add_child(tex_rect)
 	
 	# Kosten Overlay oben links auf dem Icon (wie position:absolute in CSS)
-	var cost: int = TowerData.get_stat(type, "cost")
+	var cost: int = TowerData.get_tower_cost(type)
+	var base_cost: int = TowerData.get_stat(type, "cost")
 	var cost_label := Label.new()
 	cost_label.name = "CostLabel"
-	cost_label.text = "🪙%d" % cost
+	
+	# Zeige Discount wenn aktiv
+	if cost < base_cost:
+		cost_label.text = "🪙%d" % cost
+	else:
+		cost_label.text = "🪙%d" % cost
+	
 	cost_label.position = Vector2(-2, -2)  # Oben links
 	if UITheme and UITheme.game_font:
 		cost_label.add_theme_font_override("font", UITheme.game_font)

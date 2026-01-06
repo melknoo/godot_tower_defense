@@ -436,12 +436,19 @@ func _die() -> void:
 	if _resolved:
 		return
 	_resolved = true
-	GameState.enemy_died(reward)
+	
+	# Gold-Bonus durch Upgrades
+	var bonus_gold := 0
+	if UpgradeSystem:
+		bonus_gold = UpgradeSystem.get_enemy_gold_bonus()
+	
+	var total_reward := reward + bonus_gold
+	GameState.enemy_died(total_reward)
 	Sound.play_coin()
 
 	if VFX:
 		VFX.spawn_death_effect(position, enemy_type)
-		VFX.spawn_gold_number(position, reward)
+		VFX.spawn_gold_number(position, total_reward)
 
 		# Extra VFX für elementare Gegner
 		if element != "neutral" and element != "":

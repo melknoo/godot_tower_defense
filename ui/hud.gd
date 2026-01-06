@@ -441,9 +441,19 @@ func _on_supply_changed(used: int, max_supply: int) -> void:
 	if not supply_label:
 		return
 	
-	var available := max_supply - used
-	supply_label.text = "⛺ %d/%d" % [used, max_supply]
-	supply_label.tooltip_text = "Supply: %d verwendet von %d\n%d verfügbar" % [used, max_supply, available]
+	var upgrade_bonus := 0
+	if UpgradeSystem:
+		upgrade_bonus = UpgradeSystem.get_supply_max_bonus()
+	
+	var effective_max := max_supply + upgrade_bonus
+	var available := effective_max - used
+	
+	if upgrade_bonus > 0:
+		supply_label.text = "⛺ %d/%d (+%d)" % [used, max_supply, upgrade_bonus]
+	else:
+		supply_label.text = "⛺ %d/%d" % [used, effective_max]
+	
+	supply_label.tooltip_text = "Supply: %d verwendet von %d\n%d verfügbar" % [used, effective_max, available]
 	
 	if available <= 0:
 		supply_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))

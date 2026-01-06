@@ -88,6 +88,34 @@ func _load_corner_textures() -> void:
 			corner_textures[corner] = load(path)
 	corners_loaded = true
 
+func _apply_upgrade_bonuses() -> void:
+	if not UpgradeSystem:
+		return
+	
+	var elem := get_effective_element()
+	
+	# Damage Multiplikator
+	var damage_mult := UpgradeSystem.get_damage_multiplier(tower_type, elem)
+	damage = int(damage * damage_mult)
+	
+	# Range Multiplikator
+	var range_mult := UpgradeSystem.get_range_multiplier(tower_type)
+	tower_range *= range_mult
+	
+	# Fire Rate Multiplikator (schneller = niedrigerer Wert)
+	var fire_rate_mult := UpgradeSystem.get_fire_rate_multiplier(tower_type)
+	fire_rate /= (1.0 + fire_rate_mult - 1.0)  # Invers weil niedrigere fire_rate = schneller
+	
+	# Splash Multiplikator
+	if splash_radius > 0:
+		var splash_mult := UpgradeSystem.get_splash_multiplier()
+		splash_radius *= splash_mult
+	
+	# Element-spezifische Boni
+	if elem != "":
+		slow_amount += UpgradeSystem.get_slow_bonus(elem)
+		stun_chance += UpgradeSystem.get_stun_bonus(elem)
+		chain_targets += UpgradeSystem.get_chain_bonus(elem)
 
 func setup(data: Dictionary, type: String) -> void:
 	tower_type = type
@@ -97,6 +125,7 @@ func setup(data: Dictionary, type: String) -> void:
 	splash_radius = data.get("splash", 0.0)
 	attack_type = data.get("attack_type", "projectile")
 	_load_special_effects()
+	_apply_upgrade_bonuses()
 	_update_archer_anim_speed()
 	if is_inside_tree():
 		_update_visuals()
@@ -110,6 +139,7 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 	splash_radius = data.get("splash", splash_radius)
 	attack_type = data.get("attack_type", attack_type)
 	_load_special_effects()
+	_apply_upgrade_bonuses()
 	_update_archer_anim_speed()
 	if is_inside_tree():
 		_update_visuals()

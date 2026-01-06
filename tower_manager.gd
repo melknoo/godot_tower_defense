@@ -87,7 +87,7 @@ func can_place_at(grid_pos: Vector2i, tower_type: String) -> bool:
 	if picked_up_tower:
 		return true
 	
-	var cost: int = TowerData.get_stat(tower_type, "cost")
+	var cost: int = TowerData.get_tower_cost(tower_type)
 	if not GameState.can_afford(cost):
 		return false
 	if not TowerData.is_supply_building(tower_type):

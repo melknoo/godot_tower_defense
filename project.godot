@@ -23,6 +23,7 @@ UITheme="*res://ui_theme.gd"
 VFX="*res://autoload/vfx_manager.gd"
 Sound="*res://autoload/sound_manager.gd"
 ElementalSystem="*res://autoload/elemental_system.gd"
+UpgradeSystem="*res://autoload/upgrade_system.gd"
 
 [display]
 
