@@ -19,23 +19,21 @@ const SWORD_COLUMNS := 6
 
 var element_unlock_ui: ElementUnlockUI
 var wave_upgrade_ui: WaveUpgradeUI
+var upgrade_overview_ui: UpgradeOverviewUI
 var path_generator: PathGenerator
 
 var path_points: Array[Vector2] = []
 var path_cells: Array[Vector2i] = []
 var current_seed: int = 0
 
-# Tracking für Panel-Reihenfolge
 var pending_element_core := false
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
 var hover_sprite: Node2D
 
-# Pickup-Preview Modus
 var is_showing_pickup_preview := false
 
-# Drag & Drop
 var is_drag_potential := false
 var is_dragging := false
 var drag_start_pos: Vector2 = Vector2.ZERO
@@ -50,6 +48,7 @@ func _ready() -> void:
 	_setup_managers()
 	_setup_element_unlock_ui()
 	_setup_wave_upgrade_ui()
+	_setup_upgrade_overview_ui()
 	_connect_signals()
 	_setup_hover_preview()
 
@@ -121,6 +120,13 @@ func _setup_wave_upgrade_ui() -> void:
 	print("[Main] WaveUpgradeUI erstellt und Signal verbunden")
 
 
+func _setup_upgrade_overview_ui() -> void:
+	upgrade_overview_ui = UpgradeOverviewUI.new()
+	upgrade_overview_ui.name = "UpgradeOverviewUI"
+	add_child(upgrade_overview_ui)
+	print("[Main] UpgradeOverviewUI erstellt")
+
+
 func _connect_signals() -> void:
 	GameState.game_over_triggered.connect(_on_game_over)
 	GameState.wave_started.connect(_on_wave_started)
@@ -128,6 +134,7 @@ func _connect_signals() -> void:
 	GameState.element_core_earned.connect(_on_element_core_earned)
 	hud.start_wave_pressed.connect(_on_start_wave_pressed)
 	hud.open_element_panel_pressed.connect(_on_open_element_panel)
+	hud.open_upgrades_panel_pressed.connect(_on_open_upgrades_panel)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
 	tower_manager.tower_selected.connect(_on_tower_selected)
@@ -149,9 +156,17 @@ func _input(event: InputEvent) -> void:
 			element_unlock_ui.toggle_panel()
 		return
 	
+	if event is InputEventKey and event.pressed and event.keycode == KEY_U:
+		if upgrade_overview_ui:
+			upgrade_overview_ui.toggle_panel()
+		return
+	
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if element_unlock_ui and element_unlock_ui.visible:
 			element_unlock_ui.hide_panel()
+			return
+		if upgrade_overview_ui and upgrade_overview_ui.visible:
+			upgrade_overview_ui.hide_panel()
 			return
 		if is_dragging or is_drag_potential or tower_manager.has_picked_up_tower():
 			_cancel_drag_or_pickup()
@@ -182,6 +197,8 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 	if element_unlock_ui and element_unlock_ui.visible:
 		return
 	if wave_upgrade_ui and wave_upgrade_ui.visible:
+		return
+	if upgrade_overview_ui and upgrade_overview_ui.visible:
 		return
 	
 	if event.button_index == MOUSE_BUTTON_RIGHT:
@@ -312,6 +329,8 @@ func _is_over_ui(pos: Vector2) -> bool:
 		return true
 	if wave_upgrade_ui and wave_upgrade_ui.visible:
 		return true
+	if upgrade_overview_ui and upgrade_overview_ui.visible:
+		return true
 	var viewport_size := get_viewport_rect().size
 	if pos.y > viewport_size.y - 105:
 		return true
@@ -352,6 +371,9 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_preview.visible = false
 		return
 	if wave_upgrade_ui and wave_upgrade_ui.visible:
+		hover_preview.visible = false
+		return
+	if upgrade_overview_ui and upgrade_overview_ui.visible:
 		hover_preview.visible = false
 		return
 	
@@ -576,6 +598,11 @@ func _on_game_over() -> void:
 func _on_open_element_panel() -> void:
 	if element_unlock_ui:
 		element_unlock_ui.show_panel()
+
+
+func _on_open_upgrades_panel() -> void:
+	if upgrade_overview_ui:
+		upgrade_overview_ui.show_panel()
 
 
 func _on_element_unlocked(element: String) -> void:

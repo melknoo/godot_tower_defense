@@ -5,6 +5,7 @@ class_name HUD
 
 signal start_wave_pressed
 signal open_element_panel_pressed
+signal open_upgrades_panel_pressed
 
 @export var gold_label: Label
 @export var lives_label: Label
@@ -12,6 +13,7 @@ signal open_element_panel_pressed
 @export var enemies_label: Label
 @export var cores_label: Label
 @export var cores_button: Button
+@export var upgrades_button: Button
 @export var start_button: Button
 @export var wave_preview_label: Label
 @export var wave_element_icon: TextureRect
@@ -22,7 +24,6 @@ signal open_element_panel_pressed
 @export var supply_label: Label
 @export var blocked_warning_label: Label
 
-# NEU: Aktuelle Welle Element-Anzeige
 var current_wave_element_area: Control
 var current_wave_element_icon: TextureRect
 var current_wave_element_label: Label
@@ -123,7 +124,6 @@ func _find_or_create_ui_elements() -> void:
 	
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 780, hud_height - 110))
 
-	# NEU: Aktuelle Welle Info (links von der nächsten Welle)
 	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 550, hud_height - 85))
 	
 	var current_area_pos := Vector2(viewport_size.x - 580, hud_height - 70)
@@ -132,7 +132,6 @@ func _find_or_create_ui_elements() -> void:
 	current_wave_element_icon = _get_or_create_texture_rect_child(current_wave_element_area, "CurrentWaveElementIcon", Vector2(8, 5), Vector2(24, 24))
 	current_wave_element_label = _get_or_create_label_child(current_wave_element_area, "CurrentWaveElementLabel", Vector2(40, 8))
 
-	# Nächste Welle (rechts davon)
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 85))
 
 	var area_pos := Vector2(viewport_size.x - 410, hud_height - 60)
@@ -142,7 +141,8 @@ func _find_or_create_ui_elements() -> void:
 	wave_element_icon = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon", Vector2(8, 5), Vector2(24, 24))
 	wave_element_label = _get_or_create_label_child(wave_element_area, "WaveElementLabel", Vector2(40, 8))
 
-	cores_button = _get_or_create_button("CoresButton", Vector2(480, zero_row_y - 5), Vector2(64, 64))
+	cores_button = _get_or_create_button("CoresButton", Vector2(440, zero_row_y - 5), Vector2(64, 64))
+	upgrades_button = _get_or_create_button("UpgradesButton", Vector2(520, zero_row_y - 5), Vector2(48, 48))
 	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 780, first_row_y - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 780, second_row_y - 5), Vector2(48, 48))
 
@@ -215,7 +215,6 @@ func _apply_styles() -> void:
 		seed_label.add_theme_font_size_override("font_size", 10)
 		seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.7))
 
-	# Aktuelle Welle Styling
 	if current_wave_info_label:
 		current_wave_info_label.add_theme_font_size_override("font_size", 10)
 		current_wave_info_label.text = "Aktuelle Welle:"
@@ -228,7 +227,6 @@ func _apply_styles() -> void:
 	if current_wave_element_label:
 		current_wave_element_label.add_theme_font_size_override("font_size", 11)
 
-	# Nächste Welle Styling
 	if wave_preview_label:
 		wave_preview_label.add_theme_font_size_override("font_size", 10)
 
@@ -262,6 +260,10 @@ func _apply_styles() -> void:
 		if ResourceLoader.exists(icon_path):
 			cores_button.icon = load(icon_path)
 
+	if upgrades_button:
+		upgrades_button.text = "📋"
+		upgrades_button.tooltip_text = "Aktive Upgrades anzeigen (U)"
+
 	if start_button:
 		start_button.text = "Nächste Welle"
 
@@ -279,11 +281,15 @@ func _apply_styles() -> void:
 			UITheme.style_button(start_button)
 		if cores_button:
 			UITheme.style_button(cores_button)
+		if upgrades_button:
+			UITheme.style_button(upgrades_button)
 
 	if start_button:
 		_apply_button_font_color(start_button)
 	if cores_button:
 		_apply_button_font_color(cores_button)
+	if upgrades_button:
+		_apply_button_font_color(upgrades_button)
 
 
 func _style_fast_forward_button() -> void:
@@ -333,6 +339,8 @@ func _connect_signals() -> void:
 		start_button.pressed.connect(_on_start_button_pressed)
 	if cores_button:
 		cores_button.pressed.connect(_on_cores_button_pressed)
+	if upgrades_button:
+		upgrades_button.pressed.connect(_on_upgrades_button_pressed)
 	if fast_forward_button:
 		fast_forward_button.pressed.connect(_on_fast_forward_pressed)
 
@@ -487,17 +495,51 @@ func _update_bonus_preview() -> void:
 	bonus_preview_label.visible = true
 	var preview := GameState.get_wave_end_bonus_preview()
 	var flat: int = preview["flat"]
+	var base_flat: int = preview["base_flat"]
+	var flat_bonus: int = preview["flat_upgrade_bonus"]
 	var interest: int = preview["interest"]
+	var base_interest: int = preview["base_interest"]
+	var interest_bonus: int = preview["interest_upgrade_bonus"]
 	var total: int = preview["total"]
 	
+	# Text mit Upgrade-Boni aufbauen
+	var flat_text := "%d" % flat
+	if flat_bonus > 0:
+		flat_text = "%d(+%d)" % [base_flat, flat_bonus]
+	
+	var interest_text := "%d" % interest
+	if interest_bonus > 0:
+		interest_text = "%d(+%d)" % [base_interest, interest_bonus]
+	
 	if interest > 0:
-		bonus_preview_label.text = "Wellen-Ende: +%d +%d💰 = %d" % [flat, interest, total]
-		bonus_preview_label.tooltip_text = "Flat Bonus: %d\nZinsen (%d%% auf %d Gold): %d\nMax Zinsen: %d" % [
-			flat, int(preview["interest_rate"] * 100), GameState.gold, interest, preview["max_interest"]
-		]
+		bonus_preview_label.text = "Wellen-Ende: +%s +%s💰 = %d" % [flat_text, interest_text, total]
 	else:
-		bonus_preview_label.text = "Wellen-Ende: +%d" % flat
-		bonus_preview_label.tooltip_text = "Flat Bonus: %d\nZinsen: 0 (spare Gold für Zinsen!)" % flat
+		bonus_preview_label.text = "Wellen-Ende: +%s" % flat_text
+	
+	# Detaillierter Tooltip
+	var tooltip_lines: Array[String] = []
+	tooltip_lines.append("Flat Bonus: %d" % base_flat)
+	if flat_bonus > 0:
+		tooltip_lines.append("  + %d durch Upgrades" % flat_bonus)
+	
+	var rate_percent := int(preview["interest_rate"] * 100)
+	var base_rate_percent := int(preview["base_interest_rate"] * 100)
+	tooltip_lines.append("Zinsen (%d%% auf %d Gold): %d" % [rate_percent, GameState.gold, interest])
+	
+	if UpgradeSystem:
+		var rate_bonus := UpgradeSystem.get_interest_rate_bonus()
+		var max_bonus := UpgradeSystem.get_max_interest_bonus()
+		if rate_bonus > 0:
+			tooltip_lines.append("  + %d%% Zinsrate durch Upgrades" % int(rate_bonus * 100))
+		if max_bonus > 0:
+			tooltip_lines.append("  + %d Max-Zinsen durch Upgrades" % max_bonus)
+	
+	tooltip_lines.append("Max Zinsen: %d" % preview["max_interest"])
+	
+	if interest == 0:
+		tooltip_lines.append("(Spare Gold für Zinsen!)")
+	
+	bonus_preview_label.tooltip_text = "\n".join(tooltip_lines)
 
 
 func _on_wave_started(wave: int) -> void:
@@ -515,13 +557,11 @@ func _on_wave_started(wave: int) -> void:
 		fast_forward_button.visible = true
 	_set_fast_forward(false)
 	
-	# Aktuelle Welle Element anzeigen
 	var wave_manager := get_node_or_null("/root/Main/WaveManager") as WaveManager
 	if wave_manager:
 		_current_wave_element = wave_manager.current_wave_element
 	_update_current_wave_element_display(_current_wave_element)
 	
-	# Nächste Welle Preview aktualisieren (wave + 1)
 	_update_wave_preview(wave + 1)
 
 
@@ -534,7 +574,6 @@ func _on_wave_completed(wave: int) -> void:
 			start_button.disabled = true
 			start_button.text = "Türme umplatzieren!"
 	
-	# Aktuelle Welle ausblenden (keine Welle aktiv)
 	if current_wave_element_area:
 		current_wave_element_area.visible = false
 	if current_wave_info_label:
@@ -549,7 +588,6 @@ func _on_wave_completed(wave: int) -> void:
 	_set_fast_forward(false)
 
 
-# Wird von Main aufgerufen NACHDEM die Map regeneriert wurde
 func update_wave_preview_after_regen() -> void:
 	var next_wave := GameState.current_wave + 1
 	_update_wave_preview(next_wave)
@@ -671,6 +709,10 @@ func _on_start_button_pressed() -> void:
 
 func _on_cores_button_pressed() -> void:
 	open_element_panel_pressed.emit()
+
+
+func _on_upgrades_button_pressed() -> void:
+	open_upgrades_panel_pressed.emit()
 
 
 func _on_fast_forward_pressed() -> void:
@@ -873,6 +915,8 @@ func show_game_over() -> void:
 		start_button.visible = false
 	if cores_button:
 		cores_button.visible = false
+	if upgrades_button:
+		upgrades_button.visible = false
 	if fast_forward_button:
 		fast_forward_button.visible = false
 	if bonus_preview_label:

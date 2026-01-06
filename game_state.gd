@@ -8,14 +8,14 @@ signal wave_completed(wave_number: int)
 signal game_over_triggered
 signal enemy_count_changed(count: int)
 signal element_cores_changed(new_amount: int)
-signal element_core_earned  # Für UI-Popup
+signal element_core_earned
 signal supply_changed(used: int, max_supply: int)
 
-# Zinsen-Konstanten
-const INTEREST_RATE := 0.10  # 10% Zinsen
-const MAX_INTEREST := 50     # Maximale Zinsen pro Welle
+# Zinsen-Konstanten (Basis-Werte)
+const BASE_INTEREST_RATE := 0.10
+const BASE_MAX_INTEREST := 50
+const BASE_FLAT_BONUS := 25
 
-# Supply-Konstanten
 const STARTING_MAX_SUPPLY := 4
 
 var gold := 100:
@@ -58,7 +58,7 @@ var stats := {
 const DEFAULT_GOLD := 100
 const DEFAULT_LIVES := 20
 
-# Wellen nach denen man Element-Kerne bekommt
+
 func _get_core_reward_waves() -> Array[int]:
 	var waves: Array[int] = [1]
 	for i in range(5, 101, 5):
@@ -70,28 +70,84 @@ func _ready() -> void:
 	print("[GameState] Initialisiert")
 
 
-# === WAVE END BONUS BERECHNUNG ===
+# === UPGRADE-MODIFIZIERTE WERTE ===
+
+func get_interest_rate() -> float:
+	var rate := BASE_INTEREST_RATE
+	if UpgradeSystem:
+		rate += UpgradeSystem.get_interest_rate_bonus()
+	return rate
+
+
+func get_max_interest() -> int:
+	var max_int := BASE_MAX_INTEREST
+	if UpgradeSystem:
+		max_int += UpgradeSystem.get_max_interest_bonus()
+	return max_int
+
 
 func get_flat_bonus(wave: int) -> int:
-	return 25 + wave * 5
+	var base := BASE_FLAT_BONUS + wave * 5
+	if UpgradeSystem:
+		base += UpgradeSystem.get_flat_bonus_addition()
+	return base
+
+
+func get_base_flat_bonus(wave: int) -> int:
+	return BASE_FLAT_BONUS + wave * 5
 
 
 func get_interest_bonus() -> int:
-	var interest := int(gold * INTEREST_RATE)
-	return mini(interest, MAX_INTEREST)
+	var rate := get_interest_rate()
+	var max_int := get_max_interest()
+	var interest := int(gold * rate)
+	return mini(interest, max_int)
+
+
+func get_base_interest_bonus() -> int:
+	var interest := int(gold * BASE_INTEREST_RATE)
+	return mini(interest, BASE_MAX_INTEREST)
 
 
 func get_wave_end_bonus_preview() -> Dictionary:
-	# Gibt Preview für das HUD zurück (für nächste Welle)
 	var next_wave := current_wave + 1 if not wave_active else current_wave
+	
+	# Basis-Werte (ohne Upgrades)
+	var base_flat := get_base_flat_bonus(next_wave)
+	var base_interest := get_base_interest_bonus()
+	
+	# Modifizierte Werte (mit Upgrades)
 	var flat := get_flat_bonus(next_wave)
 	var interest := get_interest_bonus()
+	var total := flat + interest
+	
+	# Bonus durch Upgrades
+	var flat_upgrade_bonus := flat - base_flat
+	var interest_upgrade_bonus := 0
+	
+	# Berechne wie viel mehr Zinsen wir durch Upgrades bekommen
+	if UpgradeSystem:
+		var rate_bonus := UpgradeSystem.get_interest_rate_bonus()
+		var max_bonus := UpgradeSystem.get_max_interest_bonus()
+		
+		# Zusätzliche Zinsen durch höhere Rate
+		var extra_from_rate := int(gold * rate_bonus)
+		# Aber gecapped durch neues Maximum
+		var actual_interest := mini(int(gold * get_interest_rate()), get_max_interest())
+		interest_upgrade_bonus = actual_interest - base_interest
+	
 	return {
 		"flat": flat,
+		"base_flat": base_flat,
+		"flat_upgrade_bonus": flat_upgrade_bonus,
 		"interest": interest,
-		"total": flat + interest,
-		"interest_rate": INTEREST_RATE,
-		"max_interest": MAX_INTEREST
+		"base_interest": base_interest,
+		"interest_upgrade_bonus": interest_upgrade_bonus,
+		"total": total,
+		"interest_rate": get_interest_rate(),
+		"base_interest_rate": BASE_INTEREST_RATE,
+		"max_interest": get_max_interest(),
+		"base_max_interest": BASE_MAX_INTEREST
 	}
 
 
@@ -129,7 +185,6 @@ func _check_wave_end() -> void:
 	if enemies_remaining <= 0 and wave_active:
 		wave_active = false
 		
-		# Flat Bonus + Zinsen
 		var flat_bonus := get_flat_bonus(current_wave)
 		var interest_bonus := get_interest_bonus()
 		var total_bonus := flat_bonus + interest_bonus
@@ -137,7 +192,6 @@ func _check_wave_end() -> void:
 		gold += total_bonus
 		stats["gold_earned"] += total_bonus
 		
-		# Element-Kern prüfen
 		if current_wave in _get_core_reward_waves():
 			element_cores += 1
 			element_core_earned.emit()
@@ -164,7 +218,10 @@ func has_element_cores() -> bool:
 # === SUPPLY SYSTEM ===
 
 func can_use_supply(amount: int = 1) -> bool:
-	return supply_used + amount <= supply_max
+	var effective_max := supply_max
+	if UpgradeSystem:
+		effective_max += UpgradeSystem.get_supply_max_bonus()
+	return supply_used + amount <= effective_max
 
 
 func use_supply(amount: int = 1) -> bool:
@@ -186,10 +243,14 @@ func add_max_supply(amount: int = 1) -> void:
 
 
 func get_supply_info() -> Dictionary:
+	var effective_max := supply_max
+	if UpgradeSystem:
+		effective_max += UpgradeSystem.get_supply_max_bonus()
 	return {
 		"used": supply_used,
-		"max": supply_max,
-		"available": supply_max - supply_used
+		"max": effective_max,
+		"base_max": supply_max,
+		"available": effective_max - supply_used
 	}
 
 
@@ -234,6 +295,8 @@ func reset() -> void:
 	}
 	if TowerData:
 		TowerData.reset_unlocks()
+	if UpgradeSystem:
+		UpgradeSystem.reset()
 	print("[GameState] Zurückgesetzt")
 
 
