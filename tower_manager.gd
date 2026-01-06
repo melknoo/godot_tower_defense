@@ -124,6 +124,11 @@ func pickup_tower(grid_pos: Vector2i) -> bool:
 		return false
 	
 	var tower: Node2D = placed_towers[grid_pos]
+	
+	# ZUERST deselektieren (bevor wir aus placed_towers entfernen!)
+	if selected_grid_pos == grid_pos:
+		deselect_tower()
+	
 	picked_up_tower = tower
 	picked_up_from_pos = grid_pos
 	
@@ -132,10 +137,6 @@ func pickup_tower(grid_pos: Vector2i) -> bool:
 	
 	# Aus placed_towers entfernen (temporär)
 	placed_towers.erase(grid_pos)
-	
-	# Deselektieren
-	if selected_grid_pos == grid_pos:
-		deselect_tower()
 	
 	tower_picked_up.emit(tower, grid_pos)
 	Sound.play_click()

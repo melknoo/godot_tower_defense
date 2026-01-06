@@ -31,6 +31,13 @@ var hover_sprite: Node2D
 # Pickup-Preview Modus
 var is_showing_pickup_preview := false
 
+# Drag & Drop
+var is_drag_potential := false  # Maus gedrückt, aber noch nicht bewegt
+var is_dragging := false        # Tatsächlicher Drag aktiv
+var drag_start_pos: Vector2 = Vector2.ZERO
+var drag_start_grid: Vector2i = Vector2i(-1, -1)
+const DRAG_THRESHOLD := 8.0     # Pixel bevor Drag startet
+
 
 func _ready() -> void:
 	_setup_path_generator()
@@ -132,10 +139,10 @@ func _input(event: InputEvent) -> void:
 		if element_unlock_ui and element_unlock_ui.visible:
 			element_unlock_ui.hide_panel()
 			return
-		# Pickup abbrechen wenn aktiv
-		if tower_manager.has_picked_up_tower():
-			tower_manager.cancel_pickup()
-			_end_pickup_preview()
+		# Drag/Pickup abbrechen wenn aktiv
+		if is_dragging or is_drag_potential or tower_manager.has_picked_up_tower():
+			_cancel_drag_or_pickup()
+			is_drag_potential = false
 			return
 		_deselect_all()
 		return
@@ -147,10 +154,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _regenerate_map() -> void:
-	# Pickup abbrechen falls aktiv
-	if tower_manager.has_picked_up_tower():
-		tower_manager.cancel_pickup()
-		_end_pickup_preview()
+	# Drag/Pickup abbrechen falls aktiv
+	_cancel_drag_or_pickup()
+	is_drag_potential = false
 	
 	# Neuen Pfad generieren
 	_generate_new_path()
@@ -170,40 +176,115 @@ func _regenerate_map() -> void:
 
 
 func _handle_mouse_click(event: InputEventMouseButton) -> void:
-	if not event.pressed:
-		return
 	if element_unlock_ui and element_unlock_ui.visible:
 		return
 	
 	if event.button_index == MOUSE_BUTTON_RIGHT:
-		# Rechtsklick: Pickup abbrechen oder alles deselektieren
-		if tower_manager.has_picked_up_tower():
-			tower_manager.cancel_pickup()
-			_end_pickup_preview()
-		else:
-			_deselect_all()
+		if event.pressed:
+			# Rechtsklick: Pickup/Drag abbrechen oder alles deselektieren
+			_cancel_drag_or_pickup()
 		return
 	
 	if event.button_index == MOUSE_BUTTON_LEFT:
-		if _is_over_ui(event.position):
-			return
-		
-		var game_area_height := MAP_HEIGHT * GRID_SIZE
-		if event.position.y > game_area_height:
-			return
-		
-		var grid_pos := Vector2i(int(event.position.x / GRID_SIZE), int(event.position.y / GRID_SIZE))
-		
-		# Pickup-Modus: Turm umplatzieren
-		if tower_manager.has_picked_up_tower():
-			_handle_relocate_click(grid_pos)
-			return
-		
-		var tower := tower_manager.get_tower_at(grid_pos)
-		if tower:
-			_handle_tower_click(grid_pos)
+		if event.pressed:
+			_on_left_mouse_pressed(event.position)
 		else:
-			_handle_empty_cell_click(grid_pos, event.position)
+			_on_left_mouse_released(event.position)
+
+
+func _on_left_mouse_pressed(pos: Vector2) -> void:
+	if _is_over_ui(pos):
+		return
+	
+	var game_area_height := MAP_HEIGHT * GRID_SIZE
+	if pos.y > game_area_height:
+		return
+	
+	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
+	
+	# Wenn wir bereits einen Turm aufgenommen haben (via Button), platzieren
+	if tower_manager.has_picked_up_tower():
+		_handle_relocate_click(grid_pos)
+		return
+	
+	# Wenn Shop-Auswahl aktiv -> Turm platzieren (hat Priorität vor Drag)
+	if tower_shop.has_selection():
+		tower_manager.deselect_tower()
+		var tower_type := tower_shop.get_selected_type()
+		if tower_manager.can_place_at(grid_pos, tower_type):
+			tower_manager.place_tower(grid_pos, tower_type)
+			_update_hover_preview(pos)
+		return
+	
+	# Prüfen ob auf Turm geklickt wurde -> Drag potential starten
+	var tower := tower_manager.get_tower_at(grid_pos)
+	if tower and not GameState.wave_active:
+		is_drag_potential = true
+		drag_start_pos = pos
+		drag_start_grid = grid_pos
+		return
+	
+	# Klick auf leeres Feld ohne Shop-Auswahl -> deselektieren
+	tower_manager.deselect_tower()
+
+
+func _on_left_mouse_released(pos: Vector2) -> void:
+	var game_area_height := MAP_HEIGHT * GRID_SIZE
+	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
+	
+	if is_dragging:
+		# Drop ausführen
+		if pos.y <= game_area_height and tower_manager.can_relocate_to(grid_pos):
+			tower_manager.relocate_tower(grid_pos)
+			_end_pickup_preview()
+			tower_manager.deselect_tower()
+		else:
+			# Ungültige Position -> abbrechen
+			tower_manager.cancel_pickup()
+			_end_pickup_preview()
+		
+		is_dragging = false
+		is_drag_potential = false
+		drag_start_grid = Vector2i(-1, -1)
+		return
+	
+	if is_drag_potential:
+		# Kein Drag passiert -> normaler Klick (Selektion)
+		is_drag_potential = false
+		_handle_tower_click(drag_start_grid)
+		drag_start_grid = Vector2i(-1, -1)
+		return
+
+
+func _cancel_drag_or_pickup() -> void:
+	if is_dragging:
+		tower_manager.cancel_pickup()
+		_end_pickup_preview()
+		is_dragging = false
+		is_drag_potential = false
+		drag_start_grid = Vector2i(-1, -1)
+	elif tower_manager.has_picked_up_tower():
+		tower_manager.cancel_pickup()
+		_end_pickup_preview()
+	else:
+		_deselect_all()
+
+
+func _check_drag_start(current_pos: Vector2) -> void:
+	if not is_drag_potential:
+		return
+	
+	var distance := current_pos.distance_to(drag_start_pos)
+	if distance >= DRAG_THRESHOLD:
+		# Drag starten
+		is_drag_potential = false
+		is_dragging = true
+		
+		# Turm aufnehmen
+		if tower_manager.pickup_tower(drag_start_grid):
+			_start_pickup_preview()
+		else:
+			is_dragging = false
 
 
 func _handle_relocate_click(grid_pos: Vector2i) -> void:
@@ -247,6 +328,9 @@ func _deselect_all() -> void:
 	tower_shop.deselect()
 	tower_manager.deselect_tower()
 	hover_preview.visible = false
+	is_drag_potential = false
+	is_dragging = false
+	drag_start_grid = Vector2i(-1, -1)
 
 
 func _setup_hover_preview() -> void:
@@ -261,8 +345,11 @@ func _setup_hover_preview() -> void:
 
 
 func _update_hover_preview(mouse_pos: Vector2) -> void:
-	# Pickup-Preview hat Priorität
-	if tower_manager.has_picked_up_tower():
+	# Prüfen ob Drag gestartet werden soll
+	_check_drag_start(mouse_pos)
+	
+	# Pickup/Drag-Preview hat Priorität
+	if tower_manager.has_picked_up_tower() or is_dragging:
 		_update_pickup_hover_preview(mouse_pos)
 		return
 	
@@ -468,10 +555,17 @@ func _on_element_unlocked(element: String) -> void:
 
 
 func _on_shop_tower_selected(_tower_type: String) -> void:
-	# Pickup abbrechen wenn Shop-Auswahl
-	if tower_manager.has_picked_up_tower():
+	# Nur Drag/Pickup abbrechen, NICHT den Shop deselektieren
+	if is_dragging:
 		tower_manager.cancel_pickup()
 		_end_pickup_preview()
+		is_dragging = false
+	elif tower_manager.has_picked_up_tower():
+		tower_manager.cancel_pickup()
+		_end_pickup_preview()
+	
+	is_drag_potential = false
+	drag_start_grid = Vector2i(-1, -1)
 	tower_manager.deselect_tower()
 	_update_hover_preview(get_viewport().get_mouse_position())
 
@@ -495,6 +589,8 @@ func _on_tower_picked_up(_tower: Node2D, _grid_pos: Vector2i) -> void:
 
 func _on_tower_relocated(_tower: Node2D, _old_pos: Vector2i, _new_pos: Vector2i) -> void:
 	_end_pickup_preview()
+	# Nach Umplatzierung deselektieren
+	tower_manager.deselect_tower()
 
 
 func _on_blocked_towers_changed(count: int) -> void:

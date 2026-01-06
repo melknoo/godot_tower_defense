@@ -101,6 +101,7 @@ func _find_or_create_ui_elements() -> void:
 	var second_row_y := hud_height - 44
 	var third_row_y := hud_height - 66
 	var first_row_y := hud_height - 88
+	var zero_row_y := hud_height - 110
 	var viewport_size := get_viewport_rect().size
 
 	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
@@ -111,7 +112,7 @@ func _find_or_create_ui_elements() -> void:
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
 	
 	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
-	supply_label = _get_or_create_label("SupplyLabel", Vector2(280, second_row_y))
+	supply_label = _get_or_create_label("SupplyLabel", Vector2(20, zero_row_y))
 	
 	# NEU: Blocked-Warnung (prominent über dem Start-Button)
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 650, hud_height - 110))
@@ -126,7 +127,7 @@ func _find_or_create_ui_elements() -> void:
 	wave_element_label = _get_or_create_label_child(wave_element_area, "WaveElementLabel", Vector2(40, 8))
 
 	cores_button = _get_or_create_button("CoresButton", Vector2(380, third_row_y - 5), Vector2(64, 64))
-	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 650, hud_height - 90), Vector2(130, 32))
+	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 750, hud_height - 90), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 450, hud_height - 100), Vector2(48, 48))
 
 
