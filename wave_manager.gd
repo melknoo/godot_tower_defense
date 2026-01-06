@@ -18,6 +18,10 @@ var _rng := RandomNumberGenerator.new()
 # Wave-Element tracking
 var current_wave_element := "neutral"
 
+# Cache für nächste Welle (ändert sich nicht bei Seed-Wechsel)
+var _cached_next_wave_number: int = -1
+var _cached_next_wave_element: String = ""
+
 # Gegner-Typen Definition
 var enemy_types := {
 	"normal": {
@@ -51,7 +55,6 @@ func _ready() -> void:
 	print("[WaveManager] Initialisiert mit Elementar-System")
 
 
-# Holt den aktuellen Map-Seed dynamisch
 func _get_current_map_seed() -> int:
 	var main := get_node_or_null("/root/Main")
 	if main and main.has_method("get_current_seed"):
@@ -62,6 +65,17 @@ func _get_current_map_seed() -> int:
 func start_wave(wave_number: int) -> void:
 	if is_spawning:
 		return
+	
+	# Gecachtes Element für diese Welle übernehmen (falls vorhanden)
+	if _cached_next_wave_number == wave_number and _cached_next_wave_element != "":
+		current_wave_element = _cached_next_wave_element
+	else:
+		current_wave_element = _determine_wave_element(wave_number)
+	
+	# Cache leeren - nächste Welle wird bei Preview neu berechnet
+	if _cached_next_wave_number == wave_number:
+		_cached_next_wave_number = -1
+		_cached_next_wave_element = ""
 	
 	spawn_queue = generate_wave_composition(wave_number)
 	GameState.enemies_remaining = spawn_queue.size()
@@ -78,10 +92,8 @@ func _determine_wave_element(wave: int) -> String:
 	if wave <= 2:
 		return "neutral"
 
-	# Seed basierend auf aktuellem Map-Seed + Wave-Nummer
-	# So ist es deterministisch für Preview, aber ändert sich mit neuem Map-Seed
 	var current_seed := _get_current_map_seed()
-	_rng.seed = current_seed + wave * 7919  # Primzahl für bessere Verteilung
+	_rng.seed = current_seed + wave * 7919
 	return ELEMENTS[_rng.randi_range(0, ELEMENTS.size() - 1)]
 
 
@@ -89,11 +101,10 @@ func generate_wave_composition(wave: int) -> Array[Dictionary]:
 	var composition: Array[Dictionary] = []
 	
 	# Wave-Element bestimmen
-	current_wave_element = _determine_wave_element(wave)
+	#current_wave_element = _determine_wave_element(wave)
 	
 	var total_enemies := 5 + wave * 2
 	
-	# Gegner-Typen verteilen
 	var fast_count := 0
 	if wave >= 3:
 		fast_count = mini(wave - 2, total_enemies / 3)
@@ -108,7 +119,6 @@ func generate_wave_composition(wave: int) -> Array[Dictionary]:
 	
 	var normal_count := maxi(1, total_enemies - fast_count - tank_count - boss_count)
 	
-	# Queue aufbauen
 	for i in range(normal_count):
 		composition.append(_create_enemy_data("normal", wave))
 	
@@ -130,7 +140,6 @@ func _create_enemy_data(type: String, wave: int) -> Dictionary:
 	var base: Dictionary = enemy_types[type]
 	var element := current_wave_element
 
-	# Elementare Gegner sind etwas stärker
 	var elem_bonus := 1.0
 	if element != "neutral":
 		elem_bonus = 1.15
@@ -198,8 +207,14 @@ func set_spawn_speed(multiplier: float) -> void:
 
 
 func get_wave_preview(wave_number: int) -> Dictionary:
-	# Element für Preview berechnen (mit gleichem Algorithmus wie _determine_wave_element)
-	var preview_element := _determine_wave_element(wave_number)
+	# Element cachen - ändert sich nicht mehr bis Welle startet
+	var preview_element: String
+	if _cached_next_wave_number == wave_number:
+		preview_element = _cached_next_wave_element
+	else:
+		preview_element = _determine_wave_element(wave_number)
+		_cached_next_wave_number = wave_number
+		_cached_next_wave_element = preview_element
 	
 	var total: int = 5 + wave_number * 2
 	

@@ -579,11 +579,20 @@ func _on_wave_started(wave: int) -> void:
 		fast_forward_button.visible = true
 	_set_fast_forward(false)
 	
+	call_deferred("_refresh_wave_panels_after_wave_started", wave)
+
+
+func _refresh_wave_panels_after_wave_started(wave: int) -> void:
+	# Aktuelle Welle Element anzeigen
 	var wave_manager := get_node_or_null("/root/Main/WaveManager") as WaveManager
 	if wave_manager:
 		_current_wave_element = wave_manager.current_wave_element
 	_update_current_wave_element_display(_current_wave_element)
-	
+
+	if current_wave_info_label:
+		current_wave_info_label.visible = true
+
+	# Nächste Welle Vorschau anzeigen
 	_update_wave_preview(wave + 1)
 
 
@@ -596,6 +605,7 @@ func _on_wave_completed(wave: int) -> void:
 			start_button.disabled = true
 			start_button.text = "Türme umplatzieren!"
 	
+	# Aktuelle Welle Info ausblenden
 	if current_wave_element_area:
 		current_wave_element_area.visible = false
 	if current_wave_info_label:
