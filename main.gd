@@ -538,6 +538,11 @@ func _on_wave_completed(_wave: int) -> void:
 	# Nach Wellen-Ende: Pfad regenerieren
 	print("[Main] Welle abgeschlossen - regeneriere Pfad...")
 	_regenerate_map()
+	
+	# HUD Wave-Preview NACH der Map-Regeneration aktualisieren
+	# (damit der neue Seed für die Element-Berechnung verwendet wird)
+	if hud:
+		hud.update_wave_preview_after_regen()
 
 
 func _on_game_over() -> void:

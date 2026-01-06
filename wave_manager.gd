@@ -14,7 +14,6 @@ var is_spawning := false
 var spawn_queue: Array[Dictionary] = []
 var current_spawn_index := 0
 var _rng := RandomNumberGenerator.new()
-var _base_seed: int = 0
 
 # Wave-Element tracking
 var current_wave_element := "neutral"
@@ -49,14 +48,15 @@ const ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
 func _ready() -> void:
 	if enemy_scene == null:
 		enemy_scene = preload("res://enemy.tscn")
+	print("[WaveManager] Initialisiert mit Elementar-System")
 
+
+# Holt den aktuellen Map-Seed dynamisch
+func _get_current_map_seed() -> int:
 	var main := get_node_or_null("/root/Main")
 	if main and main.has_method("get_current_seed"):
-		_base_seed = int(main.get_current_seed())
-	else:
-		_base_seed = 0
-
-	print("[WaveManager] Initialisiert mit Elementar-System")
+		return int(main.get_current_seed())
+	return 0
 
 
 func start_wave(wave_number: int) -> void:
@@ -68,7 +68,9 @@ func start_wave(wave_number: int) -> void:
 	current_spawn_index = 0
 	is_spawning = true
 	
-	print("[WaveManager] Wave %d: %d Gegner - Element: %s" % [wave_number, spawn_queue.size(), current_wave_element])
+	print("[WaveManager] Wave %d: %d Gegner - Element: %s (Seed: %d)" % [
+		wave_number, spawn_queue.size(), current_wave_element, _get_current_map_seed()
+	])
 	_spawn_next()
 
 
@@ -76,7 +78,10 @@ func _determine_wave_element(wave: int) -> String:
 	if wave <= 2:
 		return "neutral"
 
-	_rng.seed = _base_seed + wave * 10007
+	# Seed basierend auf aktuellem Map-Seed + Wave-Nummer
+	# So ist es deterministisch für Preview, aber ändert sich mit neuem Map-Seed
+	var current_seed := _get_current_map_seed()
+	_rng.seed = current_seed + wave * 7919  # Primzahl für bessere Verteilung
 	return ELEMENTS[_rng.randi_range(0, ELEMENTS.size() - 1)]
 
 
@@ -123,11 +128,7 @@ func generate_wave_composition(wave: int) -> Array[Dictionary]:
 
 func _create_enemy_data(type: String, wave: int) -> Dictionary:
 	var base: Dictionary = enemy_types[type]
-	
-	# Element basierend auf Wave-Phase bestimmen
-	var element := _get_enemy_element(wave)
-	#var element := "fire"
-	print("[WaveManager] wave=", wave, " current_wave_element=", current_wave_element, " enemy_element=", element)
+	var element := current_wave_element
 
 	# Elementare Gegner sind etwas stärker
 	var elem_bonus := 1.0
@@ -143,18 +144,6 @@ func _create_enemy_data(type: String, wave: int) -> Dictionary:
 		"scale": base["scale"],
 		"element": element
 	}
-
-
-func _get_enemy_element(wave: int) -> String:
-	# Wenn ein festes Element für die Welle gesetzt ist
-	if current_wave_element != "mixed":
-		return current_wave_element
-	
-	# Gemischte Wellen (Wave 11+)
-	# 20% Chance auf neutral, sonst zufälliges Element
-	if randf() < 0.2:
-		return "neutral"
-	return ELEMENTS[randi() % ELEMENTS.size()]
 
 
 func _spawn_next() -> void:
@@ -188,7 +177,7 @@ func _spawn_enemy(data: Dictionary) -> void:
 		return
 
 	var enemy := enemy_scene.instantiate()
-	get_parent().add_child(enemy) # <-- erst adden!
+	get_parent().add_child(enemy)
 
 	if enemy.has_method("setup_extended"):
 		enemy.setup_extended(path_points, data)
@@ -209,7 +198,7 @@ func set_spawn_speed(multiplier: float) -> void:
 
 
 func get_wave_preview(wave_number: int) -> Dictionary:
-	# Element für Preview bestimmen (ohne current_wave_element zu ändern)
+	# Element für Preview berechnen (mit gleichem Algorithmus wie _determine_wave_element)
 	var preview_element := _determine_wave_element(wave_number)
 	
 	var total: int = 5 + wave_number * 2
@@ -220,7 +209,6 @@ func get_wave_preview(wave_number: int) -> Dictionary:
 		"wave_element": preview_element
 	}
 	
-	# Grobe Schätzung der Gegner-Typen
 	var fast := 0
 	if wave_number >= 3:
 		fast = mini(wave_number - 2, total / 3)
@@ -255,23 +243,19 @@ func get_wave_info(wave_number: int) -> String:
 	return ", ".join(parts)
 
 
-# NEU: Gibt Element-Info für die Wave-Preview zurück
 func get_wave_element_info(wave_number: int) -> String:
 	var preview := get_wave_preview(wave_number)
 	var wave_elem: String = preview["wave_element"]
 	
 	if wave_elem == "neutral":
-		return "○ Neutral"
-	elif wave_elem == "mixed":
-		return "🌀 Gemischt"
+		return "◯ Neutral"
 	else:
-		var symbol: String = ""
-		var name: String = ""
+		var symbol := ""
+		var name := ""
 		if ElementalSystem:
 			symbol = ElementalSystem.get_element_symbol(wave_elem)
-			# Effektives Element anzeigen
-			var effective: String = ElementalSystem.get_effective_element(wave_elem)
-			var eff_symbol: String = ElementalSystem.get_element_symbol(effective) if effective != "neutral" else ""
+			var effective := ElementalSystem.get_effective_element(wave_elem)
+			var eff_symbol := ElementalSystem.get_element_symbol(effective) if effective != "neutral" else ""
 			name = wave_elem.capitalize()
 			if eff_symbol != "":
 				return "%s %s (schwach gegen %s)" % [symbol, name, eff_symbol]
