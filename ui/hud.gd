@@ -488,6 +488,8 @@ func _flash_cores_label() -> void:
 	tween.tween_property(cores_label, "modulate", Color.WHITE, 0.3)
 
 
+# Ersetze die _update_bonus_preview Funktion in hud.gd mit dieser Version:
+
 func _update_bonus_preview() -> void:
 	if not bonus_preview_label:
 		return
@@ -499,45 +501,65 @@ func _update_bonus_preview() -> void:
 	var flat_bonus: int = preview["flat_upgrade_bonus"]
 	var interest: int = preview["interest"]
 	var base_interest: int = preview["base_interest"]
-	var interest_bonus: int = preview["interest_upgrade_bonus"]
+	var interest_upgrade_bonus: int = preview["interest_upgrade_bonus"]
 	var total: int = preview["total"]
 	
-	# Text mit Upgrade-Boni aufbauen
+	# Text mit Upgrade-Boni in Klammern
 	var flat_text := "%d" % flat
 	if flat_bonus > 0:
 		flat_text = "%d(+%d)" % [base_flat, flat_bonus]
 	
-	var interest_text := "%d" % interest
-	if interest_bonus > 0:
-		interest_text = "%d(+%d)" % [base_interest, interest_bonus]
+	var interest_text := "%d💰" % interest
+	if interest_upgrade_bonus > 0:
+		interest_text = "%d(+%d)💰" % [base_interest, interest_upgrade_bonus]
 	
+	# Kompakte Anzeige mit Total
 	if interest > 0:
-		bonus_preview_label.text = "Wellen-Ende: +%s +%s💰 = %d" % [flat_text, interest_text, total]
+		bonus_preview_label.text = "Wellen-Ende: +%s +%s = %d" % [flat_text, interest_text, total]
 	else:
-		bonus_preview_label.text = "Wellen-Ende: +%s" % flat_text
+		bonus_preview_label.text = "Wellen-Ende: +%s = %d" % [flat_text, total]
 	
-	# Detaillierter Tooltip
+	# Detaillierter Tooltip mit allen Upgrade-Infos
 	var tooltip_lines: Array[String] = []
-	tooltip_lines.append("Flat Bonus: %d" % base_flat)
-	if flat_bonus > 0:
-		tooltip_lines.append("  + %d durch Upgrades" % flat_bonus)
+	tooltip_lines.append("=== Wellen-Bonus Berechnung ===")
+	tooltip_lines.append("")
 	
+	# Flat Bonus Section
+	tooltip_lines.append("📦 Flat Bonus: %d Gold" % flat)
+	if flat_bonus > 0:
+		tooltip_lines.append("    Basis: %d" % base_flat)
+		tooltip_lines.append("    Upgrade (Kriegskasse): +%d" % flat_bonus)
+	
+	tooltip_lines.append("")
+	
+	# Zinsen Section
 	var rate_percent := int(preview["interest_rate"] * 100)
-	var base_rate_percent := int(preview["base_interest_rate"] * 100)
-	tooltip_lines.append("Zinsen (%d%% auf %d Gold): %d" % [rate_percent, GameState.gold, interest])
+	tooltip_lines.append("💰 Zinsen: %d Gold" % interest)
+	tooltip_lines.append("    Berechnung: %d%% von %d Gold" % [rate_percent, GameState.gold])
 	
 	if UpgradeSystem:
 		var rate_bonus := UpgradeSystem.get_interest_rate_bonus()
 		var max_bonus := UpgradeSystem.get_max_interest_bonus()
+		
 		if rate_bonus > 0:
-			tooltip_lines.append("  + %d%% Zinsrate durch Upgrades" % int(rate_bonus * 100))
+			var base_rate := int(GameState.BASE_INTEREST_RATE * 100)
+			tooltip_lines.append("    Zinsrate: %d%% (+%d%% Upgrade)" % [rate_percent, int(rate_bonus * 100)])
+		
+		if interest_upgrade_bonus > 0:
+			tooltip_lines.append("    Mehr durch Upgrades: +%d" % interest_upgrade_bonus)
+		
+		tooltip_lines.append("    Max-Zinsen: %d" % preview["max_interest"])
 		if max_bonus > 0:
-			tooltip_lines.append("  + %d Max-Zinsen durch Upgrades" % max_bonus)
+			tooltip_lines.append("    (inkl. +%d Upgrade-Bonus)" % max_bonus)
+	else:
+		tooltip_lines.append("    Max-Zinsen: %d" % preview["max_interest"])
 	
-	tooltip_lines.append("Max Zinsen: %d" % preview["max_interest"])
+	if interest == 0 and GameState.gold < 10:
+		tooltip_lines.append("")
+		tooltip_lines.append("💡 Tipp: Spare Gold für mehr Zinsen!")
 	
-	if interest == 0:
-		tooltip_lines.append("(Spare Gold für Zinsen!)")
+	tooltip_lines.append("")
+	tooltip_lines.append("=== Gesamt: %d Gold ===" % total)
 	
 	bonus_preview_label.tooltip_text = "\n".join(tooltip_lines)
 

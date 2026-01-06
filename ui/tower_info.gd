@@ -1,5 +1,6 @@
 # ui/tower_info.gd
 # Panel für Tower-Info, Verkauf, Upgrade, Engraving und Pickup
+# Zeigt Upgrade-Boni bei Stats an
 extends PanelContainer
 class_name TowerInfo
 
@@ -7,17 +8,17 @@ signal sell_pressed
 signal upgrade_pressed
 signal close_pressed
 signal engrave_pressed(element: String)
-signal pickup_pressed  # NEU
+signal pickup_pressed
 
 var tower_name_label: Label
 var tower_level_label: Label
 var stats_label: Label
 var element_label: Label
 var supply_info_label: Label
-var blocked_info_label: Label  # NEU: Zeigt "Auf Pfad" Warnung
+var blocked_info_label: Label
 var sell_button: Button
 var upgrade_button: Button
-var pickup_button: Button  # NEU
+var pickup_button: Button
 var engrave_container: HBoxContainer
 var close_button: Button
 var vbox: VBoxContainer
@@ -79,7 +80,6 @@ func _setup_ui() -> void:
 	supply_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
 	vbox.add_child(supply_info_label)
 	
-	# NEU: Blocked-Info Label
 	blocked_info_label = Label.new()
 	blocked_info_label.name = "BlockedInfoLabel"
 	blocked_info_label.add_theme_font_size_override("font_size", 11)
@@ -102,7 +102,6 @@ func _setup_ui() -> void:
 	engrave_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
 	engrave_container.add_child(engrave_label)
 	
-	# NEU: Pickup Button (für Umplatzierung)
 	pickup_button = Button.new()
 	pickup_button.name = "PickupButton"
 	pickup_button.text = "Aufnehmen"
@@ -142,28 +141,20 @@ func set_tower_manager(tm: TowerManager) -> void:
 func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	current_tower = tower
 	current_grid_pos = grid_pos
-	
 	_update_display()
 	visible = true
-	
 	size = get_combined_minimum_size()
-
 	var screen_size := get_viewport_rect().size
 	var margin := 10.0
 	var tile := 64.0
-
 	var tower_y := float(grid_pos.y) * tile + tile * 0.5
 	var open_up := tower_y > screen_size.y * 0.5
-
 	position.x = float(grid_pos.x) * tile + tile + margin
 	position.y = (tower_y - size.y - margin) if open_up else (tower_y + margin)
-
 	if position.x + size.x > screen_size.x - margin:
 		position.x = float(grid_pos.x) * tile - size.x - margin
-
 	position.x = clamp(position.x, margin, screen_size.x - size.x - margin)
 	position.y = clamp(position.y, margin, screen_size.y - size.y - margin)
-
 	call_deferred("_bring_to_front")
 
 
@@ -176,12 +167,10 @@ func hide_panel() -> void:
 func _update_display() -> void:
 	if not current_tower or not tower_manager:
 		return
-	
 	var tower_type: String = current_tower.tower_type
 	var level: int = tower_manager.get_tower_level(current_grid_pos)
 	var data := TowerData.get_tower_data(tower_type)
 	var is_blocked := tower_manager.is_tower_blocked(current_grid_pos)
-	
 	var display_name: String = data.get("name", tower_type.capitalize())
 	
 	if current_tower.has_method("is_engraved") and current_tower.is_engraved():
@@ -200,19 +189,7 @@ func _update_display() -> void:
 		tower_level_label.text = "Level %d / %d" % [level + 1, TowerData.MAX_LEVEL + 1]
 	
 	_update_element_display()
-	
-	if TowerData.is_supply_building(tower_type):
-		var bonus := TowerData.get_supply_bonus(tower_type)
-		stats_label.text = "Supply Bonus: +%d" % bonus
-	else:
-		var damage_val: int = TowerData.get_stat(tower_type, "damage", level)
-		var range_val: float = TowerData.get_stat(tower_type, "range", level)
-		var fire_rate_val: float = TowerData.get_stat(tower_type, "fire_rate", level)
-		
-		stats_label.text = "Schaden: %d\nReichweite: %d\nFeuerrate: %.1f/s" % [
-			damage_val, int(range_val), 1.0 / fire_rate_val if fire_rate_val > 0 else 0
-		]
-	
+	_update_stats_with_upgrades(tower_type, level)
 	_update_supply_info(level)
 	_update_blocked_info(is_blocked)
 	
@@ -227,20 +204,92 @@ func _update_display() -> void:
 	_update_engrave_buttons()
 
 
-func _update_blocked_info(is_blocked: bool) -> void:
-	if is_blocked:
-		blocked_info_label.visible = true
-		blocked_info_label.text = "⚠ Steht auf dem Pfad!\nKlicke 'Aufnehmen' zum Umplatzieren"
+func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
+	if TowerData.is_supply_building(tower_type):
+		var bonus: int = TowerData.get_supply_bonus(tower_type)
+		var farm_upgrade_bonus: int = 0
+		if UpgradeSystem:
+			farm_upgrade_bonus = UpgradeSystem.get_farm_supply_bonus()
+		if farm_upgrade_bonus > 0:
+			stats_label.text = "Supply Bonus: +%d (+%d)" % [bonus - farm_upgrade_bonus, farm_upgrade_bonus]
+			stats_label.tooltip_text = "Basis: +%d\nUpgrade-Bonus: +%d" % [bonus - farm_upgrade_bonus, farm_upgrade_bonus]
+		else:
+			stats_label.text = "Supply Bonus: +%d" % bonus
+			stats_label.tooltip_text = ""
+		return
+	
+	# Basis-Werte aus TowerData (ohne Upgrades) - explizite Casts
+	var base_damage: int = int(TowerData.get_stat(tower_type, "damage", level))
+	var base_range: float = float(TowerData.get_stat(tower_type, "range", level))
+	var base_fire_rate: float = float(TowerData.get_stat(tower_type, "fire_rate", level))
+	
+	# Element für Multiplikatoren
+	var elem: String = ""
+	if current_tower.has_method("get_effective_element"):
+		elem = current_tower.get_effective_element()
+	
+	# Multiplikatoren berechnen
+	var damage_mult: float = 1.0
+	var range_mult: float = 1.0
+	var fire_rate_mult: float = 1.0
+	
+	if UpgradeSystem:
+		damage_mult = UpgradeSystem.get_damage_multiplier(tower_type, elem)
+		range_mult = UpgradeSystem.get_range_multiplier(tower_type)
+		fire_rate_mult = UpgradeSystem.get_fire_rate_multiplier(tower_type)
+	
+	# Finale Werte
+	var final_damage: int = int(float(base_damage) * damage_mult)
+	var final_range: float = base_range * range_mult
+	var final_fire_rate: float = base_fire_rate / fire_rate_mult if fire_rate_mult > 0 else base_fire_rate
+	
+	# Boni berechnen
+	var damage_bonus: int = final_damage - base_damage
+	var range_bonus: int = int(final_range - base_range)
+	var shots_per_sec: float = 1.0 / final_fire_rate if final_fire_rate > 0 else 0.0
+	var base_shots: float = 1.0 / base_fire_rate if base_fire_rate > 0 else 0.0
+	var fire_rate_bonus: float = shots_per_sec - base_shots
+	
+	# Stats-Text aufbauen mit Upgrade-Boni in Klammern
+	var damage_text := "Schaden: %d" % final_damage
+	if damage_bonus > 0:
+		damage_text += " (+%d)" % damage_bonus
+	
+	var range_text := "Reichweite: %d" % int(final_range)
+	if range_bonus > 0:
+		range_text += " (+%d)" % range_bonus
+	
+	var fire_rate_text := "Feuerrate: %.1f/s" % shots_per_sec
+	if fire_rate_bonus > 0.01:
+		fire_rate_text += " (+%.1f)" % fire_rate_bonus
+	
+	stats_label.text = "%s\n%s\n%s" % [damage_text, range_text, fire_rate_text]
+	
+	# Detaillierter Tooltip
+	var tooltip_lines: Array[String] = []
+	if damage_bonus > 0:
+		tooltip_lines.append("Schaden: %d Basis + %d Upgrade" % [base_damage, damage_bonus])
+	if range_bonus > 0:
+		tooltip_lines.append("Reichweite: %d Basis + %d Upgrade" % [int(base_range), range_bonus])
+	if fire_rate_bonus > 0.01:
+		tooltip_lines.append("Feuerrate: %.1f Basis + %.1f Upgrade" % [base_shots, fire_rate_bonus])
+	
+	if tooltip_lines.size() > 0:
+		stats_label.tooltip_text = "Upgrade-Boni aktiv:\n" + "\n".join(tooltip_lines)
 	else:
-		blocked_info_label.visible = false
+		stats_label.tooltip_text = ""
+
+
+func _update_blocked_info(is_blocked: bool) -> void:
+	blocked_info_label.visible = is_blocked
+	if is_blocked:
+		blocked_info_label.text = "⚠ Steht auf dem Pfad!\nKlicke 'Aufnehmen' zum Umplatzieren"
 
 
 func _update_pickup_button(is_blocked: bool) -> void:
 	if not pickup_button:
 		return
-	
 	pickup_button.visible = true
-	
 	if GameState.wave_active:
 		pickup_button.disabled = true
 		pickup_button.text = "Aufnehmen"
@@ -250,7 +299,6 @@ func _update_pickup_button(is_blocked: bool) -> void:
 		if is_blocked:
 			pickup_button.text = "⚠ Aufnehmen"
 			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
-			# Hervorheben wenn blockiert
 			pickup_button.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
 		else:
 			pickup_button.text = "Aufnehmen"
@@ -263,30 +311,22 @@ func _update_supply_info(level: int) -> void:
 		supply_info_label.text = "⛺ Supply: 0 (gratis!)"
 		supply_info_label.tooltip_text = "Supply-Gebäude kosten kein Supply"
 		return
-	
 	var supply_used := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
 	supply_info_label.text = "⛺ Supply: %d" % supply_used
 	supply_info_label.tooltip_text = "Dieser Tower verwendet %d Supply\n(1 Basis + %d für Upgrades)" % [supply_used, level]
 
 
 func _update_element_display() -> void:
-	if not current_tower:
+	if not current_tower or not current_tower.has_method("get_effective_element"):
 		element_label.visible = false
 		return
-	
-	if not current_tower.has_method("get_effective_element"):
-		element_label.visible = false
-		return
-	
 	var effective_elem: String = current_tower.get_effective_element()
 	if effective_elem == "":
 		element_label.visible = false
 		return
-	
 	element_label.visible = true
 	var elem_color := ElementalSystem.get_element_color(effective_elem) if ElementalSystem else Color.WHITE
 	var elem_symbol := ElementalSystem.get_element_symbol(effective_elem) if ElementalSystem else ""
-	
 	var effectiveness_info := ""
 	if ElementalSystem:
 		for defender in ["water", "fire", "earth", "air"]:
@@ -294,7 +334,6 @@ func _update_element_display() -> void:
 				var def_symbol := ElementalSystem.get_element_symbol(defender)
 				effectiveness_info = "Effektiv gegen: %s" % def_symbol
 				break
-	
 	element_label.text = "%s %s" % [elem_symbol, effectiveness_info]
 	element_label.add_theme_color_override("font_color", elem_color)
 
@@ -303,38 +342,30 @@ func _update_engrave_buttons() -> void:
 	for child in engrave_container.get_children():
 		if child is Button:
 			child.queue_free()
-	
 	if not current_tower:
 		engrave_container.visible = false
 		return
-	
 	if not current_tower.has_method("can_be_engraved") or not current_tower.can_be_engraved():
 		engrave_container.visible = false
 		return
-	
 	var available := TowerData.get_available_engravings()
 	if available.is_empty():
 		engrave_container.visible = false
 		return
-	
 	engrave_container.visible = true
 	var cost := TowerData.get_engraving_cost()
 	var can_afford := TowerData.can_afford_engraving()
-	
 	for element in available:
 		var btn := Button.new()
 		var symbol := ElementalSystem.get_element_symbol(element) if ElementalSystem else element.substr(0, 1).to_upper()
 		btn.text = symbol
 		btn.custom_minimum_size = Vector2(32, 28)
 		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [element.capitalize(), cost]
-		
 		var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
 		btn.add_theme_color_override("font_color", elem_color)
-		
 		if not can_afford or GameState.wave_active:
 			btn.disabled = true
 			btn.modulate.a = 0.5
-		
 		btn.pressed.connect(_on_engrave_button_pressed.bind(element))
 		UITheme.style_button(btn)
 		engrave_container.add_child(btn)
@@ -344,46 +375,38 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 	if TowerData.is_supply_building(tower_type):
 		upgrade_button.visible = false
 		return
-	
 	var can_upgrade_element := TowerData.can_upgrade(tower_type, level)
 	var at_game_max := level >= TowerData.MAX_LEVEL
-	
 	if at_game_max:
 		upgrade_button.text = "Max Level"
 		upgrade_button.disabled = true
 		upgrade_button.tooltip_text = "Maximales Tower-Level erreicht"
 		upgrade_button.visible = true
 		return
-	
 	if not can_upgrade_element:
 		if tower_type in TowerData.UNLOCKABLE_ELEMENTS:
 			var elem_level := TowerData.get_element_level(tower_type)
 			var needed_level := level + 2
 			upgrade_button.text = "Element Lvl %d nötig" % needed_level
 			upgrade_button.tooltip_text = "Investiere mehr Kerne in %s\n(Aktuell: Level %d, Benötigt: Level %d)" % [
-				TowerData.get_tower_data(tower_type).get("name", tower_type), elem_level, needed_level
-			]
+				TowerData.get_tower_data(tower_type).get("name", tower_type), elem_level, needed_level]
 		else:
 			upgrade_button.text = "Upgrade gesperrt"
 			upgrade_button.tooltip_text = "Upgrade nicht verfügbar"
 		upgrade_button.disabled = true
 		upgrade_button.visible = true
 		return
-	
 	var cost := TowerData.get_upgrade_cost(tower_type, level)
 	var supply_cost := TowerData.get_supply_cost_upgrade()
 	var has_supply := GameState.can_use_supply(supply_cost)
-	
 	upgrade_button.text = "Upgrade (%dg, ⛺%d)" % [cost, supply_cost]
 	upgrade_button.visible = true
-	
 	if GameState.can_afford(cost) and has_supply and not GameState.wave_active:
 		upgrade_button.disabled = false
 		var new_damage: int = TowerData.get_stat(tower_type, "damage", level + 1)
 		var new_range: float = TowerData.get_stat(tower_type, "range", level + 1)
 		upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d\nKostet %d Gold und %d Supply" % [
-			new_damage, int(new_range), cost, supply_cost
-		]
+			new_damage, int(new_range), cost, supply_cost]
 	else:
 		upgrade_button.disabled = true
 		if not has_supply:
@@ -397,17 +420,14 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 func _update_sell_button(level: int) -> void:
 	var sell_value := tower_manager.get_sell_value(current_grid_pos)
 	var sell_percent := tower_manager.get_sell_percent(current_grid_pos)
-	
 	if current_tower and current_tower.has_method("is_engraved") and current_tower.is_engraved():
 		var engrave_refund := TowerData.get_engraving_cost() / 2 if sell_percent < 100 else TowerData.get_engraving_cost()
 		sell_value += engrave_refund
-	
 	if TowerData.is_supply_building(current_tower.tower_type):
 		sell_button.text = "Verkaufen: %dg (%d%%)" % [sell_value, sell_percent]
 	else:
 		var supply_refund := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
 		sell_button.text = "Verkaufen: %dg +⛺%d (%d%%)" % [sell_value, supply_refund, sell_percent]
-	
 	if sell_percent == 100:
 		sell_button.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
 	else:
@@ -418,7 +438,6 @@ func _on_engrave_button_pressed(element: String) -> void:
 	if current_tower and current_tower.engrave(element):
 		engrave_pressed.emit(element)
 		_update_display()
-		
 		if VFX:
 			VFX.spawn_pixel_burst(current_tower.position, element, 12)
 
@@ -426,14 +445,11 @@ func _on_engrave_button_pressed(element: String) -> void:
 func _on_pickup_pressed() -> void:
 	pickup_pressed.emit()
 
-
 func _on_upgrade_pressed() -> void:
 	upgrade_pressed.emit()
 
-
 func _on_sell_pressed() -> void:
 	sell_pressed.emit()
-
 
 func _on_close_pressed() -> void:
 	close_pressed.emit()

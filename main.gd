@@ -236,10 +236,15 @@ func _on_left_mouse_pressed(pos: Vector2) -> void:
 		return
 	
 	var tower := tower_manager.get_tower_at(grid_pos)
-	if tower and not GameState.wave_active:
-		is_drag_potential = true
-		drag_start_pos = pos
-		drag_start_grid = grid_pos
+	if tower:
+		if not GameState.wave_active:
+			# Drag nur außerhalb von Wellen möglich
+			is_drag_potential = true
+			drag_start_pos = pos
+			drag_start_grid = grid_pos
+		else:
+			# Während Welle: Direkt selektieren (kein Drag)
+			_handle_tower_click(grid_pos)
 		return
 	
 	tower_manager.deselect_tower()
