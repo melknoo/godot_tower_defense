@@ -124,17 +124,17 @@ func _find_or_create_ui_elements() -> void:
 	
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 780, hud_height - 110))
 
-	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 550, hud_height - 85))
+	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 530, hud_height - 85))
 	
-	var current_area_pos := Vector2(viewport_size.x - 580, hud_height - 70)
+	var current_area_pos := Vector2(viewport_size.x - 530, hud_height - 70)
 	var current_area_size := Vector2(190, 34)
 	current_wave_element_area = _get_or_create_control("CurrentWaveElementArea", current_area_pos, current_area_size)
 	current_wave_element_icon = _get_or_create_texture_rect_child(current_wave_element_area, "CurrentWaveElementIcon", Vector2(8, 5), Vector2(24, 24))
 	current_wave_element_label = _get_or_create_label_child(current_wave_element_area, "CurrentWaveElementLabel", Vector2(40, 8))
 
-	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 400, hud_height - 85))
+	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 360, hud_height - 85))
 
-	var area_pos := Vector2(viewport_size.x - 410, hud_height - 60)
+	var area_pos := Vector2(viewport_size.x - 360, hud_height - 60)
 	var area_size := Vector2(190, 34)
 	wave_element_area = _get_or_create_control("WaveElementArea", area_pos, area_size)
 
@@ -143,8 +143,8 @@ func _find_or_create_ui_elements() -> void:
 
 	cores_button = _get_or_create_button("CoresButton", Vector2(440, zero_row_y - 5), Vector2(64, 64))
 	upgrades_button = _get_or_create_button("UpgradesButton", Vector2(520, zero_row_y - 5), Vector2(48, 48))
-	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 780, first_row_y - 5), Vector2(130, 32))
-	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 780, second_row_y - 5), Vector2(48, 48))
+	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 740, first_row_y - 5), Vector2(130, 32))
+	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
 
 
 func _get_or_create_label(node_name: String, default_pos: Vector2) -> Label:
