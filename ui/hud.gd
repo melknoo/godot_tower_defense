@@ -126,7 +126,7 @@ func _find_or_create_ui_elements() -> void:
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 780, hud_height - 110))
 	
 	# NEU: Wave Events Label
-	wave_events_label = _get_or_create_label("WaveEventsLabel", Vector2(viewport_size.x - 530, hud_height - 110))
+	wave_events_label = _get_or_create_label("WaveEventsLabel", Vector2(viewport_size.x - 360, hud_height - 110))
 
 	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 530, hud_height - 85))
 	
@@ -417,7 +417,7 @@ func update_wave_events_preview(next_wave: int) -> void:
 	
 	# Pfad-Regenerierung: Runde 2, 5, 8, 11... -> (wave - 2) % 3 == 0 für wave >= 2
 	if next_wave >= 2 and (next_wave - 2) % 3 == 0:
-		events.append("🗺️ Neuer Pfad")
+		events.append("⟳ Neuer Pfad")
 	
 	# Upgrade-Auswahl: Runde 3, 6, 9, 12... -> wave % 3 == 0 für wave >= 3
 	if next_wave >= 3 and next_wave % 3 == 0:

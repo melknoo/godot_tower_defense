@@ -20,13 +20,13 @@ var towers := {
 	"archer": {
 		"name": "Bogen",
 		"description": "Standard Fernkampf-Turm\nKann elementar graviert werden!",
-		"cost": 35,
-		"damage": [25, 45, 60],
-		"range": [150.0, 170.0, 190.0],
-		"fire_rate": [0.6, 0.5, 0.4],
+		"cost": 65,
+		"damage": [35, 45, 60, 120, 200],
+		"range": [150.0, 170.0, 190.0, 400.0, 800.0, 1200.0],
+		"fire_rate": [0.6, 0.5, 0.4, 0.2],
 		"splash": [0.0, 0.0, 0.0],
 		"color": Color(0.687, 0.947, 0.913),
-		"upgrade_costs": [50, 110],
+		"upgrade_costs": [80, 210, 500, 1230, 2000],
 		"special": "",
 		"is_base": true,
 		"engravable": true,
@@ -37,8 +37,8 @@ var towers := {
 	"sword": {
 		"name": "Schwert",
 		"description": "Nahkampf, trifft alle in Reichweite\nKann elementar graviert werden!",
-		"cost": 25,
-		"damage": [18, 32, 50],
+		"cost": 45,
+		"damage": [23, 32, 50],
 		"range": [80.0, 90.0, 110.0],
 		"fire_rate": [0.7, 0.8, 0.7],
 		"splash": [70.0, 80.0, 90.0],
@@ -176,7 +176,7 @@ var combinations := {
 	}
 }
 
-const MAX_LEVEL := 2
+const MAX_LEVEL := 5
 const MAX_ELEMENT_LEVEL := 3
 const ENGRAVING_COST := 30
 
