@@ -233,27 +233,37 @@ func _do_lightning_chain(from_enemy: Node2D, damage: int, remaining: int, range:
 	if remaining <= 0:
 		return
 	
+	if not is_instance_valid(from_enemy):
+		return
+	
+	# Position speichern BEVOR await
+	var from_pos := from_enemy.position
+	
 	var next_target: Node2D = null
 	var closest_dist := range
 	
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if enemy in hit_list:
 			continue
-		var dist := from_enemy.position.distance_to(enemy.position)
+		if not is_instance_valid(enemy):
+			continue
+		var dist := from_pos.distance_to(enemy.position)
 		if dist < closest_dist:
 			closest_dist = dist
 			next_target = enemy
 	
-	if next_target:
+	if next_target and is_instance_valid(next_target):
 		hit_list.append(next_target)
+		var next_pos := next_target.position
+		_draw_lightning_bolt(from_pos, next_pos)
 		_deal_damage_to(next_target, damage, "air")
-		_draw_lightning_bolt(from_enemy.position, next_target.position)
 		
 		# Rekursiv weiter
 		var tree := get_tree()
 		if tree:
 			await tree.create_timer(0.05).timeout
-			_do_lightning_chain(next_target, int(damage * 0.8), remaining - 1, range, hit_list)
+			if is_instance_valid(next_target):
+				_do_lightning_chain(next_target, int(damage * 0.8), remaining - 1, range, hit_list)
 
 
 func _draw_lightning_bolt(from: Vector2, to: Vector2) -> void:

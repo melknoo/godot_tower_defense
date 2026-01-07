@@ -7,7 +7,7 @@ signal wave_spawning_finished
 signal enemy_spawned(enemy: Node2D)
 
 @export var enemy_scene: PackedScene
-@export var spawn_interval: float = 0.8
+@export var spawn_interval: float = 0.6
 @export var path_points: Array[Vector2] = []
 
 var is_spawning := false
@@ -15,34 +15,32 @@ var spawn_queue: Array[Dictionary] = []
 var current_spawn_index := 0
 var _rng := RandomNumberGenerator.new()
 
-# Wave-Element tracking
 var current_wave_element := "neutral"
 
-# Cache für nächste Welle (ändert sich nicht bei Seed-Wechsel)
 var _cached_next_wave_number: int = -1
 var _cached_next_wave_element: String = ""
 
-# Gegner-Typen Definition
+# Gegner-Typen Definition - SCHWERER
 var enemy_types := {
 	"normal": {
-		"health_base": 50, "health_per_wave": 10,
-		"speed_base": 80.0, "speed_per_wave": 5.0,
-		"reward": 2, "color": Color(0.8, 0.2, 0.2), "scale": 0.5
+		"health_base": 80, "health_per_wave": 18,
+		"speed_base": 85.0, "speed_per_wave": 6.0,
+		"reward": 1, "color": Color(0.8, 0.2, 0.2), "scale": 0.5
 	},
 	"fast": {
-		"health_base": 30, "health_per_wave": 5,
-		"speed_base": 140.0, "speed_per_wave": 8.0,
-		"reward": 5, "color": Color(0.2, 0.8, 0.2), "scale": 0.4
+		"health_base": 45, "health_per_wave": 10,
+		"speed_base": 160.0, "speed_per_wave": 10.0,
+		"reward": 2, "color": Color(0.2, 0.8, 0.2), "scale": 0.4
 	},
 	"tank": {
-		"health_base": 150, "health_per_wave": 30,
+		"health_base": 250, "health_per_wave": 50,
 		"speed_base": 50.0, "speed_per_wave": 2.0,
-		"reward": 10, "color": Color(0.4, 0.4, 0.8), "scale": 0.7
+		"reward": 5, "color": Color(0.4, 0.4, 0.8), "scale": 0.7
 	},
 	"boss": {
-		"health_base": 700, "health_per_wave": 100,
-		"speed_base": 40.0, "speed_per_wave": 1.0,
-		"reward": 100, "color": Color(0.8, 0.2, 0.8), "scale": 1.0
+		"health_base": 1200, "health_per_wave": 180,
+		"speed_base": 45.0, "speed_per_wave": 1.5,
+		"reward": 50, "color": Color(0.8, 0.2, 0.8), "scale": 1.0
 	}
 }
 
@@ -66,13 +64,11 @@ func start_wave(wave_number: int) -> void:
 	if is_spawning:
 		return
 	
-	# Gecachtes Element für diese Welle übernehmen (falls vorhanden)
 	if _cached_next_wave_number == wave_number and _cached_next_wave_element != "":
 		current_wave_element = _cached_next_wave_element
 	else:
 		current_wave_element = _determine_wave_element(wave_number)
 	
-	# Cache leeren - nächste Welle wird bei Preview neu berechnet
 	if _cached_next_wave_number == wave_number:
 		_cached_next_wave_number = -1
 		_cached_next_wave_element = ""
@@ -91,7 +87,6 @@ func start_wave(wave_number: int) -> void:
 func _determine_wave_element(wave: int) -> String:
 	if wave <= 2:
 		return "neutral"
-
 	var current_seed := _get_current_map_seed()
 	_rng.seed = current_seed + wave * 7919
 	return ELEMENTS[_rng.randi_range(0, ELEMENTS.size() - 1)]
@@ -100,22 +95,20 @@ func _determine_wave_element(wave: int) -> String:
 func generate_wave_composition(wave: int) -> Array[Dictionary]:
 	var composition: Array[Dictionary] = []
 	
-	# Wave-Element bestimmen
-	#current_wave_element = _determine_wave_element(wave)
-	
-	var total_enemies := 5 + wave * 2
+	# Mehr Gegner pro Welle
+	var total_enemies := 8 + wave * 3
 	
 	var fast_count := 0
 	if wave >= 3:
-		fast_count = mini(wave - 2, total_enemies / 3)
+		fast_count = mini(wave - 1, total_enemies / 3)
 	
 	var tank_count := 0
-	if wave >= 5:
-		tank_count = mini((wave - 4) / 2, total_enemies / 4)
+	if wave >= 4:
+		tank_count = mini((wave - 2) / 2, total_enemies / 4)
 	
 	var boss_count := 0
 	if wave > 0 and wave % 5 == 0:
-		boss_count = wave / 5
+		boss_count = 1 + wave / 10
 	
 	var normal_count := maxi(1, total_enemies - fast_count - tank_count - boss_count)
 	
@@ -142,13 +135,13 @@ func _create_enemy_data(type: String, wave: int) -> Dictionary:
 
 	var elem_bonus := 1.0
 	if element != "neutral":
-		elem_bonus = 1.15
+		elem_bonus = 1.25
 	
 	return {
 		"type": type,
 		"health": int((base["health_base"] + base["health_per_wave"] * wave) * elem_bonus),
 		"speed": base["speed_base"] + base["speed_per_wave"] * wave,
-		"reward": base["reward"] + (2 if element != "neutral" else 0),
+		"reward": base["reward"] + (1 if element != "neutral" else 0),
 		"color": base["color"],
 		"scale": base["scale"],
 		"element": element
@@ -203,11 +196,10 @@ func cancel_wave() -> void:
 
 
 func set_spawn_speed(multiplier: float) -> void:
-	spawn_interval = 0.8 / multiplier
+	spawn_interval = 0.6 / multiplier
 
 
 func get_wave_preview(wave_number: int) -> Dictionary:
-	# Element cachen - ändert sich nicht mehr bis Welle startet
 	var preview_element: String
 	if _cached_next_wave_number == wave_number:
 		preview_element = _cached_next_wave_element
@@ -216,7 +208,7 @@ func get_wave_preview(wave_number: int) -> Dictionary:
 		_cached_next_wave_number = wave_number
 		_cached_next_wave_element = preview_element
 	
-	var total: int = 5 + wave_number * 2
+	var total: int = 8 + wave_number * 3
 	
 	var preview := {
 		"total": total,
@@ -226,13 +218,13 @@ func get_wave_preview(wave_number: int) -> Dictionary:
 	
 	var fast := 0
 	if wave_number >= 3:
-		fast = mini(wave_number - 2, total / 3)
+		fast = mini(wave_number - 1, total / 3)
 	var tank := 0
-	if wave_number >= 5:
-		tank = mini((wave_number - 4) / 2, total / 4)
+	if wave_number >= 4:
+		tank = mini((wave_number - 2) / 2, total / 4)
 	var boss := 0
 	if wave_number > 0 and wave_number % 5 == 0:
-		boss = wave_number / 5
+		boss = 1 + wave_number / 10
 	
 	preview["normal"] = maxi(1, total - fast - tank - boss)
 	preview["fast"] = fast
