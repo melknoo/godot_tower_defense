@@ -181,6 +181,35 @@ func _input(event: InputEvent) -> void:
 		_update_hover_preview(event.position)
 
 
+# === WELLEN-EREIGNIS LOGIK ===
+
+# Pfad-Regenerierung: Nach Runde 2, dann alle 3 Runden (2, 5, 8, 11...)
+func should_regenerate_path(wave: int) -> bool:
+	if wave < 2:
+		return false
+	return (wave - 2) % 3 == 0
+
+# Upgrade-Auswahl: Nach Runde 3, dann alle 3 Runden (3, 6, 9, 12...)
+func should_show_upgrades(wave: int) -> bool:
+	if wave < 3:
+		return false
+	return wave % 3 == 0
+
+# Nächste Runde mit Pfad-Regenerierung
+func get_next_path_regen_wave(current_wave: int) -> int:
+	if current_wave < 2:
+		return 2
+	var waves_since_2 := current_wave - 2
+	var next_cycle := ((waves_since_2 / 3) + 1) * 3
+	return 2 + next_cycle
+
+# Nächste Runde mit Upgrade-Auswahl
+func get_next_upgrade_wave(current_wave: int) -> int:
+	if current_wave < 3:
+		return 3
+	return ((current_wave / 3) + 1) * 3
+
+
 func _regenerate_map() -> void:
 	_cancel_drag_or_pickup()
 	is_drag_potential = false
@@ -238,12 +267,10 @@ func _on_left_mouse_pressed(pos: Vector2) -> void:
 	var tower := tower_manager.get_tower_at(grid_pos)
 	if tower:
 		if not GameState.wave_active:
-			# Drag nur außerhalb von Wellen möglich
 			is_drag_potential = true
 			drag_start_pos = pos
 			drag_start_grid = grid_pos
 		else:
-			# Während Welle: Direkt selektieren (kein Drag)
 			_handle_tower_click(grid_pos)
 		return
 	
@@ -553,18 +580,31 @@ func _on_wave_started(wave: int) -> void:
 
 
 func _on_wave_completed(wave: int) -> void:
-	print("[Main] Welle %d abgeschlossen - regeneriere Pfad..." % wave)
-	_regenerate_map()
+	print("[Main] Welle %d abgeschlossen" % wave)
 	
-	if hud:
-		hud.update_wave_preview_after_regen()
+	# Prüfe ob Pfad regeneriert werden soll (Runde 2, 5, 8, 11...)
+	if should_regenerate_path(wave):
+		print("[Main] Regeneriere Pfad nach Welle %d..." % wave)
+		_regenerate_map()
+		if hud:
+			hud.update_wave_preview_after_regen()
 	
-	print("[Main] wave_upgrade_ui existiert: %s" % (wave_upgrade_ui != null))
-	if wave_upgrade_ui:
-		print("[Main] Zeige Upgrade-Panel...")
-		wave_upgrade_ui.show_upgrades(wave)
+	# Prüfe ob Upgrades gezeigt werden sollen (Runde 3, 6, 9, 12...)
+	if should_show_upgrades(wave):
+		print("[Main] Zeige Upgrade-Panel nach Welle %d..." % wave)
+		if wave_upgrade_ui:
+			wave_upgrade_ui.show_upgrades(wave)
 	else:
-		push_error("[Main] wave_upgrade_ui ist null!")
+		# Kein Upgrade - direkt Element-Core Dialog wenn vorhanden
+		if pending_element_core:
+			pending_element_core = false
+			await get_tree().create_timer(0.3).timeout
+			if element_unlock_ui and GameState.has_element_cores():
+				element_unlock_ui.show_panel()
+	
+	# HUD über Wellen-Events informieren
+	if hud:
+		hud.update_wave_events_preview(wave + 1)
 
 
 func _on_element_core_earned() -> void:

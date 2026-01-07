@@ -23,6 +23,7 @@ signal open_upgrades_panel_pressed
 @export var bonus_preview_label: Label
 @export var supply_label: Label
 @export var blocked_warning_label: Label
+@export var wave_events_label: Label  # NEU: Zeigt kommende Events
 
 var current_wave_element_area: Control
 var current_wave_element_icon: TextureRect
@@ -123,6 +124,9 @@ func _find_or_create_ui_elements() -> void:
 	supply_label = _get_or_create_label("SupplyLabel", Vector2(20, zero_row_y))
 	
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 780, hud_height - 110))
+	
+	# NEU: Wave Events Label
+	wave_events_label = _get_or_create_label("WaveEventsLabel", Vector2(viewport_size.x - 530, hud_height - 110))
 
 	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 530, hud_height - 85))
 	
@@ -251,6 +255,11 @@ func _apply_styles() -> void:
 		blocked_warning_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 		blocked_warning_label.add_theme_constant_override("outline_size", 2)
 		blocked_warning_label.visible = false
+	
+	# NEU: Wave Events Label Styling
+	if wave_events_label:
+		wave_events_label.add_theme_font_size_override("font_size", 10)
+		wave_events_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
 
 	if cores_button:
 		cores_button.text = ""
@@ -362,6 +371,7 @@ func update_all() -> void:
 	_on_supply_changed(GameState.supply_used, GameState.supply_max)
 	_update_bonus_preview()
 	_update_wave_preview(1)
+	update_wave_events_preview(1)
 
 
 func update_blocked_towers_warning(count: int) -> void:
@@ -396,6 +406,41 @@ func update_blocked_towers_warning(count: int) -> void:
 		if start_button and not GameState.wave_active:
 			start_button.disabled = false
 			start_button.text = "Nächste Welle"
+
+
+# NEU: Zeigt kommende Events nach der nächsten Welle
+func update_wave_events_preview(next_wave: int) -> void:
+	if not wave_events_label:
+		return
+	
+	var events: Array[String] = []
+	
+	# Pfad-Regenerierung: Runde 2, 5, 8, 11... -> (wave - 2) % 3 == 0 für wave >= 2
+	if next_wave >= 2 and (next_wave - 2) % 3 == 0:
+		events.append("🗺️ Neuer Pfad")
+	
+	# Upgrade-Auswahl: Runde 3, 6, 9, 12... -> wave % 3 == 0 für wave >= 3
+	if next_wave >= 3 and next_wave % 3 == 0:
+		events.append("⬆️ Upgrade")
+	
+	# Element-Kern: Runde 1 und alle 5er (1, 5, 10, 15...)
+	if next_wave == 1 or (next_wave > 0 and next_wave % 5 == 0):
+		events.append("💎 +1 Kern")
+	
+	if events.is_empty():
+		wave_events_label.text = ""
+		wave_events_label.visible = false
+	else:
+		wave_events_label.text = "Nach Welle %d: %s" % [next_wave, ", ".join(events)]
+		wave_events_label.visible = true
+		
+		# Farbe basierend auf Events
+		if "Upgrade" in wave_events_label.text:
+			wave_events_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+		elif "Neuer Pfad" in wave_events_label.text:
+			wave_events_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
+		else:
+			wave_events_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
 
 
 func _on_gold_changed(amount: int) -> void:
@@ -434,7 +479,7 @@ func _on_cores_changed(amount: int) -> void:
 			cores_button.text = "%d" % amount
 			_highlight_cores_button(true)
 		elif not has_upgradeable:
-			cores_button.text = "✓"
+			cores_button.text = "✔"
 			_highlight_cores_button(false)
 		else:
 			cores_button.text = ""
@@ -488,8 +533,6 @@ func _flash_cores_label() -> void:
 	tween.tween_property(cores_label, "modulate", Color.WHITE, 0.3)
 
 
-# Ersetze die _update_bonus_preview Funktion in hud.gd mit dieser Version:
-
 func _update_bonus_preview() -> void:
 	if not bonus_preview_label:
 		return
@@ -504,7 +547,6 @@ func _update_bonus_preview() -> void:
 	var interest_upgrade_bonus: int = preview["interest_upgrade_bonus"]
 	var total: int = preview["total"]
 	
-	# Text mit Upgrade-Boni in Klammern
 	var flat_text := "%d" % flat
 	if flat_bonus > 0:
 		flat_text = "%d(+%d)" % [base_flat, flat_bonus]
@@ -513,54 +555,34 @@ func _update_bonus_preview() -> void:
 	if interest_upgrade_bonus > 0:
 		interest_text = "%d(+%d)💰" % [base_interest, interest_upgrade_bonus]
 	
-	# Kompakte Anzeige mit Total
 	if interest > 0:
 		bonus_preview_label.text = "Wellen-Ende: +%s +%s = %d" % [flat_text, interest_text, total]
 	else:
 		bonus_preview_label.text = "Wellen-Ende: +%s = %d" % [flat_text, total]
 	
-	# Detaillierter Tooltip mit allen Upgrade-Infos
 	var tooltip_lines: Array[String] = []
 	tooltip_lines.append("=== Wellen-Bonus Berechnung ===")
 	tooltip_lines.append("")
-	
-	# Flat Bonus Section
 	tooltip_lines.append("📦 Flat Bonus: %d Gold" % flat)
 	if flat_bonus > 0:
 		tooltip_lines.append("    Basis: %d" % base_flat)
 		tooltip_lines.append("    Upgrade (Kriegskasse): +%d" % flat_bonus)
-	
 	tooltip_lines.append("")
-	
-	# Zinsen Section
 	var rate_percent := int(preview["interest_rate"] * 100)
 	tooltip_lines.append("💰 Zinsen: %d Gold" % interest)
 	tooltip_lines.append("    Berechnung: %d%% von %d Gold" % [rate_percent, GameState.gold])
-	
 	if UpgradeSystem:
 		var rate_bonus := UpgradeSystem.get_interest_rate_bonus()
-		var max_bonus := UpgradeSystem.get_max_interest_bonus()
-		
 		if rate_bonus > 0:
-			var base_rate := int(GameState.BASE_INTEREST_RATE * 100)
 			tooltip_lines.append("    Zinsrate: %d%% (+%d%% Upgrade)" % [rate_percent, int(rate_bonus * 100)])
-		
 		if interest_upgrade_bonus > 0:
 			tooltip_lines.append("    Mehr durch Upgrades: +%d" % interest_upgrade_bonus)
-		
 		tooltip_lines.append("    Max-Zinsen: %d" % preview["max_interest"])
-		if max_bonus > 0:
-			tooltip_lines.append("    (inkl. +%d Upgrade-Bonus)" % max_bonus)
-	else:
-		tooltip_lines.append("    Max-Zinsen: %d" % preview["max_interest"])
-	
 	if interest == 0 and GameState.gold < 10:
 		tooltip_lines.append("")
 		tooltip_lines.append("💡 Tipp: Spare Gold für mehr Zinsen!")
-	
 	tooltip_lines.append("")
 	tooltip_lines.append("=== Gesamt: %d Gold ===" % total)
-	
 	bonus_preview_label.tooltip_text = "\n".join(tooltip_lines)
 
 
@@ -574,6 +596,10 @@ func _on_wave_started(wave: int) -> void:
 
 	if blocked_warning_label:
 		blocked_warning_label.visible = false
+	
+	# Wave Events während Welle ausblenden
+	if wave_events_label:
+		wave_events_label.visible = false
 
 	if fast_forward_button:
 		fast_forward_button.visible = true
@@ -583,7 +609,6 @@ func _on_wave_started(wave: int) -> void:
 
 
 func _refresh_wave_panels_after_wave_started(wave: int) -> void:
-	# Aktuelle Welle Element anzeigen
 	var wave_manager := get_node_or_null("/root/Main/WaveManager") as WaveManager
 	if wave_manager:
 		_current_wave_element = wave_manager.current_wave_element
@@ -592,7 +617,6 @@ func _refresh_wave_panels_after_wave_started(wave: int) -> void:
 	if current_wave_info_label:
 		current_wave_info_label.visible = true
 
-	# Nächste Welle Vorschau anzeigen
 	_update_wave_preview(wave + 1)
 
 
@@ -605,7 +629,6 @@ func _on_wave_completed(wave: int) -> void:
 			start_button.disabled = true
 			start_button.text = "Türme umplatzieren!"
 	
-	# Aktuelle Welle Info ausblenden
 	if current_wave_element_area:
 		current_wave_element_area.visible = false
 	if current_wave_info_label:
@@ -614,6 +637,9 @@ func _on_wave_completed(wave: int) -> void:
 		enemies_label.visible = false
 	
 	_update_bonus_preview()
+	
+	# Wave Events für nächste Welle anzeigen
+	update_wave_events_preview(wave + 1)
 
 	if fast_forward_button:
 		fast_forward_button.visible = false
@@ -697,11 +723,8 @@ func _update_wave_preview(next_wave: int) -> void:
 	wave_preview_label.text = "Nächste Welle: " + info
 
 	if next_wave % 5 == 0:
-		wave_preview_label.text += "\nBoss-Welle! (+1 Kern)"
+		wave_preview_label.text += "\nBoss-Welle!"
 		wave_preview_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-	elif next_wave == 1:
-		wave_preview_label.text += "\n(+1 Kern nach Welle 1)"
-		wave_preview_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 	else:
 		wave_preview_label.remove_theme_color_override("font_color")
 
@@ -963,6 +986,8 @@ func show_game_over() -> void:
 		wave_preview_label.visible = false
 	if current_wave_info_label:
 		current_wave_info_label.visible = false
+	if wave_events_label:
+		wave_events_label.visible = false
 
 	var main := get_node_or_null("/root/Main")
 	var seed_text := ""
