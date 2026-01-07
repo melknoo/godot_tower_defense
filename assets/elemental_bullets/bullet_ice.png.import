@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dhasohrh5o00n"
-path="res://.godot/imported/normal_enemy_level_1.png-7d12a8260eaa78521bf3f7fc5a1689ad.ctex"
+uid="uid://yy7ss4drhgdi"
+path="res://.godot/imported/bullet_ice.png-e064093cbedf9935e1ef485f9f161449.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/enemies/normal_enemy_level_1.png"
-dest_files=["res://.godot/imported/normal_enemy_level_1.png-7d12a8260eaa78521bf3f7fc5a1689ad.ctex"]
+source_file="res://assets/elemental_bullets/bullet_ice.png"
+dest_files=["res://.godot/imported/bullet_ice.png-e064093cbedf9935e1ef485f9f161449.ctex"]
 
 [params]
 

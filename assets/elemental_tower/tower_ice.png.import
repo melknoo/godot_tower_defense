@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dhasohrh5o00n"
-path="res://.godot/imported/normal_enemy_level_1.png-7d12a8260eaa78521bf3f7fc5a1689ad.ctex"
+uid="uid://b48b8es52vldj"
+path="res://.godot/imported/tower_ice.png-9ddda89eeed227ee3489a40703654cee.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/enemies/normal_enemy_level_1.png"
-dest_files=["res://.godot/imported/normal_enemy_level_1.png-7d12a8260eaa78521bf3f7fc5a1689ad.ctex"]
+source_file="res://assets/elemental_tower/tower_ice.png"
+dest_files=["res://.godot/imported/tower_ice.png-9ddda89eeed227ee3489a40703654cee.ctex"]
 
 [params]
 

@@ -14,7 +14,6 @@ var enemy_type := "normal"
 var element := "neutral"
 var _resolved := false
 
-
 # Status-Effekte
 var slow_amount := 0.0
 var slow_timer := 0.0
@@ -36,22 +35,19 @@ var status_indicator: Node2D
 var shadow: Polygon2D
 var element_indicator: Label
 
-# Animation
+# Animation - Alle Gegner: 4 Frames horizontal
 var anim_timer := 0.0
 var anim_frame := 3  # Start bei Frame 3, läuft rückwärts
 const ANIM_SPEED := 0.15  # Sekunden pro Frame
 const FRAME_COUNT := 4
-var anim_col := 0
-var anim_row := 0
-const NORMAL_COLS := 3
-const NORMAL_ROWS := 4
 
 # Sprite-Konstanten
 const FRAME_SIZE := Vector2(16, 16)
-const ENEMY_SCALE := 3.0  # Skalierung für bessere Sichtbarkeit
+const ENEMY_SCALE := 3.0
 
 var walk_bob := 0.0
 var wobble_time := 0.0
+
 # Shadow FX
 var shadow_offset_y := 8.0
 var shadow_base_scale := Vector2.ONE
@@ -59,9 +55,7 @@ var shadow_bob_t := 0.0
 var shadow_stun_t := 0.0
 
 
-
 func _ready() -> void:
-	print("[Enemy] _ready script=", get_script().resource_path, " name=", name)
 	add_to_group("enemies")
 	_create_visuals()
 
@@ -124,7 +118,6 @@ func setup(path_points: Array[Vector2], hp: int, spd: float) -> void:
 
 
 func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
-	print("[Enemy] setup_extended script=", get_script().resource_path, " data=", data)
 	path = path_points
 	health = data.get("health", 100)
 	max_health = health
@@ -132,23 +125,15 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 	base_speed = speed
 	reward = data.get("reward", 10)
 	enemy_type = data.get("type", "normal")
-
 	element = String(data.get("element", "neutral")).to_lower()
 
-	# Schatten-Defaults je nach Gegnerart
-	if element == "neutral" or element == "":
-		shadow_offset_y = 26.0
-		shadow_base_scale = Vector2(1.1, 0.6)
-	else:
-		shadow_offset_y = 8.0
-		shadow_base_scale = Vector2(1.0, 1.0)
+	# Schatten-Defaults (einheitlich für alle Gegner)
+	shadow_offset_y = 8.0
+	shadow_base_scale = Vector2(1.0, 1.0)
 
 	if shadow:
 		shadow.position.y = shadow_offset_y
 		shadow.scale = shadow_base_scale
-		
-	if shadow and (element == "neutral" or element == ""):
-		shadow.scale = Vector2(1.1, 0.6)
 
 	position = path[0] if path.size() > 0 else Vector2.ZERO
 
@@ -157,7 +142,7 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 
 	# Größe basierend auf Gegner-Typ
 	var type_scale: float = data.get("scale", 0.5)
-	var final_scale := ENEMY_SCALE * (type_scale / 0.5)  # Normalisiert auf Basis-Scale
+	var final_scale := ENEMY_SCALE * (type_scale / 0.5)
 
 	if sprite:
 		sprite.scale = Vector2(final_scale, final_scale)
@@ -175,45 +160,24 @@ func _setup_sprite() -> void:
 
 	var elem := String(element if element != null else "neutral").to_lower()
 	var sprite_path := ""
-	print("[Enemy] element=", element, " path=", "res://assets/enemies/%s_enemy_level_1.png" % element)
 
-	# Elementare Gegner: 1 Reihe, 4 Frames
+	# Sprite-Pfad basierend auf Element
 	if elem != "" and elem != "neutral":
 		sprite_path = "res://assets/enemies/%s_enemy_level_1.png" % elem
 	else:
-		# NEU: Normale Gegner nutzen jetzt das neue animierte Sheet
 		sprite_path = "res://assets/enemies/normal_enemy_level_1.png"
-
-	print("[Enemy] element=", elem, " sprite_path=", sprite_path, " exists=", ResourceLoader.exists(sprite_path))
 
 	if ResourceLoader.exists(sprite_path):
 		sprite.texture = load(sprite_path)
 		sprite.visible = true
-
-		if elem != "" and elem != "neutral":
-			# Elementar: 4 Frames in einer Reihe
-			sprite.hframes = 4
-			sprite.vframes = 1
-			anim_frame = clampi(anim_frame, 0, 3)
-			sprite.frame = anim_frame
-		else:
-			# Normal: 3x4 (3 Frames pro Richtung)
-			sprite.hframes = 3
-			sprite.vframes = 4
-			# Start: nach unten, Frame 0
-			sprite.frame_coords = Vector2i(0, 0)
+		# Alle Gegner: 4 Frames in einer Reihe
+		sprite.hframes = 4
+		sprite.vframes = 1
+		anim_frame = clampi(anim_frame, 0, 3)
+		sprite.frame = anim_frame
 	else:
 		push_warning("[Enemy] Sprite nicht gefunden: %s" % sprite_path)
 		sprite.texture = null
-
-
-func _calculate_element_color(base_color: Color) -> Color:
-	if element == "neutral" or element == "":
-		return base_color
-
-	var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
-	# Mische Basis-Farbe mit Element-Farbe
-	return base_color.lerp(elem_color, 0.5)
 
 
 func _update_element_indicator() -> void:
@@ -226,16 +190,15 @@ func _update_element_indicator() -> void:
 
 	element_indicator.visible = true
 	element_indicator.text = ElementalSystem.get_element_symbol(element) if ElementalSystem else element.substr(0, 1).to_upper()
-
-	# Outline für bessere Sichtbarkeit
 	element_indicator.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	element_indicator.add_theme_constant_override("outline_size", 2)
 
 
 func _process(delta: float) -> void:
-	# Hit-Flash abklingen
 	if _resolved:
 		return
+	
+	# Hit-Flash abklingen
 	if flash_timer > 0:
 		flash_timer -= delta
 		if flash_timer <= 0 and sprite:
@@ -264,26 +227,17 @@ func _process(delta: float) -> void:
 	_update_shadow_fx(delta)
 
 
-
 func _update_animation(delta: float) -> void:
 	if not sprite or sprite.texture == null:
 		return
 
-	# Normaler Gegner (3x4 Sheet)
-	if element == "neutral" or element == "":
-		anim_timer += delta
-		if anim_timer >= ANIM_SPEED:
-			anim_timer = 0.0
-			anim_col = (anim_col + 1) % NORMAL_COLS
-			sprite.frame_coords = Vector2i(anim_col, anim_row)
-		return
-
-	# Elementare Gegner (4 Frames, 1 Reihe) – dein altes Verhalten
+	# Fallback für Sprites ohne Animation
 	if sprite.hframes <= 1:
 		walk_bob += delta * 12.0
 		sprite.position.y = sin(walk_bob) * 2
 		return
 
+	# Alle Gegner: 4 Frames, rückwärts animiert
 	anim_timer += delta
 	if anim_timer >= ANIM_SPEED:
 		anim_timer = 0.0
@@ -310,19 +264,10 @@ func _move(delta: float) -> void:
 
 	var target_pos := path[path_index]
 	var direction := (target_pos - position).normalized()
-	# Für normalen Gegner: Reihe anhand Bewegungsrichtung setzen
-	if element == "neutral" or element == "":
-		if abs(direction.x) > abs(direction.y):
-			# Links/Rechts
-			anim_row = 2 if direction.x > 0 else 1
-		else:
-			# Hoch/Runter
-			anim_row = 0 if direction.y > 0 else 3
 	position += direction * current_speed * delta
 
 	# Sprite spiegeln basierend auf Bewegungsrichtung
-	# Sprites schauen standardmäßig nach links, also flip wenn nach rechts
-	if sprite and (element != "neutral" and element != "") and direction.length() > 0:
+	if sprite and direction.length() > 0:
 		sprite.flip_h = direction.x > 0
 
 	if position.distance_to(target_pos) < 5:
@@ -341,19 +286,18 @@ func _reach_end() -> void:
 
 	queue_free()
 
+
 func _update_shadow_fx(delta: float) -> void:
 	if not shadow:
 		return
 
-	# Basis
 	var y := shadow_offset_y
 	var scale := shadow_base_scale
 
 	# Bobbing beim Laufen (nur wenn nicht stunned/frozen)
 	if stun_timer <= 0.0 and not is_frozen:
 		shadow_bob_t += delta * 8.0
-		var bob := (sin(shadow_bob_t) + 1.0) * 0.5  # 0..1
-		# leicht "atmen": minimal größer/kleiner
+		var bob := (sin(shadow_bob_t) + 1.0) * 0.5
 		scale *= Vector2(1.0 + bob * 0.08, 1.0 - bob * 0.08)
 
 	# Freeze: Schatten kleiner & "näher" am Boden
@@ -361,7 +305,7 @@ func _update_shadow_fx(delta: float) -> void:
 		scale *= Vector2(0.85, 0.85)
 		y += 2.0
 
-	# Stun: leichtes Zittern (Position + Mini-Scale wobble)
+	# Stun: leichtes Zittern
 	if stun_timer > 0.0:
 		shadow_stun_t += delta * 45.0
 		y += sin(shadow_stun_t) * 0.8
@@ -369,6 +313,7 @@ func _update_shadow_fx(delta: float) -> void:
 
 	shadow.position.y = y
 	shadow.scale = scale
+
 
 func _update_status_effects(delta: float) -> void:
 	if slow_timer > 0:
@@ -383,7 +328,6 @@ func _update_status_effects(delta: float) -> void:
 		take_damage(int(burn_damage * delta), false, "fire")
 
 
-# NEU: Damage mit Elementar-Multiplikator
 func take_damage(amount: int, trigger_effects: bool = true, attacker_element: String = "") -> void:
 	if _resolved:
 		return
@@ -401,13 +345,11 @@ func take_damage(amount: int, trigger_effects: bool = true, attacker_element: St
 		GameState.record_damage(final_damage)
 		_do_hit_flash()
 
-		# VFX spawnen
 		if VFX:
 			var is_crit := final_damage > damage_threshold_for_crit()
 			var is_effective := multiplier > 1.0
 			var is_resisted := multiplier < 1.0
 
-			# Spezielle VFX für effektive/resistierte Treffer
 			if is_effective:
 				VFX.spawn_pixel_burst(position, attacker_element, 10)
 				VFX.spawn_damage_number(position, final_damage, true, attacker_element)
@@ -450,7 +392,6 @@ func _die() -> void:
 		VFX.spawn_death_effect(position, enemy_type)
 		VFX.spawn_gold_number(position, total_reward)
 
-		# Extra VFX für elementare Gegner
 		if element != "neutral" and element != "":
 			VFX.spawn_pixel_ring(position, element, 30.0)
 
@@ -514,7 +455,6 @@ func _update_health_bar() -> void:
 	var health_percent := float(health) / max_health
 	health_bar.set_point_position(1, Vector2(-15 + 30 * health_percent, -28))
 
-	# Farbe basierend auf Element und HP
 	var bar_color := Color(1 - health_percent, health_percent, 0)
 	if element != "neutral" and element != "":
 		var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
