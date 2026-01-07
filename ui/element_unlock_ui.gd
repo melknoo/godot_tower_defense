@@ -105,17 +105,14 @@ func _setup_ui() -> void:
 	
 	# Close Button
 	close_button = Button.new()
-	close_button.text = "Später"
+	close_button.text = "Schließen"
 	close_button.custom_minimum_size = Vector2(100, 30)
 	close_button.pressed.connect(_on_close_pressed)
 	
 	if UITheme:
 		UITheme.style_button(close_button)
+		UITheme.style_button_colors(close_button)
 	
-	var dark_font := Color(0.1, 0.1, 0.1)
-	close_button.add_theme_color_override("font_color", dark_font)
-	close_button.add_theme_color_override("font_hover_color", dark_font)
-	close_button.add_theme_color_override("font_pressed_color", dark_font)
 	
 	var btn_container := CenterContainer.new()
 	btn_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL

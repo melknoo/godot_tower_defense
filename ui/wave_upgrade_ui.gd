@@ -161,6 +161,7 @@ func _create_upgrade_cards() -> void:
 func _create_card(upgrade_id: String) -> PanelContainer:
 	var data: Dictionary = UpgradeSystem.get_upgrade_data(upgrade_id)
 	var current_stacks: int = UpgradeSystem.get_upgrade_stacks(upgrade_id)
+	var stat: String = data.get("stat")
 	var max_stacks: int = data.get("max_stacks", 1)
 	var category: String = data.get("category", "special")
 	var cat_color: Color = CATEGORY_COLORS.get(category, Color.WHITE)
@@ -229,7 +230,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	vbox.add_child(spacer)
 	
 	# Stack-Anzeige
-	if max_stacks > 1:
+	if max_stacks > 1 and not stat == "instant_gold":
 		var stack_label := Label.new()
 		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if UITheme and UITheme.game_font:

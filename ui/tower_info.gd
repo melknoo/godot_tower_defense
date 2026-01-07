@@ -132,6 +132,7 @@ func _setup_ui() -> void:
 	UITheme.style_button(upgrade_button)
 	UITheme.style_button(sell_button)
 	UITheme.style_button(close_button)
+	UITheme.style_button_colors(upgrade_button)
 
 
 func set_tower_manager(tm: TowerManager) -> void:
@@ -431,7 +432,7 @@ func _update_sell_button(level: int) -> void:
 	if sell_percent == 100:
 		sell_button.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
 	else:
-		sell_button.remove_theme_color_override("font_color")
+		sell_button.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
 
 
 func _on_engrave_button_pressed(element: String) -> void:

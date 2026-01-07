@@ -149,7 +149,7 @@ func activate_upgrade(upgrade_id: String) -> bool:
 	if data.get("category") == "instant":
 		_apply_instant_effect(upgrade_id, data)
 	upgrade_selected.emit(upgrade_id)
-	upgrades_changed.emit()
+	upgrades_changed.emit()	
 	print("[UpgradeSystem] Aktiviert: %s (Stack %d/%d)" % [data.get("name", upgrade_id), active_upgrades[upgrade_id], max_s])
 	return true
 

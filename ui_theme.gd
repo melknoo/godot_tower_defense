@@ -113,6 +113,12 @@ func style_button(btn: Button) -> void:
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	btn.add_theme_font_override("font", game_font)
 
+func style_button_colors(btn: Button, normal: Color = Color(0.1, 0.1, 0.1), disabled: Color = Color(0.7, 0.7, 0.7)) -> void:
+	btn.add_theme_color_override("font_color", normal)
+	btn.add_theme_color_override("font_hover_color", normal)
+	btn.add_theme_color_override("font_pressed_color", normal)
+	btn.add_theme_color_override("font_disabled_color", disabled)
+
 
 func style_panel(panel: PanelContainer, panel_type: String = "panel_light") -> void:
 	panel.add_theme_stylebox_override("panel", create_panel_style(panel_type))
