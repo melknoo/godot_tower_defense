@@ -24,6 +24,7 @@ VFX="*res://autoload/vfx_manager.gd"
 Sound="*res://autoload/sound_manager.gd"
 ElementalSystem="*res://autoload/elemental_system.gd"
 UpgradeSystem="*res://autoload/upgrade_system.gd"
+AbilitySystem="*res://autoload/ability_system.gd"
 
 [display]
 

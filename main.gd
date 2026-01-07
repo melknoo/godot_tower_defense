@@ -39,7 +39,9 @@ var is_dragging := false
 var drag_start_pos: Vector2 = Vector2.ZERO
 var drag_start_grid: Vector2i = Vector2i(-1, -1)
 const DRAG_THRESHOLD := 8.0
-
+var ability_bar: AbilityBar
+var ability_target_preview: Node2D
+var ability_range_circle: Line2D
 
 func _ready() -> void:
 	_setup_path_generator()
@@ -49,6 +51,8 @@ func _ready() -> void:
 	_setup_element_unlock_ui()
 	_setup_wave_upgrade_ui()
 	_setup_upgrade_overview_ui()
+	_setup_ability_bar()
+	_setup_ability_preview()
 	_connect_signals()
 	_setup_hover_preview()
 
@@ -127,6 +131,26 @@ func _setup_upgrade_overview_ui() -> void:
 	print("[Main] UpgradeOverviewUI erstellt")
 
 
+func _setup_ability_bar() -> void:
+	ability_bar = AbilityBar.new()
+	ability_bar.name = "AbilityBar"
+	$UI.add_child(ability_bar)
+	var viewport_size := get_viewport_rect().size
+	ability_bar.position = Vector2(5, viewport_size.y - 205)
+	print("[Main] AbilityBar erstellt")
+
+
+func _setup_ability_preview() -> void:
+	ability_target_preview = Node2D.new()
+	ability_target_preview.visible = false
+	add_child(ability_target_preview)
+	
+	ability_range_circle = Line2D.new()
+	ability_range_circle.width = 2
+	ability_range_circle.default_color = Color(1, 1, 1, 0.5)
+	ability_target_preview.add_child(ability_range_circle)
+	
+
 func _connect_signals() -> void:
 	GameState.game_over_triggered.connect(_on_game_over)
 	GameState.wave_started.connect(_on_wave_started)
@@ -167,6 +191,10 @@ func _input(event: InputEvent) -> void:
 			return
 		if upgrade_overview_ui and upgrade_overview_ui.visible:
 			upgrade_overview_ui.hide_panel()
+			return
+		if AbilitySystem and AbilitySystem.is_targeting:
+			AbilitySystem.cancel_targeting()
+			ability_target_preview.visible = false
 			return
 		if is_dragging or is_drag_potential or tower_manager.has_picked_up_tower():
 			_cancel_drag_or_pickup()
@@ -232,14 +260,26 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 	
 	if event.button_index == MOUSE_BUTTON_RIGHT:
 		if event.pressed:
+			if AbilitySystem and AbilitySystem.is_targeting:
+				AbilitySystem.cancel_targeting()
+				ability_target_preview.visible = false
+				return
 			_cancel_drag_or_pickup()
 		return
 	
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
+			# Ability ausführen wenn Targeting aktiv
+			if AbilitySystem and AbilitySystem.is_targeting:
+				var ability_id := AbilitySystem.selected_ability
+				if AbilitySystem.execute_ability(ability_id, event.position):
+					ability_target_preview.visible = false
+				return
 			_on_left_mouse_pressed(event.position)
 		else:
 			_on_left_mouse_released(event.position)
+
+
 
 
 func _on_left_mouse_pressed(pos: Vector2) -> void:
@@ -388,9 +428,50 @@ func _setup_hover_preview() -> void:
 	hover_range_circle.width = 2
 	hover_preview.add_child(hover_range_circle)
 
+func _update_ability_preview(mouse_pos: Vector2) -> void:
+	if not AbilitySystem or not AbilitySystem.is_targeting:
+		ability_target_preview.visible = false
+		return
+	
+	var ability_id := AbilitySystem.selected_ability
+	var data: Dictionary = AbilitySystem.get_ability_data(ability_id)
+	var radius: float = data.get("radius", 50.0)
+	
+	# Für Earthquake: Kein Kreis, da global
+	if ability_id == "earthquake":
+		ability_target_preview.visible = false
+		return
+	
+	ability_target_preview.visible = true
+	ability_target_preview.position = mouse_pos
+	
+	var element: String = data.get("element", "")
+	var elem_color := Color.WHITE
+	match element:
+		"air": elem_color = Color(0.7, 0.85, 1.0)
+		"water": elem_color = Color(0.4, 0.7, 1.0)
+		"fire": elem_color = Color(1.0, 0.5, 0.2)
+		"earth": elem_color = Color(0.7, 0.5, 0.3)
+	
+	ability_range_circle.clear_points()
+	ability_range_circle.default_color = elem_color
+	ability_range_circle.default_color.a = 0.6
+	
+	for i in range(33):
+		var angle := i * TAU / 32
+		ability_range_circle.add_point(Vector2(cos(angle), sin(angle)) * radius)
+
 
 func _update_hover_preview(mouse_pos: Vector2) -> void:
 	_check_drag_start(mouse_pos)
+	
+	# Ability Targeting Preview
+	if AbilitySystem and AbilitySystem.is_targeting:
+		_update_ability_preview(mouse_pos)
+		hover_preview.visible = false
+		return
+	else:
+		ability_target_preview.visible = false
 	
 	if tower_manager.has_picked_up_tower() or is_dragging:
 		_update_pickup_hover_preview(mouse_pos)
@@ -429,6 +510,7 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 	else:
 		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
 		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
+
 
 
 func _update_pickup_hover_preview(mouse_pos: Vector2) -> void:
@@ -655,6 +737,9 @@ func _on_element_unlocked(element: String) -> void:
 
 
 func _on_shop_tower_selected(_tower_type: String) -> void:
+	if AbilitySystem and AbilitySystem.is_targeting:
+		AbilitySystem.cancel_targeting()
+		ability_target_preview.visible = false
 	if is_dragging:
 		tower_manager.cancel_pickup()
 		_end_pickup_preview()
