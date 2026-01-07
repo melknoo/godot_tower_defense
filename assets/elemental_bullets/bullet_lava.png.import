@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://s2bopwjdfgbg"
-path="res://.godot/imported/Lightning.png-82937719d8b8f3099b564d9255e5897b.ctex"
+uid="uid://bv3nb2f0hp0kf"
+path="res://.godot/imported/bullet_lava.png-494ef40e1cf3ccd53560869f0e25678d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/Lightning.png"
-dest_files=["res://.godot/imported/Lightning.png-82937719d8b8f3099b564d9255e5897b.ctex"]
+source_file="res://assets/elemental_bullets/bullet_lava.png"
+dest_files=["res://.godot/imported/bullet_lava.png-494ef40e1cf3ccd53560869f0e25678d.ctex"]
 
 [params]
 

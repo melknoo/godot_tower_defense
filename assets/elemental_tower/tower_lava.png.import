@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cbao6pb3btycu"
-path="res://.godot/imported/Earth Bullet.png-6b26706a60c1b4b957cc20cedd1f4da4.ctex"
+uid="uid://bvnykaaxug604"
+path="res://.godot/imported/tower_lava.png-37054ba75c4b7e2aea81de5befffda10.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/Earth Bullet.png"
-dest_files=["res://.godot/imported/Earth Bullet.png-6b26706a60c1b4b957cc20cedd1f4da4.ctex"]
+source_file="res://assets/elemental_tower/tower_lava.png"
+dest_files=["res://.godot/imported/tower_lava.png-37054ba75c4b7e2aea81de5befffda10.ctex"]
 
 [params]
 

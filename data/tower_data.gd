@@ -143,7 +143,9 @@ var towers := {
 
 var combinations := {
 	"steam": {
-		"name": "Dampf", "requires": ["water", "fire"],
+		"name": "Dampf", 
+		#"requires": ["water", "fire"],
+		"requires": ["fire"],
 		"description": "Nebel der Gegner verwirrt",
 		"cost": 100, "damage": [60, 90, 130],
 		"range": [130.0, 150.0, 170.0], "fire_rate": [1.0, 0.9, 0.8],
@@ -152,8 +154,8 @@ var combinations := {
 	},
 	"ice": {
 		"name": "Eis", 
-		#"requires": ["water"],
-		"requires": ["water", "air"],
+		#"requires": ["water", "air"],
+		"requires": ["fire"],
 		"description": "Friert Gegner ein",
 		"cost": 100, "damage": [30, 50, 75],
 		"range": [140.0, 160.0, 180.0], "fire_rate": [1.2, 1.0, 0.8],
@@ -161,7 +163,9 @@ var combinations := {
 		"upgrade_costs": [75, 140], "special": "freeze", "attack_type": "projectile"
 	},
 	"lava": {
-		"name": "Lava", "requires": ["fire", "earth"],
+		"name": "Lava", 
+		#"requires": ["fire", "earth"],
+		"requires": ["fire"],
 		"description": "Hinterlässt brennende Pfützen",
 		"cost": 120, "damage": [80, 120, 170],
 		"range": [80.0, 90.0, 100.0], "fire_rate": [2.5, 2.2, 1.9],
@@ -169,7 +173,9 @@ var combinations := {
 		"upgrade_costs": [100, 180], "special": "pool", "attack_type": "projectile"
 	},
 	"nature": {
-		"name": "Natur", "requires": ["earth", "air"],
+		"name": "Natur", 
+		#"requires": ["earth", "air"],
+		"requires": ["fire"],
 		"description": "Ranken die Gegner festhalten",
 		"cost": 100, "damage": [25, 40, 60],
 		"range": [120.0, 140.0, 160.0], "fire_rate": [1.5, 1.3, 1.1],

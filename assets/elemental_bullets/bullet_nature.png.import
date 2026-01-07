@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://l2rgwbvnx7c3"
-path="res://.godot/imported/GroundCrack.png-a84eb8840c4954eda24bab2cb2bbbd75.ctex"
+uid="uid://bj0nnfuunr2d7"
+path="res://.godot/imported/bullet_nature.png-dd12b1d9c3dc9ff1b24daa52b001c65c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/GroundCrack.png"
-dest_files=["res://.godot/imported/GroundCrack.png-a84eb8840c4954eda24bab2cb2bbbd75.ctex"]
+source_file="res://assets/elemental_bullets/bullet_nature.png"
+dest_files=["res://.godot/imported/bullet_nature.png-dd12b1d9c3dc9ff1b24daa52b001c65c.ctex"]
 
 [params]
 
