@@ -11,6 +11,7 @@ var is_collected := false
 var sprite: Sprite2D
 var glow: Sprite2D
 var rarity_ring: Line2D
+var rarity_marker: Sprite2D
 var label: Label
 var pickup_area: Area2D
 
@@ -25,35 +26,46 @@ var glow_tween: Tween
 const PICKUP_RANGE := 40.0
 const DESPAWN_TIME := 30.0  # Sekunden bis Item verschwindet
 
+const LOOT_MARKER_TEXTURES := {
+	"common": preload("res://assets/items/loot_common.png"),
+	"uncommon": preload("res://assets/items/loot_uncommon.png"),
+	"rare": preload("res://assets/items/loot_rare.png"),
+	"epic": preload("res://assets/items/loot_epic.png"),
+}
 
 func _ready() -> void:
 	add_to_group("item_drops")
 	_create_visuals()
+	_update_visuals()
 	_start_despawn_timer()
 
 
 func setup(data: Dictionary) -> void:
 	item_data = data
 	base_y = position.y
-	_update_visuals()
+
+	# Stelle sicher, dass die Visual-Nodes existieren (sprite/marker/label)
+	_create_visuals()
+
+	# Update erst nach dem Frame, damit alle Nodes sauber im Tree sind
+	call_deferred("_update_visuals")
+
 	_play_spawn_animation()
 
 
 func _create_visuals() -> void:
+	if is_instance_valid(sprite):
+		return
 	# Glow hinter dem Item
 	glow = Sprite2D.new()
 	glow.z_index = -1
 	add_child(glow)
 	
 	# Rarity Ring
-	rarity_ring = Line2D.new()
-	rarity_ring.width = 2
-	rarity_ring.z_index = -1
-	var pts := 17
-	for i in range(pts):
-		var a := float(i) / (pts - 1) * TAU
-		rarity_ring.add_point(Vector2(cos(a), sin(a)) * 14)
-	add_child(rarity_ring)
+	rarity_marker = Sprite2D.new()
+	rarity_marker.z_index = -1
+	rarity_marker.scale = Vector2(2.5, 2.5) # 16x16 -> ca. 40x40 (wie dein Item)
+	add_child(rarity_marker)
 	
 	# Item Sprite
 	sprite = Sprite2D.new()
@@ -86,44 +98,31 @@ func _create_visuals() -> void:
 func _update_visuals() -> void:
 	if item_data.is_empty():
 		return
-	
-	if not is_instance_valid(sprite):
-		print("[ItemDrop] in _update_visuals, not is_instance_valid(sprite)")
+
+	# Falls Visuals noch nicht gebaut sind -> jetzt bauen und deferred erneut versuchen
+	if not is_instance_valid(sprite) or not is_instance_valid(rarity_marker) or not is_instance_valid(label):
+		_create_visuals()
+		call_deferred("_update_visuals")
 		return
-	
+
 	var rarity_color: Color = item_data.get("color", Color.WHITE)
-	
-	if ItemSystem:
-		var tex: Texture2D = ItemSystem.get_item_texture(item_data)
-		if tex:
-			sprite.texture = tex
-	
+
+	# Fallback wenn keine Textur
 	if sprite.texture == null:
 		_create_fallback_sprite()
-	
-	rarity_ring.default_color = rarity_color
-	rarity_ring.default_color.a = 0.6
-	
-	_create_glow(rarity_color)
-	
-	label.text = item_data.get("name", "Item")
-	label.add_theme_color_override("font_color", rarity_color)
 
-	
-	# Fallback wenn keine Textur
-	if not sprite.texture:
-		_create_fallback_sprite()
-	
-	# Ring-Farbe
-	rarity_ring.default_color = rarity_color
-	rarity_ring.default_color.a = 0.6
-	
+	# Rarity Marker (PNG)
+	var rarity: String = item_data.get("rarity", "common")
+	rarity_marker.texture = LOOT_MARKER_TEXTURES.get(rarity, LOOT_MARKER_TEXTURES["common"])
+	rarity_marker.modulate.a = 1.0
+
 	# Glow basierend auf Rarity
 	_create_glow(rarity_color)
-	
+
 	# Label
 	label.text = item_data.get("name", "Item")
 	label.add_theme_color_override("font_color", rarity_color)
+	label.visible = false
 
 
 func _create_fallback_sprite() -> void:

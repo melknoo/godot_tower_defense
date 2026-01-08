@@ -123,7 +123,7 @@ func _find_or_create_ui_elements() -> void:
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
-	inventory_button = _get_or_create_button("InventoryButton", Vector2(600, zero_row_y - 5), Vector2(48, 48))
+	
 	
 	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
 	supply_label = _get_or_create_label("SupplyLabel", Vector2(20, zero_row_y))
@@ -152,6 +152,7 @@ func _find_or_create_ui_elements() -> void:
 
 	cores_button = _get_or_create_button("CoresButton", Vector2(440, zero_row_y - 5), Vector2(64, 64))
 	upgrades_button = _get_or_create_button("UpgradesButton", Vector2(520, zero_row_y - 5), Vector2(48, 48))
+	inventory_button = _get_or_create_button("InventoryButton", Vector2(380, zero_row_y - 5), Vector2(48, 48))
 	start_button = _get_or_create_button("StartWaveButton", Vector2(viewport_size.x - 740, first_row_y - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
 
