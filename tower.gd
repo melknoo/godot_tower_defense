@@ -67,6 +67,16 @@ const SWORD_DIRECTION_ROWS := {"up": 2, "up_right": 3, "right": 4, "down_right":
 static var corner_textures: Dictionary = {}
 static var corners_loaded := false
 
+# Equipment
+var equipped_items: Array = [{}, {}]  # 2 Slots
+var item_indicators: Array[Node2D] = []
+
+# Item-modifizierte Stats (separat von Basis-Stats)
+var base_damage := 20
+var base_range := 150.0
+var base_fire_rate := 1.0
+var base_splash := 0.0
+
 
 func _ready() -> void:
 	bullet_scene = preload("res://bullet.tscn")
@@ -119,16 +129,144 @@ func _apply_upgrade_bonuses() -> void:
 
 func setup(data: Dictionary, type: String) -> void:
 	tower_type = type
-	tower_range = data.get("range", 150.0)
-	fire_rate = data.get("fire_rate", 1.0)
-	damage = data.get("damage", 20)
-	splash_radius = data.get("splash", 0.0)
+	
+	# Basis-Werte speichern
+	base_range = data.get("range", 150.0)
+	base_fire_rate = data.get("fire_rate", 1.0)
+	base_damage = data.get("damage", 20)
+	base_splash = data.get("splash", 0.0)
+	
+	# Aktuelle Werte setzen
+	tower_range = base_range
+	fire_rate = base_fire_rate
+	damage = base_damage
+	splash_radius = base_splash
+	
 	attack_type = data.get("attack_type", "projectile")
 	_load_special_effects()
 	_apply_upgrade_bonuses()
+	_apply_item_bonuses()  # NEU
 	_update_archer_anim_speed()
+	
 	if is_inside_tree():
 		_update_visuals()
+		_update_item_indicators()  # NEU
+
+
+func _apply_item_bonuses() -> void:
+	if not ItemSystem:
+		return
+	
+	var elem := get_effective_element()
+	
+	# Damage
+	var damage_bonus := ItemSystem.get_tower_item_bonus_percent(self, "damage")
+	damage = int(float(damage) * (1.0 + damage_bonus))
+	
+	# Range
+	var range_bonus := ItemSystem.get_tower_item_bonus_percent(self, "range")
+	tower_range *= (1.0 + range_bonus)
+	
+	# Fire Rate (höher = schneller)
+	var fire_rate_bonus := ItemSystem.get_tower_item_bonus_percent(self, "fire_rate")
+	fire_rate /= (1.0 + fire_rate_bonus)
+	
+	# Splash
+	if splash_radius > 0:
+		var splash_bonus := ItemSystem.get_tower_item_bonus_percent(self, "splash")
+		splash_radius *= (1.0 + splash_bonus)
+	
+	# Crit Chance
+	var item_crit := ItemSystem.get_tower_item_bonus_percent(self, "crit_chance")
+	# Wird in _shoot() verwendet
+	
+	# Element-spezifische Boni
+	var slow_bonus := ItemSystem.get_tower_item_bonus_percent(self, "slow_bonus")
+	slow_amount += slow_bonus
+	
+	var burn_bonus := ItemSystem.get_tower_item_bonus_percent(self, "burn_bonus")
+	burn_damage = int(float(burn_damage) * (1.0 + burn_bonus)) if burn_damage > 0 else 0
+	
+	var stun_bonus := ItemSystem.get_tower_item_bonus_percent(self, "stun_bonus")
+	stun_chance += stun_bonus
+	
+	var chain_bonus := ItemSystem.get_tower_item_bonus(self, "chain_bonus")
+	chain_targets += int(chain_bonus)
+
+
+# === NEUE FUNKTION: Stats neu berechnen (wird von ItemSystem aufgerufen) ===
+func recalculate_stats() -> void:
+	# Zurück zu Basis-Werten
+	tower_range = base_range
+	fire_rate = base_fire_rate
+	damage = base_damage
+	splash_radius = base_splash
+	
+	# Spezialeffekte neu laden
+	_load_special_effects()
+	
+	# Alle Boni anwenden
+	_apply_upgrade_bonuses()
+	_apply_item_bonuses()
+	
+	# Visuals aktualisieren
+	if is_inside_tree():
+		_update_visuals()
+		_update_item_indicators()
+
+
+# === NEUE FUNKTION: Item-Indikatoren anzeigen ===
+func _update_item_indicators() -> void:
+	# Alte entfernen
+	for indicator in item_indicators:
+		if is_instance_valid(indicator):
+			indicator.queue_free()
+	item_indicators.clear()
+	
+	if not ItemSystem:
+		return
+	
+	var items := ItemSystem.get_tower_equipped_items(self)
+	var slot_x := -20
+	
+	for i in range(items.size()):
+		var item: Dictionary = items[i]
+		if item.is_empty():
+			continue
+		
+		var indicator := Node2D.new()
+		indicator.position = Vector2(slot_x + i * 20, 25)
+		add_child(indicator)
+		item_indicators.append(indicator)
+		
+		# Mini-Icon
+		var icon := Sprite2D.new()
+		var tex := ItemSystem.get_item_texture(item)
+		if tex:
+			icon.texture = tex
+			icon.scale = Vector2(1.5, 1.5)
+		else:
+			# Fallback: Farbiger Punkt
+			var dot := Polygon2D.new()
+			dot.polygon = PackedVector2Array([
+				Vector2(-4, -4), Vector2(4, -4), Vector2(4, 4), Vector2(-4, 4)
+			])
+			dot.color = item.get("color", Color.WHITE)
+			indicator.add_child(dot)
+			continue
+		
+		indicator.add_child(icon)
+		
+		# Rarity-Rahmen
+		var frame := Line2D.new()
+		frame.width = 1
+		frame.default_color = item.get("color", Color.WHITE)
+		frame.add_point(Vector2(-6, -6))
+		frame.add_point(Vector2(6, -6))
+		frame.add_point(Vector2(6, 6))
+		frame.add_point(Vector2(-6, 6))
+		frame.add_point(Vector2(-6, -6))
+		indicator.add_child(frame)
 
 
 func upgrade(data: Dictionary, new_level: int) -> void:
@@ -688,10 +826,34 @@ func _execute_melee_damage() -> void:
 			hit_enemies.append(enemy)
 	
 	var elem := get_effective_element()
+	var kills := 0
+	
 	for enemy in hit_enemies:
+		var was_alive := enemy.health > 0 if enemy.has_method("get") else true
+		
 		if enemy.has_method("take_damage"):
 			enemy.take_damage(damage, true, elem)
 		_apply_melee_effects(enemy)
+		
+		# Kill tracking für Life-Steal
+		if was_alive and (not is_instance_valid(enemy) or enemy.health <= 0):
+			kills += 1
+	
+	# Life-Steal
+	if kills > 0 and ItemSystem:
+		var life_steal := int(ItemSystem.get_tower_item_bonus(self, "life_steal"))
+		if life_steal > 0:
+			GameState.lives = mini(GameState.lives + life_steal * kills, 20)
+			if VFX:
+				VFX.spawn_pixels(position, "nature", 4, 15.0)
+	
+	# Gold-Bonus Item
+	if kills > 0 and ItemSystem:
+		var gold_bonus := int(ItemSystem.get_tower_item_bonus(self, "gold_bonus"))
+		if gold_bonus > 0:
+			GameState.gold += gold_bonus * kills
+			if VFX:
+				VFX.spawn_gold_number(position, gold_bonus * kills)
 	
 	if VFX:
 		VFX.spawn_cleave_effect(position, tower_range, elem if elem != "" else "sword")
@@ -701,6 +863,23 @@ func _execute_melee_damage() -> void:
 			VFX.screen_shake(2.0, 0.08)
 	
 	Sound.play_shoot("sword", level)
+
+
+func get_equipped_items() -> Array:
+	return equipped_items
+
+
+func get_equipment_slot(slot: int) -> Dictionary:
+	if slot < 0 or slot >= equipped_items.size():
+		return {}
+	return equipped_items[slot]
+
+
+func has_empty_equipment_slot() -> bool:
+	for item in equipped_items:
+		if item.is_empty():
+			return true
+	return false
 
 
 func _apply_melee_effects(enemy: Node2D) -> void:
@@ -718,23 +897,41 @@ func _apply_melee_effects(enemy: Node2D) -> void:
 func _shoot() -> void:
 	if not target:
 		return
+	
 	var bullet := bullet_scene.instantiate()
 	bullet.position = position
 	
 	var elem := get_effective_element()
-	var bullet_data := {
-		"target": target, "damage": damage, "splash": splash_radius,
-		"type": elem if elem != "" else tower_type,
-		"level": level, "special": special_type,
-		"slow_amount": slow_amount, "burn_damage": burn_damage,
-		"stun_chance": stun_chance, "chain_targets": chain_targets
-	}
 	
-	if bullet.has_method("setup_extended"):
-		bullet.setup_extended(bullet_data)
-	else:
-		bullet.setup(target, damage, splash_radius, tower_type)
-	get_parent().add_child(bullet)
+	# Crit berechnen
+	var is_crit := false
+	var final_damage := damage
+	var crit_chance := 0.0
+	
+	if UpgradeSystem:
+		crit_chance += UpgradeSystem.get_crit_chance()
+	if ItemSystem:
+		crit_chance += ItemSystem.get_tower_item_bonus_percent(self, "crit_chance")
+	
+	if randf() < crit_chance:
+		is_crit = true
+		final_damage = int(float(damage) * 1.5)
+		if VFX:
+			VFX.spawn_pixels(position, "crit", 4, 15.0)
+	
+	# Multishot Item-Effekt
+	var multishot := 0
+	if ItemSystem:
+		multishot = int(ItemSystem.get_tower_item_bonus(self, "multishot"))
+	
+	# Haupt-Projektil
+	_fire_bullet(bullet, elem, final_damage, is_crit)
+	
+	# Extra Projektile durch Multishot
+	for i in range(multishot):
+		var extra := bullet_scene.instantiate()
+		extra.position = position + Vector2(randf_range(-10, 10), randf_range(-10, 10))
+		_fire_bullet(extra, elem, int(final_damage * 0.7), false)
 	
 	var direction := (target.position - position).normalized()
 	if VFX and tower_type != "archer":
@@ -745,6 +942,24 @@ func _shoot() -> void:
 	
 	if not archer_sprite:
 		_do_recoil()
+
+
+func _fire_bullet(bullet: Node2D, elem: String, dmg: int, is_crit: bool) -> void:
+	var bullet_data := {
+		"target": target, "damage": dmg, "splash": splash_radius,
+		"type": elem if elem != "" else tower_type,
+		"level": level, "special": special_type,
+		"slow_amount": slow_amount, "burn_damage": burn_damage,
+		"stun_chance": stun_chance, "chain_targets": chain_targets,
+		"is_crit": is_crit
+	}
+	
+	if bullet.has_method("setup_extended"):
+		bullet.setup_extended(bullet_data)
+	else:
+		bullet.setup(target, dmg, splash_radius, tower_type)
+	
+	get_parent().add_child(bullet)
 
 
 func _do_recoil() -> void:

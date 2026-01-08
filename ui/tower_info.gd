@@ -27,6 +27,10 @@ var current_tower: Node2D = null
 var current_grid_pos: Vector2i = Vector2i(-1, -1)
 var tower_manager: TowerManager = null
 
+var equipment_container: HBoxContainer
+var equipment_slots: Array[PanelContainer] = []
+var equip_hint_label: Label
+
 
 func _ready() -> void:
 	visible = false
@@ -102,6 +106,34 @@ func _setup_ui() -> void:
 	engrave_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
 	engrave_container.add_child(engrave_label)
 	
+	var equip_sep := HSeparator.new()
+	vbox.add_child(equip_sep)
+	
+	var equip_header := Label.new()
+	equip_header.text = "Ausrüstung:"
+	equip_header.add_theme_font_size_override("font_size", 11)
+	equip_header.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	vbox.add_child(equip_header)
+	
+	equipment_container = HBoxContainer.new()
+	equipment_container.name = "EquipmentContainer"
+	equipment_container.add_theme_constant_override("separation", 8)
+	vbox.add_child(equipment_container)
+	
+	# 2 Equipment Slots erstellen
+	for i in range(2):
+		var slot := _create_equipment_slot(i)
+		equipment_container.add_child(slot)
+		equipment_slots.append(slot)
+	
+	equip_hint_label = Label.new()
+	equip_hint_label.text = "Klicke Slot → Wähle Item aus Inventar"
+	equip_hint_label.add_theme_font_size_override("font_size", 8)
+	equip_hint_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+	equip_hint_label.visible = false
+	vbox.add_child(equip_hint_label)
+	
+	
 	pickup_button = Button.new()
 	pickup_button.name = "PickupButton"
 	pickup_button.text = "Aufnehmen"
@@ -133,6 +165,207 @@ func _setup_ui() -> void:
 	UITheme.style_button(sell_button)
 	UITheme.style_button(close_button)
 	UITheme.style_button_colors(upgrade_button)
+
+
+func _create_equipment_slot(index: int) -> PanelContainer:
+	var slot := PanelContainer.new()
+	slot.name = "EquipSlot_%d" % index
+	slot.custom_minimum_size = Vector2(44, 44)
+	
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.2, 0.22)
+	style.border_color = Color(0.4, 0.4, 0.45)
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	slot.add_theme_stylebox_override("panel", style)
+	
+	slot.set_meta("style", style)
+	slot.set_meta("slot_index", index)
+	
+	# Leerer Slot Indikator
+	var empty_label := Label.new()
+	empty_label.name = "EmptyLabel"
+	empty_label.text = "+"
+	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	empty_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	empty_label.add_theme_font_size_override("font_size", 20)
+	empty_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+	slot.add_child(empty_label)
+	
+	# Item Container (initial leer)
+	var item_container := CenterContainer.new()
+	item_container.name = "ItemContainer"
+	item_container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	item_container.visible = false
+	item_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(item_container)
+	
+	# Interaktion
+	slot.gui_input.connect(_on_equipment_slot_input.bind(slot))
+	slot.mouse_entered.connect(_on_equipment_slot_hover.bind(slot, true))
+	slot.mouse_exited.connect(_on_equipment_slot_hover.bind(slot, false))
+	
+	return slot
+
+
+func _update_equipment_display() -> void:
+	if not current_tower or not ItemSystem:
+		equipment_container.visible = false
+		return
+	
+	# Nur für angreifende Türme
+	if TowerData.is_supply_building(current_tower.tower_type):
+		equipment_container.visible = false
+		return
+	
+	equipment_container.visible = true
+	
+	var equipped := ItemSystem.get_tower_equipped_items(current_tower)
+	
+	for i in range(equipment_slots.size()):
+		var slot: PanelContainer = equipment_slots[i]
+		var item: Dictionary = equipped[i] if i < equipped.size() else {}
+		
+		_update_slot_display(slot, item)
+	
+	# Hint anzeigen wenn leere Slots
+	var has_empty := false
+	for item in equipped:
+		if item.is_empty():
+			has_empty = true
+			break
+	equip_hint_label.visible = has_empty and ItemSystem.get_inventory().size() > 0
+
+
+func _update_slot_display(slot: PanelContainer, item: Dictionary) -> void:
+	var empty_label: Label = slot.get_node("EmptyLabel")
+	var item_container: CenterContainer = slot.get_node("ItemContainer")
+	var style: StyleBoxFlat = slot.get_meta("style")
+	
+	# Alte Item-Anzeige entfernen
+	for child in item_container.get_children():
+		child.queue_free()
+	
+	if item.is_empty():
+		empty_label.visible = true
+		item_container.visible = false
+		style.border_color = Color(0.4, 0.4, 0.45)
+		slot.tooltip_text = "Leer - Klicken um Item auszurüsten"
+	else:
+		empty_label.visible = false
+		item_container.visible = true
+		
+		# Item Icon
+		var tex_rect := TextureRect.new()
+		tex_rect.custom_minimum_size = Vector2(32, 32)
+		tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		
+		var tex := ItemSystem.get_item_texture(item)
+		if tex:
+			tex_rect.texture = tex
+		
+		item_container.add_child(tex_rect)
+		
+		# Rahmenfarbe nach Rarity
+		var rarity_color: Color = item.get("color", Color.WHITE)
+		style.border_color = rarity_color
+		
+		slot.tooltip_text = "%s\n%s\nRechtsklick zum Entfernen" % [
+			item.get("name", "Item"),
+			item.get("description", "")
+		]
+
+
+func _on_equipment_slot_input(event: InputEvent, slot: PanelContainer) -> void:
+	if not event is InputEventMouseButton or not event.pressed:
+		return
+	
+	var slot_index: int = slot.get_meta("slot_index")
+	var equipped := ItemSystem.get_tower_equipped_items(current_tower)
+	var current_item: Dictionary = equipped[slot_index] if slot_index < equipped.size() else {}
+	
+	if event.button_index == MOUSE_BUTTON_RIGHT and not current_item.is_empty():
+		# Rechtsklick: Item entfernen
+		_unequip_item(slot_index)
+	elif event.button_index == MOUSE_BUTTON_LEFT:
+		# Linksklick: Item auswählen/ausrüsten
+		_try_equip_from_inventory(slot_index)
+
+
+func _on_equipment_slot_hover(slot: PanelContainer, entered: bool) -> void:
+	var style: StyleBoxFlat = slot.get_meta("style")
+	var slot_index: int = slot.get_meta("slot_index")
+	var equipped := ItemSystem.get_tower_equipped_items(current_tower) if current_tower and ItemSystem else [{}, {}]
+	var current_item: Dictionary = equipped[slot_index] if slot_index < equipped.size() else {}
+	
+	if entered:
+		style.bg_color = Color(0.3, 0.3, 0.35)
+	else:
+		style.bg_color = Color(0.2, 0.2, 0.22)
+
+
+func _try_equip_from_inventory(slot_index: int) -> void:
+	if not ItemSystem:
+		return
+	
+	# Prüfen ob Inventar-UI ein Item ausgewählt hat
+	var main := get_node_or_null("/root/Main")
+	if not main:
+		return
+	
+	var inventory_ui := main.get_node_or_null("ItemInventoryUI") as ItemInventoryUI
+	if not inventory_ui:
+		# Inventar öffnen
+		if main.has_method("_on_open_inventory"):
+			main._on_open_inventory()
+		return
+	
+	if not inventory_ui.has_selection():
+		# Kein Item ausgewählt - Inventar öffnen/fokussieren
+		if not inventory_ui.visible:
+			inventory_ui.show_panel()
+		return
+	
+	var selected_item := inventory_ui.get_selected_item()
+	
+	# Prüfen ob Item auf diesen Turm passt
+	if not ItemSystem.can_equip_on_tower(selected_item, current_tower):
+		Sound.play_error()
+		# Feedback
+		var allowed: Array = selected_item.get("allowed_towers", [])
+		print("[TowerInfo] Item passt nicht! Erlaubt: %s" % str(allowed))
+		return
+	
+	# Item ausrüsten
+	var uid: String = selected_item.get("uid", "")
+	if ItemSystem.equip_item(current_tower, uid, slot_index):
+		Sound.play_place()
+		inventory_ui.deselect_item()
+		_update_equipment_display()
+		_update_display()  # Stats neu anzeigen
+		
+		if VFX:
+			VFX.spawn_pixels(current_tower.position, "gold", 6, 20.0)
+
+
+func _unequip_item(slot_index: int) -> void:
+	if not ItemSystem:
+		return
+	
+	if ItemSystem.unequip_item(current_tower, slot_index):
+		Sound.play_sell()
+		_update_equipment_display()
+		_update_display()
+
 
 
 func set_tower_manager(tm: TowerManager) -> void:
@@ -193,6 +426,7 @@ func _update_display() -> void:
 	_update_stats_with_upgrades(tower_type, level)
 	_update_supply_info(level)
 	_update_blocked_info(is_blocked)
+	_update_equipment_display()
 	
 	var dark_color := Color(0.094, 0.094, 0.094)
 	tower_name_label.add_theme_color_override("font_color", dark_color)

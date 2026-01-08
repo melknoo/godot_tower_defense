@@ -374,6 +374,33 @@ func _do_hit_flash() -> void:
 		sprite.modulate = Color.WHITE
 
 
+func _try_drop_item() -> void:
+	if not ItemSystem:
+		return
+	
+	var item := ItemSystem.try_drop_item(enemy_type, position, element)
+	
+	if item.is_empty():
+		return
+	
+	# Item-Drop spawnen
+	var drop_scene := preload("res://item_drop.tscn") if ResourceLoader.exists("res://item_drop.tscn") else null
+	
+	if drop_scene:
+		var drop := drop_scene.instantiate()
+		drop.position = position
+		drop.setup(item)
+		get_parent().call_deferred("add_child", drop)
+	else:
+		# Fallback: Direkt als Node erstellen
+		var drop := ItemDrop.new()
+		drop.position = position
+		get_parent().call_deferred("add_child", drop)
+		drop.call_deferred("setup", item)
+	
+	print("[Enemy] Item gedroppt: %s (%s)" % [item.get("name", "?"), item.get("rarity", "?")])
+
+
 func _die() -> void:
 	if _resolved:
 		return
@@ -387,6 +414,23 @@ func _die() -> void:
 	var total_reward := reward + bonus_gold
 	GameState.enemy_died(total_reward)
 	Sound.play_coin()
+	
+	# === NEU: Item Drop ===
+	_try_drop_item()
+	
+	if VFX:
+		VFX.spawn_death_effect(position, enemy_type)
+		VFX.spawn_gold_number(position, total_reward)
+
+		# Extra VFX für elementare Gegner
+		if element != "neutral" and element != "":
+			VFX.spawn_pixel_ring(position, element, 30.0)
+
+		if enemy_type == "boss":
+			VFX.screen_shake(12.0, 0.4)
+			VFX.screen_flash(Color(1, 0.8, 0.3), 0.2)
+
+	queue_free()
 
 	if VFX:
 		VFX.spawn_death_effect(position, enemy_type)

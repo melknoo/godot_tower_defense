@@ -6,6 +6,7 @@ class_name HUD
 signal start_wave_pressed
 signal open_element_panel_pressed
 signal open_upgrades_panel_pressed
+signal open_inventory_pressed
 
 @export var gold_label: Label
 @export var lives_label: Label
@@ -24,6 +25,9 @@ signal open_upgrades_panel_pressed
 @export var supply_label: Label
 @export var blocked_warning_label: Label
 @export var wave_events_label: Label  # NEU: Zeigt kommende Events
+@export var inventory_button: Button
+
+var inventory_notification: Label  # Zeigt Anzahl neuer Items
 
 var current_wave_element_area: Control
 var current_wave_element_icon: TextureRect
@@ -119,6 +123,7 @@ func _find_or_create_ui_elements() -> void:
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
+	inventory_button = _get_or_create_button("InventoryButton", Vector2(600, zero_row_y - 5), Vector2(48, 48))
 	
 	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
 	supply_label = _get_or_create_label("SupplyLabel", Vector2(20, zero_row_y))
@@ -260,6 +265,26 @@ func _apply_styles() -> void:
 	if wave_events_label:
 		wave_events_label.add_theme_font_size_override("font_size", 10)
 		wave_events_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+		
+	if inventory_button:
+		inventory_button.text = "📦"
+		inventory_button.tooltip_text = "Inventar öffnen (I)"
+		
+		# Notification Badge
+		inventory_notification = Label.new()
+		inventory_notification.name = "InventoryNotification"
+		inventory_notification.position = Vector2(32, -5)
+		inventory_notification.add_theme_font_size_override("font_size", 10)
+		inventory_notification.add_theme_color_override("font_color", Color(1, 1, 1))
+		inventory_notification.add_theme_color_override("font_outline_color", Color(0.8, 0.2, 0.2))
+		inventory_notification.add_theme_constant_override("outline_size", 3)
+		inventory_notification.visible = false
+		inventory_button.add_child(inventory_notification)
+	
+	if UITheme and inventory_button:
+		UITheme.style_button(inventory_button)
+	if inventory_button:
+		_apply_button_font_color(inventory_button)
 
 	if cores_button:
 		cores_button.text = ""
@@ -352,10 +377,43 @@ func _connect_signals() -> void:
 		upgrades_button.pressed.connect(_on_upgrades_button_pressed)
 	if fast_forward_button:
 		fast_forward_button.pressed.connect(_on_fast_forward_pressed)
+	if inventory_button:
+		inventory_button.pressed.connect(_on_inventory_button_pressed)
+	if ItemSystem:
+		ItemSystem.item_collected.connect(_on_item_collected)
+		ItemSystem.inventory_changed.connect(_on_inventory_changed)
+
+
+func _on_inventory_button_pressed() -> void:
+	open_inventory_pressed.emit()
+
+func _on_item_collected(item: Dictionary) -> void:
+	# Flash-Effekt auf Button
+	if inventory_button:
+		var tween := inventory_button.create_tween()
+		tween.tween_property(inventory_button, "modulate", Color(1.5, 1.5, 0.5), 0.15)
+		tween.tween_property(inventory_button, "modulate", Color.WHITE, 0.2)
+		
+	_update_inventory_notification()
 
 
 func _on_element_invested(_element: String) -> void:
 	_on_cores_changed(GameState.element_cores)
+
+func _on_inventory_changed() -> void:
+	_update_inventory_notification()
+
+func _update_inventory_notification() -> void:
+	if not inventory_notification or not ItemSystem:
+		return
+	
+	var count := ItemSystem.get_inventory().size()
+	if count > 0:
+		inventory_notification.text = str(count)
+		inventory_notification.visible = true
+	else:
+		inventory_notification.visible = false
+
 
 
 func _on_element_upgraded(_element: String, _level: int) -> void:

@@ -42,6 +42,8 @@ const DRAG_THRESHOLD := 8.0
 var ability_bar: AbilityBar
 var ability_target_preview: Node2D
 var ability_range_circle: Line2D
+var item_inventory_ui: ItemInventoryUI
+
 
 func _ready() -> void:
 	_setup_path_generator()
@@ -51,6 +53,7 @@ func _ready() -> void:
 	_setup_element_unlock_ui()
 	_setup_wave_upgrade_ui()
 	_setup_upgrade_overview_ui()
+	_setup_item_inventory_ui()
 	_setup_ability_bar()
 	_setup_ability_preview()
 	_connect_signals()
@@ -61,6 +64,41 @@ func _setup_path_generator() -> void:
 	path_generator = PathGenerator.new()
 	path_generator.name = "PathGenerator"
 	add_child(path_generator)
+
+
+func _setup_item_inventory_ui() -> void:
+	item_inventory_ui = ItemInventoryUI.new()
+	item_inventory_ui.name = "ItemInventoryUI"
+	add_child(item_inventory_ui)
+	item_inventory_ui.item_selected.connect(_on_inventory_item_selected)
+	print("[Main] ItemInventoryUI erstellt")
+
+# Neue Callback-Funktion:
+func _on_inventory_item_selected(item: Dictionary) -> void:
+	# Wenn ein Tower ausgewählt ist, versuche Item auszurüsten
+	if tower_manager.has_selection():
+		var selected_tower := tower_manager.get_selected_tower()
+		if selected_tower and ItemSystem:
+			var uid: String = item.get("uid", "")
+			# Finde freien Slot
+			var equipped := ItemSystem.get_tower_equipped_items(selected_tower)
+			var slot := -1
+			for i in range(equipped.size()):
+				if equipped[i].is_empty():
+					slot = i
+					break
+			if slot == -1:
+				slot = 0  # Überschreibe Slot 0
+			
+			if ItemSystem.can_equip_on_tower(item, selected_tower):
+				if ItemSystem.equip_item(selected_tower, uid, slot):
+					Sound.play_place()
+					item_inventory_ui.deselect_item()
+					# Tower-Info aktualisieren
+					if tower_info.visible:
+						tower_info.show_tower(selected_tower, tower_manager.selected_grid_pos)
+					if VFX:
+						VFX.spawn_pixels(selected_tower.position, "gold", 6, 20.0)
 
 
 func _generate_new_path(seed_value: int = -1) -> void:
@@ -159,6 +197,7 @@ func _connect_signals() -> void:
 	hud.start_wave_pressed.connect(_on_start_wave_pressed)
 	hud.open_element_panel_pressed.connect(_on_open_element_panel)
 	hud.open_upgrades_panel_pressed.connect(_on_open_upgrades_panel)
+	hud.open_inventory_pressed.connect(_on_open_inventory)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
 	tower_manager.tower_selected.connect(_on_tower_selected)
@@ -173,6 +212,11 @@ func _connect_signals() -> void:
 	if element_unlock_ui:
 		element_unlock_ui.element_selected.connect(_on_element_unlocked)
 
+func _on_open_inventory() -> void:
+	if item_inventory_ui:
+		item_inventory_ui.toggle_panel()
+
+
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_E:
@@ -184,7 +228,11 @@ func _input(event: InputEvent) -> void:
 		if upgrade_overview_ui:
 			upgrade_overview_ui.toggle_panel()
 		return
-	
+		
+	if event is InputEventKey and event.pressed and event.keycode == KEY_I:
+		if item_inventory_ui:
+			item_inventory_ui.toggle_panel()
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if element_unlock_ui and element_unlock_ui.visible:
 			element_unlock_ui.hide_panel()
