@@ -22,7 +22,6 @@ const RARITIES := {
 
 const DROP_CHANCES := {
 	"normal": 0.03,
-	#"normal": 1.00,
 	"fast": 0.05,
 	"tank": 0.10,
 	"boss": 1.0

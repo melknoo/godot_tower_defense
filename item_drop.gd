@@ -58,7 +58,7 @@ func _create_visuals() -> void:
 		return
 	# Glow hinter dem Item
 	glow = Sprite2D.new()
-	glow.z_index = -1
+	glow.z_index = -2
 	add_child(glow)
 	
 	# Rarity Ring
@@ -108,13 +108,14 @@ func _update_visuals() -> void:
 	var rarity_color: Color = item_data.get("color", Color.WHITE)
 
 	# Fallback wenn keine Textur
-	if sprite.texture == null:
-		_create_fallback_sprite()
+	sprite.texture = null
+	sprite.visible = false
 
 	# Rarity Marker (PNG)
 	var rarity: String = item_data.get("rarity", "common")
 	rarity_marker.texture = LOOT_MARKER_TEXTURES.get(rarity, LOOT_MARKER_TEXTURES["common"])
 	rarity_marker.modulate.a = 1.0
+	rarity_marker.visible = true
 
 	# Glow basierend auf Rarity
 	_create_glow(rarity_color)
@@ -143,6 +144,8 @@ func _create_fallback_sprite() -> void:
 
 func _create_glow(color: Color) -> void:
 	# Einfacher Glow-Effekt mit Polygon
+	for c in glow.get_children():
+		c.queue_free()
 	var glow_poly := Polygon2D.new()
 	var pts := PackedVector2Array()
 	var size := 20.0
