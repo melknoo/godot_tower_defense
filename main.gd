@@ -500,6 +500,14 @@ func _is_over_ui(pos: Vector2) -> bool:
 	var viewport_size := get_viewport_rect().size
 	if pos.y > viewport_size.y - 105:
 		return true
+	# Inventory UI blockt Klicks (sonst deselectet man Tower beim Item-Klick)
+	if item_inventory_ui and item_inventory_ui.visible:
+		var panel := item_inventory_ui.panel
+		var detail := item_inventory_ui.detail_panel
+		if panel and panel.get_global_rect().has_point(pos):
+			return true
+		if detail and detail.visible and detail.get_global_rect().has_point(pos):
+			return true
 	return false
 
 
