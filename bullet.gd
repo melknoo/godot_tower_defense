@@ -59,17 +59,17 @@ func setup_extended(data: Dictionary) -> void:
 
 func _set_speed_for_type(type: String) -> void:
 	match type:
-		"archer": speed = 450.0
-		"water": speed = 300.0
-		"fire": speed = 150.0
-		"earth": speed = 200.0
-		"air": speed = 500.0
+		"archer": speed = 550.0
+		"water": speed = 400.0
+		"fire": speed = 350.0
+		"earth": speed = 300.0
+		"air": speed = 700.0
 		"sniper": speed = 600.0
 		"cannon": speed = 250.0
-		"ice": speed = 350.0
-		"steam": speed = 300.0
-		"lava": speed = 200.0
-		"nature": speed = 280.0
+		"ice": speed = 450.0
+		"steam": speed = 400.0
+		"lava": speed = 300.0
+		"nature": speed = 380.0
 		_: speed = 400.0
 
 

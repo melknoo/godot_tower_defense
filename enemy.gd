@@ -5,7 +5,7 @@ class_name Enemy
 
 var path: Array[Vector2] = []
 var path_index := 0
-var health := 100
+var health := 85
 var max_health := 100
 var speed := 80.0
 var base_speed := 80.0
