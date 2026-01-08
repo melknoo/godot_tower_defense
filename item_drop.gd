@@ -87,13 +87,28 @@ func _update_visuals() -> void:
 	if item_data.is_empty():
 		return
 	
+	if not is_instance_valid(sprite):
+		print("[ItemDrop] in _update_visuals, not is_instance_valid(sprite)")
+		return
+	
 	var rarity_color: Color = item_data.get("color", Color.WHITE)
 	
-	# Sprite aus ItemSystem
 	if ItemSystem:
-		var tex := ItemSystem.get_item_texture(item_data)
+		var tex: Texture2D = ItemSystem.get_item_texture(item_data)
 		if tex:
 			sprite.texture = tex
+	
+	if sprite.texture == null:
+		_create_fallback_sprite()
+	
+	rarity_ring.default_color = rarity_color
+	rarity_ring.default_color.a = 0.6
+	
+	_create_glow(rarity_color)
+	
+	label.text = item_data.get("name", "Item")
+	label.add_theme_color_override("font_color", rarity_color)
+
 	
 	# Fallback wenn keine Textur
 	if not sprite.texture:

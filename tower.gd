@@ -829,7 +829,11 @@ func _execute_melee_damage() -> void:
 	var kills := 0
 	
 	for enemy in hit_enemies:
-		var was_alive := enemy.health > 0 if enemy.has_method("get") else true
+		var was_alive: bool = true
+		var h: Variant = enemy.get("health")
+
+		if typeof(h) == TYPE_INT or typeof(h) == TYPE_FLOAT:
+			was_alive = h > 0
 		
 		if enemy.has_method("take_damage"):
 			enemy.take_damage(damage, true, elem)

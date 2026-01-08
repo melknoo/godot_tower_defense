@@ -30,6 +30,7 @@ var tower_manager: TowerManager = null
 var equipment_container: HBoxContainer
 var equipment_slots: Array[PanelContainer] = []
 var equip_hint_label: Label
+var _pending_equip_slot: int = -1
 
 
 func _ready() -> void:
@@ -313,48 +314,77 @@ func _on_equipment_slot_hover(slot: PanelContainer, entered: bool) -> void:
 		style.bg_color = Color(0.2, 0.2, 0.22)
 
 
+func _on_inventory_item_selected(item: Dictionary) -> void:
+	if _pending_equip_slot < 0:
+		return
+	if not current_tower:
+		_pending_equip_slot = -1
+		return
+	if not ItemSystem:
+		_pending_equip_slot = -1
+		return
+
+	# passt es?
+	if not ItemSystem.can_equip_on_tower(item, current_tower):
+		Sound.play_error()
+		return
+
+	var uid: String = item.get("uid", "")
+	if uid == "":
+		return
+
+	if ItemSystem.equip_item(current_tower, uid, _pending_equip_slot):
+		Sound.play_place()
+
+		# UI aufräumen
+		var main := get_node_or_null("/root/Main")
+		var inventory_ui := main.get_node_or_null("ItemInventoryUI") if main else null
+		if inventory_ui and inventory_ui.has_method("deselect_item"):
+			inventory_ui.deselect_item()
+
+		_pending_equip_slot = -1
+
+		_update_equipment_display()
+		_update_display()
+
+
 func _try_equip_from_inventory(slot_index: int) -> void:
 	if not ItemSystem:
 		return
-	
-	# Prüfen ob Inventar-UI ein Item ausgewählt hat
 	var main := get_node_or_null("/root/Main")
+	if main:
+		main.set_meta("pending_equip_tower", current_tower)
+		main.set_meta("pending_equip_slot", slot_index)
+	if not current_tower:
+		return
+
+	# Slot merken, damit _on_inventory_item_selected weiß wohin
+	_pending_equip_slot = slot_index
+
 	if not main:
 		return
-	
+
 	var inventory_ui := main.get_node_or_null("ItemInventoryUI") as ItemInventoryUI
+
+	# Inventar-UI existiert noch nicht -> öffnen und dann deferred erneut versuchen (damit wir connecten können)
 	if not inventory_ui:
-		# Inventar öffnen
-		if main.has_method("_on_open_inventory"):
+		if main and main.has_method("_on_open_inventory"):
 			main._on_open_inventory()
 		return
-	
+
+	# Signal-Verbindung sicherstellen
+	if not inventory_ui.item_selected.is_connected(_on_inventory_item_selected):
+		inventory_ui.item_selected.connect(_on_inventory_item_selected)
+
+	# Falls noch keine Auswahl -> Inventar anzeigen und auf item_selected warten
 	if not inventory_ui.has_selection():
-		# Kein Item ausgewählt - Inventar öffnen/fokussieren
 		if not inventory_ui.visible:
 			inventory_ui.show_panel()
 		return
-	
-	var selected_item := inventory_ui.get_selected_item()
-	
-	# Prüfen ob Item auf diesen Turm passt
-	if not ItemSystem.can_equip_on_tower(selected_item, current_tower):
-		Sound.play_error()
-		# Feedback
-		var allowed: Array = selected_item.get("allowed_towers", [])
-		print("[TowerInfo] Item passt nicht! Erlaubt: %s" % str(allowed))
-		return
-	
-	# Item ausrüsten
-	var uid: String = selected_item.get("uid", "")
-	if ItemSystem.equip_item(current_tower, uid, slot_index):
-		Sound.play_place()
-		inventory_ui.deselect_item()
-		_update_equipment_display()
-		_update_display()  # Stats neu anzeigen
-		
-		if VFX:
-			VFX.spawn_pixels(current_tower.position, "gold", 6, 20.0)
+
+	# Wenn bereits selektiert ist -> direkt equppen über denselben Codepfad
+	_on_inventory_item_selected(inventory_ui.get_selected_item())
+
 
 
 func _unequip_item(slot_index: int) -> void:

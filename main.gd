@@ -75,30 +75,76 @@ func _setup_item_inventory_ui() -> void:
 
 # Neue Callback-Funktion:
 func _on_inventory_item_selected(item: Dictionary) -> void:
-	# Wenn ein Tower ausgewählt ist, versuche Item auszurüsten
+	print("[Main] item_selected:", item.get("name","?"), " uid=", item.get("uid",""))
+	print("[Main] tower_info.visible=", tower_info.visible, " tower=", tower_info.current_tower)
+	print("[Main] tower_manager.has_selection=", tower_manager.has_selection())
+	
+	# Pending Equip (kommt vom TowerInfo-Slot-Klick)
+	var pending_tower: Node2D = get_meta("pending_equip_tower", null) as Node2D
+	var pending_slot: int = int(get_meta("pending_equip_slot", -1))
+
+	if pending_tower != null and is_instance_valid(pending_tower) and pending_slot >= 0 and ItemSystem:
+		var uid: String = item.get("uid", "")
+		if uid == "":
+			# pending zurücksetzen
+			set_meta("pending_equip_tower", null)
+			set_meta("pending_equip_slot", -1)
+			return
+
+		if not ItemSystem.can_equip_on_tower(item, pending_tower):
+			Sound.play_error()
+			# pending zurücksetzen
+			set_meta("pending_equip_tower", null)
+			set_meta("pending_equip_slot", -1)
+			return
+
+		if ItemSystem.equip_item(pending_tower, uid, pending_slot):
+			Sound.play_place()
+			item_inventory_ui.deselect_item()
+
+		# pending IMMER zurücksetzen (egal ob equip true/false)
+		set_meta("pending_equip_tower", null)
+		set_meta("pending_equip_slot", -1)
+		return
+	
+	# 1) Priorität: TowerInfo ist offen -> equip auf den Tower aus dem Panel
+	if tower_info and tower_info.visible and tower_info.current_tower and ItemSystem:
+		var uid: String = item.get("uid", "")
+		if uid == "":
+			return
+
+		# Wenn TowerInfo eine Slot-Logik hat, soll TowerInfo das machen
+		if tower_info.has_method("_on_inventory_item_selected"):
+			tower_info._on_inventory_item_selected(item)
+			return
+
+		# Fallback: wenn kein TowerInfo-Handler existiert -> Slot 0
+		if ItemSystem.can_equip_on_tower(item, tower_info.current_tower):
+			ItemSystem.equip_item(tower_info.current_tower, uid, 0)
+		return
+
+	# 2) Fallback: altes Verhalten (nur wenn wirklich ein Tower im TowerManager selektiert ist)
 	if tower_manager.has_selection():
 		var selected_tower := tower_manager.get_selected_tower()
 		if selected_tower and ItemSystem:
-			var uid: String = item.get("uid", "")
-			# Finde freien Slot
+			var uid2: String = item.get("uid", "")
+			if uid2 == "":
+				return
+
 			var equipped := ItemSystem.get_tower_equipped_items(selected_tower)
-			var slot := -1
+			var slot := 0
 			for i in range(equipped.size()):
 				if equipped[i].is_empty():
 					slot = i
 					break
-			if slot == -1:
-				slot = 0  # Überschreibe Slot 0
-			
-			if ItemSystem.can_equip_on_tower(item, selected_tower):
-				if ItemSystem.equip_item(selected_tower, uid, slot):
-					Sound.play_place()
-					item_inventory_ui.deselect_item()
-					# Tower-Info aktualisieren
-					if tower_info.visible:
-						tower_info.show_tower(selected_tower, tower_manager.selected_grid_pos)
-					if VFX:
-						VFX.spawn_pixels(selected_tower.position, "gold", 6, 20.0)
+
+			if not ItemSystem.can_equip_on_tower(item, selected_tower):
+				Sound.play_error()
+				return
+
+			if ItemSystem.equip_item(selected_tower, uid2, slot):
+				Sound.play_place()
+				item_inventory_ui.deselect_item()
 
 
 func _generate_new_path(seed_value: int = -1) -> void:

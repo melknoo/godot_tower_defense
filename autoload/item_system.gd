@@ -21,7 +21,8 @@ const RARITIES := {
 }
 
 const DROP_CHANCES := {
-	"normal": 0.03,
+	#"normal": 0.03,
+	"normal": 0.5,
 	"fast": 0.05,
 	"tank": 0.10,
 	"boss": 1.0
@@ -364,15 +365,15 @@ func can_equip_on_tower(item: Dictionary, tower: Node2D) -> bool:
 
 
 func equip_item(tower: Node2D, item_uid: String, slot: int = 0) -> bool:
-	var item := get_item_by_uid(item_uid)
+	var item: Dictionary = remove_item(item_uid)
 	if item.is_empty():
 		return false
-	
+
 	if not can_equip_on_tower(item, tower):
+	# wieder zurück, weil wir es schon removed haben
+		inventory.append(item)
+		inventory_changed.emit()
 		return false
-	
-	# Item aus Inventar entfernen
-	remove_item(item_uid)
 	
 	# Am Tower speichern
 	if not tower.has_meta("equipped_items"):
