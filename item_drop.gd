@@ -24,7 +24,6 @@ var spawn_tween: Tween
 var glow_tween: Tween
 
 const PICKUP_RANGE := 40.0
-const DESPAWN_TIME := 30.0  # Sekunden bis Item verschwindet
 
 const LOOT_MARKER_TEXTURES := {
 	"common": preload("res://assets/items/loot_common.png"),
@@ -37,7 +36,6 @@ func _ready() -> void:
 	add_to_group("item_drops")
 	_create_visuals()
 	_update_visuals()
-	_start_despawn_timer()
 
 
 func setup(data: Dictionary) -> void:
@@ -200,29 +198,6 @@ func _get_vfx_element() -> String:
 		"special": return "gold"
 	return "damage"
 
-
-func _start_despawn_timer() -> void:
-	var timer := Timer.new()
-	timer.wait_time = DESPAWN_TIME
-	timer.one_shot = true
-	timer.timeout.connect(_on_despawn)
-	add_child(timer)
-	timer.start()
-	
-	# Warnung kurz vor Despawn
-	var warn_timer := Timer.new()
-	warn_timer.wait_time = DESPAWN_TIME - 5.0
-	warn_timer.one_shot = true
-	warn_timer.timeout.connect(_start_despawn_warning)
-	add_child(warn_timer)
-	warn_timer.start()
-
-
-func _start_despawn_warning() -> void:
-	# Blinken vor dem Verschwinden
-	var blink := create_tween().set_loops(10)
-	blink.tween_property(self, "modulate:a", 0.3, 0.25)
-	blink.tween_property(self, "modulate:a", 1.0, 0.25)
 
 
 func _on_despawn() -> void:
