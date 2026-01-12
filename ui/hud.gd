@@ -8,7 +8,7 @@ signal open_element_panel_pressed
 signal open_upgrades_panel_pressed
 signal open_inventory_pressed
 
-@export var gold_label: Label
+@export var gold_label: RichTextLabel
 @export var lives_label: Label
 @export var wave_label: Label
 @export var enemies_label: Label
@@ -68,6 +68,20 @@ func _ready() -> void:
 	update_all()
 
 
+func _get_or_create_rich_label(node_name: String, default_pos: Vector2) -> RichTextLabel:
+	var label: RichTextLabel = get_node_or_null(node_name) as RichTextLabel
+	if not label:
+		label = RichTextLabel.new()
+		label.name = node_name
+		label.position = default_pos
+		label.bbcode_enabled = true
+		label.fit_content = true
+		label.scroll_active = false
+		label.custom_minimum_size = Vector2(120, 20)
+		add_child(label)
+	return label
+
+
 func _load_element_textures() -> void:
 	var elements := ["water", "fire", "earth", "air"]
 	for elem in elements:
@@ -117,7 +131,7 @@ func _find_or_create_ui_elements() -> void:
 	var zero_row_y := hud_height - 110
 	var viewport_size := get_viewport_rect().size
 
-	gold_label = _get_or_create_label("GoldLabel", Vector2(20, third_row_y))
+	gold_label = _get_or_create_rich_label("GoldLabel", Vector2(20, third_row_y))
 	lives_label = _get_or_create_label("LivesLabel", Vector2(20, second_row_y))
 	wave_label = _get_or_create_label("WaveLabel", Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
@@ -504,7 +518,7 @@ func update_wave_events_preview(next_wave: int) -> void:
 
 func _on_gold_changed(amount: int) -> void:
 	if gold_label:
-		gold_label.text = "Gold: %d" % amount
+		gold_label.text = "%s %d" % [IconSystem.bb("gold", 22), amount]
 	_update_bonus_preview()
 
 
