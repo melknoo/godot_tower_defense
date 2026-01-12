@@ -24,7 +24,7 @@ signal open_inventory_pressed
 @export var bonus_preview_label: Label
 @export var supply_label: Label
 @export var blocked_warning_label: Label
-@export var wave_events_label: Label  # NEU: Zeigt kommende Events
+@export var wave_events_label: RichTextLabel  # NEU: Zeigt kommende Events
 @export var inventory_button: Button
 
 var inventory_notification: Label  # Zeigt Anzahl neuer Items
@@ -68,7 +68,7 @@ func _ready() -> void:
 	update_all()
 
 
-func _get_or_create_rich_label(node_name: String, default_pos: Vector2) -> RichTextLabel:
+func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_width: float = 120.0) -> RichTextLabel:
 	var label: RichTextLabel = get_node_or_null(node_name) as RichTextLabel
 	if not label:
 		label = RichTextLabel.new()
@@ -77,7 +77,7 @@ func _get_or_create_rich_label(node_name: String, default_pos: Vector2) -> RichT
 		label.bbcode_enabled = true
 		label.fit_content = true
 		label.scroll_active = false
-		label.custom_minimum_size = Vector2(120, 20)
+		label.custom_minimum_size = Vector2(min_width, 20)
 		add_child(label)
 	return label
 
@@ -145,7 +145,7 @@ func _find_or_create_ui_elements() -> void:
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 780, hud_height - 110))
 	
 	# NEU: Wave Events Label
-	wave_events_label = _get_or_create_label("WaveEventsLabel", Vector2(viewport_size.x - 360, hud_height - 110))
+	wave_events_label = _get_or_create_rich_label("WaveEventsLabel", Vector2(viewport_size.x - 360, hud_height - 110), 350)
 
 	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 530, hud_height - 85))
 	
@@ -490,15 +490,15 @@ func update_wave_events_preview(next_wave: int) -> void:
 	
 	# Pfad-Regenerierung: Runde 2, 5, 8, 11... -> (wave - 2) % 3 == 0 für wave >= 2
 	if next_wave >= 2 and (next_wave - 2) % 3 == 0:
-		events.append("⟳ Neuer Pfad")
+		events.append("%s Neuer Pfad" % IconSystem.bb("path", 12))
 	
 	# Upgrade-Auswahl: Runde 3, 6, 9, 12... -> wave % 3 == 0 für wave >= 3
 	if next_wave >= 3 and next_wave % 3 == 0:
-		events.append("⬆️ Upgrade")
+		events.append("%s Upgrade" % IconSystem.bb("upgrade", 12))
 	
 	# Element-Kern: Runde 1 und alle 5er (1, 5, 10, 15...)
 	if next_wave == 1 or (next_wave > 0 and next_wave % 5 == 0):
-		events.append("💎 +1 Kern")
+		events.append("+1 %s" % IconSystem.bb("core", 22))
 	
 	if events.is_empty():
 		wave_events_label.text = ""
@@ -518,7 +518,7 @@ func update_wave_events_preview(next_wave: int) -> void:
 
 func _on_gold_changed(amount: int) -> void:
 	if gold_label:
-		gold_label.text = "%s %d" % [IconSystem.bb("gold", 22), amount]
+		gold_label.text = "%s %d" % [IconSystem.bb("gold", 24), amount]
 	_update_bonus_preview()
 
 
