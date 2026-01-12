@@ -9,7 +9,7 @@ signal open_upgrades_panel_pressed
 signal open_inventory_pressed
 
 @export var gold_label: RichTextLabel
-@export var lives_label: Label
+@export var lives_label: RichTextLabel
 @export var wave_label: Label
 @export var enemies_label: Label
 @export var cores_label: Label
@@ -132,7 +132,7 @@ func _find_or_create_ui_elements() -> void:
 	var viewport_size := get_viewport_rect().size
 
 	gold_label = _get_or_create_rich_label("GoldLabel", Vector2(20, third_row_y))
-	lives_label = _get_or_create_label("LivesLabel", Vector2(20, second_row_y))
+	lives_label = _get_or_create_rich_label("LivesLabel", Vector2(20, second_row_y))
 	wave_label = _get_or_create_label("WaveLabel", Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
 	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
@@ -525,7 +525,7 @@ func _on_gold_changed(amount: int) -> void:
 func _on_lives_changed(amount: int) -> void:
 	if not lives_label:
 		return
-	lives_label.text = "Leben: %d" % amount
+	lives_label.text = "%s %d" % [IconSystem.bb("life", 22), amount]
 	if amount <= 5:
 		lives_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
 	elif amount <= 10:
