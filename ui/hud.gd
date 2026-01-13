@@ -157,7 +157,7 @@ func _find_or_create_ui_elements() -> void:
 
 	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 360, hud_height - 65))
 
-	var area_pos := Vector2(viewport_size.x - 400, hud_height - 55)
+	var area_pos := Vector2(viewport_size.x - 400, hud_height - 35)
 	var area_size := Vector2(190, 34)
 	wave_element_area = _get_or_create_control("WaveElementArea", area_pos, area_size)
 
