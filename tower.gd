@@ -35,7 +35,7 @@ var sprite: Sprite2D
 var level_indicator: Node2D
 var selection_corners: Node2D
 var selection_tween: Tween
-var engraving_indicator: Label
+var engraving_indicator: RichTextLabel
 
 # Animation
 var idle_time := 0.0
@@ -435,8 +435,7 @@ func _create_visuals() -> void:
 	level_indicator.position = Vector2(20, -20)
 	add_child(level_indicator)
 	
-	engraving_indicator = Label.new()
-	engraving_indicator.position = Vector2(-25, -45)
+	engraving_indicator = _get_or_create_rich_label("engraving_indicator", Vector2(-25, -45))
 	engraving_indicator.add_theme_font_size_override("font_size", 14)
 	engraving_indicator.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	engraving_indicator.add_theme_constant_override("outline_size", 2)
@@ -510,7 +509,7 @@ func _update_engraving_indicator() -> void:
 		return
 	
 	engraving_indicator.visible = true
-	engraving_indicator.text = ElementalSystem.get_element_symbol(engraved_element) if ElementalSystem else engraved_element.substr(0, 1).to_upper()
+	engraving_indicator.text = ElementalSystem.get_element_bb(engraved_element) if ElementalSystem else engraved_element.substr(0, 1).to_upper()
 	
 	var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
 	engraving_indicator.add_theme_color_override("font_color", elem_color)
@@ -1010,6 +1009,20 @@ func deselect() -> void:
 			range_circle.default_color.a = 0.2
 		else:
 			range_circle.default_color = Color(1, 1, 1, 0.15)
+
+
+func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_width: float = 120.0) -> RichTextLabel:
+	var label: RichTextLabel = get_node_or_null(node_name) as RichTextLabel
+	if not label:
+		label = RichTextLabel.new()
+		label.name = node_name
+		label.position = default_pos
+		label.bbcode_enabled = true
+		label.fit_content = true
+		label.scroll_active = false
+		label.custom_minimum_size = Vector2(min_width, 20)
+		add_child(label)
+	return label
 
 
 func _start_float_animation() -> void:

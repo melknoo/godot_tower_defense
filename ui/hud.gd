@@ -12,7 +12,7 @@ signal open_inventory_pressed
 @export var lives_label: RichTextLabel
 @export var wave_label: Label
 @export var enemies_label: Label
-@export var cores_label: Label
+@export var cores_label: RichTextLabel
 @export var cores_button: Button
 @export var upgrades_button: Button
 @export var start_button: Button
@@ -22,7 +22,7 @@ signal open_inventory_pressed
 @export var seed_label: Label
 @export var fast_forward_button: Button
 @export var bonus_preview_label: Label
-@export var supply_label: Label
+@export var supply_label: RichTextLabel
 @export var blocked_warning_label: Label
 @export var wave_events_label: RichTextLabel  # NEU: Zeigt kommende Events
 @export var inventory_button: Button
@@ -135,29 +135,29 @@ func _find_or_create_ui_elements() -> void:
 	lives_label = _get_or_create_rich_label("LivesLabel", Vector2(20, second_row_y))
 	wave_label = _get_or_create_label("WaveLabel", Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel", Vector2(150, second_row_y))
-	cores_label = _get_or_create_label("CoresLabel", Vector2(20, bottom_y))
+	cores_label = _get_or_create_rich_label("CoresLabel", Vector2(20, bottom_y), 200)
 	seed_label = _get_or_create_label("SeedLabel", Vector2(10, -hud_height - 25))
 	
 	
 	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
-	supply_label = _get_or_create_label("SupplyLabel", Vector2(20, zero_row_y))
+	supply_label = _get_or_create_rich_label("SupplyLabel", Vector2(20, zero_row_y))
 	
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 780, hud_height - 110))
 	
 	# NEU: Wave Events Label
 	wave_events_label = _get_or_create_rich_label("WaveEventsLabel", Vector2(viewport_size.x - 360, hud_height - 110), 350)
 
-	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 530, hud_height - 85))
+	current_wave_info_label = _get_or_create_label("CurrentWaveInfoLabel", Vector2(viewport_size.x - 530, hud_height - 105))
 	
-	var current_area_pos := Vector2(viewport_size.x - 530, hud_height - 70)
+	var current_area_pos := Vector2(viewport_size.x - 570, hud_height - 90)
 	var current_area_size := Vector2(190, 34)
 	current_wave_element_area = _get_or_create_control("CurrentWaveElementArea", current_area_pos, current_area_size)
 	current_wave_element_icon = _get_or_create_texture_rect_child(current_wave_element_area, "CurrentWaveElementIcon", Vector2(8, 5), Vector2(24, 24))
 	current_wave_element_label = _get_or_create_label_child(current_wave_element_area, "CurrentWaveElementLabel", Vector2(40, 8))
 
-	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 360, hud_height - 85))
+	wave_preview_label = _get_or_create_label("WavePreviewLabel", Vector2(viewport_size.x - 360, hud_height - 65))
 
-	var area_pos := Vector2(viewport_size.x - 360, hud_height - 60)
+	var area_pos := Vector2(viewport_size.x - 400, hud_height - 55)
 	var area_size := Vector2(190, 34)
 	wave_element_area = _get_or_create_control("WaveElementArea", area_pos, area_size)
 
@@ -282,7 +282,10 @@ func _apply_styles() -> void:
 		wave_events_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
 		
 	if inventory_button:
-		inventory_button.text = "📦"
+		inventory_button.icon = IconSystem.get_texture("inventory")
+		inventory_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		inventory_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		inventory_button.expand_icon = true
 		inventory_button.tooltip_text = "Inventar öffnen (I)"
 		
 		# Notification Badge
@@ -310,7 +313,10 @@ func _apply_styles() -> void:
 			cores_button.icon = load(icon_path)
 
 	if upgrades_button:
-		upgrades_button.text = "📋"
+		upgrades_button.icon = IconSystem.get_texture("upgrades")
+		upgrades_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		upgrades_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		upgrades_button.expand_icon = true
 		upgrades_button.tooltip_text = "Aktive Upgrades anzeigen (U)"
 
 	if start_button:
@@ -490,11 +496,11 @@ func update_wave_events_preview(next_wave: int) -> void:
 	
 	# Pfad-Regenerierung: Runde 2, 5, 8, 11... -> (wave - 2) % 3 == 0 für wave >= 2
 	if next_wave >= 2 and (next_wave - 2) % 3 == 0:
-		events.append("%s Neuer Pfad" % IconSystem.bb("path", 12))
+		events.append("%s Neuer Pfad" % IconSystem.bb("path", 22))
 	
 	# Upgrade-Auswahl: Runde 3, 6, 9, 12... -> wave % 3 == 0 für wave >= 3
 	if next_wave >= 3 and next_wave % 3 == 0:
-		events.append("%s Upgrade" % IconSystem.bb("upgrade", 12))
+		events.append("%s Upgrade" % IconSystem.bb("upgrades", 22))
 	
 	# Element-Kern: Runde 1 und alle 5er (1, 5, 10, 15...)
 	if next_wave == 1 or (next_wave > 0 and next_wave % 5 == 0):
@@ -539,7 +545,7 @@ func _on_cores_changed(amount: int) -> void:
 	var max_possible := TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL
 
 	if cores_label:
-		cores_label.text = "Kerne: %d | %d/%d" % [amount, invested, max_possible]
+		cores_label.text = "%s Kerne: %d | %d/%d" % [IconSystem.bb('core', 22), amount, invested, max_possible]
 		if amount > 0:
 			cores_label.add_theme_color_override("font_color", Color(0.2, 0.6, 0.2))
 		else:
@@ -575,9 +581,9 @@ func _on_supply_changed(used: int, max_supply: int) -> void:
 	var available := effective_max - used
 	
 	if upgrade_bonus > 0:
-		supply_label.text = "⛺ %d/%d (+%d)" % [used, max_supply, upgrade_bonus]
+		supply_label.text = "%s %d/%d (+%d)" % [IconSystem.bb("supply", 24), used, max_supply, upgrade_bonus]
 	else:
-		supply_label.text = "⛺ %d/%d" % [used, effective_max]
+		supply_label.text = "%s %d/%d" % [IconSystem.bb("supply", 24), used, effective_max]
 	
 	supply_label.tooltip_text = "Supply: %d verwendet von %d\n%d verfügbar" % [used, effective_max, available]
 	

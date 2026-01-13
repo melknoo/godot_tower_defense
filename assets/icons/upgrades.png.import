@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bwc5vh4lfiy7d"
-path="res://.godot/imported/abilities.png-783096db5ef69bded8edf416164fc317.ctex"
+uid="uid://ccfhupm1gjler"
+path="res://.godot/imported/upgrades.png-98efa33a049c84aaf81f3679005df4c6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/abilities.png"
-dest_files=["res://.godot/imported/abilities.png-783096db5ef69bded8edf416164fc317.ctex"]
+source_file="res://assets/icons/upgrades.png"
+dest_files=["res://.godot/imported/upgrades.png-98efa33a049c84aaf81f3679005df4c6.ctex"]
 
 [params]
 

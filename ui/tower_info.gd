@@ -10,12 +10,12 @@ signal close_pressed
 signal engrave_pressed(element: String)
 signal pickup_pressed
 
-var tower_name_label: Label
+var tower_name_label: RichTextLabel
 var tower_level_label: Label
-var stats_label: Label
-var element_label: Label
-var supply_info_label: Label
-var blocked_info_label: Label
+var stats_label: RichTextLabel
+var element_label: RichTextLabel
+var supply_info_label: RichTextLabel
+var blocked_info_label: RichTextLabel
 var sell_button: Button
 var upgrade_button: Button
 var pickup_button: Button
@@ -58,14 +58,23 @@ func _setup_panel_style() -> void:
 	UITheme.style_panel(self, "panel_dark")
 
 
+func _create_rich_label(font_size: int = 11, min_width: float = 200.0) -> RichTextLabel:
+	var label := RichTextLabel.new()
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.scroll_active = false
+	label.custom_minimum_size = Vector2(min_width, 0)
+	label.add_theme_font_size_override("normal_font_size", font_size)
+	return label
+
+
 func _setup_ui() -> void:
 	vbox = VBoxContainer.new()
 	vbox.name = "VBox"
 	add_child(vbox)
 
-	tower_name_label = Label.new()
+	tower_name_label = _create_rich_label(16, 220)
 	tower_name_label.name = "TowerNameLabel"
-	tower_name_label.add_theme_font_size_override("font_size", 16)
 	vbox.add_child(tower_name_label)
 
 	tower_level_label = Label.new()
@@ -73,27 +82,21 @@ func _setup_ui() -> void:
 	tower_level_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(tower_level_label)
 
-	element_label = Label.new()
+	element_label = _create_rich_label(11, 200)
 	element_label.name = "ElementLabel"
-	element_label.add_theme_font_size_override("font_size", 11)
 	element_label.visible = false
 	vbox.add_child(element_label)
 
-	stats_label = Label.new()
+	stats_label = _create_rich_label(11, 200)
 	stats_label.name = "StatsLabel"
-	stats_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(stats_label)
 
-	supply_info_label = Label.new()
+	supply_info_label = _create_rich_label(10, 180)
 	supply_info_label.name = "SupplyInfoLabel"
-	supply_info_label.add_theme_font_size_override("font_size", 10)
-	supply_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
 	vbox.add_child(supply_info_label)
 
-	blocked_info_label = Label.new()
+	blocked_info_label = _create_rich_label(11, 200)
 	blocked_info_label.name = "BlockedInfoLabel"
-	blocked_info_label.add_theme_font_size_override("font_size", 11)
-	blocked_info_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 	blocked_info_label.visible = false
 	vbox.add_child(blocked_info_label)
 
@@ -126,7 +129,6 @@ func _setup_ui() -> void:
 	equipment_container.add_theme_constant_override("separation", 8)
 	vbox.add_child(equipment_container)
 
-	# 2 Equipment Slots erstellen
 	for i in range(2):
 		var slot := _create_equipment_slot(i)
 		equipment_container.add_child(slot)
@@ -194,7 +196,6 @@ func _create_equipment_slot(index: int) -> PanelContainer:
 	slot.set_meta("style", style)
 	slot.set_meta("slot_index", index)
 
-	# Leerer Slot Indikator
 	var empty_label := Label.new()
 	empty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	empty_label.name = "EmptyLabel"
@@ -206,7 +207,6 @@ func _create_equipment_slot(index: int) -> PanelContainer:
 	empty_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	slot.add_child(empty_label)
 
-	# Item Container (initial leer)
 	var item_container := CenterContainer.new()
 	item_container.name = "ItemContainer"
 	item_container.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -214,7 +214,6 @@ func _create_equipment_slot(index: int) -> PanelContainer:
 	item_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(item_container)
 
-	# Interaktion
 	slot.gui_input.connect(_on_equipment_slot_input.bind(slot))
 	slot.mouse_entered.connect(_on_equipment_slot_hover.bind(slot, true))
 	slot.mouse_exited.connect(_on_equipment_slot_hover.bind(slot, false))
@@ -227,7 +226,6 @@ func _update_equipment_display() -> void:
 		equipment_container.visible = false
 		return
 
-	# Nur für angreifende Türme
 	if TowerData.is_supply_building(current_tower.tower_type):
 		equipment_container.visible = false
 		return
@@ -241,7 +239,6 @@ func _update_equipment_display() -> void:
 		var item: Dictionary = (equipped[i] as Dictionary) if i < equipped.size() else {}
 		_update_slot_display(slot, item)
 
-	# Hint anzeigen wenn leere Slots
 	var has_empty := false
 	for it in equipped:
 		if (it as Dictionary).is_empty():
@@ -255,7 +252,6 @@ func _update_slot_display(slot: PanelContainer, item: Dictionary) -> void:
 	var item_container: CenterContainer = slot.get_node("ItemContainer")
 	var style: StyleBoxFlat = slot.get_meta("style")
 
-	# Alte Item-Anzeige entfernen
 	for child in item_container.get_children():
 		child.queue_free()
 
@@ -268,7 +264,6 @@ func _update_slot_display(slot: PanelContainer, item: Dictionary) -> void:
 		empty_label.visible = false
 		item_container.visible = true
 
-		# Item Icon
 		var tex_rect := TextureRect.new()
 		tex_rect.custom_minimum_size = Vector2(32, 32)
 		tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
@@ -281,7 +276,6 @@ func _update_slot_display(slot: PanelContainer, item: Dictionary) -> void:
 
 		item_container.add_child(tex_rect)
 
-		# Rahmenfarbe nach Rarity
 		var rarity_color: Color = item.get("color", Color.WHITE)
 		style.border_color = rarity_color
 
@@ -296,7 +290,6 @@ func _on_item_equipment_changed(tower: Node2D, _item: Dictionary, _slot: int) ->
 		return
 	if tower != current_tower:
 		return
-	# next frame, damit recalculate_stats() + visuals sicher durch sind
 	call_deferred("_update_display")
 
 
@@ -309,23 +302,15 @@ func _on_equipment_slot_input(event: InputEvent, slot: PanelContainer) -> void:
 	var current_item: Dictionary = (equipped[slot_index] as Dictionary) if slot_index < equipped.size() else {}
 
 	if event.button_index == MOUSE_BUTTON_RIGHT and not current_item.is_empty():
-		# Rechtsklick: Item entfernen
 		_unequip_item(slot_index)
 	elif event.button_index == MOUSE_BUTTON_LEFT:
-		# Linksklick: Item auswählen/ausrüsten
 		_try_equip_from_inventory(slot_index)
 
 
 func _on_equipment_slot_hover(slot: PanelContainer, entered: bool) -> void:
 	var style: StyleBoxFlat = slot.get_meta("style")
+	style.bg_color = Color(0.3, 0.3, 0.35) if entered else Color(0.2, 0.2, 0.22)
 
-	if entered:
-		style.bg_color = Color(0.3, 0.3, 0.35)
-	else:
-		style.bg_color = Color(0.2, 0.2, 0.22)
-
-
-# -------- Multi-Equip: Inventar Auswahl --------
 
 func _on_inventory_item_selected(item: Dictionary) -> void:
 	if _pending_equip_slot < 0:
@@ -337,7 +322,6 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 		_pending_equip_slot = -1
 		return
 
-	# passt es?
 	if not ItemSystem.can_equip_on_tower(item, current_tower):
 		Sound.play_error()
 		return
@@ -349,18 +333,9 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 	if ItemSystem.equip_item(current_tower, uid, _pending_equip_slot):
 		Sound.play_place()
 
-		# optional: Inventar-Selection NICHT löschen (damit man direkt das nächste Item klicken kann)
-		# -> wenn du es doch willst, lass die nächsten 2 Zeilen drin
-		# var main := get_node_or_null("/root/Main")
-		# var inventory_ui := main.get_node_or_null("ItemInventoryUI") if main else null
-		# if inventory_ui and inventory_ui.has_method("deselect_item"):
-		# 	inventory_ui.deselect_item()
-
-		# Nächsten Slot bestimmen:
 		var equipped_now: Array = ItemSystem.get_tower_equipped_items(current_tower)
 		_pending_equip_slot = _get_next_equip_slot(_pending_equip_slot, equipped_now)
 
-		# WICHTIG: Pending im Main aktualisieren (damit Main nicht "resetet" und der nächste Click direkt rein-equippt)
 		var main := get_node_or_null("/root/Main")
 		if main:
 			main.set_meta("pending_equip_tower", current_tower)
@@ -370,10 +345,7 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 		call_deferred("_update_display")
 
 
-
 func _get_next_equip_slot(last_slot: int, equipped: Array) -> int:
-	# Erwartet 2 Slots: [slot0, slot1]
-	# Defensive: wenn was fehlt, einfach Slot 0 nehmen
 	if equipped.size() < 2:
 		return 0
 
@@ -383,11 +355,9 @@ func _get_next_equip_slot(last_slot: int, equipped: Array) -> int:
 	var slot0_empty: bool = slot0.is_empty()
 	var slot1_empty: bool = slot1.is_empty()
 
-	# Wenn beide voll -> immer Slot 1 ersetzen
 	if (not slot0_empty) and (not slot1_empty):
 		return 1
 
-	# clampi gibt int zurück (Godot 4) -> keine Variant-Typprobleme
 	var clamped_last: int = clampi(last_slot, 0, 1)
 	var other: int = 1 - clamped_last
 
@@ -395,12 +365,10 @@ func _get_next_equip_slot(last_slot: int, equipped: Array) -> int:
 	if other_dict.is_empty():
 		return other
 
-	# Sonst: ersten leeren Slot
 	return 0 if slot0_empty else 1
 
 
 func _on_inventory_panel_closed() -> void:
-	# Multi-Equip abbrechen, wenn Inventar geschlossen wird
 	_pending_equip_slot = -1
 
 
@@ -416,7 +384,6 @@ func _try_equip_from_inventory(slot_index: int) -> void:
 	if not current_tower:
 		return
 
-	# Slot merken, damit _on_inventory_item_selected weiß wohin
 	_pending_equip_slot = slot_index
 
 	if not main:
@@ -424,28 +391,23 @@ func _try_equip_from_inventory(slot_index: int) -> void:
 
 	var inventory_ui := main.get_node_or_null("ItemInventoryUI") as ItemInventoryUI
 
-	# Inventar-UI existiert noch nicht -> öffnen und dann beim nächsten Klick nutzen
 	if not inventory_ui:
 		if main.has_method("_on_open_inventory"):
 			main._on_open_inventory()
 		return
 
-	# Signal-Verbindung sicherstellen
 	if not inventory_ui.item_selected.is_connected(_on_inventory_item_selected):
 		inventory_ui.item_selected.connect(_on_inventory_item_selected)
 
-	# Wenn das Inventar geschlossen wird, Multi-Equip beenden
 	if inventory_ui.has_signal("panel_closed"):
 		if not inventory_ui.panel_closed.is_connected(_on_inventory_panel_closed):
 			inventory_ui.panel_closed.connect(_on_inventory_panel_closed)
 
-	# Falls noch keine Auswahl -> Inventar anzeigen und auf item_selected warten
 	if not inventory_ui.has_selection():
 		if not inventory_ui.visible:
 			inventory_ui.show_panel()
 		return
 
-	# Wenn bereits selektiert ist -> direkt equppen über denselben Codepfad
 	_on_inventory_item_selected(inventory_ui.get_selected_item())
 
 
@@ -458,8 +420,6 @@ func _unequip_item(slot_index: int) -> void:
 		_update_equipment_display()
 		_update_display()
 
-
-# -------- Public API --------
 
 func set_tower_manager(tm: TowerManager) -> void:
 	tower_manager = tm
@@ -511,8 +471,8 @@ func _update_display() -> void:
 	var display_name: String = data.get("name", tower_type.capitalize())
 
 	if current_tower.has_method("is_engraved") and current_tower.is_engraved():
-		var elem_symbol := ElementalSystem.get_element_symbol(current_tower.engraved_element) if ElementalSystem else ""
-		tower_name_label.text = "%s %s" % [display_name, elem_symbol]
+		var elem_icon := IconSystem.bb(current_tower.engraved_element, 16) if IconSystem else ""
+		tower_name_label.text = "%s %s" % [display_name, elem_icon]
 	else:
 		tower_name_label.text = display_name
 
@@ -532,9 +492,9 @@ func _update_display() -> void:
 	_update_equipment_display()
 
 	var dark_color := Color(0.094, 0.094, 0.094)
-	tower_name_label.add_theme_color_override("font_color", dark_color)
+	tower_name_label.add_theme_color_override("default_color", dark_color)
 	tower_level_label.add_theme_color_override("font_color", dark_color)
-	stats_label.add_theme_color_override("font_color", dark_color)
+	stats_label.add_theme_color_override("default_color", dark_color)
 
 	_update_pickup_button(is_blocked)
 	_update_upgrade_button(tower_type, level)
@@ -556,17 +516,14 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 			stats_label.tooltip_text = ""
 		return
 
-	# Basis-Werte aus TowerData (ohne Upgrades) - explizite Casts
 	var base_damage: int = int(TowerData.get_stat(tower_type, "damage", level))
 	var base_range: float = float(TowerData.get_stat(tower_type, "range", level))
 	var base_fire_rate: float = float(TowerData.get_stat(tower_type, "fire_rate", level))
 
-	# Element für Multiplikatoren
 	var elem: String = ""
 	if current_tower.has_method("get_effective_element"):
 		elem = current_tower.get_effective_element()
 
-	# Multiplikatoren berechnen
 	var damage_mult: float = 1.0
 	var range_mult: float = 1.0
 	var fire_rate_mult: float = 1.0
@@ -576,20 +533,16 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		range_mult = UpgradeSystem.get_range_multiplier(tower_type)
 		fire_rate_mult = UpgradeSystem.get_fire_rate_multiplier(tower_type)
 
-	# Finale Werte (mit Items): am zuverlässigsten direkt vom Tower lesen
 	var final_damage: int = int(current_tower.damage)
 	var final_range: float = float(current_tower.tower_range)
 	var final_fire_rate: float = float(current_tower.fire_rate)
 
-
-	# Boni berechnen
 	var damage_bonus: int = final_damage - base_damage
 	var range_bonus: int = int(final_range - base_range)
 	var shots_per_sec: float = 1.0 / final_fire_rate if final_fire_rate > 0 else 0.0
 	var base_shots: float = 1.0 / base_fire_rate if base_fire_rate > 0 else 0.0
 	var fire_rate_bonus: float = shots_per_sec - base_shots
 
-	# Stats-Text aufbauen mit Upgrade-Boni in Klammern
 	var damage_text := "Schaden: %d" % final_damage
 	if damage_bonus > 0:
 		damage_text += " (+%d)" % damage_bonus
@@ -604,7 +557,6 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 
 	stats_label.text = "%s\n%s\n%s" % [damage_text, range_text, fire_rate_text]
 
-	# Detaillierter Tooltip
 	var tooltip_lines: Array[String] = []
 	if damage_bonus > 0:
 		tooltip_lines.append("Schaden: %d Basis + %d Upgrade" % [base_damage, damage_bonus])
@@ -629,7 +581,8 @@ func _has_prop(obj: Object, prop: StringName) -> bool:
 func _update_blocked_info(is_blocked: bool) -> void:
 	blocked_info_label.visible = is_blocked
 	if is_blocked:
-		blocked_info_label.text = "⚠ Steht auf dem Pfad!\nKlicke 'Aufnehmen' zum Umplatzieren"
+		var warning_icon := IconSystem.bb("warning", 14) if IconSystem else "⚠"
+		blocked_info_label.text = "%s Steht auf dem Pfad!\nKlicke 'Aufnehmen' zum Umplatzieren" % warning_icon
 
 
 func _update_pickup_button(is_blocked: bool) -> void:
@@ -645,7 +598,7 @@ func _update_pickup_button(is_blocked: bool) -> void:
 	else:
 		pickup_button.disabled = false
 		if is_blocked:
-			pickup_button.text = "⚠ Aufnehmen"
+			pickup_button.text = "Aufnehmen"
 			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
 			pickup_button.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
 		else:
@@ -655,13 +608,15 @@ func _update_pickup_button(is_blocked: bool) -> void:
 
 
 func _update_supply_info(level: int) -> void:
+	var supply_icon := IconSystem.bb("supply", 12) if IconSystem else "⛺"
+	
 	if TowerData.is_supply_building(current_tower.tower_type):
-		supply_info_label.text = "⛺ Supply: 0 (gratis!)"
+		supply_info_label.text = "%s Supply: 0 (gratis!)" % supply_icon
 		supply_info_label.tooltip_text = "Supply-Gebäude kosten kein Supply"
 		return
 
 	var supply_used := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
-	supply_info_label.text = "⛺ Supply: %d" % supply_used
+	supply_info_label.text = "%s Supply: %d" % [supply_icon, supply_used]
 	supply_info_label.tooltip_text = "Dieser Tower verwendet %d Supply\n(1 Basis + %d für Upgrades)" % [supply_used, level]
 
 
@@ -677,19 +632,18 @@ func _update_element_display() -> void:
 
 	element_label.visible = true
 
-	var elem_color := ElementalSystem.get_element_color(effective_elem) if ElementalSystem else Color.WHITE
-	var elem_symbol := ElementalSystem.get_element_symbol(effective_elem) if ElementalSystem else ""
-	var effectiveness_info := ""
+	var elem_color: Color = ElementalSystem.get_element_color(effective_elem) if ElementalSystem else Color.WHITE
+	var elem_icon: String = IconSystem.bb(effective_elem, 14) if IconSystem else ""
+	var effectiveness_info: String = ""
 
 	if ElementalSystem:
 		for defender in ["water", "fire", "earth", "air"]:
 			if ElementalSystem.is_effective(effective_elem, defender):
-				var def_symbol := ElementalSystem.get_element_symbol(defender)
-				effectiveness_info = "Effektiv gegen: %s" % def_symbol
+				var def_icon: String = IconSystem.bb(defender, 14) if IconSystem else defender
+				effectiveness_info = "Effektiv gegen: %s" % def_icon
 				break
 
-	element_label.text = "%s %s" % [elem_symbol, effectiveness_info]
-	element_label.add_theme_color_override("font_color", elem_color)
+	element_label.text = "%s %s" % [elem_icon, effectiveness_info]
 
 
 func _update_engrave_buttons() -> void:
@@ -717,13 +671,12 @@ func _update_engrave_buttons() -> void:
 
 	for element in available:
 		var btn := Button.new()
-		var symbol := ElementalSystem.get_element_symbol(element) if ElementalSystem else element.substr(0, 1).to_upper()
-		btn.text = symbol
+		btn.text = ""
+		btn.icon = IconSystem.get_texture(element) if IconSystem else null
 		btn.custom_minimum_size = Vector2(32, 28)
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.expand_icon = true
 		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [element.capitalize(), cost]
-
-		var elem_color := ElementalSystem.get_element_color(element) if ElementalSystem else Color.WHITE
-		btn.add_theme_color_override("font_color", elem_color)
 
 		if not can_afford or GameState.wave_active:
 			btn.disabled = true
@@ -769,7 +722,7 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 	var supply_cost := TowerData.get_supply_cost_upgrade()
 	var has_supply := GameState.can_use_supply(supply_cost)
 
-	upgrade_button.text = "Upgrade (%dg, ⛺%d)" % [cost, supply_cost]
+	upgrade_button.text = "Upgrade (%dg, %d)" % [cost, supply_cost]
 	upgrade_button.visible = true
 
 	if GameState.can_afford(cost) and has_supply and not GameState.wave_active:
@@ -797,11 +750,13 @@ func _update_sell_button(level: int) -> void:
 		var engrave_refund := TowerData.get_engraving_cost() / 2 if sell_percent < 100 else TowerData.get_engraving_cost()
 		sell_value += engrave_refund
 
+	var supply_icon := IconSystem.bb("supply", 12) if IconSystem else "⛺"
+
 	if TowerData.is_supply_building(current_tower.tower_type):
 		sell_button.text = "Verkaufen: %dg (%d%%)" % [sell_value, sell_percent]
 	else:
 		var supply_refund := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
-		sell_button.text = "Verkaufen: %dg +⛺%d (%d%%)" % [sell_value, supply_refund, sell_percent]
+		sell_button.text = "Verkaufen: %dg +%d (%d%%)" % [sell_value, supply_refund, sell_percent]
 
 	if sell_percent == 100:
 		sell_button.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))

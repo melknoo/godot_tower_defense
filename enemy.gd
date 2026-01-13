@@ -33,7 +33,7 @@ var health_bar_bg: Line2D
 var health_bar: Line2D
 var status_indicator: Node2D
 var shadow: Polygon2D
-var element_indicator: Label
+var element_indicator: RichTextLabel
 
 # Animation - Alle Gegner: 4 Frames horizontal
 var anim_timer := 0.0
@@ -96,8 +96,8 @@ func _create_visuals() -> void:
 	add_child(health_bar)
 
 	# Element Indicator
-	element_indicator = Label.new()
-	element_indicator.position = Vector2(-8, -44)
+	element_indicator = _get_or_create_rich_label("element_indicator", Vector2(-8, -50))
+	#element_indicator.position = Vector2(-8, -44)
 	element_indicator.add_theme_font_size_override("font_size", 12)
 	element_indicator.visible = false
 	add_child(element_indicator)
@@ -189,7 +189,7 @@ func _update_element_indicator() -> void:
 		return
 
 	element_indicator.visible = true
-	element_indicator.text = ElementalSystem.get_element_symbol(element) if ElementalSystem else element.substr(0, 1).to_upper()
+	element_indicator.text = ElementalSystem.get_element_bb(element, 18) if ElementalSystem else element.substr(0, 1).to_upper()
 	element_indicator.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	element_indicator.add_theme_constant_override("outline_size", 2)
 
@@ -505,6 +505,18 @@ func _update_health_bar() -> void:
 		bar_color = bar_color.lerp(elem_color, 0.3)
 	health_bar.default_color = bar_color
 
+func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_width: float = 120.0) -> RichTextLabel:
+	var label: RichTextLabel = get_node_or_null(node_name) as RichTextLabel
+	if not label:
+		label = RichTextLabel.new()
+		label.name = node_name
+		label.position = default_pos
+		label.bbcode_enabled = true
+		label.fit_content = true
+		label.scroll_active = false
+		label.custom_minimum_size = Vector2(min_width, 20)
+		add_child(label)
+	return label
 
 func _show_status_icon(effect_type: String) -> void:
 	for child in status_indicator.get_children():

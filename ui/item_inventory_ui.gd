@@ -7,7 +7,8 @@ signal item_selected(item: Dictionary)
 signal panel_closed
 
 var panel: PanelContainer
-var title_label: Label
+#var title_label: Label
+var title_label = IconSystem
 var count_label: Label
 var grid_container: GridContainer
 var close_button: Button
@@ -73,8 +74,10 @@ func _setup_ui() -> void:
 	var header := HBoxContainer.new()
 	vbox.add_child(header)
 	
-	title_label = Label.new()
-	title_label.text = "📦 Inventar"
+	#title_label = Label.new()
+	title_label = title_label.create_rich_label(200, 20)
+	#title_label.text = "📦 Inventar"
+	title_label.text = "%s Inventar" % IconSystem.bb("inventory", 18)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if UITheme and UITheme.game_font:
 		title_label.add_theme_font_override("font", UITheme.game_font)

@@ -138,3 +138,16 @@ func get_interaction_text(attacker: String, defender: String) -> String:
 	elif mult < NEUTRAL_MULTIPLIER:
 		return "Resistent (x%.1f)" % mult
 	return ""
+	
+# Gibt BBCode für RichTextLabels zurück
+func get_element_bb(element: String, size: int = 16) -> String:
+	if IconSystem:
+		return IconSystem.bb(element, size)
+	return get_element_symbol(element)  # Fallback auf Emoji
+
+
+# Gibt die Textur direkt zurück (für TextureRect, Button.icon, etc.)
+func get_element_texture(element: String) -> Texture2D:
+	if IconSystem:
+		return IconSystem.get_texture(element)
+	return null

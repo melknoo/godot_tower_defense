@@ -11,6 +11,10 @@ var icons := {
 	"gold": "gold.png",
 	"life": "life.png",
 	"supply": "supply.png",
+	"upgrades": "upgrades.png",
+	"inventory": "inventory.png",
+	"path": "path.png",
+	"warning": "warning.png",
 	
 	# Elemente (in assets/icons)
 	"fire": "element_fire.png",
@@ -18,6 +22,10 @@ var icons := {
 	"lightning": "element_lightning.png",
 	"earth": "element_earth.png",
 	"nature": "element_nature.png",
+	"water": "element_water.png",
+	"air": "element_air.png",
+	"steam": "element_steam.png",
+	"lava": "element_lava.png",
 	
 	# Kerne
 	"core": "core.png",
@@ -107,3 +115,13 @@ func register_icon(short_name: String, filename: String) -> void:
 	# Cache invalidieren falls bereits geladen
 	if _texture_cache.has(short_name):
 		_texture_cache.erase(short_name)
+
+
+# Erstellt ein RichTextLabel mit BBCode-Unterstützung für Icons
+func create_rich_label(min_width: float = 120.0, min_height: float = 20.0) -> RichTextLabel:
+	var label := RichTextLabel.new()
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.scroll_active = false
+	label.custom_minimum_size = Vector2(min_width, min_height)
+	return label
