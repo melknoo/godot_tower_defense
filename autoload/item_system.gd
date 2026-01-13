@@ -8,6 +8,9 @@ signal item_equipped(tower: Node2D, item: Dictionary, slot: int)
 signal item_unequipped(tower: Node2D, item: Dictionary, slot: int)
 signal inventory_changed
 
+const ITEM_ICON_PATH := "res://assets/items/"
+
+
 # Inventar für gesammelte Items
 var inventory: Array[Dictionary] = []
 const MAX_INVENTORY := 20
@@ -35,91 +38,93 @@ const ITEMS := {
 		"name": "Scharfe Klinge", "category": "weapon",
 		"description": "+{value}% Schaden",
 		"stat": "damage", "base_value": 8,
-		"sprite_sheet": "weapons", "sprite_index": 0,
+		"icon": "sharp_blade",  # lädt sharp_blade.png
 		"allowed_towers": ["sword", "archer"]
 	},
 	"heavy_hammer": {
 		"name": "Schwerer Hammer", "category": "weapon",
 		"description": "+{value}% Schaden, -{penalty}% Feuerrate",
-		"stat": "damage", "base_value": 15, "penalty_stat": "fire_rate", "penalty_value": 10,
-		"sprite_sheet": "weapons", "sprite_index": 1,
+		"stat": "damage", "base_value": 15, 
+		"penalty_stat": "fire_rate", "penalty_value": 10,
+		"icon": "heavy_hammer",
 		"allowed_towers": ["sword", "earth"]
 	},
-	"precision_lens": {
-		"name": "Präzisionslinse", "category": "weapon",
+	"precision_bow": {
+		"name": "Präzisions Bogen", "category": "weapon",
 		"description": "+{value}% Crit-Chance",
 		"stat": "crit_chance", "base_value": 5,
-		"sprite_sheet": "weapons", "sprite_index": 2,
+		"icon": "precision_bow",
 		"allowed_towers": ["archer", "air"]
 	},
 	"piercing_tip": {
 		"name": "Durchbohrende Spitze", "category": "weapon",
 		"description": "Ignoriert {value}% Gegner-Resistenz",
 		"stat": "armor_pen", "base_value": 15,
-		"sprite_sheet": "weapons", "sprite_index": 3,
+		"icon": "piercing_tip",
 		"allowed_towers": ["archer", "fire"]
 	},
 	
 	# === ACCESSOIRES ===
-	"scope": {
-		"name": "Zielfernrohr", "category": "accessory",
-		"description": "+{value}% Reichweite",
-		"stat": "range", "base_value": 10,
-		"sprite_sheet": "accessories", "sprite_index": 0,
-		"allowed_towers": ["archer", "water", "air"]
-	},
-	"quick_loader": {
-		"name": "Schnelllader", "category": "accessory",
+	"swift_boots": {
+		"name": "Flinke Stiefel", "category": "accessory",
 		"description": "+{value}% Feuerrate",
-		"stat": "fire_rate", "base_value": 8,
-		"sprite_sheet": "accessories", "sprite_index": 1,
-		"allowed_towers": ["archer", "fire", "air"]
+		"stat": "fire_rate", "base_value": 10,
+		"icon": "swift_boots",
+		"allowed_towers": []
 	},
-	"blast_core": {
-		"name": "Explosivkern", "category": "accessory",
+	"archer_hood": {
+		"name": "Bogenschützen Haube", "category": "accessory",
+		"description": "+{value}% Reichweite",
+		"stat": "range", "base_value": 12,
+		"icon": "archer_hood",
+		"allowed_towers": ["archer"]
+	},
+	"blast_powder": {
+		"name": "Sprengpulver", "category": "accessory",
 		"description": "+{value}% Splash-Radius",
-		"stat": "splash", "base_value": 15,
-		"sprite_sheet": "accessories", "sprite_index": 2,
-		"allowed_towers": ["fire", "earth", "lava"]
-	},
-	"light_frame": {
-		"name": "Leichtbaurahmen", "category": "accessory",
-		"description": "+{value}% Feuerrate, -{penalty}% Schaden",
-		"stat": "fire_rate", "base_value": 15, "penalty_stat": "damage", "penalty_value": 5,
-		"sprite_sheet": "accessories", "sprite_index": 3,
-		"allowed_towers": []  # Alle Türme
+		"stat": "splash", "base_value": 20,
+		"icon": "blast_powder",
+		"allowed_towers": ["fire", "earth"]
 	},
 	
-	# === ELEMENTAR ===
-	"frost_gem": {
-		"name": "Frostjuwel", "category": "elemental",
-		"description": "+{value}% Slow-Effekt",
-		"stat": "slow_bonus", "base_value": 20,
-		"sprite_sheet": "gems", "sprite_index": 0,
-		"allowed_towers": ["water", "ice"],
-		"element": "water"
-	},
-	"ember_stone": {
-		"name": "Glutstein", "category": "elemental",
-		"description": "+{value}% Burn-Schaden",
-		"stat": "burn_bonus", "base_value": 25,
-		"sprite_sheet": "gems", "sprite_index": 1,
-		"allowed_towers": ["fire", "lava"],
+	# === ELEMENTAR-GEMS ===
+	"fire_gem": {
+		"name": "Feuerrubin", "category": "elemental",
+		"description": "+{value}% Feuer-Schaden",
+		"stat": "fire_damage", "base_value": 12,
+		"icon": "fire_gem",
+		"allowed_towers": ["fire", "archer", "sword"],
 		"element": "fire"
 	},
-	"tremor_crystal": {
-		"name": "Bebenkristall", "category": "elemental",
+	"ice_shard": {
+		"name": "Eissplitter", "category": "elemental",
+		"description": "+{value}% Verlangsamung",
+		"stat": "slow_bonus", "base_value": 15,
+		"icon": "ice_shard",
+		"allowed_towers": ["ice", "water"],
+		"element": "ice"
+	},
+	"lightning_crystal": {
+		"name": "Blitzkristall", "category": "elemental",
+		"description": "+{value}% Kettenblitz-Schaden",
+		"stat": "chain_damage", "base_value": 10,
+		"icon": "lightning_crystal",
+		"allowed_towers": ["lightning", "air"],
+		"element": "lightning"
+	},
+	"earth_core": {
+		"name": "Erdkern", "category": "elemental",
 		"description": "+{value}% Stun-Chance",
-		"stat": "stun_bonus", "base_value": 5,
-		"sprite_sheet": "gems", "sprite_index": 2,
-		"allowed_towers": ["earth", "nature"],
+		"stat": "stun_chance", "base_value": 8,
+		"icon": "earth_core",
+		"allowed_towers": ["earth", "sword"],
 		"element": "earth"
 	},
-	"storm_shard": {
-		"name": "Sturmsplitter", "category": "elemental",
+	"wind_essence": {
+		"name": "Windessenz", "category": "elemental",
 		"description": "+{value} Chain-Targets",
 		"stat": "chain_bonus", "base_value": 1,
-		"sprite_sheet": "gems", "sprite_index": 3,
+		"icon": "wind_essence",
 		"allowed_towers": ["air", "ice"],
 		"element": "air"
 	},
@@ -129,7 +134,7 @@ const ITEMS := {
 		"name": "Vampirzahn", "category": "special",
 		"description": "Heilt {value} Leben pro Kill",
 		"stat": "life_steal", "base_value": 1,
-		"sprite_sheet": "special", "sprite_index": 0,
+		"icon": "vampiric_fang",
 		"min_rarity": "rare",
 		"allowed_towers": ["sword"]
 	},
@@ -137,7 +142,7 @@ const ITEMS := {
 		"name": "Kettenglied", "category": "special",
 		"description": "Projektile springen zu {value} weiteren Zielen",
 		"stat": "chain", "base_value": 1,
-		"sprite_sheet": "special", "sprite_index": 1,
+		"icon": "chain_link",
 		"min_rarity": "rare",
 		"allowed_towers": ["archer", "air"]
 	},
@@ -145,7 +150,7 @@ const ITEMS := {
 		"name": "Goldene Berührung", "category": "special",
 		"description": "+{value} Gold pro Kill durch diesen Turm",
 		"stat": "gold_bonus", "base_value": 1,
-		"sprite_sheet": "special", "sprite_index": 2,
+		"icon": "golden_touch",
 		"min_rarity": "rare",
 		"allowed_towers": []
 	},
@@ -153,7 +158,7 @@ const ITEMS := {
 		"name": "Mehrfachschuss-Rune", "category": "special",
 		"description": "Feuert {value} zusätzliche Projektile",
 		"stat": "multishot", "base_value": 1,
-		"sprite_sheet": "special", "sprite_index": 3,
+		"icon": "multishot_rune",
 		"min_rarity": "epic",
 		"allowed_towers": ["archer", "water", "fire"]
 	},
@@ -161,11 +166,14 @@ const ITEMS := {
 		"name": "Berserker-Mal", "category": "special",
 		"description": "+{value}% Schaden pro fehlendem Leben",
 		"stat": "berserker", "base_value": 2,
-		"sprite_sheet": "special", "sprite_index": 4,
+		"icon": "berserker_mark",
 		"min_rarity": "epic",
 		"allowed_towers": ["sword", "fire"]
 	}
 }
+
+var _icon_cache: Dictionary = {}
+
 
 # Sprite-Sheets Cache
 var sprite_sheets: Dictionary = {}
@@ -174,7 +182,7 @@ var rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	rng.randomize()
-	_load_sprite_sheets()
+	# _load_sprite_sheets() nicht mehr nötig
 	print("[ItemSystem] Initialisiert mit %d Item-Templates" % ITEMS.size())
 
 
@@ -291,8 +299,7 @@ func _create_item_instance(template_id: String, template: Dictionary, rarity: St
 		"color": rarity_data["color"],
 		"stat": template["stat"],
 		"value": final_value,
-		"sprite_sheet": template.get("sprite_sheet", ""),
-		"sprite_index": template.get("sprite_index", 0),
+		"icon": template.get("icon", template_id),  # Fallback auf template_id
 		"allowed_towers": template.get("allowed_towers", []),
 		"element": template.get("element", "")
 	}
@@ -456,22 +463,41 @@ func get_tower_item_bonus_percent(tower: Node2D, stat: String) -> float:
 
 # === SPRITE HELPERS ===
 
-func get_item_texture(item: Dictionary) -> AtlasTexture:
-	var sheet_name: String = item.get("sprite_sheet", "")
-	var index: int = item.get("sprite_index", 0)
+func get_item_texture(item: Dictionary) -> Texture2D:
+	var icon_name: String = item.get("icon", "")
+	var rarity: String = item.get("rarity", "common")
 	
-	if not sprite_sheets.has(sheet_name):
+	# Fallback auf item id wenn kein icon definiert
+	if icon_name.is_empty():
+		icon_name = item.get("id", "")
+	
+	if icon_name.is_empty():
 		return null
 	
-	var atlas := AtlasTexture.new()
-	atlas.atlas = sprite_sheets[sheet_name]
+	# Cache-Key mit Rarity
+	var cache_key := "%s_%s" % [icon_name, rarity]
 	
-	# 16x16 Items, horizontal angeordnet
-	var x := (index % 8) * 16
-	var y := (index / 8) * 16
-	atlas.region = Rect2(x, y, 16, 16)
+	if _icon_cache.has(cache_key):
+		return _icon_cache[cache_key]
 	
-	return atlas
+	# 1. Versuch: Rarity-spezifisches Icon (z.B. sharp_blade_rare.png)
+	var rarity_path := ITEM_ICON_PATH + icon_name + "_" + rarity + ".png"
+	if ResourceLoader.exists(rarity_path):
+		var tex := load(rarity_path) as Texture2D
+		_icon_cache[cache_key] = tex
+		return tex
+	
+	# 2. Fallback: Basis-Icon (z.B. sharp_blade.png)
+	var base_path := ITEM_ICON_PATH + icon_name + ".png"
+	if ResourceLoader.exists(base_path):
+		var tex := load(base_path) as Texture2D
+		_icon_cache[cache_key] = tex
+		return tex
+	
+	push_warning("[ItemSystem] Icon nicht gefunden: %s (weder %s noch %s)" % [icon_name, rarity_path, base_path])
+	return null
+
+
 
 
 # === SAVE/LOAD ===
