@@ -130,11 +130,11 @@ const ITEMS := {
 	},
 	
 	# === SPEZIAL (nur Rare/Epic) ===
-	"vampiric_fang": {
-		"name": "Vampirzahn", "category": "special",
+	"life_amulet": {
+		"name": "Amulett des Lebens", "category": "special",
 		"description": "Heilt {value} Leben pro Kill",
 		"stat": "life_steal", "base_value": 1,
-		"icon": "vampiric_fang",
+		"icon": "life_amulet",
 		"min_rarity": "rare",
 		"allowed_towers": ["sword"]
 	},
