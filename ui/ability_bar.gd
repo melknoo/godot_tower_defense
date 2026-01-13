@@ -166,6 +166,8 @@ func _create_ability_button(ability_id: String) -> Control:
 	cd_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cd_label.add_theme_font_size_override("font_size", 16)
 	cd_label.add_theme_color_override("font_color", Color.BLACK)
+	cd_label.add_theme_color_override("font_outline_color", Color(1, 1, 1))
+	cd_label.add_theme_constant_override("outline_size", 3)
 	cd_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cd_label.visible = false
 	btn.add_child(cd_label)
