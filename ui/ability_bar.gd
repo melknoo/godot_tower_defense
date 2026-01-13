@@ -69,106 +69,103 @@ func _create_ability_button(ability_id: String) -> Control:
 	var data: Dictionary = AbilitySystem.get_ability_data(ability_id)
 	var element: String = data.get("element", "")
 	var elem_color: Color = ELEMENT_COLORS.get(element, Color.WHITE)
+	var icon_name: String = data.get("icon_name", "")
 	
-	# Container für Button + Overlays
 	var container := Control.new()
 	container.custom_minimum_size = Vector2(BUTTON_SIZE, BUTTON_SIZE + 14)
 	container.name = ability_id
 	
-	# Haupt-Button
 	var btn := Button.new()
 	btn.name = "Button"
 	btn.custom_minimum_size = Vector2(BUTTON_SIZE, BUTTON_SIZE)
-	btn.position = Vector2(0, 0)
-	btn.flat = true
-	btn.pressed.connect(_on_ability_button_pressed.bind(ability_id))
+	
+	# Style
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.15, 0.18)
+	style.border_color = elem_color.darkened(0.3)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	btn.add_theme_stylebox_override("normal", style)
+	
+	# Hover style
+	var hover := style.duplicate()
+	hover.bg_color = Color(0.2, 0.2, 0.25)
+	hover.border_color = elem_color
+	btn.add_theme_stylebox_override("hover", hover)
+	
+	# Disabled style
+	var disabled := style.duplicate()
+	disabled.bg_color = Color(0.1, 0.1, 0.1, 0.5)
+	disabled.border_color = Color(0.3, 0.3, 0.3, 0.5)
+	btn.add_theme_stylebox_override("disabled", disabled)
+	
 	container.add_child(btn)
 	
-	# Button Style
-	var btn_style := StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.18, 0.18, 0.22)
-	btn_style.border_color = elem_color.darkened(0.3)
-	btn_style.border_width_left = 2
-	btn_style.border_width_right = 2
-	btn_style.border_width_top = 2
-	btn_style.border_width_bottom = 2
-	btn_style.corner_radius_top_left = 6
-	btn_style.corner_radius_top_right = 6
-	btn_style.corner_radius_bottom_left = 6
-	btn_style.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("normal", btn_style)
+	# === ICON (TextureRect direkt im Button, manuell zentriert) ===
+	var icon_tex: Texture2D = null
+	if IconSystem and icon_name:
+		icon_tex = IconSystem.get_texture(icon_name)
 	
-	var hover_style := btn_style.duplicate()
-	hover_style.bg_color = Color(0.25, 0.25, 0.3)
-	hover_style.border_color = elem_color
-	btn.add_theme_stylebox_override("hover", hover_style)
+	var icon_size := 32
+	var icon_offset := (BUTTON_SIZE - icon_size) / 2
 	
-	var pressed_style := btn_style.duplicate()
-	pressed_style.bg_color = Color(0.15, 0.15, 0.18)
-	btn.add_theme_stylebox_override("pressed", pressed_style)
+	if icon_tex:
+		var icon_rect := TextureRect.new()
+		icon_rect.name = "Icon"
+		icon_rect.texture = icon_tex
+		icon_rect.position = Vector2(icon_offset, icon_offset)
+		icon_rect.size = Vector2(icon_size, icon_size)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_rect.modulate = elem_color.lightened(0.2)
+		btn.add_child(icon_rect)
+	else:
+		# Fallback auf Element-Buchstabe
+		var fallback := Label.new()
+		fallback.name = "Icon"
+		fallback.text = element.substr(0, 1).to_upper()
+		fallback.position = Vector2(icon_offset, icon_offset - 4)
+		fallback.add_theme_font_size_override("font_size", 24)
+		fallback.add_theme_color_override("font_color", elem_color)
+		fallback.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		btn.add_child(fallback)
 	
-	# Icon Label
-	var icon := Label.new()
-	icon.name = "Icon"
-	icon.text = data.get("icon", "?")
-	icon.position = Vector2(BUTTON_SIZE/2 - 14, 4)
-	icon.add_theme_font_size_override("font_size", 28)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(icon)
-	
-	# Cooldown Overlay (dunkler Balken der von oben nach unten schrumpft)
+	# Cooldown Overlay (halbtransparentes Rechteck)
 	var cooldown_overlay := ColorRect.new()
 	cooldown_overlay.name = "CooldownOverlay"
-	cooldown_overlay.color = Color(0.1, 0.1, 0.1, 0.7)
-	cooldown_overlay.position = Vector2(2, 2)
-	cooldown_overlay.size = Vector2(BUTTON_SIZE - 4, BUTTON_SIZE - 4)
-	cooldown_overlay.visible = false
+	cooldown_overlay.color = Color(0.2, 0.2, 0.2, 0.7)
+	cooldown_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cooldown_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(cooldown_overlay)
+	cooldown_overlay.visible = false
+	btn.add_child(cooldown_overlay)
 	
 	# Cooldown Text
 	var cd_label := Label.new()
 	cd_label.name = "CooldownLabel"
-	cd_label.position = Vector2(BUTTON_SIZE/2 - 10, BUTTON_SIZE/2 - 10)
+	cd_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cd_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cd_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cd_label.add_theme_font_size_override("font_size", 16)
 	cd_label.add_theme_color_override("font_color", Color.WHITE)
-	cd_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	cd_label.add_theme_constant_override("outline_size", 3)
-	cd_label.visible = false
 	cd_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(cd_label)
+	cd_label.visible = false
+	btn.add_child(cd_label)
 	
-	# Hotkey Label
+	# Hotkey Label unter dem Button
 	var hotkey := Label.new()
 	hotkey.name = "Hotkey"
-	var hotkey_code: int = data.get("hotkey", 0)
-	hotkey.text = HOTKEY_NAMES.get(hotkey_code, "?")
-	hotkey.position = Vector2(BUTTON_SIZE/2 - 4, BUTTON_SIZE + 2)
+	var key: int = data.get("hotkey", 0)
+	hotkey.text = HOTKEY_NAMES.get(key, "?")
+	hotkey.position = Vector2(BUTTON_SIZE / 2 - 4, BUTTON_SIZE + 1)
 	hotkey.add_theme_font_size_override("font_size", 10)
 	hotkey.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	hotkey.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	container.add_child(hotkey)
 	
-	# Selected Indicator
-	var selected_indicator := ColorRect.new()
-	selected_indicator.name = "SelectedIndicator"
-	selected_indicator.color = elem_color
-	selected_indicator.position = Vector2(0, BUTTON_SIZE - 3)
-	selected_indicator.size = Vector2(BUTTON_SIZE, 3)
-	selected_indicator.visible = false
-	selected_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	container.add_child(selected_indicator)
-	
-	# Tooltip
-	btn.tooltip_text = "%s\n%s\nCooldown: %.0fs\nHotkey: %s" % [
-		data.get("name", ability_id),
-		data.get("description", ""),
-		data.get("cooldown", 0.0),
-		HOTKEY_NAMES.get(hotkey_code, "?")
-	]
+	# Click Handler
+	btn.pressed.connect(_on_ability_button_pressed.bind(ability_id))
 	
 	return container
-
 
 func _connect_signals() -> void:
 	if AbilitySystem:
@@ -206,8 +203,12 @@ func _on_cooldown_updated(ability_id: String, remaining: float, total: float) ->
 		return
 	
 	var container: Control = ability_buttons[ability_id]
-	var overlay := container.get_node_or_null("CooldownOverlay") as ColorRect
-	var cd_label := container.get_node_or_null("CooldownLabel") as Label
+	var btn := container.get_node_or_null("Button") as Button
+	if not btn:
+		return
+	
+	var overlay := btn.get_node_or_null("CooldownOverlay") as ColorRect
+	var cd_label := btn.get_node_or_null("CooldownLabel") as Label
 	
 	if remaining > 0:
 		if overlay:
@@ -224,12 +225,17 @@ func _on_cooldown_updated(ability_id: String, remaining: float, total: float) ->
 			cd_label.visible = false
 
 
+
 func _on_ability_used(ability_id: String) -> void:
 	if not ability_buttons.has(ability_id):
 		return
 	
 	var container: Control = ability_buttons[ability_id]
-	var icon := container.get_node_or_null("Icon") as Label
+	var btn := container.get_node_or_null("Button") as Button
+	if not btn:
+		return
+	
+	var icon := btn.get_node_or_null("Icon")
 	
 	if icon:
 		# Flash Animation
@@ -244,7 +250,6 @@ func _on_ability_ready(ability_id: String) -> void:
 	
 	var container: Control = ability_buttons[ability_id]
 	var btn := container.get_node_or_null("Button") as Button
-	var icon := container.get_node_or_null("Icon") as Label
 	
 	# Ready pulse animation
 	if btn:

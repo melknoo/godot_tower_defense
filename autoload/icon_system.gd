@@ -16,6 +16,11 @@ var icons := {
 	"path": "path.png",
 	"warning": "warning.png",
 	
+	"ability_lightning": "ability_lightning.png",
+	"ability_frost": "ability_frost.png",
+	"ability_meteor": "ability_meteor.png",
+	"ability_earthquake": "ability_earthquake.png",
+	
 	# Elemente (in assets/icons)
 	"fire": "element_fire.png",
 	"ice": "element_ice.png",

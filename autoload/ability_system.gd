@@ -11,7 +11,7 @@ const ABILITIES := {
 	"lightning": {
 		"name": "Blitzschlag",
 		"description": "Schlägt mit Blitz ein und springt zu nahen Gegnern",
-		"icon": "⚡",
+		"icon_name": "ability_lightning",
 		"element": "air",
 		"cooldown": 8.0,
 		"base_damage": 80,
@@ -23,7 +23,7 @@ const ABILITIES := {
 	"frost_nova": {
 		"name": "Frostnova",
 		"description": "Friert alle Gegner im Bereich ein",
-		"icon": "❄️",
+		"icon_name": "ability_frost",
 		"element": "water",
 		"cooldown": 12.0,
 		"base_damage": 30,
@@ -34,7 +34,7 @@ const ABILITIES := {
 	"meteor": {
 		"name": "Meteor",
 		"description": "Ruft einen Meteor herbei (0.8s Verzögerung)",
-		"icon": "☄️",
+		"icon_name": "ability_meteor",
 		"element": "fire",
 		"cooldown": 15.0,
 		"base_damage": 200,
@@ -47,7 +47,7 @@ const ABILITIES := {
 	"earthquake": {
 		"name": "Erdbeben",
 		"description": "Stunt alle Gegner auf dem Bildschirm",
-		"icon": "🌋",
+		"icon_name": "ability_earthquake",
 		"element": "earth",
 		"cooldown": 20.0,
 		"base_damage": 50,
