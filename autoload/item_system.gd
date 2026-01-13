@@ -20,6 +20,7 @@ const RARITIES := {
 	"epic": {"color": Color(0.7, 0.3, 0.9), "weight": 3, "multiplier": 3.0}
 }
 
+
 const DROP_CHANCES := {
 	"normal": 0.03,
 	"fast": 0.05,

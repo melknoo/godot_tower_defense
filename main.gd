@@ -358,6 +358,8 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 				AbilitySystem.cancel_targeting()
 				ability_target_preview.visible = false
 				return
+			if tower_info.visible and tower_info.get_global_rect().has_point(event.position):
+				return
 			_cancel_drag_or_pickup()
 		return
 	

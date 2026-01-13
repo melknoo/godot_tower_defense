@@ -296,6 +296,10 @@ func _on_item_equipment_changed(tower: Node2D, _item: Dictionary, _slot: int) ->
 func _on_equipment_slot_input(event: InputEvent, slot: PanelContainer) -> void:
 	if not event is InputEventMouseButton or not event.pressed:
 		return
+	
+	# Diese Zeilen fehlen:
+	if not current_tower or not ItemSystem:
+		return
 
 	var slot_index: int = int(slot.get_meta("slot_index"))
 	var equipped: Array = ItemSystem.get_tower_equipped_items(current_tower)
@@ -303,8 +307,11 @@ func _on_equipment_slot_input(event: InputEvent, slot: PanelContainer) -> void:
 
 	if event.button_index == MOUSE_BUTTON_RIGHT and not current_item.is_empty():
 		_unequip_item(slot_index)
+		get_viewport().set_input_as_handled()  
 	elif event.button_index == MOUSE_BUTTON_LEFT:
 		_try_equip_from_inventory(slot_index)
+		get_viewport().set_input_as_handled()  
+
 
 
 func _on_equipment_slot_hover(slot: PanelContainer, entered: bool) -> void:

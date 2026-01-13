@@ -17,6 +17,8 @@ var detail_name: Label
 var detail_desc: Label
 var detail_rarity: Label
 var detail_allowed: Label
+var sell_button: Button
+
 
 var selected_item: Dictionary = {}
 var is_dragging := false
@@ -31,6 +33,12 @@ const RARITY_NAMES := {
 	"epic": "Episch"
 }
 
+const SELL_PRICES := {
+	"common": 10,
+	"uncommon": 15,
+	"rare": 25,
+	"epic": 50
+}
 
 func _ready() -> void:
 	layer = 100
@@ -189,6 +197,48 @@ func _setup_detail_panel() -> void:
 	detail_desc.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
 	vbox.add_child(detail_desc)
 	
+	var sell_sep := HSeparator.new()
+	sell_sep.add_theme_constant_override("separation", 8)
+	vbox.add_child(sell_sep)
+	
+	# Verkaufen Button
+	var sell_center := CenterContainer.new()
+	vbox.add_child(sell_center)
+	
+	sell_button = Button.new()
+	sell_button.custom_minimum_size = Vector2(140, 32)
+	sell_button.pressed.connect(_on_sell_pressed)
+	sell_center.add_child(sell_button)
+	
+	if UITheme:
+		UITheme.style_button(sell_button)
+	
+	# Roter Stil für Verkaufen
+	var sell_style := StyleBoxFlat.new()
+	sell_style.bg_color = Color(0.6, 0.2, 0.2)
+	sell_style.border_color = Color(0.8, 0.3, 0.3)
+	sell_style.border_width_left = 1
+	sell_style.border_width_right = 1
+	sell_style.border_width_top = 1
+	sell_style.border_width_bottom = 1
+	sell_style.corner_radius_top_left = 4
+	sell_style.corner_radius_top_right = 4
+	sell_style.corner_radius_bottom_left = 4
+	sell_style.corner_radius_bottom_right = 4
+	sell_button.add_theme_stylebox_override("normal", sell_style)
+	
+	var sell_hover := sell_style.duplicate()
+	sell_hover.bg_color = Color(0.7, 0.25, 0.25)
+	sell_button.add_theme_stylebox_override("hover", sell_hover)
+	
+	var sell_pressed := sell_style.duplicate()
+	sell_pressed.bg_color = Color(0.5, 0.15, 0.15)
+	sell_button.add_theme_stylebox_override("pressed", sell_pressed)
+	
+	sell_button.add_theme_color_override("font_color", Color(1.0, 0.9, 0.8))
+	sell_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.9))
+	sell_button.visible = false  # Nur bei Auswahl sichtbar
+	
 	detail_allowed = Label.new()
 	detail_allowed.autowrap_mode = TextServer.AUTOWRAP_WORD
 	detail_allowed.custom_minimum_size = Vector2(170, 0)
@@ -218,6 +268,61 @@ func hide_panel() -> void:
 	tween.tween_property(panel, "modulate:a", 0.0, 0.1)
 	tween.tween_callback(func(): visible = false)
 	panel_closed.emit()
+
+
+func _show_sell_feedback(amount: int) -> void:
+	var feedback := Label.new()
+	feedback.text = "+%d" % amount
+	feedback.add_theme_font_size_override("font_size", 16)
+	feedback.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	feedback.add_theme_constant_override("outline_size", 2)
+	
+	if UITheme and UITheme.game_font:
+		feedback.add_theme_font_override("font", UITheme.game_font)
+	
+	# Position über dem Detail-Panel
+	feedback.position = detail_panel.position + Vector2(detail_panel.size.x / 2 - 20, -10)
+	add_child(feedback)
+	
+	# Animation: nach oben fliegen und ausblenden
+	var tween := feedback.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(feedback, "position:y", feedback.position.y - 40, 0.6)
+	tween.tween_property(feedback, "modulate:a", 0.0, 0.6).set_delay(0.2)
+	tween.chain().tween_callback(feedback.queue_free)
+
+
+func _on_sell_pressed() -> void:
+	if selected_item.is_empty():
+		return
+	
+	var uid: String = selected_item.get("uid", "")
+	if uid == "":
+		return
+	
+	var rarity: String = selected_item.get("rarity", "common")
+	var sell_price: int = SELL_PRICES.get(rarity, 10)
+	
+	# Item aus Inventar entfernen
+	if ItemSystem:
+		ItemSystem.remove_item(uid)
+	
+	# Gold hinzufügen
+	GameState.gold += sell_price
+	
+	# Feedback
+	Sound.play_sell()
+	
+	# VFX: Gold-Text am Button
+	_show_sell_feedback(sell_price)
+	
+	# Auswahl zurücksetzen
+	selected_item = {}
+	detail_panel.visible = false
+	_clear_selection_visuals()
+	
+	print("[ItemInventoryUI] Item verkauft für %d Gold" % sell_price)
 
 
 func toggle_panel() -> void:
@@ -369,6 +474,8 @@ func deselect_item() -> void:
 	_clear_selection_visuals()
 	selected_item = {}
 	detail_panel.visible = false
+	if sell_button:
+		sell_button.visible = false
 
 
 func _clear_selection_visuals() -> void:
@@ -405,6 +512,11 @@ func _show_item_detail(item: Dictionary) -> void:
 		for t in allowed:
 			names.append(t.capitalize())
 		detail_allowed.text = "Nur: " + ", ".join(names)
+	if sell_button:
+		var sell_price: int = SELL_PRICES.get(rarity, 10)
+		sell_button.text = "Verkaufen (%d)" % [ sell_price]
+		sell_button.icon = IconSystem.get_texture("gold")
+		sell_button.visible = true
 
 
 func get_selected_item() -> Dictionary:
