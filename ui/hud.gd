@@ -28,6 +28,7 @@ signal open_inventory_pressed
 @export var inventory_button: Button
 
 var inventory_notification: Label  # Zeigt Anzahl neuer Items
+var core_notification: Label
 
 var current_wave_element_area: Control
 var current_wave_element_icon: TextureRect
@@ -141,6 +142,7 @@ func _find_or_create_ui_elements() -> void:
 	
 	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
 	supply_label = _get_or_create_rich_label("SupplyLabel", Vector2(20, zero_row_y))
+	supply_label.custom_minimum_size = Vector2(300, 20)
 	
 	blocked_warning_label = _get_or_create_label("BlockedWarningLabel", Vector2(viewport_size.x - 780, hud_height - 110))
 	
@@ -298,6 +300,17 @@ func _apply_styles() -> void:
 		inventory_notification.add_theme_constant_override("outline_size", 3)
 		inventory_notification.visible = false
 		inventory_button.add_child(inventory_notification)
+	
+	if cores_button:
+		core_notification = Label.new()
+		core_notification.name = "CoresNotification"
+		core_notification.position = Vector2(32, -5)
+		core_notification.add_theme_font_size_override("font_size", 10)
+		core_notification.add_theme_color_override("font_color", Color(1, 1, 1))
+		core_notification.add_theme_color_override("font_outline_color", Color(0.8, 0.2, 0.2))
+		core_notification.add_theme_constant_override("outline_size", 3)
+		core_notification.visible = false
+		cores_button.add_child(core_notification)
 	
 	if UITheme and inventory_button:
 		UITheme.style_button(inventory_button)
@@ -543,7 +556,7 @@ func _on_lives_changed(amount: int) -> void:
 func _on_cores_changed(amount: int) -> void:
 	var invested := TowerData.get_total_cores_invested()
 	var max_possible := TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL
-
+	
 	if cores_label:
 		cores_label.text = "%s Kerne: %d | %d/%d" % [IconSystem.bb('core', 22), amount, invested, max_possible]
 		if amount > 0:
@@ -555,13 +568,17 @@ func _on_cores_changed(amount: int) -> void:
 		cores_button.visible = true
 		var has_upgradeable := not TowerData.get_upgradeable_elements().is_empty()
 		if amount > 0 and has_upgradeable:
-			cores_button.text = "%d" % amount
+			#cores_button.text = "%d" % amount
+			core_notification.text = str(amount)
+			core_notification.visible = true
 			_highlight_cores_button(true)
 		elif not has_upgradeable:
-			cores_button.text = "✔"
+			#cores_button.text = "✔"
+			core_notification.visible = false
 			_highlight_cores_button(false)
 		else:
-			cores_button.text = ""
+			#cores_button.text = ""
+			core_notification.visible = false
 			_highlight_cores_button(false)
 
 
