@@ -43,6 +43,8 @@ var ability_bar: AbilityBar
 var ability_target_preview: Node2D
 var ability_range_circle: Line2D
 var item_inventory_ui: ItemInventoryUI
+var ability_upgrade_ui: CanvasLayer
+
 
 
 func _ready() -> void:
@@ -54,6 +56,7 @@ func _ready() -> void:
 	_setup_wave_upgrade_ui()
 	_setup_upgrade_overview_ui()
 	_setup_item_inventory_ui()
+	_setup_ability_upgrade_ui()
 	_setup_ability_bar()
 	_setup_ability_preview()
 	_connect_signals()
@@ -64,6 +67,23 @@ func _setup_path_generator() -> void:
 	path_generator = PathGenerator.new()
 	path_generator.name = "PathGenerator"
 	add_child(path_generator)
+
+
+# Neue Funktion:
+func _setup_ability_upgrade_ui() -> void:
+	var ui_script := preload("res://ui/ability_upgrade_ui.gd")
+	ability_upgrade_ui = CanvasLayer.new()
+	ability_upgrade_ui.set_script(ui_script)
+	ability_upgrade_ui.name = "AbilityUpgradeUI"
+	add_child(ability_upgrade_ui)
+	ability_upgrade_ui.upgrade_selected.connect(_on_ability_upgrade_selected)
+	ability_upgrade_ui.panel_closed.connect(_on_ability_upgrade_closed)
+
+func _on_ability_upgrade_selected(choice: Dictionary) -> void:
+	print("[Main] Ability Upgrade gewählt: ", choice)
+
+func _on_ability_upgrade_closed() -> void:
+	print("[Main] Ability Upgrade Panel geschlossen")
 
 
 func _setup_item_inventory_ui() -> void:
@@ -774,7 +794,9 @@ func _on_wave_completed(wave: int) -> void:
 		_regenerate_map()
 		if hud:
 			hud.update_wave_preview_after_regen()
-	
+	if AbilitySystem.should_show_ability_upgrades(GameState.current_wave):
+		ability_upgrade_ui.show_panel()
+		return
 	# Prüfe ob Upgrades gezeigt werden sollen (Runde 3, 6, 9, 12...)
 	if should_show_upgrades(wave):
 		print("[Main] Zeige Upgrade-Panel nach Welle %d..." % wave)

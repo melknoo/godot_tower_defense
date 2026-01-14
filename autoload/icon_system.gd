@@ -15,6 +15,10 @@ var icons := {
 	"inventory": "inventory.png",
 	"path": "path.png",
 	"warning": "warning.png",
+	"play": "play.png",
+	"characters": "characters.png",
+	"exit": "exit.png",
+	"settings": "settings.png",
 	
 	"ability_lightning": "ability_lightning.png",
 	"ability_frost": "ability_frost.png",

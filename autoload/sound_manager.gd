@@ -138,6 +138,9 @@ func play(sound_name: String) -> void:
 func play_click() -> void:
 	play("click")
 
+func play_confirm() -> void:
+	play("element_core_select")
+
 func play_coin() -> void:
 	play("coin")
 
