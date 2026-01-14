@@ -20,6 +20,7 @@ var upgrade_style: StyleBoxFlat
 
 func _ready() -> void:
 	layer = 100
+	process_mode = Node.PROCESS_MODE_ALWAYS  # Wichtig für pausiertes Spiel!
 	_create_styles()
 	_create_ui()
 	hide_panel()
@@ -126,11 +127,13 @@ func _create_ui() -> void:
 	
 	# Skip Button Container
 	var skip_container := CenterContainer.new()
+	skip_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(skip_container)
 	
 	var skip_btn := Button.new()
 	skip_btn.text = "Überspringen"
 	skip_btn.custom_minimum_size = Vector2(150, 40)
+	skip_btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	skip_btn.add_theme_font_size_override("font_size", 16)
 	skip_btn.add_theme_stylebox_override("normal", choice_normal_style)
 	skip_btn.add_theme_stylebox_override("hover", choice_hover_style)
@@ -252,6 +255,7 @@ func _create_choice_panel(choice: Dictionary, index: int) -> PanelContainer:
 	
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 10)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel_node.add_child(vbox)
 	
 	if is_new_ability:
@@ -259,10 +263,12 @@ func _create_choice_panel(choice: Dictionary, index: int) -> PanelContainer:
 	else:
 		_populate_upgrade_choice(vbox, choice)
 	
-	# Klick-Handler
+	# Klick-Handler - muss PROCESS_MODE_ALWAYS haben für Pause!
 	var btn := Button.new()
 	btn.flat = true
+	btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+	btn.size = panel_node.custom_minimum_size
 	btn.pressed.connect(_on_choice_selected.bind(index))
 	btn.mouse_entered.connect(_on_choice_hover.bind(panel_node, true, is_new_ability))
 	btn.mouse_exited.connect(_on_choice_hover.bind(panel_node, false, is_new_ability))

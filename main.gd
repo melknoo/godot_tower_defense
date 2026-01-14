@@ -788,27 +788,32 @@ func _on_wave_started(wave: int) -> void:
 func _on_wave_completed(wave: int) -> void:
 	print("[Main] Welle %d abgeschlossen" % wave)
 	
-	# Prüfe ob Pfad regeneriert werden soll (Runde 2, 5, 8, 11...)
+	# 1. Pfad-Regenerierung (Runde 2, 5, 8, 11...)
 	if should_regenerate_path(wave):
 		print("[Main] Regeneriere Pfad nach Welle %d..." % wave)
 		_regenerate_map()
 		if hud:
 			hud.update_wave_preview_after_regen()
-	if AbilitySystem.should_show_ability_upgrades(GameState.current_wave):
+	
+	# 2. Ability-Upgrades (Runde 4, 7, 10, 13...)
+	if AbilitySystem.should_show_ability_upgrades(wave):
+		print("[Main] Zeige Ability-Upgrade-Panel nach Welle %d..." % wave)
 		ability_upgrade_ui.show_panel()
-		return
-	# Prüfe ob Upgrades gezeigt werden sollen (Runde 3, 6, 9, 12...)
+		return  # Wichtig: Nicht auch noch Perks zeigen!
+	
+	# 3. Perk-Auswahl (Runde 3, 6, 9, 12...)
 	if should_show_upgrades(wave):
-		print("[Main] Zeige Upgrade-Panel nach Welle %d..." % wave)
+		print("[Main] Zeige Perk-Panel nach Welle %d..." % wave)
 		if wave_upgrade_ui:
 			wave_upgrade_ui.show_upgrades(wave)
-	else:
-		# Kein Upgrade - direkt Element-Core Dialog wenn vorhanden
-		if pending_element_core:
-			pending_element_core = false
-			await get_tree().create_timer(0.3).timeout
-			if element_unlock_ui and GameState.has_element_cores():
-				element_unlock_ui.show_panel()
+		return
+	
+	# 4. Element-Core Dialog wenn nichts anderes angezeigt wird
+	if pending_element_core:
+		pending_element_core = false
+		await get_tree().create_timer(0.3).timeout
+		if element_unlock_ui and GameState.has_element_cores():
+			element_unlock_ui.show_panel()
 	
 	# HUD über Wellen-Events informieren
 	if hud:
