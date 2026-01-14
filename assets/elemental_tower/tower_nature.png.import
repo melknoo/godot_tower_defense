@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dcv0f4vmtx1iv"
-path="res://.godot/imported/bullet_steam.png-45e1327d970cb4b4871a3b9f56b2227b.ctex"
+uid="uid://b7hd1csgqnpyv"
+path="res://.godot/imported/tower_nature.png-a51d571876ec52258996ed45bb2f9fdb.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_bullets/bullet_steam.png"
-dest_files=["res://.godot/imported/bullet_steam.png-45e1327d970cb4b4871a3b9f56b2227b.ctex"]
+source_file="res://assets/elemental_tower/tower_nature.png"
+dest_files=["res://.godot/imported/tower_nature.png-a51d571876ec52258996ed45bb2f9fdb.ctex"]
 
 [params]
 

@@ -78,7 +78,7 @@ var towers := {
 		"damage": [40, 55, 70],
 		"range": [120.0, 140.0, 160.0],
 		"fire_rate": [0.70, 0.65, 0.5],
-		"splash": [0.0, 0.0, 0.0],
+		"splash": [45.0, 55.0, 70.0],
 		"color": Color(0.3, 0.6, 1.0),
 		"upgrade_costs": [65, 110],
 		"special": "slow",
