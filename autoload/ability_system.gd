@@ -967,6 +967,33 @@ static func get_next_ability_upgrade_wave(current_wave: int) -> int:
 	var next_cycle := ((waves_since_4 / 3) + 1) * 3
 	return 4 + next_cycle
 
+func apply_ability_upgrade(ability_id: String, stat: String) -> bool:
+	if not can_upgrade_stat(ability_id, stat):
+		return false
+	
+	if not ability_upgrades.has(ability_id):
+		ability_upgrades[ability_id] = {}
+	
+	if not ability_upgrades[ability_id].has(stat):
+		ability_upgrades[ability_id][stat] = 0
+	
+	ability_upgrades[ability_id][stat] += 1
+	
+	# NEUE ZEILE - Signal emittieren:
+	ability_upgraded.emit(ability_id)
+	
+	print("[AbilitySystem] Upgrade angewendet: %s.%s (Stufe %d)" % [
+		ability_id, stat, ability_upgrades[ability_id][stat]
+	])
+	
+	return true
+
+func get_ability_upgrades(ability_id: String) -> Dictionary:
+	"""Gibt Dictionary mit allen Upgrades für eine Ability zurück"""
+	return ability_upgrades.get(ability_id, {}).duplicate()
+
+
+
 
 func generate_ability_upgrade_choices(count: int = 3) -> Array[Dictionary]:
 	"""Generiert Auswahl für Ability-Upgrade Screen"""

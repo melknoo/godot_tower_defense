@@ -62,14 +62,184 @@ func _connect_signals() -> void:
 		AbilitySystem.ability_used.connect(_on_ability_used)
 		AbilitySystem.ability_ready.connect(_on_ability_ready)
 		AbilitySystem.abilities_changed.connect(_on_abilities_changed)
+		AbilitySystem.ability_upgraded.connect(_on_ability_upgraded)
 	
 	if GameState:
 		GameState.wave_started.connect(_on_wave_started)
 		GameState.wave_completed.connect(_on_wave_completed)
 
 
+func _on_ability_upgraded(ability_id: String) -> void:
+	_update_ability_tooltip(ability_id)
+
+
+# Erweiterte Tooltip-Generierung:
+func _update_ability_tooltip(ability_id: String) -> void:
+	if not ability_buttons.has(ability_id):
+		return
+	
+	var container: Control = ability_buttons[ability_id]
+	var btn := container.get_node_or_null("Button") as Button
+	if not btn or not AbilitySystem:
+		return
+	
+	var data: Dictionary = AbilitySystem.get_ability_data(ability_id)
+	if data.is_empty():
+		return
+	
+	var tooltip_parts: Array[String] = []
+	
+	# === HEADER ===
+	var ability_name: String = data.get("name", ability_id)
+	var element: String = data.get("element", "")
+	tooltip_parts.append("[b]%s[/b] (%s)" % [ability_name, element.capitalize()])
+	
+	# === BESCHREIBUNG ===
+	var desc: String = data.get("description", "")
+	if not desc.is_empty():
+		tooltip_parts.append(desc)
+		tooltip_parts.append("")  # Leerzeile
+	
+	# === HAUPTSTATS ===
+	var stats: Array[String] = []
+	
+	# Cooldown
+	var cooldown := AbilitySystem.get_effective_cooldown(ability_id)
+	stats.append("⏱ Cooldown: %.1fs" % cooldown)
+	
+	# Damage (falls vorhanden)
+	if data.has("base_damage") and data.base_damage > 0:
+		var damage := int(AbilitySystem.get_effective_damage(ability_id))
+		stats.append("⚔ Schaden: %d" % damage)
+	
+	# Radius/Range
+	if data.has("radius"):
+		var radius := AbilitySystem.get_effective_stat(ability_id, "radius")
+		stats.append("◯ Reichweite: %.0f" % radius)
+	elif data.has("range"):
+		var range_val := AbilitySystem.get_effective_stat(ability_id, "range")
+		stats.append("◯ Reichweite: %.0f" % range_val)
+	
+	tooltip_parts.append("\n".join(stats))
+	
+	# === SPEZIELLE EFFEKTE ===
+	var special_effects: Array[String] = []
+	
+	# Chain Lightning
+	if data.has("chain_count"):
+		var chains := int(AbilitySystem.get_effective_stat(ability_id, "chain_count"))
+		var chain_range := AbilitySystem.get_effective_stat(ability_id, "chain_range")
+		special_effects.append("⚡ Ketten: %d (Reichweite: %.0f)" % [chains, chain_range])
+	
+	# Freeze
+	if data.has("freeze_duration"):
+		var freeze := AbilitySystem.get_effective_stat(ability_id, "freeze_duration")
+		special_effects.append("❄ Einfrieren: %.1fs" % freeze)
+	
+	# Stun
+	if data.has("stun_duration"):
+		var stun := AbilitySystem.get_effective_stat(ability_id, "stun_duration")
+		special_effects.append("💫 Betäubung: %.1fs" % stun)
+	
+	# Burn
+	if data.has("burn_damage"):
+		var burn_dmg := int(AbilitySystem.get_effective_stat(ability_id, "burn_damage"))
+		var burn_dur := AbilitySystem.get_effective_stat(ability_id, "burn_duration")
+		special_effects.append("🔥 Verbrennung: %d/s für %.1fs" % [burn_dmg, burn_dur])
+	
+	# Slow
+	if data.has("slow_amount"):
+		var slow := AbilitySystem.get_effective_stat(ability_id, "slow_amount") * 100
+		var slow_dur := AbilitySystem.get_effective_stat(ability_id, "slow_duration")
+		special_effects.append("🐌 Verlangsamung: %.0f%% für %.1fs" % [slow, slow_dur])
+	
+	# Duration-based abilities
+	if data.has("duration") and not data.has("freeze_duration") and not data.has("slow_duration"):
+		var duration := AbilitySystem.get_effective_stat(ability_id, "duration")
+		special_effects.append("⏳ Dauer: %.1fs" % duration)
+	
+	# Meteor Shower specific
+	if data.has("meteor_count"):
+		var count := int(AbilitySystem.get_effective_stat(ability_id, "meteor_count"))
+		special_effects.append("☄ Meteore: %d" % count)
+	
+	# Area Radius (für Abilities wie Meteor Shower)
+	if data.has("area_radius"):
+		var area := AbilitySystem.get_effective_stat(ability_id, "area_radius")
+		special_effects.append("◯ Bereich: %.0f" % area)
+	
+	# Wall specific
+	if data.has("wall_health"):
+		var health := int(AbilitySystem.get_effective_stat(ability_id, "wall_health"))
+		var wall_dur := AbilitySystem.get_effective_stat(ability_id, "wall_duration")
+		special_effects.append("🧱 Wand: %d HP für %.1fs" % [health, wall_dur])
+	
+	# Stone Skin specific
+	if data.has("damage_reduction"):
+		var reduction := AbilitySystem.get_effective_stat(ability_id, "damage_reduction") * 100
+		special_effects.append("🛡 Schadensreduktion: %.0f%%" % reduction)
+	if data.has("tower_damage_bonus"):
+		var bonus := AbilitySystem.get_effective_stat(ability_id, "tower_damage_bonus") * 100
+		special_effects.append("⚔ Tower-Bonus: +%.0f%%" % bonus)
+	
+	if not special_effects.is_empty():
+		tooltip_parts.append("")  # Leerzeile
+		tooltip_parts.append("\n".join(special_effects))
+	
+	# === UPGRADES ===
+	var total_upgrades := AbilitySystem.get_total_upgrade_stacks(ability_id)
+	if total_upgrades > 0:
+		tooltip_parts.append("")  # Leerzeile
+		var upgrade_text := "★ Upgrades: %d" % total_upgrades
+		
+		# Details zu einzelnen Upgrade-Typen
+		var upgrade_details: Array[String] = []
+		var upgrades: Dictionary = AbilitySystem.get_ability_upgrades(ability_id)
+		
+		for stat in upgrades:
+			var stacks: int = upgrades[stat]
+			if stacks > 0:
+				var display_name := _get_stat_display_name(stat)
+				upgrade_details.append("  • %s +%d" % [display_name, stacks])
+		
+		tooltip_parts.append(upgrade_text)
+		if not upgrade_details.is_empty():
+			tooltip_parts.append("\n".join(upgrade_details))
+	
+	# Tooltip setzen
+	btn.tooltip_text = "\n".join(tooltip_parts)
+
+
 func _on_abilities_changed() -> void:
 	_rebuild_ability_buttons()
+
+
+func _get_stat_display_name(stat: String) -> String:
+	match stat:
+		"cooldown": return "Cooldown"
+		"damage": return "Schaden"
+		"radius": return "Reichweite"
+		"chain_count": return "Ketten"
+		"chain_range": return "Kettenreichweite"
+		"freeze_duration": return "Einfrierdauer"
+		"stun_duration": return "Betäubungsdauer"
+		"burn_damage": return "Verbrennungsschaden"
+		"burn_duration": return "Verbrennungsdauer"
+		"slow_amount": return "Verlangsamung"
+		"slow_duration": return "Verlangsamungsdauer"
+		"duration": return "Dauer"
+		"meteor_count": return "Meteore"
+		"area_radius": return "Bereich"
+		"wall_health": return "Wandgesundheit"
+		"wall_duration": return "Wanddauer"
+		"damage_reduction": return "Schadensreduktion"
+		"tower_damage_bonus": return "Tower-Bonus"
+		"length": return "Länge"
+		"width": return "Breite"
+		"push_distance": return "Rückstoß"
+		"tick_rate": return "Tick-Rate"
+		"damage_falloff": return "Schadensabfall"
+		_: return stat.capitalize()
 
 
 func _rebuild_ability_buttons() -> void:
@@ -240,13 +410,8 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 	
 	# Click Handler
 	btn.pressed.connect(_on_ability_button_pressed.bind(ability_id))
-	
-	# Tooltip
-	btn.tooltip_text = "%s\n%s\nCooldown: %.1fs" % [
-		data.get("name", ability_id),
-		data.get("description", ""),
-		AbilitySystem.get_effective_cooldown(ability_id)
-	]
+
+	call_deferred("_update_ability_tooltip", ability_id)
 	
 	return container
 
