@@ -134,6 +134,40 @@ func play(sound_name: String) -> void:
 	player.play()
 
 
+func play_ability(ability_id: String) -> void:
+	# Versuche ability-spezifischen Sound zu spielen
+	var sound_name := "ability_%s" % ability_id
+	
+	# Prüfe ob Sound existiert
+	if sound_pools.has(sound_name):
+		play(sound_name)
+		return
+	
+	# Fallback: Element-basierter Sound
+	var element_sounds := {
+		"lightning": "shoot_air_level_1",
+		"chain_lightning": "shoot_air_level_1",
+		"frost_nova": "shoot_water_level_1",
+		"ice_wall": "shoot_water_level_1",
+		"meteor": "shoot_fire_level_1",
+		"meteor_shower": "shoot_fire_level_1",
+		"inferno": "shoot_fire_level_1",
+		"earthquake": "shoot_earth_level_1",
+		"fissure": "shoot_earth_level_1",
+		"stone_skin": "shoot_earth_level_1",
+		"tsunami": "shoot_water_level_1",
+		"sandstorm": "shoot_air_level_1",
+	}
+	
+	if element_sounds.has(ability_id) and sound_pools.has(element_sounds[ability_id]):
+		play(element_sounds[ability_id])
+		return
+	
+	# Letzter Fallback: shoot_base
+	if sound_pools.has("shoot_base"):
+		play("shoot_base")
+
+
 # Convenience-Funktionen
 func play_click() -> void:
 	play("click")
