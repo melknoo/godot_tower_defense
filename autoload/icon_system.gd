@@ -19,11 +19,20 @@ var icons := {
 	"characters": "characters.png",
 	"exit": "exit.png",
 	"settings": "settings.png",
+	"abilities": "abilities.png",
 	
 	"ability_lightning": "ability_lightning.png",
 	"ability_frost": "ability_frost.png",
 	"ability_meteor": "ability_meteor.png",
 	"ability_earthquake": "ability_earthquake.png",
+	"ability_chain_lightning": "ability_chain_lightning.png",
+	"ability_fissure": "ability_fissure.png",
+	"ability_ice_wall": "ability_ice_wall.png",
+	"ability_inferno": "ability_inferno.png",
+	"ability_meteor_shower": "ability_meteor_shower.png",
+	"ability_sandstorm": "ability_sandstorm.png",
+	"ability_stone_skin": "ability_stone_skin.png",
+	"ability_tsunami": "ability_tsunami.png",
 	
 	# Elemente (in assets/icons)
 	"fire": "element_fire.png",

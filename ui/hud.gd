@@ -514,7 +514,9 @@ func update_wave_events_preview(next_wave: int) -> void:
 	# Upgrade-Auswahl: Runde 3, 6, 9, 12... -> wave % 3 == 0 für wave >= 3
 	if next_wave >= 3 and next_wave % 3 == 0:
 		events.append("%s Upgrade" % IconSystem.bb("upgrades", 22))
-	
+		
+	if AbilitySystem.should_show_ability_upgrades(next_wave):
+		events.append("%s Ability Upgrade" % IconSystem.bb("abilities", 22))
 	# Element-Kern: Runde 1 und alle 5er (1, 5, 10, 15...)
 	if next_wave == 1 or (next_wave > 0 and next_wave % 5 == 0):
 		events.append("+1 %s" % IconSystem.bb("core", 22))
