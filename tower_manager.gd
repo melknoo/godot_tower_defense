@@ -18,6 +18,8 @@ signal blocked_towers_changed(count: int)
 @export var map_width: int = 12
 @export var map_height: int = 8
 
+var tower_info: TowerInfo = null  # Referenz zum TowerInfo Panel
+
 var placed_towers: Dictionary = {}
 var tower_placed_wave: Dictionary = {}
 var tower_levels: Dictionary = {}
@@ -40,6 +42,9 @@ func set_blocked_cells(cells: Array[Vector2i]) -> void:
 	blocked_cells = cells
 	_update_blocked_towers()
 
+# Dann neue Funktion hinzufügen:
+func set_tower_info(info: TowerInfo) -> void:
+	tower_info = info
 
 func _update_blocked_towers() -> void:
 	var old_count := blocked_tower_positions.size()
@@ -241,6 +246,7 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	
 	var tower := tower_scene.instantiate()
 	tower.position = Vector2(grid_pos) * grid_size + Vector2(grid_size / 2, grid_size / 2)
+	tower.level = 0  # ✅ WICHTIG: Level explizit setzen!
 	tower.setup(tower_data, tower_type)
 	add_child(tower)
 	
@@ -263,6 +269,7 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	])
 	
 	return tower
+
 
 
 func sell_tower(grid_pos: Vector2i) -> int:
@@ -366,6 +373,10 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 		tower.tower_type, new_level, GameState.supply_used, GameState.supply_max
 	])
 	Sound.play_upgrade()
+	
+	if tower_info and tower_info.visible and tower_info.current_tower == tower:
+		tower_info.show_tower(tower, grid_pos)
+	
 	return true
 
 

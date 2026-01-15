@@ -203,6 +203,7 @@ func _setup_managers() -> void:
 	tower_manager.map_width = MAP_WIDTH
 	tower_manager.map_height = MAP_HEIGHT
 	tower_manager.set_blocked_cells(path_cells)
+	tower_manager.set_tower_info(tower_info)
 	tower_info.set_tower_manager(tower_manager)
 
 
