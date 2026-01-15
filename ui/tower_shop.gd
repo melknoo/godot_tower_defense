@@ -13,6 +13,7 @@ var scroll_left_btn: Button
 var scroll_right_btn: Button
 var clip_container: Control
 
+
 var corner_textures: Dictionary = {}
 
 const VISIBLE_TOWERS := 5
@@ -385,14 +386,20 @@ func _create_button(type: String) -> Control:
 	# Kosten Overlay oben links auf dem Icon (wie position:absolute in CSS)
 	var cost: int = TowerData.get_tower_cost(type)
 	var base_cost: int = TowerData.get_stat(type, "cost")
-	var cost_label := Label.new()
+	
+	# Erstelle ein neues RichTextLabel für jeden Button
+	var cost_label := RichTextLabel.new()
 	cost_label.name = "CostLabel"
+	cost_label.bbcode_enabled = true
+	cost_label.fit_content = true
+	cost_label.scroll_active = false
+	cost_label.custom_minimum_size = Vector2(60, 20)
 	
 	# Zeige Discount wenn aktiv
 	if cost < base_cost:
-		cost_label.text = "🪙%d" % cost
+		cost_label.text = "%d%s" % [cost, IconSystem.bb("coin", 16)]
 	else:
-		cost_label.text = "🪙%d" % cost
+		cost_label.text = "%d%s" % [cost, IconSystem.bb("coin", 16)]
 	
 	cost_label.position = Vector2(-2, -2)  # Oben links
 	if UITheme and UITheme.game_font:
@@ -423,7 +430,7 @@ func _create_button(type: String) -> Control:
 	btn.pressed.connect(_on_tower_button_pressed.bind(type))
 	
 	var desc: String = data.get("description", "")
-	btn.tooltip_text = "%s\n%s\n🪙 %d" % [display_name, desc, cost]
+	btn.tooltip_text = "%s\n%s\n %d gold" % [display_name, desc, cost]
 	
 	return container
 

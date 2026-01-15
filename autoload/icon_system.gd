@@ -9,6 +9,7 @@ const DEFAULT_SIZE := 16
 var icons := {
 	# Ressourcen
 	"gold": "gold.png",
+	"coin": "coin.png",
 	"life": "life.png",
 	"supply": "supply.png",
 	"upgrades": "upgrades.png",
