@@ -330,8 +330,14 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 	var parent := _get_vfx_parent()
 	if not parent:
 		return
-	var label := Label.new()
-	label.text = "+%d" % amount
+	var label := RichTextLabel.new()
+	label.name = "CostLabel"
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.scroll_active = false
+	label.custom_minimum_size = Vector2(60, 20)
+	#var label := Label.new()
+	label.text = "+%d%s"  % [amount, IconSystem.bb("coin", 16)]
 	label.position = pos + Vector2(-15, -30)
 	label.z_index = 100
 	if UITheme and UITheme.game_font:
