@@ -35,7 +35,7 @@ const CATEGORY_COLORS := {
 
 
 func _ready() -> void:
-	layer = 100
+	layer = 150  # Höher als andere UI-Panels (Inventar etc.)
 	visible = false
 	# WICHTIG: Muss während Pause funktionieren
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -119,7 +119,7 @@ func _setup_ui() -> void:
 	
 	if UITheme:
 		UITheme.style_button(reroll_button)
-		UITheme.style_button_colors(reroll_button)
+		UITheme.style_button_colors(reroll_button, Color(0.2, 0.2, 0.2))
 	
 	# Skip Button
 	skip_button = Button.new()
@@ -132,12 +132,16 @@ func _setup_ui() -> void:
 	
 	if UITheme:
 		UITheme.style_button(skip_button)
-		UITheme.style_button_colors(skip_button)
+		UITheme.style_button_colors(skip_button, Color(0.2, 0.2, 0.2))
 
 
 func show_upgrades(wave: int) -> void:
 	current_wave = wave
 	rerolls_used = 0
+	
+	# Schließe alle anderen UI-Panels die offen sein könnten
+	_close_other_panels()
+	
 	get_tree().paused = true
 	
 	title_label.text = "Welle %d abgeschlossen!" % wave
@@ -189,25 +193,25 @@ func hide_panel() -> void:
 
 func _update_reroll_button_text() -> void:
 	var cost := get_reroll_cost()
-	var gold_icon := ""
+	
+	# Für Buttons können wir kein BBCode nutzen, also setzen wir das Icon direkt
+	var gold_tex: Texture2D = null
 	if IconSystem:
-		# Versuche BBCode Icon zu verwenden
-		var tex := IconSystem.get_texture("gold")
-		if tex:
-			gold_icon = " %s" % IconSystem.bb("gold", 16)
-		else:
-			gold_icon = " 💰"
+		gold_tex = IconSystem.get_texture("gold")
+	
+	if gold_tex:
+		reroll_button.icon = gold_tex
+		reroll_button.text = "🎲 Reroll (%d)" % cost
 	else:
-		gold_icon = " 💰"
+		reroll_button.icon = null
+		reroll_button.text = "🎲 Reroll (%d💰)" % cost
 	
 	if GameState and GameState.can_afford(cost):
-		reroll_button.text = "🎲 Reroll (%d%s)" % [cost, gold_icon]
 		reroll_button.disabled = false
 		if UITheme:
 			UITheme.style_button(reroll_button)
-			UITheme.style_button_colors(reroll_button)
+			UITheme.style_button_colors(reroll_button, Color(0.2, 0.2, 0.2))
 	else:
-		reroll_button.text = "🎲 Reroll (%d%s)" % [cost, gold_icon]
 		reroll_button.disabled = true
 
 
@@ -377,7 +381,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	
 	if UITheme:
 		UITheme.style_button(btn)
-		UITheme.style_button_colors(btn)
+		UITheme.style_button_colors(btn, Color(0.2, 0.2, 0.2))
 	
 	# Hover-Effekt
 	card.mouse_entered.connect(func():
@@ -405,6 +409,27 @@ func _get_category_name(category: String) -> String:
 		"tower_type": return "Turm-Typ"
 		"wave": return "Wellen"
 		_: return category.capitalize()
+
+
+func _close_other_panels() -> void:
+	"""Schließt andere UI-Panels die im Weg sein könnten"""
+	# Inventar schließen
+	var item_inventory := get_node_or_null("/root/Main/ItemInventoryUI")
+	if item_inventory and item_inventory.has_method("hide_panel") and item_inventory.visible:
+		item_inventory.hide_panel()
+		print("[WaveUpgradeUI] Inventar geschlossen")
+	
+	# Element-Unlock-UI schließen
+	var element_ui := get_node_or_null("/root/Main/ElementUnlockUI")
+	if element_ui and element_ui.has_method("hide_panel") and element_ui.visible:
+		element_ui.hide_panel()
+		print("[WaveUpgradeUI] Element-UI geschlossen")
+	
+	# Upgrade-Overview schließen
+	var upgrade_overview := get_node_or_null("/root/Main/UpgradeOverviewUI")
+	if upgrade_overview and upgrade_overview.has_method("hide_panel") and upgrade_overview.visible:
+		upgrade_overview.hide_panel()
+		print("[WaveUpgradeUI] Upgrade-Overview geschlossen")
 
 
 func _get_icon_for_upgrade(upgrade_id: String, data: Dictionary) -> String:
