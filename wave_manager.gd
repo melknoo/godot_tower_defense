@@ -85,10 +85,51 @@ func start_wave(wave_number: int) -> void:
 
 
 func _determine_wave_element(wave: int) -> String:
+	"""Bestimmt das Element der Welle - mit Perk-Boni"""
 	if wave <= 2:
 		return "neutral"
+	
 	var current_seed := _get_current_map_seed()
 	_rng.seed = current_seed + wave * 7919
+	
+	# Basis-Gewichte für alle Elemente
+	var element_weights := {
+		"fire": 1.0,
+		"water": 1.0,
+		"earth": 1.0,
+		"air": 1.0
+	}
+	
+	# NEU: Perk-Boni anwenden
+	if UpgradeSystem:
+		for element in element_weights.keys():
+			var bonus := UpgradeSystem.get_element_spawn_rate_bonus(element)
+			if bonus > 0:
+				element_weights[element] += bonus
+				print("[WaveManager] Element %s: +%.0f%% spawn chance" % [element, bonus * 100])
+	
+	# Wellen-basierte Modifikation (alle 4 Wellen rotiert)
+	var wave_mod := (wave - 3) % 4  # Startet bei Welle 3
+	match wave_mod:
+		0: element_weights["fire"] *= 1.3
+		1: element_weights["water"] *= 1.3
+		2: element_weights["earth"] *= 1.3
+		3: element_weights["air"] *= 1.3
+	
+	# Gewichtete Zufallsauswahl
+	var total_weight := 0.0
+	for weight in element_weights.values():
+		total_weight += weight
+	
+	var rand := _rng.randf() * total_weight
+	var accumulated := 0.0
+	
+	for element in element_weights:
+		accumulated += element_weights[element]
+		if rand <= accumulated:
+			return element
+	
+	# Fallback (sollte nie erreicht werden)
 	return ELEMENTS[_rng.randi_range(0, ELEMENTS.size() - 1)]
 
 

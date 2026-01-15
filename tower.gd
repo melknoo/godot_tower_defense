@@ -77,6 +77,23 @@ var base_range := 150.0
 var base_fire_rate := 1.0
 var base_splash := 0.0
 
+const ISOLATION_RADIUS := 120.0
+
+func is_isolated() -> bool:
+	if not is_inside_tree():
+		return false
+	
+	var towers := get_tree().get_nodes_in_group("towers")
+	for other in towers:
+		if other == self:
+			continue
+		var dist := position.distance_to(other.position)
+		if dist <= ISOLATION_RADIUS:
+			return false
+	
+	return true
+
+
 
 func _ready() -> void:
 	bullet_scene = preload("res://bullet.tscn")
@@ -106,10 +123,14 @@ func _apply_upgrade_bonuses() -> void:
 	
 	# Damage Multiplikator
 	var damage_mult := UpgradeSystem.get_damage_multiplier(tower_type, elem)
+	if is_isolated():
+		damage_mult *= UpgradeSystem.get_isolated_damage_multiplier()
 	damage = int(damage * damage_mult)
 	
 	# Range Multiplikator
 	var range_mult := UpgradeSystem.get_range_multiplier(tower_type)
+	if is_isolated():
+		range_mult *= UpgradeSystem.get_isolated_range_multiplier()
 	tower_range *= range_mult
 	
 	# Fire Rate Multiplikator (schneller = niedrigerer Wert)
@@ -126,6 +147,38 @@ func _apply_upgrade_bonuses() -> void:
 		slow_amount += UpgradeSystem.get_slow_bonus(elem)
 		stun_chance += UpgradeSystem.get_stun_bonus(elem)
 		chain_targets += UpgradeSystem.get_chain_bonus(elem)
+
+
+func _update_isolation_visual() -> void:
+	if not is_inside_tree():
+		return
+	
+	# Suche bestehenden Indicator
+	var indicator := get_node_or_null("IsolationIndicator")
+	
+	if is_isolated() and UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0:
+		if not indicator:
+			indicator = Node2D.new()
+			indicator.name = "IsolationIndicator"
+			add_child(indicator)
+			
+			# Leuchtender Ring
+			var circle := Line2D.new()
+			circle.width = 2
+			circle.default_color = Color(0.3, 0.8, 1.0, 0.6)
+			for i in range(25):
+				var angle := i * TAU / 24
+				circle.add_point(Vector2(cos(angle), sin(angle)) * 30)
+			indicator.add_child(circle)
+			
+			# Pulsiere
+			var tween := create_tween()
+			tween.set_loops()
+			tween.tween_property(circle, "default_color:a", 0.2, 1.0)
+			tween.tween_property(circle, "default_color:a", 0.6, 1.0)
+	elif indicator:
+		indicator.queue_free()
+
 
 func setup(data: Dictionary, type: String) -> void:
 	tower_type = type
@@ -147,6 +200,7 @@ func setup(data: Dictionary, type: String) -> void:
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()  # NEU
 	_update_archer_anim_speed()
+	_update_isolation_visual()
 	
 	if is_inside_tree():
 		_update_visuals()
@@ -473,6 +527,7 @@ func _update_visuals() -> void:
 		range_circle.visible = false
 	
 	_update_level_indicator()
+	_update_isolation_visual()
 	_update_engraving_indicator()
 
 

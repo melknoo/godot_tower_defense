@@ -1,49 +1,17 @@
 # autoload/upgrade_system.gd
-# Roguelike-Upgrade-System - Permanente Run-Upgrades
+# Erweitert mit neuen Perk-Typen und besserer Organisation
 extends Node
 
 signal upgrade_selected(upgrade_id: String)
 signal upgrades_changed
 
-# Aktive Upgrades für diesen Run (ID -> Anzahl/Stacks)
 var active_upgrades: Dictionary = {}
 
-# Alle verfügbaren Upgrades
+# === UPGRADE-DEFINITIONEN ===
 const UPGRADES := {
-	# === ELEMENT-SPEZIFISCH ===
-	"fire_damage": {
-		"name": "Feuersbrunst", "description": "+20% Schaden für Feuer-Türme",
-		"icon": "🔥", "category": "element", "element": "fire",
-		"stat": "damage", "bonus": 0.20, "stackable": true, "max_stacks": 3
-	},
-	"water_slow": {
-		"name": "Tiefkühlung", "description": "+25% Slow-Effekt für Wasser-Türme",
-		"icon": "💧", "category": "element", "element": "water",
-		"stat": "slow", "bonus": 0.25, "stackable": true, "max_stacks": 3
-	},
-	"earth_stun": {
-		"name": "Erschütterung", "description": "+5% Stun-Chance für Erde-Türme",
-		"icon": "🪨", "category": "element", "element": "earth",
-		"stat": "stun_chance", "bonus": 0.05, "stackable": true, "max_stacks": 3
-	},
-	"air_chain": {
-		"name": "Kettenblitz", "description": "+1 Chain-Target für Luft-Türme",
-		"icon": "💨", "category": "element", "element": "air",
-		"stat": "chain", "bonus": 1, "stackable": true, "max_stacks": 3
-	},
-	"archer_speed": {
-		"name": "Schnellfeuer", "description": "+15% Angriffsgeschwindigkeit für Bogen",
-		"icon": "🏹", "category": "tower_type", "tower_type": "archer",
-		"stat": "fire_rate", "bonus": 0.15, "stackable": true, "max_stacks": 3
-	},
-	"sword_cleave": {
-		"name": "Wirbelwind", "description": "+15% Reichweite für Schwert-Türme",
-		"icon": "⚔️", "category": "tower_type", "tower_type": "sword",
-		"stat": "range", "bonus": 0.15, "stackable": true, "max_stacks": 3
-	},
-	# === WIRTSCHAFT ===
+	# === ECONOMY ===
 	"interest_bonus": {
-		"name": "Zinseszins", "description": "+10 maximale Zinsen pro Welle",
+		"name": "Schatzkammer", "description": "+10 Gold maximal aus Zinsen",
 		"icon": "💰", "category": "economy", "stat": "max_interest",
 		"bonus": 10, "stackable": true, "max_stacks": 5
 	},
@@ -67,6 +35,17 @@ const UPGRADES := {
 		"icon": "💵", "category": "economy", "stat": "sell_value",
 		"bonus": 0.15, "stackable": true, "max_stacks": 2
 	},
+	"enemy_gold": {
+		"name": "Plünderer", "description": "+1 Gold pro getötetem Gegner",
+		"icon": "💀", "category": "economy", "stat": "enemy_gold",
+		"bonus": 1, "stackable": true, "max_stacks": 5
+	},
+	"starting_gold": {
+		"name": "Erbschaft", "description": "Sofort +50 Gold",
+		"icon": "🎁", "category": "instant", "stat": "instant_gold",
+		"bonus": 50, "stackable": true, "max_stacks": 99
+	},
+	
 	# === SUPPLY ===
 	"supply_max": {
 		"name": "Nachschub", "description": "+2 maximales Supply",
@@ -78,6 +57,7 @@ const UPGRADES := {
 		"icon": "🌾", "category": "supply", "stat": "farm_supply",
 		"bonus": 1, "stackable": true, "max_stacks": 3
 	},
+	
 	# === GLOBAL TOWER ===
 	"global_damage": {
 		"name": "Waffenschmiede", "description": "+10% Schaden für ALLE Türme",
@@ -94,6 +74,65 @@ const UPGRADES := {
 		"icon": "⚡", "category": "global", "stat": "fire_rate",
 		"bonus": 0.10, "stackable": true, "max_stacks": 3
 	},
+	
+	# === NEU: ISOLIERTE TÜRME ===
+	"isolated_damage": {
+		"name": "Einsiedler", "description": "+15% Schaden für isolierte Türme",
+		"icon": "🏔️", "category": "special", "stat": "isolated_damage",
+		"bonus": 0.15, "stackable": true, "max_stacks": 4,
+		"tooltip": "Türme ohne benachbarte Türme im Radius von 120"
+	},
+	"isolated_range": {
+		"name": "Fernspäher", "description": "+20% Reichweite für isolierte Türme",
+		"icon": "🔭", "category": "special", "stat": "isolated_range",
+		"bonus": 0.20, "stackable": true, "max_stacks": 3,
+		"tooltip": "Türme ohne benachbarte Türme im Radius von 120"
+	},
+	
+	# === NEU: ELEMENT-SPAWN-RATE ===
+	"fire_spawn_rate": {
+		"name": "Feuerwelle", "description": "+30% Feuer-Gegner in Wellen",
+		"icon": "🔥", "category": "wave", "stat": "spawn_rate",
+		"element": "fire", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	"water_spawn_rate": {
+		"name": "Flut", "description": "+30% Wasser-Gegner in Wellen",
+		"icon": "💧", "category": "wave", "stat": "spawn_rate",
+		"element": "water", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	"earth_spawn_rate": {
+		"name": "Erdrutsch", "description": "+30% Erd-Gegner in Wellen",
+		"icon": "🪨", "category": "wave", "stat": "spawn_rate",
+		"element": "earth", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	"air_spawn_rate": {
+		"name": "Sturm", "description": "+30% Luft-Gegner in Wellen",
+		"icon": "💨", "category": "wave", "stat": "spawn_rate",
+		"element": "air", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	
+	# === NEU: ELEMENT-DAMAGE ===
+	"fire_damage": {
+		"name": "Pyromanie", "description": "+15% Schaden für Feuer-Türme",
+		"icon": "🔥", "category": "element", "stat": "damage",
+		"element": "fire", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	"water_damage": {
+		"name": "Sturmflut", "description": "+15% Schaden für Wasser-Türme",
+		"icon": "🌊", "category": "element", "stat": "damage",
+		"element": "water", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	"earth_damage": {
+		"name": "Seismik", "description": "+15% Schaden für Erd-Türme",
+		"icon": "⛰️", "category": "element", "stat": "damage",
+		"element": "earth", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	"air_damage": {
+		"name": "Wirbelwind", "description": "+15% Schaden für Luft-Türme",
+		"icon": "🌪️", "category": "element", "stat": "damage",
+		"element": "air", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	
 	# === SPEZIAL ===
 	"crit_chance": {
 		"name": "Präzision", "description": "10% Chance auf Crit (+50% Schaden)",
@@ -105,15 +144,27 @@ const UPGRADES := {
 		"icon": "💥", "category": "special", "stat": "splash",
 		"bonus": 0.20, "stackable": true, "max_stacks": 3
 	},
-	"enemy_gold": {
-		"name": "Plünderer", "description": "+1 Gold pro getötetem Gegner",
-		"icon": "💀", "category": "special", "stat": "enemy_gold",
-		"bonus": 1, "stackable": true, "max_stacks": 5
+	
+	# === TOWER-TYPE SPEZIFISCH ===
+	"archer_damage": {
+		"name": "Bogenschule", "description": "+20% Schaden für Bogenschützen",
+		"icon": "🏹", "category": "tower_type", "stat": "damage",
+		"tower_type": "archer", "bonus": 0.20, "stackable": true, "max_stacks": 3
 	},
-	"starting_gold": {
-		"name": "Erbschaft", "description": "Sofort +50 Gold",
-		"icon": "🎁", "category": "instant", "stat": "instant_gold",
-		"bonus": 50, "stackable": true, "max_stacks": 99
+	"wizard_damage": {
+		"name": "Arkane Macht", "description": "+20% Schaden für Zauberer",
+		"icon": "🔮", "category": "tower_type", "stat": "damage",
+		"tower_type": "wizard", "bonus": 0.20, "stackable": true, "max_stacks": 3
+	},
+	"catapult_damage": {
+		"name": "Belagerung", "description": "+20% Schaden für Katapulte",
+		"icon": "🎪", "category": "tower_type", "stat": "damage",
+		"tower_type": "catapult", "bonus": 0.20, "stackable": true, "max_stacks": 3
+	},
+	"sword_damage": {
+		"name": "Klingentanz", "description": "+20% Schaden für Schwertkämpfer",
+		"icon": "⚔️", "category": "tower_type", "stat": "damage",
+		"tower_type": "sword", "bonus": 0.20, "stackable": true, "max_stacks": 3
 	}
 }
 
@@ -157,6 +208,8 @@ func _apply_instant_effect(id: String, data: Dictionary) -> void:
 	match data.get("stat"):
 		"instant_gold": GameState.gold += int(data.get("bonus", 0))
 
+# === BONUS-GETTER ===
+
 func get_damage_multiplier(tower_type: String, element: String) -> float:
 	var mult := 1.0
 	mult += get_upgrade_bonus("global_damage")
@@ -164,6 +217,12 @@ func get_damage_multiplier(tower_type: String, element: String) -> float:
 		mult += get_element_bonus(element, "damage")
 	mult += get_tower_type_bonus(tower_type, "damage")
 	return mult
+
+func get_isolated_damage_multiplier() -> float:
+	return 1.0 + get_upgrade_bonus("isolated_damage")
+
+func get_isolated_range_multiplier() -> float:
+	return 1.0 + get_upgrade_bonus("isolated_range")
 
 func get_range_multiplier(tower_type: String) -> float:
 	var mult := 1.0
@@ -213,6 +272,17 @@ func get_element_bonus(element: String, stat: String) -> float:
 		var data: Dictionary = UPGRADES.get(id, {})
 		if data.get("category") == "element" and data.get("element") == element:
 			if data.get("stat") == stat:
+				total += data.get("bonus", 0.0) * active_upgrades[id]
+	return total
+
+# === NEU: ELEMENT SPAWN RATE ===
+func get_element_spawn_rate_bonus(element: String) -> float:
+	"""Gibt zurück wie viel öfter ein Element spawnen soll (0.0 = normal, 0.3 = 30% mehr)"""
+	var total := 0.0
+	for id in active_upgrades:
+		var data: Dictionary = UPGRADES.get(id, {})
+		if data.get("category") == "wave" and data.get("stat") == "spawn_rate":
+			if data.get("element") == element:
 				total += data.get("bonus", 0.0) * active_upgrades[id]
 	return total
 

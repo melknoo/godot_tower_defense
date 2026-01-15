@@ -1,5 +1,5 @@
 # ui/wave_upgrade_ui.gd
-# Zeigt nach jeder Welle 3 Upgrade-Optionen
+# Zeigt nach jeder Welle 3 Upgrade-Optionen mit Reroll-Option
 extends CanvasLayer
 class_name WaveUpgradeUI
 
@@ -11,8 +11,14 @@ var title_label: Label
 var subtitle_label: Label
 var cards_container: HBoxContainer
 var skip_button: Button
+var reroll_button: Button
 
 var current_options: Array[String] = []
+var current_wave: int = 0
+
+# Reroll-Kosten steigen pro Benutzung
+const BASE_REROLL_COST := 30
+var rerolls_used := 0
 
 const CARD_WIDTH := 180
 const CARD_HEIGHT := 220
@@ -23,13 +29,16 @@ const CATEGORY_COLORS := {
 	"global": Color(0.9, 0.5, 0.9),
 	"special": Color(1.0, 0.5, 0.3),
 	"instant": Color(0.3, 1.0, 0.6),
-	"tower_type": Color(0.7, 0.7, 0.8)
+	"tower_type": Color(0.7, 0.7, 0.8),
+	"wave": Color(0.8, 0.4, 0.8)
 }
 
 
 func _ready() -> void:
 	layer = 100
 	visible = false
+	# WICHTIG: Muss während Pause funktionieren
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_setup_ui()
 
 
@@ -39,16 +48,19 @@ func _setup_ui() -> void:
 	bg.color = Color(0, 0, 0, 0.7)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	bg.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	add_child(bg)
 	
 	# Zentrierter Container
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	add_child(center)
 	
 	# Hauptpanel
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(650, 380)
+	panel.custom_minimum_size = Vector2(650, 420)
+	panel.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	center.add_child(panel)
 	
 	if UITheme:
@@ -59,76 +71,96 @@ func _setup_ui() -> void:
 	margin.add_theme_constant_override("margin_right", 20)
 	margin.add_theme_constant_override("margin_top", 15)
 	margin.add_theme_constant_override("margin_bottom", 15)
+	margin.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	panel.add_child(margin)
 	
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 12)
+	vbox.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	margin.add_child(vbox)
 	
 	# Titel
 	title_label = Label.new()
 	title_label.text = "Welle abgeschlossen!"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		title_label.add_theme_font_override("font", UITheme.game_font)
-	title_label.add_theme_font_size_override("font_size", 22)
-	title_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_color_override("font_color", Color(0.15, 0.15, 0.15))
 	vbox.add_child(title_label)
 	
-	# Subtitle
+	# Untertitel
 	subtitle_label = Label.new()
 	subtitle_label.text = "Wähle ein Upgrade für diesen Run:"
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		subtitle_label.add_theme_font_override("font", UITheme.game_font)
-	subtitle_label.add_theme_font_size_override("font_size", 12)
-	subtitle_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	subtitle_label.add_theme_font_size_override("font_size", 14)
+	subtitle_label.add_theme_color_override("font_color", Color(0.25, 0.25, 0.25))
 	vbox.add_child(subtitle_label)
 	
-	# Separator
-	var sep := HSeparator.new()
-	vbox.add_child(sep)
-	
-	# Cards Container (zentriert)
-	var cards_center := CenterContainer.new()
-	cards_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(cards_center)
-	
+	# Cards Container
 	cards_container = HBoxContainer.new()
+	cards_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	cards_container.add_theme_constant_override("separation", 15)
-	cards_center.add_child(cards_container)
+	cards_container.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
+	vbox.add_child(cards_container)
+	
+	# Button-Container
+	var button_hbox := HBoxContainer.new()
+	button_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	button_hbox.add_theme_constant_override("separation", 10)
+	button_hbox.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
+	vbox.add_child(button_hbox)
+	
+	# Reroll Button
+	reroll_button = Button.new()
+	reroll_button.custom_minimum_size = Vector2(140, 35)
+	reroll_button.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
+	reroll_button.pressed.connect(_on_reroll_pressed)
+	_update_reroll_button_text()
+	button_hbox.add_child(reroll_button)
+	
+	if UITheme:
+		UITheme.style_button(reroll_button)
+		UITheme.style_button_colors(reroll_button)
 	
 	# Skip Button
-	var btn_center := CenterContainer.new()
-	vbox.add_child(btn_center)
-	
 	skip_button = Button.new()
 	skip_button.text = "Überspringen"
-	skip_button.custom_minimum_size = Vector2(120, 32)
+	skip_button.custom_minimum_size = Vector2(140, 35)
+	skip_button.visible = false
+	skip_button.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	skip_button.pressed.connect(_on_skip_pressed)
-	skip_button.visible = false  # Nur bei keinen verfügbaren Upgrades
-	btn_center.add_child(skip_button)
+	button_hbox.add_child(skip_button)
 	
 	if UITheme:
 		UITheme.style_button(skip_button)
-	
-	skip_button.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		UITheme.style_button_colors(skip_button)
 
 
 func show_upgrades(wave: int) -> void:
+	current_wave = wave
+	rerolls_used = 0
+	get_tree().paused = true
+	
 	title_label.text = "Welle %d abgeschlossen!" % wave
 	
 	# Upgrades holen
+	if not UpgradeSystem:
+		print("[WaveUpgradeUI] ERROR: UpgradeSystem nicht gefunden!")
+		hide_panel()
+		return
+	
 	current_options = UpgradeSystem.get_random_upgrades(3)
 	
 	_create_upgrade_cards()
+	_update_reroll_button_text()
 	
 	if current_options.is_empty():
 		subtitle_label.text = "Alle Upgrades bereits maximiert!"
 		skip_button.visible = true
+		reroll_button.visible = false
 	else:
 		subtitle_label.text = "Wähle ein Upgrade für diesen Run:"
 		skip_button.visible = false
+		reroll_button.visible = true
 	
 	visible = true
 	
@@ -136,16 +168,73 @@ func show_upgrades(wave: int) -> void:
 	panel.modulate.a = 0
 	panel.scale = Vector2(0.8, 0.8)
 	var tween := panel.create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)  # WICHTIG: Während Pause animieren
 	tween.set_parallel(true)
 	tween.tween_property(panel, "modulate:a", 1.0, 0.2)
 	tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	
+	print("[WaveUpgradeUI] Panel angezeigt mit %d Optionen" % current_options.size())
 
 
 func hide_panel() -> void:
 	var tween := panel.create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)  # WICHTIG
 	tween.tween_property(panel, "modulate:a", 0.0, 0.15)
-	tween.tween_callback(func(): visible = false)
+	tween.tween_callback(func(): 
+		visible = false
+		get_tree().paused = false
+	)
 	panel_closed.emit()
+
+
+func _update_reroll_button_text() -> void:
+	var cost := get_reroll_cost()
+	var gold_icon := ""
+	if IconSystem:
+		# Versuche BBCode Icon zu verwenden
+		var tex := IconSystem.get_texture("gold")
+		if tex:
+			gold_icon = " %s" % IconSystem.bb("gold", 16)
+		else:
+			gold_icon = " 💰"
+	else:
+		gold_icon = " 💰"
+	
+	if GameState and GameState.can_afford(cost):
+		reroll_button.text = "🎲 Reroll (%d%s)" % [cost, gold_icon]
+		reroll_button.disabled = false
+		if UITheme:
+			UITheme.style_button(reroll_button)
+			UITheme.style_button_colors(reroll_button)
+	else:
+		reroll_button.text = "🎲 Reroll (%d%s)" % [cost, gold_icon]
+		reroll_button.disabled = true
+
+
+func get_reroll_cost() -> int:
+	return BASE_REROLL_COST + (rerolls_used * 20)
+
+
+func _on_reroll_pressed() -> void:
+	var cost := get_reroll_cost()
+	if not GameState or not GameState.can_afford(cost):
+		if Sound:
+			Sound.play_error()
+		return
+	
+	# Gold abziehen
+	GameState.gold -= cost
+	rerolls_used += 1
+	
+	if Sound:
+		Sound.play_click()
+	if VFX:
+		VFX.screen_flash(Color(1.0, 1.0, 0.3), 0.1)
+	
+	# Neue Optionen generieren
+	current_options = UpgradeSystem.get_random_upgrades(3)
+	_create_upgrade_cards()
+	_update_reroll_button_text()
 
 
 func _create_upgrade_cards() -> void:
@@ -168,10 +257,11 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	
 	# Card Style
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.18)
+	style.bg_color = Color(0.85, 0.85, 0.88)
 	style.border_color = cat_color.darkened(0.3)
 	style.border_width_left = 2
 	style.border_width_right = 2
@@ -188,107 +278,209 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	margin.add_theme_constant_override("margin_right", 10)
 	margin.add_theme_constant_override("margin_top", 10)
 	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	card.add_child(margin)
 	
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
+	vbox.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	margin.add_child(vbox)
 	
-	# Icon
-	var icon_label := Label.new()
-	icon_label.text = data.get("icon", "?")
-	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon_label.add_theme_font_size_override("font_size", 36)
-	vbox.add_child(icon_label)
+	# Icon - versuche IconSystem, Fallback auf Emoji
+	var icon_name := _get_icon_for_upgrade(upgrade_id, data)
+	var icon_tex: Texture2D = null
+	if IconSystem and not icon_name.is_empty():
+		icon_tex = IconSystem.get_texture(icon_name)
+	
+	if icon_tex:
+		# Icon als TextureRect
+		var icon_rect := TextureRect.new()
+		icon_rect.texture = icon_tex
+		icon_rect.custom_minimum_size = Vector2(48, 48)
+		icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		vbox.add_child(icon_rect)
+	else:
+		# Fallback: Emoji Label
+		var icon_label := Label.new()
+		icon_label.text = data.get("icon", "?")
+		icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		icon_label.add_theme_font_size_override("font_size", 48)
+		vbox.add_child(icon_label)
 	
 	# Name
 	var name_label := Label.new()
-	name_label.text = data.get("name", upgrade_id)
+	name_label.text = data.get("name", "???")
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	if UITheme and UITheme.game_font:
-		name_label.add_theme_font_override("font", UITheme.game_font)
-	name_label.add_theme_font_size_override("font_size", 14)
-	name_label.add_theme_color_override("font_color", cat_color)
+	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
 	vbox.add_child(name_label)
 	
-	# Description
+	# Stack-Anzeige
+	if current_stacks > 0:
+		var stack_label := Label.new()
+		stack_label.text = "★".repeat(mini(current_stacks, 5))
+		if current_stacks > 5:
+			stack_label.text += " +%d" % (current_stacks - 5)
+		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stack_label.add_theme_font_size_override("font_size", 12)
+		stack_label.add_theme_color_override("font_color", Color(0.8, 0.6, 0.1))
+		vbox.add_child(stack_label)
+	
+	# Beschreibung
 	var desc_label := Label.new()
 	desc_label.text = data.get("description", "")
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	desc_label.custom_minimum_size.y = 50
-	if UITheme and UITheme.game_font:
-		desc_label.add_theme_font_override("font", UITheme.game_font)
-	desc_label.add_theme_font_size_override("font_size", 10)
-	desc_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	desc_label.custom_minimum_size.x = CARD_WIDTH - 20
+	desc_label.add_theme_font_size_override("font_size", 12)
+	desc_label.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
 	vbox.add_child(desc_label)
 	
-	# Spacer
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(spacer)
+	# Tooltip falls vorhanden
+	if data.has("tooltip"):
+		var tooltip_label := Label.new()
+		tooltip_label.text = data.get("tooltip", "")
+		tooltip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+		tooltip_label.custom_minimum_size.x = CARD_WIDTH - 20
+		tooltip_label.add_theme_font_size_override("font_size", 10)
+		tooltip_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+		vbox.add_child(tooltip_label)
 	
-	# Stack-Anzeige
-	if max_stacks > 1 and not stat == "instant_gold":
-		var stack_label := Label.new()
-		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		if UITheme and UITheme.game_font:
-			stack_label.add_theme_font_override("font", UITheme.game_font)
-		stack_label.add_theme_font_size_override("font_size", 10)
-		
-		var dots := ""
-		for i in range(max_stacks):
-			if i < current_stacks:
-				dots += "●"
-			elif i == current_stacks:
-				dots += "◐"  # Nächster Stack
-			else:
-				dots += "○"
-		stack_label.text = dots
-		stack_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		vbox.add_child(stack_label)
+	# Kategorie-Badge
+	var category_label := Label.new()
+	var cat_name: String = _get_category_name(category)
+	category_label.text = cat_name
+	category_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	category_label.add_theme_font_size_override("font_size", 10)
+	category_label.add_theme_color_override("font_color", Color(0.35, 0.35, 0.35))
+	vbox.add_child(category_label)
 	
-	# Auswahl-Button
-	var select_btn := Button.new()
-	select_btn.text = "Wählen"
-	select_btn.custom_minimum_size = Vector2(0, 28)
-	select_btn.pressed.connect(_on_upgrade_selected.bind(upgrade_id))
-	vbox.add_child(select_btn)
+	# Stack-Info
+	if max_stacks > 1:
+		var stack_info := Label.new()
+		stack_info.text = "(%d/%d)" % [current_stacks + 1, max_stacks]
+		stack_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stack_info.add_theme_font_size_override("font_size", 10)
+		stack_info.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+		vbox.add_child(stack_info)
+	
+	# Button
+	var btn := Button.new()
+	btn.text = "Wählen"
+	btn.custom_minimum_size.y = 32
+	btn.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
+	btn.pressed.connect(_on_card_selected.bind(upgrade_id))
+	vbox.add_child(btn)
 	
 	if UITheme:
-		UITheme.style_button(select_btn)
-	
-	select_btn.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+		UITheme.style_button(btn)
+		UITheme.style_button_colors(btn)
 	
 	# Hover-Effekt
 	card.mouse_entered.connect(func():
-		style.border_color = cat_color
-		style.bg_color = Color(0.2, 0.2, 0.25)
+		var hover_style := style.duplicate()
+		hover_style.bg_color = Color(0.75, 0.75, 0.78)
+		hover_style.border_color = cat_color
+		card.add_theme_stylebox_override("panel", hover_style)
 	)
+	
 	card.mouse_exited.connect(func():
-		style.border_color = cat_color.darkened(0.3)
-		style.bg_color = Color(0.15, 0.15, 0.18)
+		card.add_theme_stylebox_override("panel", style)
 	)
 	
 	return card
 
 
-func _on_upgrade_selected(upgrade_id: String) -> void:
-	Sound.play_element_select()
+func _get_category_name(category: String) -> String:
+	match category:
+		"economy": return "Wirtschaft"
+		"supply": return "Versorgung"
+		"global": return "Global"
+		"element": return "Element"
+		"special": return "Spezial"
+		"instant": return "Sofort"
+		"tower_type": return "Turm-Typ"
+		"wave": return "Wellen"
+		_: return category.capitalize()
+
+
+func _get_icon_for_upgrade(upgrade_id: String, data: Dictionary) -> String:
+	"""Versucht ein passendes Icon aus IconSystem zu finden"""
+	var category: String = data.get("category", "")
+	var element: String = data.get("element", "")
+	
+	# Element-basierte Upgrades
+	if not element.is_empty():
+		if element == "fire":
+			return "fire"
+		elif element == "water":
+			return "water"
+		elif element == "earth":
+			return "earth"
+		elif element == "air":
+			return "air"
+		elif element == "ice":
+			return "ice"
+		elif element == "lightning":
+			return "lightning"
+		elif element == "nature":
+			return "nature"
+		elif element == "lava":
+			return "lava"
+		elif element == "steam":
+			return "steam"
+	
+	# Spezifische Upgrade-IDs mit passenden Icons
+	match upgrade_id:
+		# Economy - Gold Icon
+		"interest_bonus", "flat_bonus", "interest_rate", "starting_gold", "enemy_gold", "tower_discount", "sell_value":
+			return "gold"
+		# Supply
+		"supply_max", "farm_bonus":
+			return "supply"
+		# Global/Combat
+		"global_damage", "global_range", "global_fire_rate", "crit_chance", "splash_bonus":
+			return "upgrades"
+		# Abilities
+		"isolated_damage", "isolated_range":
+			return "upgrades"
+		# Tower-Type spezifisch (falls Icons existieren)
+		"archer_damage":
+			return ""  # Kein Archer-Icon verfügbar
+		"wizard_damage":
+			return ""  # Kein Wizard-Icon verfügbar
+		"catapult_damage":
+			return ""  # Kein Catapult-Icon verfügbar
+		"sword_damage":
+			return ""  # Kein Sword-Icon verfügbar
+		# Wellen-Spawn
+		"fire_spawn_rate":
+			return "fire"
+		"water_spawn_rate":
+			return "water"
+		"earth_spawn_rate":
+			return "earth"
+		"air_spawn_rate":
+			return "air"
+		_:
+			# Kein Icon gefunden - verwende Emoji
+			return ""
+
+
+func _on_card_selected(upgrade_id: String) -> void:
+	if Sound:
+		Sound.play_click()
 	
 	UpgradeSystem.activate_upgrade(upgrade_id)
-	
-	# VFX
-	if VFX:
-		var viewport_center := get_viewport().get_visible_rect().size / 2
-		VFX.spawn_pixel_burst(viewport_center, "gold", 20)
-	
-	upgrade_chosen.emit(upgrade_id)
 	hide_panel()
+	upgrade_chosen.emit(upgrade_id)
 
 
 func _on_skip_pressed() -> void:
-	Sound.play_click()
-	upgrade_chosen.emit("")
+	if Sound:
+		Sound.play_click()
 	hide_panel()
+	upgrade_chosen.emit("")
