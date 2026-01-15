@@ -842,10 +842,10 @@ func _refresh_all_tower_stats() -> void:
 	for grid_pos in tower_manager.placed_towers:
 		var tower: Node2D = tower_manager.placed_towers[grid_pos]
 		var level: int = tower_manager.tower_levels.get(grid_pos, 0)
+		tower.level = level  
 		var tower_data := TowerData.get_legacy_data(tower.tower_type, level)
 		if tower.has_method("setup"):
 			tower.setup(tower_data, tower.tower_type)
-			tower.level = level
 
 
 func _on_game_over() -> void:

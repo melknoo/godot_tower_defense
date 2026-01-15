@@ -248,8 +248,14 @@ func _apply_item_bonuses() -> void:
 	chain_targets += int(chain_bonus)
 
 
-# === NEUE FUNKTION: Stats neu berechnen (wird von ItemSystem aufgerufen) ===
 func recalculate_stats() -> void:
+
+	var data := TowerData.get_legacy_data(tower_type, level)
+	base_damage = data.get("damage", 20)
+	base_range = data.get("range", 150.0)
+	base_fire_rate = data.get("fire_rate", 1.0)
+	base_splash = data.get("splash", 0.0)
+	
 	# Zurück zu Basis-Werten
 	tower_range = base_range
 	fire_rate = base_fire_rate

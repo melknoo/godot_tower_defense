@@ -351,6 +351,7 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 	
 	var new_level := current_level + 1
 	tower_levels[grid_pos] = new_level
+	tower.level = new_level  # ✅ WICHTIG: Level im Tower setzen!
 	GameState.tower_placed(upgrade_cost)
 	GameState.use_supply(TowerData.get_supply_cost_upgrade())
 	
