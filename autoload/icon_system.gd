@@ -20,6 +20,8 @@ var icons := {
 	"exit": "exit.png",
 	"settings": "settings.png",
 	"abilities": "abilities.png",
+	"star_full": "star_full.png",
+	"star_empty": "star_empty.png",
 	
 	"ability_lightning": "ability_lightning.png",
 	"ability_frost": "ability_frost.png",
