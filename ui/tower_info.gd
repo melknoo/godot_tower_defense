@@ -523,16 +523,14 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 			stats_label.tooltip_text = ""
 		return
 
-	# ✅ Pure Basis-Werte aus TowerData (ohne Multiplikatoren)
-	var pure_base_damage: int = int(TowerData.get_stat(tower_type, "damage", level))
-	var pure_base_range: float = float(TowerData.get_stat(tower_type, "range", level))
-	var pure_base_fire_rate: float = float(TowerData.get_stat(tower_type, "fire_rate", level))
+	var base_damage: int = int(TowerData.get_stat(tower_type, "damage", level))
+	var base_range: float = float(TowerData.get_stat(tower_type, "range", level))
+	var base_fire_rate: float = float(TowerData.get_stat(tower_type, "fire_rate", level))
 
 	var elem: String = ""
 	if current_tower.has_method("get_effective_element"):
 		elem = current_tower.get_effective_element()
 
-	# ✅ Upgrade-Multiplikatoren holen (Waffenschmiede, etc.)
 	var damage_mult: float = 1.0
 	var range_mult: float = 1.0
 	var fire_rate_mult: float = 1.0
@@ -542,25 +540,16 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		range_mult = UpgradeSystem.get_range_multiplier(tower_type)
 		fire_rate_mult = UpgradeSystem.get_fire_rate_multiplier(tower_type)
 
-	# ✅ Basis MIT Upgrade-Multiplikatoren (aber OHNE Items)
-	var base_damage: int = int(pure_base_damage * damage_mult)
-	var base_range: float = pure_base_range * range_mult
-	var base_fire_rate: float = pure_base_fire_rate / (1.0 + fire_rate_mult - 1.0)
-
-	# ✅ Finale Werte aus dem Tower (MIT Items)
 	var final_damage: int = int(current_tower.damage)
 	var final_range: float = float(current_tower.tower_range)
 	var final_fire_rate: float = float(current_tower.fire_rate)
 
-	# ✅ Item-Boni berechnen (Final - Basis)
 	var damage_bonus: int = final_damage - base_damage
 	var range_bonus: int = int(final_range - base_range)
-	
 	var shots_per_sec: float = 1.0 / final_fire_rate if final_fire_rate > 0 else 0.0
 	var base_shots: float = 1.0 / base_fire_rate if base_fire_rate > 0 else 0.0
 	var fire_rate_bonus: float = shots_per_sec - base_shots
 
-	# ✅ Text mit Item-Boni
 	var damage_text := "Schaden: %d" % final_damage
 	if damage_bonus > 0:
 		damage_text += " (+%d)" % damage_bonus
@@ -575,17 +564,16 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 
 	stats_label.text = "%s\n%s\n%s" % [damage_text, range_text, fire_rate_text]
 
-	# ✅ Tooltip zeigt Basis (mit Upgrades) vs Final (mit Items)
 	var tooltip_lines: Array[String] = []
 	if damage_bonus > 0:
-		tooltip_lines.append("Schaden: %d (Basis+Upgrades) + %d (Items)" % [base_damage, damage_bonus])
+		tooltip_lines.append("Schaden: %d Basis + %d Upgrade" % [base_damage, damage_bonus])
 	if range_bonus > 0:
-		tooltip_lines.append("Reichweite: %d (Basis+Upgrades) + %d (Items)" % [int(base_range), range_bonus])
+		tooltip_lines.append("Reichweite: %d Basis + %d Upgrade" % [int(base_range), range_bonus])
 	if fire_rate_bonus > 0.01:
-		tooltip_lines.append("Feuerrate: %.1f (Basis+Upgrades) + %.1f (Items)" % [base_shots, fire_rate_bonus])
+		tooltip_lines.append("Feuerrate: %.1f Basis + %.1f Upgrade" % [base_shots, fire_rate_bonus])
 
 	if tooltip_lines.size() > 0:
-		stats_label.tooltip_text = "Boni aktiv:\n" + "\n".join(tooltip_lines)
+		stats_label.tooltip_text = "Upgrade-Boni aktiv:\n" + "\n".join(tooltip_lines)
 	else:
 		stats_label.tooltip_text = ""
 
