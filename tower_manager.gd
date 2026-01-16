@@ -340,7 +340,14 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 		return false
 	
 	var tower: Node2D = placed_towers[grid_pos]
-	var current_level: int = tower_levels.get(grid_pos, 0)
+	
+	# ✅ KRITISCH: Verwende tower.level als Source of Truth!
+	var current_level: int = tower.level
+	
+	# ✅ Sync-Check: Stelle sicher dass tower_levels synchron ist
+	if tower_levels.get(grid_pos, -1) != current_level:
+		push_warning("[TowerManager] Level-Desync! tower.level=%d aber tower_levels=%d - Korrigiere..." % [current_level, tower_levels.get(grid_pos, -1)])
+		tower_levels[grid_pos] = current_level
 	
 	if not TowerData.can_upgrade(tower.tower_type, current_level):
 		return false
@@ -357,8 +364,11 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 		return false
 	
 	var new_level := current_level + 1
+	
+	# ✅ WICHTIG: Level ZUERST in beiden Orten setzen!
+	tower.level = new_level
 	tower_levels[grid_pos] = new_level
-	tower.level = new_level  # ✅ WICHTIG: Level im Tower setzen!
+	
 	GameState.tower_placed(upgrade_cost)
 	GameState.use_supply(TowerData.get_supply_cost_upgrade())
 	
@@ -374,6 +384,7 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 	])
 	Sound.play_upgrade()
 	
+	# ✅ Tower-Info aktualisieren, falls dieser Tower gerade angezeigt wird
 	if tower_info and tower_info.visible and tower_info.current_tower == tower:
 		tower_info.show_tower(tower, grid_pos)
 	

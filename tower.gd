@@ -331,16 +331,27 @@ func _update_item_indicators() -> void:
 
 func upgrade(data: Dictionary, new_level: int) -> void:
 	level = new_level
-	tower_range = data.get("range", tower_range)
-	fire_rate = data.get("fire_rate", fire_rate)
-	damage = data.get("damage", damage)
-	splash_radius = data.get("splash", splash_radius)
+	
+	base_damage = data.get("damage", base_damage)
+	base_range = data.get("range", base_range)
+	base_fire_rate = data.get("fire_rate", base_fire_rate)
+	base_splash = data.get("splash", base_splash)
+	
+	# Aktuelle Werte auf Basis setzen
+	tower_range = base_range
+	fire_rate = base_fire_rate
+	damage = base_damage
+	splash_radius = base_splash
 	attack_type = data.get("attack_type", attack_type)
+	
 	_load_special_effects()
 	_apply_upgrade_bonuses()
+	_apply_item_bonuses()  # ← DAS FEHLTE!
+	
 	_update_archer_anim_speed()
 	if is_inside_tree():
 		_update_visuals()
+		_update_item_indicators()  # ← Auch Item-Anzeige aktualisieren
 		_show_upgrade_effect()
 		if VFX:
 			VFX.spawn_upgrade_effect(position, get_effective_element(), new_level)
