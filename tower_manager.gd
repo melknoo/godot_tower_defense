@@ -210,7 +210,7 @@ func relocate_tower(new_grid_pos: Vector2i) -> bool:
 	# Pickup beenden
 	picked_up_tower = null
 	picked_up_from_pos = Vector2i(-1, -1)
-	
+	_recalculate_all_tower_stats()
 	_update_blocked_towers()
 	return true
 
@@ -263,7 +263,9 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 		var bonus := TowerData.get_supply_bonus(tower_type)
 		GameState.add_max_supply(bonus)
 	
+	_recalculate_all_tower_stats()
 	tower_placed.emit(tower, grid_pos)
+	_update_blocked_towers()
 	print("[TowerManager] %s platziert bei %s (Supply: %d/%d)" % [
 		tower_type, grid_pos, GameState.supply_used, GameState.supply_max
 	])
@@ -284,7 +286,7 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	var placed_this_wave := placed_wave == GameState.current_wave
 	
 	var sell_value := TowerData.get_sell_value(tower_type, level, placed_this_wave)
-	Sound.play_sell()
+	
 	
 	if VFX:
 		VFX.spawn_sell_effect(tower_pos)
@@ -309,11 +311,14 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	if selected_grid_pos == grid_pos:
 		deselect_tower()
 	
-	_update_blocked_towers()
+	_recalculate_all_tower_stats()
+
 	tower_sold.emit(grid_pos, sell_value)
 	print("[TowerManager] Tower verkauft für %d Gold (Supply: %d/%d)" % [
 		sell_value, GameState.supply_used, GameState.supply_max
 	])
+	Sound.play_sell()
+	_update_blocked_towers()
 	
 	return sell_value
 
@@ -553,3 +558,9 @@ func grid_to_world(grid_pos: Vector2i) -> Vector2:
 
 func is_tower_blocked(grid_pos: Vector2i) -> bool:
 	return grid_pos in blocked_tower_positions
+
+
+func _recalculate_all_tower_stats() -> void:
+	for tower in placed_towers.values():
+		if tower and is_instance_valid(tower) and tower.has_method("recalculate_stats"):
+			tower.recalculate_stats()

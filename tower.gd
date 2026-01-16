@@ -77,7 +77,7 @@ var base_range := 150.0
 var base_fire_rate := 1.0
 var base_splash := 0.0
 
-const ISOLATION_RADIUS := 120.0
+const ISOLATION_RADIUS := 350.0
 
 func is_isolated() -> bool:
 	if not is_inside_tree():
@@ -96,6 +96,7 @@ func is_isolated() -> bool:
 
 
 func _ready() -> void:
+	add_to_group("towers")
 	bullet_scene = preload("res://bullet.tscn")
 	_load_corner_textures()
 	_create_visuals()
@@ -120,27 +121,31 @@ func _apply_upgrade_bonuses() -> void:
 		return
 	
 	var elem := get_effective_element()
+	var isolated := is_isolated()
 	
 	# Damage Multiplikator
 	var damage_mult := UpgradeSystem.get_damage_multiplier(tower_type, elem)
-	if is_isolated():
+	if isolated:
 		damage_mult *= UpgradeSystem.get_isolated_damage_multiplier()
-	damage = int(damage * damage_mult)
+		print("[Tower %s] ISOLIERT! Damage Mult: %.2f (isolated bonus: %.2f)" % [
+			tower_type, damage_mult, UpgradeSystem.get_isolated_damage_multiplier()
+		])
+	damage = int(float(base_damage) * damage_mult)  # ✅ float() für saubere Multiplikation
 	
 	# Range Multiplikator
 	var range_mult := UpgradeSystem.get_range_multiplier(tower_type)
-	if is_isolated():
+	if isolated:
 		range_mult *= UpgradeSystem.get_isolated_range_multiplier()
-	tower_range *= range_mult
+	tower_range = base_range * range_mult
 	
 	# Fire Rate Multiplikator (schneller = niedrigerer Wert)
 	var fire_rate_mult := UpgradeSystem.get_fire_rate_multiplier(tower_type)
-	fire_rate /= (1.0 + fire_rate_mult - 1.0)  # Invers weil niedrigere fire_rate = schneller
+	fire_rate = base_fire_rate / (1.0 + fire_rate_mult - 1.0)
 	
 	# Splash Multiplikator
-	if splash_radius > 0:
+	if base_splash > 0:
 		var splash_mult := UpgradeSystem.get_splash_multiplier()
-		splash_radius *= splash_mult
+		splash_radius = base_splash * splash_mult
 	
 	# Element-spezifische Boni
 	if elem != "":
@@ -156,19 +161,24 @@ func _update_isolation_visual() -> void:
 	# Suche bestehenden Indicator
 	var indicator := get_node_or_null("IsolationIndicator")
 	
-	if is_isolated() and UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0:
+	var currently_isolated := is_isolated()
+	var has_perk := UpgradeSystem and UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0
+	
+	if currently_isolated and has_perk:
 		if not indicator:
 			indicator = Node2D.new()
 			indicator.name = "IsolationIndicator"
 			add_child(indicator)
 			
-			# Leuchtender Ring
+			# Leuchtender Ring mit korrektem ISOLATION_RADIUS
 			var circle := Line2D.new()
 			circle.width = 2
 			circle.default_color = Color(0.3, 0.8, 1.0, 0.6)
-			for i in range(25):
-				var angle := i * TAU / 24
-				circle.add_point(Vector2(cos(angle), sin(angle)) * 30)
+			# Radius-Kreis mit mehr Punkten für glatten Kreis
+			var num_points := 48
+			for i in range(num_points + 1):
+				var angle := i * TAU / num_points
+				circle.add_point(Vector2(cos(angle), sin(angle)) * ISOLATION_RADIUS)
 			indicator.add_child(circle)
 			
 			# Pulsiere

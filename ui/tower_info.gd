@@ -539,6 +539,10 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		damage_mult = UpgradeSystem.get_damage_multiplier(tower_type, elem)
 		range_mult = UpgradeSystem.get_range_multiplier(tower_type)
 		fire_rate_mult = UpgradeSystem.get_fire_rate_multiplier(tower_type)
+		
+		if current_tower.has_method("is_isolated") and current_tower.is_isolated():
+			damage_mult *= UpgradeSystem.get_isolated_damage_multiplier()
+			range_mult *= UpgradeSystem.get_isolated_range_multiplier()
 
 	var final_damage: int = int(current_tower.damage)
 	var final_range: float = float(current_tower.tower_range)
@@ -565,6 +569,19 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	stats_label.text = "%s\n%s\n%s" % [damage_text, range_text, fire_rate_text]
 
 	var tooltip_lines: Array[String] = []
+	if current_tower.has_method("is_isolated"):
+		var is_isolated: bool = current_tower.is_isolated()
+		if UpgradeSystem and (UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0 or UpgradeSystem.get_upgrade_stacks("isolated_range") > 0):
+			if is_isolated:
+				tooltip_lines.append("🏔️ Isoliert: Keine Türme im Umkreis von 350")
+				if UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0:
+					var iso_dmg := (UpgradeSystem.get_isolated_damage_multiplier() - 1.0) * 100.0
+					tooltip_lines.append("  → +%.0f%% Schaden" % iso_dmg)
+				if UpgradeSystem.get_upgrade_stacks("isolated_range") > 0:
+					var iso_range := (UpgradeSystem.get_isolated_range_multiplier() - 1.0) * 100.0
+					tooltip_lines.append("  → +%.0f%% Reichweite" % iso_range)
+			else:
+				tooltip_lines.append("🏘️ Nicht isoliert: Türme in der Nähe")
 	if damage_bonus > 0:
 		tooltip_lines.append("Schaden: %d Basis + %d Upgrade" % [base_damage, damage_bonus])
 	if range_bonus > 0:
