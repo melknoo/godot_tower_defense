@@ -392,8 +392,18 @@ func _on_bg_input(event: InputEvent) -> void:
 		var detail_rect := detail_panel.get_global_rect() if detail_panel.visible else Rect2()
 		var mouse_pos := get_viewport().get_mouse_position()
 		
-		if not panel_rect.has_point(mouse_pos) and not detail_rect.has_point(mouse_pos):
-			hide_panel()
+		# Klick ins Detail-Panel -> nichts tun
+		if detail_panel.visible and detail_rect.has_point(mouse_pos):
+			return
+		
+		# Klick ins Haupt-Panel (aber nicht Detail-Panel) -> nur Detail schließen
+		if panel_rect.has_point(mouse_pos):
+			if detail_panel.visible:
+				deselect_item()
+			return
+		
+		# Klick außerhalb beider Panels -> ganzes Inventory schließen
+		hide_panel()
 
 
 func _input(event: InputEvent) -> void:
@@ -404,6 +414,32 @@ func _input(event: InputEvent) -> void:
 		if event.keycode == KEY_ESCAPE or event.keycode == KEY_I:
 			hide_panel()
 			get_viewport().set_input_as_handled()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	
+	# Linksklick-Logik für Schließen (nur wenn nicht von Slots verarbeitet)
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var mouse_pos := get_viewport().get_mouse_position()
+		var panel_rect := panel.get_global_rect()
+		var detail_rect := detail_panel.get_global_rect() if detail_panel.visible else Rect2()
+		
+		# Klick ins Detail-Panel -> nichts tun
+		if detail_panel.visible and detail_rect.has_point(mouse_pos):
+			return
+		
+		# Klick ins Haupt-Panel (aber nicht Detail-Panel) -> nur Detail schließen
+		if panel_rect.has_point(mouse_pos):
+			if detail_panel.visible:
+				deselect_item()
+				get_viewport().set_input_as_handled()
+			return
+		
+		# Klick außerhalb beider Panels -> ganzes Inventory schließen
+		hide_panel()
+		get_viewport().set_input_as_handled()
 
 
 func _on_sell_pressed() -> void:
