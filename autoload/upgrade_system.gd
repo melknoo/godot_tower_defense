@@ -10,36 +10,36 @@ var active_upgrades: Dictionary = {}
 # === UPGRADE-DEFINITIONEN ===
 const UPGRADES := {
 	# === ECONOMY ===
-	#"interest_bonus": {
-		#"name": "Schatzkammer", "description": "+10 Gold maximal aus Zinsen",
-		#"icon": "💰", "category": "economy", "stat": "max_interest",
-		#"bonus": 10, "stackable": true, "max_stacks": 5
-	#},
-	#"flat_bonus": {
-		#"name": "Kriegskasse", "description": "+8 Gold Flat-Bonus pro Welle",
-		#"icon": "🪙", "category": "economy", "stat": "flat_bonus",
-		#"bonus": 8, "stackable": true, "max_stacks": 5
-	#},
-	#"interest_rate": {
-		#"name": "Investmentfonds", "description": "+2% Zinsrate",
-		#"icon": "📈", "category": "economy", "stat": "interest_rate",
-		#"bonus": 0.02, "stackable": true, "max_stacks": 3
-	#},
-	#"tower_discount": {
-		#"name": "Großhandel", "description": "-10% Tower-Baukosten",
-		#"icon": "🏷️", "category": "economy", "stat": "tower_cost",
-		#"bonus": 0.10, "stackable": true, "max_stacks": 3
-	#},
-	#"sell_value": {
-		#"name": "Rückgaberecht", "description": "+15% Verkaufswert",
-		#"icon": "💵", "category": "economy", "stat": "sell_value",
-		#"bonus": 0.15, "stackable": true, "max_stacks": 2
-	#},
-	#"enemy_gold": {
-		#"name": "Plünderer", "description": "+1 Gold pro getötetem Gegner",
-		#"icon": "💀", "category": "economy", "stat": "enemy_gold",
-		#"bonus": 1, "stackable": true, "max_stacks": 5
-	#},
+	"interest_bonus": {
+		"name": "Schatzkammer", "description": "+10 Gold maximal aus Zinsen",
+		"icon": "💰", "category": "economy", "stat": "max_interest",
+		"bonus": 10, "stackable": true, "max_stacks": 5
+	},
+	"flat_bonus": {
+		"name": "Kriegskasse", "description": "+8 Gold Flat-Bonus pro Welle",
+		"icon": "🪙", "category": "economy", "stat": "flat_bonus",
+		"bonus": 8, "stackable": true, "max_stacks": 5
+	},
+	"interest_rate": {
+		"name": "Investmentfonds", "description": "+2% Zinsrate",
+		"icon": "📈", "category": "economy", "stat": "interest_rate",
+		"bonus": 0.02, "stackable": true, "max_stacks": 3
+	},
+	"tower_discount": {
+		"name": "Großhandel", "description": "-10% Tower-Baukosten",
+		"icon": "🏷️", "category": "economy", "stat": "tower_cost",
+		"bonus": 0.10, "stackable": true, "max_stacks": 3
+	},
+	"sell_value": {
+		"name": "Rückgaberecht", "description": "+15% Verkaufswert",
+		"icon": "💵", "category": "economy", "stat": "sell_value",
+		"bonus": 0.15, "stackable": true, "max_stacks": 2
+	},
+	"enemy_gold": {
+		"name": "Plünderer", "description": "+1 Gold pro getötetem Gegner",
+		"icon": "💀", "category": "economy", "stat": "enemy_gold",
+		"bonus": 1, "stackable": true, "max_stacks": 5
+	},
 	"starting_gold": {
 		"name": "Erbschaft", "description": "Sofort +50 Gold",
 		"icon": "🎁", "category": "instant", "stat": "instant_gold",
@@ -58,114 +58,114 @@ const UPGRADES := {
 		"bonus": 1, "stackable": true, "max_stacks": 3
 	},
 	
-	## === GLOBAL TOWER ===
-	#"global_damage": {
-		#"name": "Waffenschmiede", "description": "+10% Schaden für ALLE Türme",
-		#"icon": "🗡️", "category": "global", "stat": "damage",
-		#"bonus": 0.10, "stackable": true, "max_stacks": 5
-	#},
-	#"global_range": {
-		#"name": "Adleraugen", "description": "+10% Reichweite für ALLE Türme",
-		#"icon": "👁️", "category": "global", "stat": "range",
-		#"bonus": 0.10, "stackable": true, "max_stacks": 3
-	#},
-	#"global_fire_rate": {
-		#"name": "Adrenalin", "description": "+10% Angriffsgeschwindigkeit für ALLE",
-		#"icon": "⚡", "category": "global", "stat": "fire_rate",
-		#"bonus": 0.10, "stackable": true, "max_stacks": 3
-	#},
-	#
-	## === NEU: ISOLIERTE TÜRME ===
-	#"isolated_damage": {
-		#"name": "Einsiedler", "description": "+15% Schaden für isolierte Türme",
-		#"icon": "🏔️", "category": "special", "stat": "isolated_damage",
-		#"bonus": 0.15, "stackable": true, "max_stacks": 4,
-		#"tooltip": "Türme ohne benachbarte Türme im Radius von 120"
-	#},
-	#"isolated_range": {
-		#"name": "Fernspäher", "description": "+20% Reichweite für isolierte Türme",
-		#"icon": "🔭", "category": "special", "stat": "isolated_range",
-		#"bonus": 0.20, "stackable": true, "max_stacks": 3,
-		#"tooltip": "Türme ohne benachbarte Türme im Radius von 120"
-	#},
-	#
-	## === NEU: ELEMENT-SPAWN-RATE ===
-	#"fire_spawn_rate": {
-		#"name": "Feuerwelle", "description": "+30% Feuer-Gegner in Wellen",
-		#"icon": "🔥", "category": "wave", "stat": "spawn_rate",
-		#"element": "fire", "bonus": 0.30, "stackable": true, "max_stacks": 3
-	#},
-	#"water_spawn_rate": {
-		#"name": "Flut", "description": "+30% Wasser-Gegner in Wellen",
-		#"icon": "💧", "category": "wave", "stat": "spawn_rate",
-		#"element": "water", "bonus": 0.30, "stackable": true, "max_stacks": 3
-	#},
-	#"earth_spawn_rate": {
-		#"name": "Erdrutsch", "description": "+30% Erd-Gegner in Wellen",
-		#"icon": "🪨", "category": "wave", "stat": "spawn_rate",
-		#"element": "earth", "bonus": 0.30, "stackable": true, "max_stacks": 3
-	#},
-	#"air_spawn_rate": {
-		#"name": "Sturm", "description": "+30% Luft-Gegner in Wellen",
-		#"icon": "💨", "category": "wave", "stat": "spawn_rate",
-		#"element": "air", "bonus": 0.30, "stackable": true, "max_stacks": 3
-	#},
-	#
-	## === NEU: ELEMENT-DAMAGE ===
-	#"fire_damage": {
-		#"name": "Pyromanie", "description": "+15% Schaden für Feuer-Türme",
-		#"icon": "🔥", "category": "element", "stat": "damage",
-		#"element": "fire", "bonus": 0.15, "stackable": true, "max_stacks": 4
-	#},
-	#"water_damage": {
-		#"name": "Sturmflut", "description": "+15% Schaden für Wasser-Türme",
-		#"icon": "🌊", "category": "element", "stat": "damage",
-		#"element": "water", "bonus": 0.15, "stackable": true, "max_stacks": 4
-	#},
-	#"earth_damage": {
-		#"name": "Seismik", "description": "+15% Schaden für Erd-Türme",
-		#"icon": "⛰️", "category": "element", "stat": "damage",
-		#"element": "earth", "bonus": 0.15, "stackable": true, "max_stacks": 4
-	#},
-	#"air_damage": {
-		#"name": "Wirbelwind", "description": "+15% Schaden für Luft-Türme",
-		#"icon": "🌪️", "category": "element", "stat": "damage",
-		#"element": "air", "bonus": 0.15, "stackable": true, "max_stacks": 4
-	#},
-	#
-	## === SPEZIAL ===
-	#"crit_chance": {
-		#"name": "Präzision", "description": "10% Chance auf Crit (+50% Schaden)",
-		#"icon": "🎯", "category": "special", "stat": "crit_chance",
-		#"bonus": 0.10, "stackable": true, "max_stacks": 3
-	#},
-	#"splash_bonus": {
-		#"name": "Explosiv", "description": "+20% Splash-Radius",
-		#"icon": "💥", "category": "special", "stat": "splash",
-		#"bonus": 0.20, "stackable": true, "max_stacks": 3
-	#},
-	#
-	## === TOWER-TYPE SPEZIFISCH ===
-	#"archer_damage": {
-		#"name": "Bogenschule", "description": "+20% Schaden für Bogenschützen",
-		#"icon": "🏹", "category": "tower_type", "stat": "damage",
-		#"tower_type": "archer", "bonus": 0.20, "stackable": true, "max_stacks": 3
-	#},
-	#"wizard_damage": {
-		#"name": "Arkane Macht", "description": "+20% Schaden für Zauberer",
-		#"icon": "🔮", "category": "tower_type", "stat": "damage",
-		#"tower_type": "wizard", "bonus": 0.20, "stackable": true, "max_stacks": 3
-	#},
-	#"catapult_damage": {
-		#"name": "Belagerung", "description": "+20% Schaden für Katapulte",
-		#"icon": "🎪", "category": "tower_type", "stat": "damage",
-		#"tower_type": "catapult", "bonus": 0.20, "stackable": true, "max_stacks": 3
-	#},
-	#"sword_damage": {
-		#"name": "Klingentanz", "description": "+20% Schaden für Schwertkämpfer",
-		#"icon": "⚔️", "category": "tower_type", "stat": "damage",
-		#"tower_type": "sword", "bonus": 0.20, "stackable": true, "max_stacks": 3
-	#}
+	# === GLOBAL TOWER ===
+	"global_damage": {
+		"name": "Waffenschmiede", "description": "+10% Schaden für ALLE Türme",
+		"icon": "🗡️", "category": "global", "stat": "damage",
+		"bonus": 0.10, "stackable": true, "max_stacks": 5
+	},
+	"global_range": {
+		"name": "Adleraugen", "description": "+10% Reichweite für ALLE Türme",
+		"icon": "👁️", "category": "global", "stat": "range",
+		"bonus": 0.10, "stackable": true, "max_stacks": 3
+	},
+	"global_fire_rate": {
+		"name": "Adrenalin", "description": "+10% Angriffsgeschwindigkeit für ALLE",
+		"icon": "⚡", "category": "global", "stat": "fire_rate",
+		"bonus": 0.10, "stackable": true, "max_stacks": 3
+	},
+	
+	# === NEU: ISOLIERTE TÜRME ===
+	"isolated_damage": {
+		"name": "Einsiedler", "description": "+15% Schaden für isolierte Türme",
+		"icon": "🏔️", "category": "special", "stat": "isolated_damage",
+		"bonus": 0.15, "stackable": true, "max_stacks": 4,
+		"tooltip": "Türme ohne benachbarte Türme im Radius von 120"
+	},
+	"isolated_range": {
+		"name": "Fernspäher", "description": "+20% Reichweite für isolierte Türme",
+		"icon": "🔭", "category": "special", "stat": "isolated_range",
+		"bonus": 0.20, "stackable": true, "max_stacks": 3,
+		"tooltip": "Türme ohne benachbarte Türme im Radius von 120"
+	},
+	
+	# === NEU: ELEMENT-SPAWN-RATE ===
+	"fire_spawn_rate": {
+		"name": "Feuerwelle", "description": "+30% Feuer-Gegner in Wellen",
+		"icon": "🔥", "category": "wave", "stat": "spawn_rate",
+		"element": "fire", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	"water_spawn_rate": {
+		"name": "Flut", "description": "+30% Wasser-Gegner in Wellen",
+		"icon": "💧", "category": "wave", "stat": "spawn_rate",
+		"element": "water", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	"earth_spawn_rate": {
+		"name": "Erdrutsch", "description": "+30% Erd-Gegner in Wellen",
+		"icon": "🪨", "category": "wave", "stat": "spawn_rate",
+		"element": "earth", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	"air_spawn_rate": {
+		"name": "Sturm", "description": "+30% Luft-Gegner in Wellen",
+		"icon": "💨", "category": "wave", "stat": "spawn_rate",
+		"element": "air", "bonus": 0.30, "stackable": true, "max_stacks": 3
+	},
+	
+	# === NEU: ELEMENT-DAMAGE ===
+	"fire_damage": {
+		"name": "Pyromanie", "description": "+15% Schaden für Feuer-Türme",
+		"icon": "🔥", "category": "element", "stat": "damage",
+		"element": "fire", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	"water_damage": {
+		"name": "Sturmflut", "description": "+15% Schaden für Wasser-Türme",
+		"icon": "🌊", "category": "element", "stat": "damage",
+		"element": "water", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	"earth_damage": {
+		"name": "Seismik", "description": "+15% Schaden für Erd-Türme",
+		"icon": "⛰️", "category": "element", "stat": "damage",
+		"element": "earth", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	"air_damage": {
+		"name": "Wirbelwind", "description": "+15% Schaden für Luft-Türme",
+		"icon": "🌪️", "category": "element", "stat": "damage",
+		"element": "air", "bonus": 0.15, "stackable": true, "max_stacks": 4
+	},
+	
+	# === SPEZIAL ===
+	"crit_chance": {
+		"name": "Präzision", "description": "10% Chance auf Crit (+50% Schaden)",
+		"icon": "🎯", "category": "special", "stat": "crit_chance",
+		"bonus": 0.10, "stackable": true, "max_stacks": 3
+	},
+	"splash_bonus": {
+		"name": "Explosiv", "description": "+20% Splash-Radius",
+		"icon": "💥", "category": "special", "stat": "splash",
+		"bonus": 0.20, "stackable": true, "max_stacks": 3
+	},
+	
+	# === TOWER-TYPE SPEZIFISCH ===
+	"archer_damage": {
+		"name": "Bogenschule", "description": "+20% Schaden für Bogenschützen",
+		"icon": "🏹", "category": "tower_type", "stat": "damage",
+		"tower_type": "archer", "bonus": 0.20, "stackable": true, "max_stacks": 3
+	},
+	"wizard_damage": {
+		"name": "Arkane Macht", "description": "+20% Schaden für Zauberer",
+		"icon": "🔮", "category": "tower_type", "stat": "damage",
+		"tower_type": "wizard", "bonus": 0.20, "stackable": true, "max_stacks": 3
+	},
+	"catapult_damage": {
+		"name": "Belagerung", "description": "+20% Schaden für Katapulte",
+		"icon": "🎪", "category": "tower_type", "stat": "damage",
+		"tower_type": "catapult", "bonus": 0.20, "stackable": true, "max_stacks": 3
+	},
+	"sword_damage": {
+		"name": "Klingentanz", "description": "+20% Schaden für Schwertkämpfer",
+		"icon": "⚔️", "category": "tower_type", "stat": "damage",
+		"tower_type": "sword", "bonus": 0.20, "stackable": true, "max_stacks": 3
+	}
 }
 
 var rng := RandomNumberGenerator.new()

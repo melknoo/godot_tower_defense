@@ -10,6 +10,7 @@ var icons := {
 	# Ressourcen
 	"gold": "gold.png",
 	"coin": "coin.png",
+	"close": "close.png",
 	"life": "life.png",
 	"supply": "supply.png",
 	"upgrades": "upgrades.png",

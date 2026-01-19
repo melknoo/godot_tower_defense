@@ -15,7 +15,7 @@ var detail_panel: PanelContainer
 var detail_name: Label
 var detail_desc: Label
 var detail_rarity: Label
-var detail_allowed: RichTextLabel  # Geändert zu RichTextLabel für BBCode
+var detail_allowed: Label
 var sell_button: Button
 
 var selected_item: Dictionary = {}
@@ -137,7 +137,7 @@ func _setup_ui() -> void:
 		UITheme.style_button(close_button)
 	close_button.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
 	
-	# Detail Panel rechts
+	# Detail Panel
 	_setup_detail_panel()
 	
 	# Drag Preview
@@ -150,8 +150,7 @@ func _setup_ui() -> void:
 
 func _setup_detail_panel() -> void:
 	detail_panel = PanelContainer.new()
-	detail_panel.position = Vector2(340, 100)
-	detail_panel.custom_minimum_size = Vector2(200, 0)  # Höhe dynamisch
+	detail_panel.custom_minimum_size = Vector2(200, 150)
 	detail_panel.visible = false
 	add_child(detail_panel)
 	
@@ -169,11 +168,42 @@ func _setup_detail_panel() -> void:
 	vbox.add_theme_constant_override("separation", 6)
 	margin.add_child(vbox)
 	
+	# Header mit Close Button
+	var header := HBoxContainer.new()
+	vbox.add_child(header)
+	
 	detail_name = Label.new()
+	detail_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if UITheme and UITheme.game_font:
 		detail_name.add_theme_font_override("font", UITheme.game_font)
 	detail_name.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(detail_name)
+	header.add_child(detail_name)
+	
+	# Close Button rechts im Header
+	var close_btn := Button.new()
+	close_btn.text = ""
+	close_btn.icon = IconSystem.get_texture("close")
+	close_btn.custom_minimum_size = Vector2(24, 24)
+	close_btn.pressed.connect(_on_detail_close_pressed)
+	close_btn.flat = true
+	header.add_child(close_btn)
+	
+	# Icon-Farbe für Hover-Effekt
+	close_btn.add_theme_color_override("icon_normal_color", Color(0.3, 0.3, 0.3))
+	close_btn.add_theme_color_override("icon_hover_color", Color(0.8, 0.2, 0.2))
+	close_btn.add_theme_color_override("icon_pressed_color", Color(0.6, 0.1, 0.1))
+	
+	# Transparenter Hintergrund
+	var transparent_style := StyleBoxFlat.new()
+	transparent_style.bg_color = Color(0, 0, 0, 0)
+	transparent_style.content_margin_left = 3
+	transparent_style.content_margin_right = 0
+	transparent_style.content_margin_top = 0
+	transparent_style.content_margin_bottom = 0
+	close_btn.add_theme_stylebox_override("normal", transparent_style)
+	close_btn.add_theme_stylebox_override("hover", transparent_style)
+	close_btn.add_theme_stylebox_override("pressed", transparent_style)
+	close_btn.add_theme_stylebox_override("focus", transparent_style)
 	
 	detail_rarity = Label.new()
 	if UITheme and UITheme.game_font:
@@ -233,17 +263,15 @@ func _setup_detail_panel() -> void:
 	
 	sell_button.add_theme_color_override("font_color", Color(1.0, 0.9, 0.8))
 	sell_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.9))
-	sell_button.visible = false  # Nur bei Auswahl sichtbar
+	sell_button.visible = false
 	
-	detail_allowed = RichTextLabel.new()
-	detail_allowed.bbcode_enabled = true
-	detail_allowed.fit_content = true
-	detail_allowed.scroll_active = false
+	detail_allowed = Label.new()
+	detail_allowed.autowrap_mode = TextServer.AUTOWRAP_WORD
 	detail_allowed.custom_minimum_size = Vector2(170, 0)
 	if UITheme and UITheme.game_font:
-		detail_allowed.add_theme_font_override("normal_font", UITheme.game_font)
-	detail_allowed.add_theme_font_size_override("normal_font_size", 9)
-	detail_allowed.add_theme_color_override("default_color", Color(0.4, 0.4, 0.4))
+		detail_allowed.add_theme_font_override("font", UITheme.game_font)
+	detail_allowed.add_theme_font_size_override("font_size", 9)
+	detail_allowed.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	vbox.add_child(detail_allowed)
 
 
@@ -268,6 +296,141 @@ func hide_panel() -> void:
 	panel_closed.emit()
 
 
+func _show_sell_feedback(amount: int) -> void:
+	var feedback := Label.new()
+	feedback.text = "+%d" % amount
+	feedback.add_theme_font_size_override("font_size", 16)
+	feedback.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	feedback.add_theme_constant_override("outline_size", 2)
+	
+	if UITheme and UITheme.game_font:
+		feedback.add_theme_font_override("font", UITheme.game_font)
+	
+	feedback.position = detail_panel.position + Vector2(detail_panel.size.x / 2 - 20, -10)
+	add_child(feedback)
+	
+	var tween := feedback.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(feedback, "position:y", feedback.position.y - 40, 0.6)
+	tween.tween_property(feedback, "modulate:a", 0.0, 0.6).set_delay(0.2)
+	tween.chain().tween_callback(feedback.queue_free)
+
+
+func _clear_selection_visuals() -> void:
+	for slot in grid_container.get_children():
+		if slot.has_meta("style") and slot.has_meta("item"):
+			var style: StyleBoxFlat = slot.get_meta("style")
+			var item: Dictionary = slot.get_meta("item")
+			
+			# Border zurücksetzen
+			style.border_width_left = 1
+			style.border_width_right = 1
+			style.border_width_top = 1
+			style.border_width_bottom = 1
+			style.border_color = item.get("color", Color.WHITE).darkened(0.3)
+			
+			# Hintergrund zurücksetzen
+			style.bg_color = Color(0.15, 0.15, 0.18)
+
+
+func _show_item_detail(item: Dictionary) -> void:
+	detail_panel.visible = true
+	
+	var rarity_color: Color = item.get("color", Color.WHITE)
+	var rarity: String = item.get("rarity", "common")
+	
+	# Common Items dunkler darstellen
+	if rarity == "common":
+		rarity_color = rarity_color.darkened(0.3)
+	
+	detail_name.text = item.get("name", "Item")
+	detail_name.add_theme_color_override("font_color", rarity_color)
+	
+	detail_rarity.text = RARITY_NAMES.get(rarity, rarity.capitalize())
+	detail_rarity.add_theme_color_override("font_color", rarity_color.darkened(0.2))
+	
+	detail_desc.text = item.get("description", "")
+	
+	var allowed: Array = item.get("allowed_towers", [])
+	if allowed.is_empty():
+		detail_allowed.text = "Kann auf alle Türme"
+	else:
+		var names: Array[String] = []
+		for t in allowed:
+			names.append(t.capitalize())
+		detail_allowed.text = "Nur: " + ", ".join(names)
+	
+	if sell_button:
+		var sell_price: int = SELL_PRICES.get(rarity, 10)
+		sell_button.text = "Verkaufen (%d)" % [sell_price]
+		sell_button.icon = IconSystem.get_texture("gold")
+		sell_button.visible = true
+
+
+func get_selected_item() -> Dictionary:
+	return selected_item
+
+
+func has_selection() -> bool:
+	return not selected_item.is_empty()
+
+
+func _on_close_pressed() -> void:
+	Sound.play_click()
+	hide_panel()
+
+
+func _on_detail_close_pressed() -> void:
+	Sound.play_click()
+	deselect_item()
+
+
+func _on_bg_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var panel_rect := panel.get_global_rect()
+		var detail_rect := detail_panel.get_global_rect() if detail_panel.visible else Rect2()
+		var mouse_pos := get_viewport().get_mouse_position()
+		
+		if not panel_rect.has_point(mouse_pos) and not detail_rect.has_point(mouse_pos):
+			hide_panel()
+
+
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_ESCAPE or event.keycode == KEY_I:
+			hide_panel()
+			get_viewport().set_input_as_handled()
+
+
+func _on_sell_pressed() -> void:
+	if selected_item.is_empty():
+		return
+	
+	var uid: String = selected_item.get("uid", "")
+	if uid == "":
+		return
+	
+	var rarity: String = selected_item.get("rarity", "common")
+	var sell_price: int = SELL_PRICES.get(rarity, 10)
+	
+	if ItemSystem:
+		ItemSystem.remove_item(uid)
+	
+	GameState.gold += sell_price
+	Sound.play_sell()
+	_show_sell_feedback(sell_price)
+	
+	selected_item = {}
+	detail_panel.visible = false
+	_clear_selection_visuals()
+	
+	print("[ItemInventoryUI] Item verkauft für %d Gold" % sell_price)
+
+
 func toggle_panel() -> void:
 	if visible:
 		hide_panel()
@@ -276,32 +439,31 @@ func toggle_panel() -> void:
 
 
 func _refresh_inventory() -> void:
-	if not ItemSystem:
-		return
-	
-	# Clear Grid
 	for child in grid_container.get_children():
 		child.queue_free()
 	
-	var inv: Array[Dictionary] = ItemSystem.get_inventory()
-	count_label.text = "%d / %d" % [inv.size(), ItemSystem.MAX_INVENTORY]
+	if not ItemSystem:
+		return
 	
-	# Erstelle Slots
-	for item in inv:
-		var slot := _create_item_slot(item)
+	var inventory := ItemSystem.get_inventory()
+	count_label.text = "%d / %d" % [inventory.size(), ItemSystem.MAX_INVENTORY]
+	
+	for i in range(ItemSystem.MAX_INVENTORY):
+		var slot := _create_item_slot(i)
 		grid_container.add_child(slot)
+		
+		if i < inventory.size():
+			_fill_slot(slot, inventory[i])
 
 
-func _create_item_slot(item: Dictionary) -> PanelContainer:
+func _create_item_slot(index: int) -> PanelContainer:
 	var slot := PanelContainer.new()
-	slot.mouse_filter = Control.MOUSE_FILTER_STOP
 	slot.custom_minimum_size = Vector2(SLOT_SIZE, SLOT_SIZE)
-	
-	var rarity_color: Color = item.get("color", Color.WHITE)
+	slot.name = "Slot_%d" % index
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.15, 0.15, 0.18)
-	style.border_color = rarity_color.darkened(0.3)
+	style.border_color = Color(0.3, 0.3, 0.35)
 	style.border_width_left = 1
 	style.border_width_right = 1
 	style.border_width_top = 1
@@ -312,10 +474,19 @@ func _create_item_slot(item: Dictionary) -> PanelContainer:
 	style.corner_radius_bottom_right = 4
 	slot.add_theme_stylebox_override("panel", style)
 	
-	slot.set_meta("item", item)
 	slot.set_meta("style", style)
+	slot.set_meta("index", index)
 	
-	# Icon
+	return slot
+
+
+func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
+	slot.set_meta("item", item)
+	
+	var style: StyleBoxFlat = slot.get_meta("style")
+	var rarity_color: Color = item.get("color", Color.WHITE)
+	style.border_color = rarity_color.darkened(0.3)
+	
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -334,7 +505,6 @@ func _create_item_slot(item: Dictionary) -> PanelContainer:
 	
 	center.add_child(tex_rect)
 	
-	# Rarity Dot
 	var dot := Label.new()
 	dot.text = "●"
 	dot.position = Vector2(2, 2)
@@ -343,12 +513,9 @@ func _create_item_slot(item: Dictionary) -> PanelContainer:
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(dot)
 	
-	# Interaktion
 	slot.gui_input.connect(_on_slot_input.bind(slot))
 	slot.mouse_entered.connect(_on_slot_hover.bind(slot, true))
 	slot.mouse_exited.connect(_on_slot_hover.bind(slot, false))
-	
-	return slot
 
 
 func _on_slot_input(event: InputEvent, slot: PanelContainer) -> void:
@@ -356,9 +523,17 @@ func _on_slot_input(event: InputEvent, slot: PanelContainer) -> void:
 		return
 	
 	if event is InputEventMouseButton and event.pressed:
+		var item: Dictionary = slot.get_meta("item")
+		
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			var item: Dictionary = slot.get_meta("item")
 			_select_item(item, slot)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			# Rechtsklick: Deselektieren wenn es das ausgewählte Item ist
+			if selected_item.get("uid") == item.get("uid"):
+				deselect_item()
+				Sound.play_click()
+				get_viewport().set_input_as_handled()
 
 
 func _on_slot_hover(slot: PanelContainer, entered: bool) -> void:
@@ -367,40 +542,90 @@ func _on_slot_hover(slot: PanelContainer, entered: bool) -> void:
 	
 	var style: StyleBoxFlat = slot.get_meta("style")
 	var item: Dictionary = slot.get_meta("item")
-	var rarity_color: Color = item.get("color", Color.WHITE)
+	
+	# Nicht hovern wenn es das ausgewählte Item ist
+	var is_selected: bool = selected_item.get("uid") == item.get("uid")
 	
 	if entered:
-		style.bg_color = Color(0.25, 0.25, 0.3)
-		_show_item_detail(item)
+		# Nur Hover-Farbe wenn nicht ausgewählt
+		if not is_selected:
+			style.bg_color = Color(0.25, 0.25, 0.3)
+		# Nur Detail anzeigen wenn nichts ausgewählt ist
+		if selected_item.is_empty():
+			_show_item_detail(item)
+			_position_detail_panel_at_slot(slot)
 	else:
-		style.bg_color = Color(0.15, 0.15, 0.18)
-		if selected_item.get("uid") != item.get("uid"):
+		# Nur Farbe zurücksetzen wenn nicht ausgewählt
+		if not is_selected:
+			style.bg_color = Color(0.15, 0.15, 0.18)
+		# Detail-Panel nur schließen wenn kein Item ausgewählt ist
+		if selected_item.is_empty():
 			detail_panel.visible = false
 
 
 func _select_item(item: Dictionary, slot: PanelContainer) -> void:
-	# Deselect previous
 	_clear_selection_visuals()
 	
 	if selected_item.get("uid") == item.get("uid"):
-		# Toggle off
 		selected_item = {}
 		detail_panel.visible = false
 		return
 	
 	selected_item = item
 	
-	# Visual feedback
 	var style: StyleBoxFlat = slot.get_meta("style")
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = item.get("color", Color.WHITE)
+	var rarity_color: Color = item.get("color", Color.WHITE)
+	
+	# Dickerer, hellerer Border
+	style.border_width_left = 3
+	style.border_width_right = 3
+	style.border_width_top = 3
+	style.border_width_bottom = 3
+	style.border_color = rarity_color.lightened(0.3)
+	
+	# Hellerer Hintergrund
+	style.bg_color = Color(0.25, 0.25, 0.3)
 	
 	_show_item_detail(item)
+	
+	# Position Detail-Panel neben dem Slot
+	_position_detail_panel_at_slot(slot)
+	
 	item_selected.emit(item)
 	Sound.play_click()
+
+
+func _position_detail_panel_at_slot(slot: PanelContainer) -> void:
+	# Warte einen Frame damit die Sizes aktualisiert sind
+	await get_tree().process_frame
+	
+	# Prüfe ob Slot noch existiert (könnte zwischenzeitlich gelöscht worden sein)
+	if not is_instance_valid(slot) or not slot.is_inside_tree():
+		detail_panel.visible = false
+		return
+	
+	# Globale Position des Slots
+	var slot_global_pos := slot.global_position
+	var slot_size := slot.size
+	
+	# Detail-Panel an bottom-right corner des Slots
+	var new_x := slot_global_pos.x + slot_size.x - 10  # 10px nach links für leichte Überlappung
+	var new_y := slot_global_pos.y + slot_size.y - 10  # 10px nach oben für leichte Überlappung
+	
+	# Viewport-Größe prüfen für Overflow-Schutz
+	var viewport_size := get_viewport().get_visible_rect().size
+	var panel_width: float = detail_panel.size.x if detail_panel.size.x > 0 else 200.0
+	var panel_height: float = detail_panel.size.y if detail_panel.size.y > 0 else 200.0
+	
+	# Falls Panel rechts rausgeht, links vom Slot anzeigen
+	if new_x + panel_width > viewport_size.x - 20:
+		new_x = slot_global_pos.x - panel_width + 10
+	
+	# Falls Panel unten rausgeht, nach oben verschieben
+	if new_y + panel_height > viewport_size.y - 20:
+		new_y = slot_global_pos.y - panel_height + 10
+	
+	detail_panel.position = Vector2(new_x, new_y)
 
 
 func deselect_item() -> void:
@@ -409,139 +634,3 @@ func deselect_item() -> void:
 	detail_panel.visible = false
 	if sell_button:
 		sell_button.visible = false
-
-
-func _clear_selection_visuals() -> void:
-	for slot in grid_container.get_children():
-		if slot.has_meta("style") and slot.has_meta("item"):
-			var style: StyleBoxFlat = slot.get_meta("style")
-			var item: Dictionary = slot.get_meta("item")
-			style.border_width_left = 1
-			style.border_width_right = 1
-			style.border_width_top = 1
-			style.border_width_bottom = 1
-			style.border_color = item.get("color", Color.WHITE).darkened(0.3)
-
-
-func _show_item_detail(item: Dictionary) -> void:
-	detail_panel.visible = true
-	
-	var rarity_color: Color = item.get("color", Color.WHITE)
-	var rarity: String = item.get("rarity", "common")
-	
-	detail_name.text = item.get("name", "Item")
-	detail_name.add_theme_color_override("font_color", rarity_color)
-	
-	detail_rarity.text = RARITY_NAMES.get(rarity, rarity.capitalize())
-	detail_rarity.add_theme_color_override("font_color", rarity_color.darkened(0.2))
-	
-	detail_desc.text = item.get("description", "")
-	
-	var allowed: Array = item.get("allowed_towers", [])
-	if allowed.is_empty():
-		detail_allowed.text = "Kann auf alle Türme"
-	else:
-		var names: Array[String] = []
-		for t in allowed:
-			# Element-Icon hinzufügen wenn verfügbar
-			var icon := ""
-			if IconSystem and IconSystem.get_texture(t) != null:
-				icon = IconSystem.bb(t, 10) + " "
-			names.append(icon + t.capitalize())
-		detail_allowed.text = "Nur: " + ", ".join(names)
-	
-	if sell_button:
-		var sell_price: int = SELL_PRICES.get(rarity, 10)
-		sell_button.text = "Verkaufen (%d)" % [sell_price]
-		sell_button.icon = IconSystem.get_texture("gold")
-		sell_button.visible = true
-	
-	# Panel-Größe nach Text-Update aktualisieren
-	await get_tree().process_frame
-	detail_panel.size = Vector2.ZERO
-	detail_panel.reset_size()
-
-
-func _show_sell_feedback(amount: int) -> void:
-	var feedback := Label.new()
-	feedback.text = "+%d" % amount
-	feedback.add_theme_font_size_override("font_size", 16)
-	feedback.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	feedback.add_theme_constant_override("outline_size", 2)
-	
-	if UITheme and UITheme.game_font:
-		feedback.add_theme_font_override("font", UITheme.game_font)
-	
-	# Position über dem Detail-Panel
-	feedback.position = detail_panel.position + Vector2(detail_panel.size.x / 2 - 20, -10)
-	add_child(feedback)
-	
-	# Animation: nach oben fliegen und ausblenden
-	var tween := feedback.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(feedback, "position:y", feedback.position.y - 40, 0.6)
-	tween.tween_property(feedback, "modulate:a", 0.0, 0.6).set_delay(0.2)
-	tween.chain().tween_callback(feedback.queue_free)
-
-
-func _on_sell_pressed() -> void:
-	if selected_item.is_empty():
-		return
-	
-	var rarity: String = selected_item.get("rarity", "common")
-	var sell_price: int = SELL_PRICES.get(rarity, 10)
-	
-	# Item verkaufen
-	var uid: String = selected_item.get("uid", "")
-	if uid.is_empty():
-		return
-	
-	# Item aus Inventar entfernen
-	ItemSystem.remove_item(uid)
-	
-	# Gold hinzufügen
-	if GameState:
-		GameState.gold += sell_price
-	
-	# Feedback zeigen
-	Sound.play_sell()
-	_show_sell_feedback(sell_price)
-	
-	# UI aktualisieren
-	deselect_item()
-	_refresh_inventory()
-
-
-func get_selected_item() -> Dictionary:
-	return selected_item
-
-
-func has_selection() -> bool:
-	return not selected_item.is_empty()
-
-
-func _on_close_pressed() -> void:
-	Sound.play_click()
-	hide_panel()
-
-
-func _on_bg_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		# Klick außerhalb des Panels
-		var panel_rect := panel.get_global_rect()
-		var detail_rect := detail_panel.get_global_rect() if detail_panel.visible else Rect2()
-		var mouse_pos := get_viewport().get_mouse_position()
-		
-		if not panel_rect.has_point(mouse_pos) and not detail_rect.has_point(mouse_pos):
-			hide_panel()
-
-
-func _input(event: InputEvent) -> void:
-	if not visible:
-		return
-	
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_ESCAPE or event.keycode == KEY_I:
-			hide_panel()
-			get_viewport().set_input_as_handled()

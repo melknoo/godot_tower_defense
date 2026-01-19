@@ -832,7 +832,7 @@ func _on_upgrade_chosen(upgrade_id: String) -> void:
 		tower_manager.refresh_farm_supply_bonuses()
 		if hud:
 			hud._on_supply_changed(GameState.supply_used, GameState.supply_max)
-
+			
 	tower_shop._create_tower_buttons()
 	
 	if pending_element_core:
