@@ -7,7 +7,6 @@ signal item_selected(item: Dictionary)
 signal panel_closed
 
 var panel: PanelContainer
-#var title_label: Label
 var title_label = IconSystem
 var count_label: Label
 var grid_container: GridContainer
@@ -16,9 +15,8 @@ var detail_panel: PanelContainer
 var detail_name: Label
 var detail_desc: Label
 var detail_rarity: Label
-var detail_allowed: Label
+var detail_allowed: RichTextLabel  # Geändert zu RichTextLabel für BBCode
 var sell_button: Button
-
 
 var selected_item: Dictionary = {}
 var is_dragging := false
@@ -82,9 +80,7 @@ func _setup_ui() -> void:
 	var header := HBoxContainer.new()
 	vbox.add_child(header)
 	
-	#title_label = Label.new()
 	title_label = title_label.create_rich_label(200, 20)
-	#title_label.text = "📦 Inventar"
 	title_label.text = "%s Inventar" % IconSystem.bb("inventory", 18)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if UITheme and UITheme.game_font:
@@ -155,7 +151,7 @@ func _setup_ui() -> void:
 func _setup_detail_panel() -> void:
 	detail_panel = PanelContainer.new()
 	detail_panel.position = Vector2(340, 100)
-	detail_panel.custom_minimum_size = Vector2(200, 150)
+	detail_panel.custom_minimum_size = Vector2(200, 0)  # Höhe dynamisch
 	detail_panel.visible = false
 	add_child(detail_panel)
 	
@@ -239,13 +235,15 @@ func _setup_detail_panel() -> void:
 	sell_button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.9))
 	sell_button.visible = false  # Nur bei Auswahl sichtbar
 	
-	detail_allowed = Label.new()
-	detail_allowed.autowrap_mode = TextServer.AUTOWRAP_WORD
+	detail_allowed = RichTextLabel.new()
+	detail_allowed.bbcode_enabled = true
+	detail_allowed.fit_content = true
+	detail_allowed.scroll_active = false
 	detail_allowed.custom_minimum_size = Vector2(170, 0)
 	if UITheme and UITheme.game_font:
-		detail_allowed.add_theme_font_override("font", UITheme.game_font)
-	detail_allowed.add_theme_font_size_override("font_size", 9)
-	detail_allowed.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+		detail_allowed.add_theme_font_override("normal_font", UITheme.game_font)
+	detail_allowed.add_theme_font_size_override("normal_font_size", 9)
+	detail_allowed.add_theme_color_override("default_color", Color(0.4, 0.4, 0.4))
 	vbox.add_child(detail_allowed)
 
 
@@ -270,61 +268,6 @@ func hide_panel() -> void:
 	panel_closed.emit()
 
 
-func _show_sell_feedback(amount: int) -> void:
-	var feedback := Label.new()
-	feedback.text = "+%d" % amount
-	feedback.add_theme_font_size_override("font_size", 16)
-	feedback.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	feedback.add_theme_constant_override("outline_size", 2)
-	
-	if UITheme and UITheme.game_font:
-		feedback.add_theme_font_override("font", UITheme.game_font)
-	
-	# Position über dem Detail-Panel
-	feedback.position = detail_panel.position + Vector2(detail_panel.size.x / 2 - 20, -10)
-	add_child(feedback)
-	
-	# Animation: nach oben fliegen und ausblenden
-	var tween := feedback.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(feedback, "position:y", feedback.position.y - 40, 0.6)
-	tween.tween_property(feedback, "modulate:a", 0.0, 0.6).set_delay(0.2)
-	tween.chain().tween_callback(feedback.queue_free)
-
-
-func _on_sell_pressed() -> void:
-	if selected_item.is_empty():
-		return
-	
-	var uid: String = selected_item.get("uid", "")
-	if uid == "":
-		return
-	
-	var rarity: String = selected_item.get("rarity", "common")
-	var sell_price: int = SELL_PRICES.get(rarity, 10)
-	
-	# Item aus Inventar entfernen
-	if ItemSystem:
-		ItemSystem.remove_item(uid)
-	
-	# Gold hinzufügen
-	GameState.gold += sell_price
-	
-	# Feedback
-	Sound.play_sell()
-	
-	# VFX: Gold-Text am Button
-	_show_sell_feedback(sell_price)
-	
-	# Auswahl zurücksetzen
-	selected_item = {}
-	detail_panel.visible = false
-	_clear_selection_visuals()
-	
-	print("[ItemInventoryUI] Item verkauft für %d Gold" % sell_price)
-
-
 func toggle_panel() -> void:
 	if visible:
 		hide_panel()
@@ -333,33 +276,32 @@ func toggle_panel() -> void:
 
 
 func _refresh_inventory() -> void:
-	# Clear grid
-	for child in grid_container.get_children():
-		child.queue_free()
-	
 	if not ItemSystem:
 		return
 	
-	var inventory := ItemSystem.get_inventory()
-	count_label.text = "%d / %d" % [inventory.size(), ItemSystem.MAX_INVENTORY]
+	# Clear Grid
+	for child in grid_container.get_children():
+		child.queue_free()
 	
-	# Create slots
-	for i in range(ItemSystem.MAX_INVENTORY):
-		var slot := _create_item_slot(i)
+	var inv: Array[Dictionary] = ItemSystem.get_inventory()
+	count_label.text = "%d / %d" % [inv.size(), ItemSystem.MAX_INVENTORY]
+	
+	# Erstelle Slots
+	for item in inv:
+		var slot := _create_item_slot(item)
 		grid_container.add_child(slot)
-		
-		if i < inventory.size():
-			_fill_slot(slot, inventory[i])
 
 
-func _create_item_slot(index: int) -> PanelContainer:
+func _create_item_slot(item: Dictionary) -> PanelContainer:
 	var slot := PanelContainer.new()
+	slot.mouse_filter = Control.MOUSE_FILTER_STOP
 	slot.custom_minimum_size = Vector2(SLOT_SIZE, SLOT_SIZE)
-	slot.name = "Slot_%d" % index
+	
+	var rarity_color: Color = item.get("color", Color.WHITE)
 	
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.15, 0.15, 0.18)
-	style.border_color = Color(0.3, 0.3, 0.35)
+	style.border_color = rarity_color.darkened(0.3)
 	style.border_width_left = 1
 	style.border_width_right = 1
 	style.border_width_top = 1
@@ -370,26 +312,15 @@ func _create_item_slot(index: int) -> PanelContainer:
 	style.corner_radius_bottom_right = 4
 	slot.add_theme_stylebox_override("panel", style)
 	
-	slot.set_meta("style", style)
-	slot.set_meta("index", index)
-	
-	return slot
-
-
-func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
 	slot.set_meta("item", item)
+	slot.set_meta("style", style)
 	
-	var style: StyleBoxFlat = slot.get_meta("style")
-	var rarity_color: Color = item.get("color", Color.WHITE)
-	style.border_color = rarity_color.darkened(0.3)
-	
-	# Icon Container
+	# Icon
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(center)
 	
-	# Item Sprite
 	var tex_rect := TextureRect.new()
 	tex_rect.custom_minimum_size = Vector2(32, 32)
 	tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
@@ -416,6 +347,8 @@ func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
 	slot.gui_input.connect(_on_slot_input.bind(slot))
 	slot.mouse_entered.connect(_on_slot_hover.bind(slot, true))
 	slot.mouse_exited.connect(_on_slot_hover.bind(slot, false))
+	
+	return slot
 
 
 func _on_slot_input(event: InputEvent, slot: PanelContainer) -> void:
@@ -510,13 +443,74 @@ func _show_item_detail(item: Dictionary) -> void:
 	else:
 		var names: Array[String] = []
 		for t in allowed:
-			names.append(t.capitalize())
+			# Element-Icon hinzufügen wenn verfügbar
+			var icon := ""
+			if IconSystem and IconSystem.get_texture(t) != null:
+				icon = IconSystem.bb(t, 10) + " "
+			names.append(icon + t.capitalize())
 		detail_allowed.text = "Nur: " + ", ".join(names)
+	
 	if sell_button:
 		var sell_price: int = SELL_PRICES.get(rarity, 10)
-		sell_button.text = "Verkaufen (%d)" % [ sell_price]
+		sell_button.text = "Verkaufen (%d)" % [sell_price]
 		sell_button.icon = IconSystem.get_texture("gold")
 		sell_button.visible = true
+	
+	# Panel-Größe nach Text-Update aktualisieren
+	await get_tree().process_frame
+	detail_panel.size = Vector2.ZERO
+	detail_panel.reset_size()
+
+
+func _show_sell_feedback(amount: int) -> void:
+	var feedback := Label.new()
+	feedback.text = "+%d" % amount
+	feedback.add_theme_font_size_override("font_size", 16)
+	feedback.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	feedback.add_theme_constant_override("outline_size", 2)
+	
+	if UITheme and UITheme.game_font:
+		feedback.add_theme_font_override("font", UITheme.game_font)
+	
+	# Position über dem Detail-Panel
+	feedback.position = detail_panel.position + Vector2(detail_panel.size.x / 2 - 20, -10)
+	add_child(feedback)
+	
+	# Animation: nach oben fliegen und ausblenden
+	var tween := feedback.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(feedback, "position:y", feedback.position.y - 40, 0.6)
+	tween.tween_property(feedback, "modulate:a", 0.0, 0.6).set_delay(0.2)
+	tween.chain().tween_callback(feedback.queue_free)
+
+
+func _on_sell_pressed() -> void:
+	if selected_item.is_empty():
+		return
+	
+	var rarity: String = selected_item.get("rarity", "common")
+	var sell_price: int = SELL_PRICES.get(rarity, 10)
+	
+	# Item verkaufen
+	var uid: String = selected_item.get("uid", "")
+	if uid.is_empty():
+		return
+	
+	# Item aus Inventar entfernen
+	ItemSystem.remove_item(uid)
+	
+	# Gold hinzufügen
+	if GameState:
+		GameState.gold += sell_price
+	
+	# Feedback zeigen
+	Sound.play_sell()
+	_show_sell_feedback(sell_price)
+	
+	# UI aktualisieren
+	deselect_item()
+	_refresh_inventory()
 
 
 func get_selected_item() -> Dictionary:

@@ -73,6 +73,33 @@ func has_blocked_towers() -> bool:
 	return blocked_tower_positions.size() > 0
 
 
+func refresh_farm_supply_bonuses() -> void:
+	"""Berechnet alle Farm Supply-Boni neu (für Perk-Updates)"""
+	var total_farm_bonus := 0
+	
+	for grid_pos in placed_towers:
+		var tower: Node2D = placed_towers[grid_pos]
+		if TowerData.is_supply_building(tower.tower_type):
+			var bonus := TowerData.get_supply_bonus(tower.tower_type)
+			total_farm_bonus += bonus
+	
+	# Setze supply_max neu basierend auf allen Farmen
+	var base_supply := GameState.STARTING_MAX_SUPPLY
+	GameState.supply_max = base_supply + total_farm_bonus
+	GameState.supply_changed.emit(GameState.supply_used, GameState.supply_max)
+	
+	print("[TowerManager] Farm-Boni neu berechnet: %d Supply von %d Farmen" % [total_farm_bonus, get_farm_count()])
+
+
+func get_farm_count() -> int:
+	var count := 0
+	for grid_pos in placed_towers:
+		var tower: Node2D = placed_towers[grid_pos]
+		if TowerData.is_supply_building(tower.tower_type):
+			count += 1
+	return count
+	
+
 func can_place_at(grid_pos: Vector2i, tower_type: String) -> bool:
 	if grid_pos.x < 0 or grid_pos.x >= map_width:
 		return false
