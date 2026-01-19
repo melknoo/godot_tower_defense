@@ -371,6 +371,12 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		stack_info.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 		vbox.add_child(stack_info)
 	
+	# Spacer - drückt Button nach unten
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer.custom_minimum_size.y = 5  # Mindestabstand
+	vbox.add_child(spacer)
+	
 	# Button
 	var btn := Button.new()
 	btn.text = "Wählen"
