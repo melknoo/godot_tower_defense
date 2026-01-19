@@ -1,11 +1,12 @@
 # ui/element_unlock_ui.gd
 # Panel zum Investieren von Element-Kernen in Elemente
-extends PanelContainer
+extends CanvasLayer
 class_name ElementUnlockUI
 
 signal element_selected(element: String)
 signal panel_closed
 
+var panel: PanelContainer
 var title_label: Label
 var cores_label: Label
 var elements_container: HBoxContainer
@@ -35,25 +36,46 @@ func _load_element_textures() -> void:
 
 
 func _ready() -> void:
+	layer = 100
 	visible = false
 	_load_element_textures()
-	_setup_panel()
 	_setup_ui()
 	_connect_signals()
 
 
-func _setup_panel() -> void:
-	custom_minimum_size = Vector2(480, 260)
+func _setup_ui() -> void:
+	# Hintergrund zum Klick-Abfangen
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.5)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	bg.gui_input.connect(_on_bg_input)
+	add_child(bg)
+	
+	# Hauptpanel zentriert
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE  # WICHTIG: Events durchlassen!
+	add_child(center)
+	
+	panel = PanelContainer.new()
+	panel.custom_minimum_size = Vector2(480, 260)
+	center.add_child(panel)
 	
 	# Benutze UITheme für konsistentes Aussehen
 	if UITheme:
-		UITheme.style_panel(self, "panel_dark")
-
-
-func _setup_ui() -> void:
+		UITheme.style_panel(panel, "panel_dark")
+	
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 15)
+	margin.add_theme_constant_override("margin_right", 15)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	panel.add_child(margin)
+	
 	vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 12)
-	add_child(vbox)
+	margin.add_child(vbox)
 	
 	# Titel
 	title_label = Label.new()
@@ -88,15 +110,15 @@ func _setup_ui() -> void:
 	vbox.add_child(info_label)
 	
 	# CenterContainer für die Buttons
-	var center := CenterContainer.new()
-	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(center)
+	var center_btn := CenterContainer.new()
+	center_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(center_btn)
 	
 	# Elements Container
 	elements_container = HBoxContainer.new()
 	elements_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	elements_container.add_theme_constant_override("separation", 12)
-	center.add_child(elements_container)
+	center_btn.add_child(elements_container)
 	
 	# Spacer
 	var spacer := Control.new()
@@ -112,7 +134,6 @@ func _setup_ui() -> void:
 	if UITheme:
 		UITheme.style_button(close_button)
 		UITheme.style_button_colors(close_button)
-	
 	
 	var btn_container := CenterContainer.new()
 	btn_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -148,10 +169,19 @@ func show_panel() -> void:
 	_update_cores_display()
 	_create_element_buttons()
 	visible = true
+	
+	panel.modulate.a = 0
+	panel.scale = Vector2(0.9, 0.9)
+	var tween: Tween = panel.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.15)
+	tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func hide_panel() -> void:
-	visible = false
+	var tween: Tween = panel.create_tween()
+	tween.tween_property(panel, "modulate:a", 0.0, 0.1)
+	tween.tween_callback(func(): visible = false)
 	panel_closed.emit()
 
 
@@ -177,6 +207,7 @@ func _create_element_buttons() -> void:
 	if all_maxed:
 		var all_done := Label.new()
 		all_done.text = "Alle Elemente auf Maximum!"
+		all_done.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if UITheme and UITheme.game_font:
 			all_done.add_theme_font_override("font", UITheme.game_font)
 		all_done.add_theme_color_override("font_color", Color(0.2, 0.6, 0.2))
@@ -222,19 +253,10 @@ func _create_element_button(element: String) -> Button:
 		icon_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon_container.add_child(icon_sprite)
-	else:
-		# Fallback auf Text wenn Textur fehlt
-		var icon_label := Label.new()
-		icon_label.text = element.substr(0, 1).to_upper()
-		icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		icon_label.add_theme_font_size_override("font_size", 24)
-		icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon_container.add_child(icon_label)
 	
-	# Element Name
-	var data := TowerData.get_tower_data(element)
+	# Name
 	var name_label := Label.new()
-	name_label.text = data.get("name", element.capitalize())
+	name_label.text = element.capitalize()
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if UITheme and UITheme.game_font:
 		name_label.add_theme_font_override("font", UITheme.game_font)
@@ -243,69 +265,39 @@ func _create_element_button(element: String) -> Button:
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(name_label)
 	
-	# Level Anzeige (●●○)
+	# Level-Anzeige
 	var current_level := TowerData.get_element_level(element)
+	var level_text := "Lvl %d/%d" % [current_level, TowerData.MAX_ELEMENT_LEVEL]
+	if current_level == 0:
+		level_text = "Gesperrt"
+	
 	var level_label := Label.new()
+	level_label.text = level_text
 	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	level_label.add_theme_font_size_override("font_size", 12)
+	if UITheme and UITheme.game_font:
+		level_label.add_theme_font_override("font", UITheme.game_font)
+	level_label.add_theme_font_size_override("font_size", 9)
+	level_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
 	level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	var level_dots := ""
-	for i in range(TowerData.MAX_ELEMENT_LEVEL):
-		if i < current_level:
-			level_dots += "●"
-		else:
-			level_dots += "○"
-	level_label.text = level_dots
-	
-	if current_level >= TowerData.MAX_ELEMENT_LEVEL:
-		level_label.add_theme_color_override("font_color", Color(0.8, 0.6, 0.1))
-	else:
-		level_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
-	
 	vbox_btn.add_child(level_label)
 	
-	# Status-Text
-	var status_label := Label.new()
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Kosten-Anzeige
+	var cost := 1
+	var cost_label := Label.new()
+	cost_label.text = "Kosten: %d" % cost
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if UITheme and UITheme.game_font:
-		status_label.add_theme_font_override("font", UITheme.game_font)
-	status_label.add_theme_font_size_override("font_size", 9)
-	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cost_label.add_theme_font_override("font", UITheme.game_font)
+	cost_label.add_theme_font_size_override("font_size", 8)
+	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox_btn.add_child(cost_label)
 	
-	var is_maxed := current_level >= TowerData.MAX_ELEMENT_LEVEL
-	var has_cores := GameState.has_element_cores()
-	
-	if is_maxed:
-		status_label.text = "MAX"
-		status_label.add_theme_color_override("font_color", Color(0.7, 0.5, 0.1))
-	else:
-		status_label.text = "Aufwerten"
-		status_label.add_theme_color_override("font_color", Color(0.2, 0.6, 0.2))
-	
-	vbox_btn.add_child(status_label)
+	# Button-Status
+	var has_cores := GameState.element_cores >= cost
+	btn.disabled = not has_cores or current_level >= TowerData.MAX_ELEMENT_LEVEL
+	btn.pressed.connect(_on_element_button_pressed.bind(element))
 	
 	# Styling
-	_apply_element_button_style(btn, element, current_level, has_cores)
-	
-	# Interaktion
-	if is_maxed:
-		btn.disabled = true
-		btn.tooltip_text = "Bereits auf Maximum (Level %d)" % current_level
-	elif has_cores:
-		btn.pressed.connect(_on_element_button_pressed.bind(element))
-		if current_level == 0:
-			btn.tooltip_text = "Klicken um %s freizuschalten\n→ Kann Level 1 Tower bauen" % data.get("name", element)
-		else:
-			btn.tooltip_text = "Klicken um %s aufzuwerten\n→ Kann auf Level %d upgraden" % [data.get("name", element), current_level + 1]
-	else:
-		btn.disabled = true
-		btn.tooltip_text = "Element-Kern benötigt"
-	
-	return btn
-
-
-func _apply_element_button_style(btn: Button, element: String, current_level: int, has_cores: bool) -> void:
 	var element_color: Color = ELEMENT_COLORS.get(element, Color.WHITE)
 	var is_maxed := current_level >= TowerData.MAX_ELEMENT_LEVEL
 	
@@ -322,13 +314,20 @@ func _apply_element_button_style(btn: Button, element: String, current_level: in
 	# Modulate basierend auf Status
 	if is_maxed:
 		btn.modulate = Color(0.9, 0.85, 0.7)  # Goldener Tint
+		cost_label.text = "MAX"
+		cost_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	elif not has_cores:
 		btn.modulate = Color(0.6, 0.6, 0.6)  # Ausgegraut
+		cost_label.add_theme_color_override("font_color", Color(0.5, 0.3, 0.3))
 	elif current_level > 0:
 		# Leichter Element-Tint für bereits investierte
 		btn.modulate = element_color.lerp(Color.WHITE, 0.7)
+		cost_label.add_theme_color_override("font_color", Color(0.2, 0.5, 0.2))
 	else:
 		btn.modulate = Color.WHITE
+		cost_label.add_theme_color_override("font_color", Color(0.2, 0.5, 0.2))
+	
+	return btn
 
 
 func _update_element_buttons() -> void:
@@ -352,13 +351,33 @@ func _on_element_button_pressed(element: String) -> void:
 func _show_unlock_effect(element: String, was_new: bool) -> void:
 	# VFX am Panel
 	if VFX:
-		var center_pos := global_position + size / 2
+		var center_pos := panel.global_position + panel.size / 2
 		VFX.spawn_pixel_burst(center_pos, element, 12 if was_new else 8)
 
 
 func _on_close_pressed() -> void:
 	Sound.play_click()
 	hide_panel()
+
+
+func _on_bg_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# Klick außerhalb des Panels
+		var panel_rect := panel.get_global_rect()
+		var mouse_pos := get_viewport().get_mouse_position()
+		
+		if not panel_rect.has_point(mouse_pos):
+			hide_panel()
+			get_viewport().set_input_as_handled()  # Event als handled markieren!
+
+
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		hide_panel()
+		get_viewport().set_input_as_handled()
 
 
 func toggle_panel() -> void:

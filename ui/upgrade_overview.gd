@@ -53,6 +53,7 @@ func _setup_ui() -> void:
 	
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 	
 	panel = PanelContainer.new()
@@ -315,7 +316,12 @@ func _on_close_pressed() -> void:
 
 func _on_bg_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		hide_panel()
+		var panel_rect := panel.get_global_rect()
+		var mouse_pos := get_viewport().get_mouse_position()
+		
+		if not panel_rect.has_point(mouse_pos):
+			hide_panel()
+			get_viewport().set_input_as_handled()
 
 
 func _input(event: InputEvent) -> void:

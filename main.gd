@@ -52,10 +52,10 @@ func _ready() -> void:
 	_generate_new_path()
 	_setup_ground()
 	_setup_managers()
-	_setup_element_unlock_ui()
 	_setup_wave_upgrade_ui()
 	_setup_upgrade_overview_ui()
 	_setup_item_inventory_ui()
+	_setup_element_unlock_ui()
 	_setup_ability_upgrade_ui()
 	_setup_ability_bar()
 	_setup_ability_preview()
@@ -208,17 +208,10 @@ func _setup_managers() -> void:
 
 
 func _setup_element_unlock_ui() -> void:
-	element_unlock_ui = get_node_or_null("UI/ElementUnlockUI") as ElementUnlockUI
-	if not element_unlock_ui:
-		element_unlock_ui = ElementUnlockUI.new()
-		element_unlock_ui.name = "ElementUnlockUI"
-		$UI.add_child(element_unlock_ui)
-	
-	var viewport_size := get_viewport_rect().size
-	element_unlock_ui.position = Vector2(
-		(viewport_size.x - 350) / 2,
-		(viewport_size.y - 220) / 2
-	)
+	element_unlock_ui = ElementUnlockUI.new()
+	element_unlock_ui.name = "ElementUnlockUI"
+	add_child(element_unlock_ui)
+	print("[Main] ElementUnlockUI erstellt")
 
 
 func _setup_wave_upgrade_ui() -> void:
@@ -365,13 +358,8 @@ func _regenerate_map() -> void:
 	print("[Main] Map regeneriert! Blockierte Türme: %d" % tower_manager.get_blocked_tower_count())
 
 
+
 func _handle_mouse_click(event: InputEventMouseButton) -> void:
-	if element_unlock_ui and element_unlock_ui.visible:
-		return
-	if wave_upgrade_ui and wave_upgrade_ui.visible:
-		return
-	if upgrade_overview_ui and upgrade_overview_ui.visible:
-		return
 	
 	if event.button_index == MOUSE_BUTTON_RIGHT:
 		if event.pressed:
@@ -512,18 +500,20 @@ func _handle_empty_cell_click(grid_pos: Vector2i, world_pos: Vector2) -> void:
 
 
 func _is_over_ui(pos: Vector2) -> bool:
+	# Tower Info Panel (hat feste Position)
 	if tower_info.visible and tower_info.get_global_rect().has_point(pos):
 		return true
-	if element_unlock_ui and element_unlock_ui.visible:
-		return true
+	
+	# wave_upgrade_ui blockiert auch, aber das ist ein modales Panel
 	if wave_upgrade_ui and wave_upgrade_ui.visible:
 		return true
-	if upgrade_overview_ui and upgrade_overview_ui.visible:
-		return true
+	
+	# Untere UI-Leiste (Shop, HUD)
 	var viewport_size := get_viewport_rect().size
 	if pos.y > viewport_size.y - 105:
 		return true
-	# Inventory UI blockt Klicks (sonst deselectet man Tower beim Item-Klick)
+	
+	# Item Inventory Panel (hat feste Position)
 	if item_inventory_ui and item_inventory_ui.visible:
 		var panel := item_inventory_ui.panel
 		var detail := item_inventory_ui.detail_panel
@@ -531,6 +521,7 @@ func _is_over_ui(pos: Vector2) -> bool:
 			return true
 		if detail and detail.visible and detail.get_global_rect().has_point(pos):
 			return true
+	
 	return false
 
 
