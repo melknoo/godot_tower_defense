@@ -104,7 +104,7 @@ func _ready() -> void:
 	Sound.play_place()
 	if VFX:
 		VFX.spawn_place_effect(position, tower_type)
-
+	call_deferred("_recalculate_after_ready")
 
 func _load_corner_textures() -> void:
 	if corners_loaded:
@@ -115,6 +115,13 @@ func _load_corner_textures() -> void:
 		if ResourceLoader.exists(path):
 			corner_textures[corner] = load(path)
 	corners_loaded = true
+
+func _recalculate_after_ready() -> void:
+	if base_damage > 0:  # Nur wenn Tower schon setup wurde
+		_apply_upgrade_bonuses()
+		_apply_item_bonuses()
+		_update_isolation_visual()
+		print("[Tower %s] Stats nach _ready recalculated - isolated=%s, damage=%d" % [tower_type, is_isolated(), damage])
 
 func _apply_upgrade_bonuses() -> void:
 	if not UpgradeSystem:
@@ -259,7 +266,6 @@ func _apply_item_bonuses() -> void:
 
 
 func recalculate_stats() -> void:
-
 	var data := TowerData.get_legacy_data(tower_type, level)
 	base_damage = data.get("damage", 20)
 	base_range = data.get("range", 150.0)
@@ -279,10 +285,17 @@ func recalculate_stats() -> void:
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()
 	
+	# ✅ NEU: Isolation-Visual aktualisieren
+	_update_isolation_visual()
+	
 	# Visuals aktualisieren
 	if is_inside_tree():
 		_update_visuals()
 		_update_item_indicators()
+	
+	# ✅ Debug-Output
+	if UpgradeSystem and (UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0 or UpgradeSystem.get_upgrade_stacks("isolated_range") > 0):
+		print("[Tower %s] Isolation-Check: isolated=%s, damage=%d, range=%.0f" % [tower_type, is_isolated(), damage, tower_range])
 
 
 # === NEUE FUNKTION: Item-Indikatoren anzeigen ===
