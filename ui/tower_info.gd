@@ -343,11 +343,6 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 		var equipped_now: Array = ItemSystem.get_tower_equipped_items(current_tower)
 		_pending_equip_slot = _get_next_equip_slot(_pending_equip_slot, equipped_now)
 
-		var main := get_node_or_null("/root/Main")
-		if main:
-			main.set_meta("pending_equip_tower", current_tower)
-			main.set_meta("pending_equip_slot", _pending_equip_slot)
-
 		_update_equipment_display()
 		call_deferred("_update_display")
 
@@ -379,20 +374,17 @@ func _on_inventory_panel_closed() -> void:
 	_pending_equip_slot = -1
 
 
+
 func _try_equip_from_inventory(slot_index: int) -> void:
 	if not ItemSystem:
 		return
-
-	var main := get_node_or_null("/root/Main")
-	if main:
-		main.set_meta("pending_equip_tower", current_tower)
-		main.set_meta("pending_equip_slot", slot_index)
 
 	if not current_tower:
 		return
 
 	_pending_equip_slot = slot_index
 
+	var main := get_node_or_null("/root/Main")
 	if not main:
 		return
 
@@ -405,10 +397,6 @@ func _try_equip_from_inventory(slot_index: int) -> void:
 
 	if not inventory_ui.item_selected.is_connected(_on_inventory_item_selected):
 		inventory_ui.item_selected.connect(_on_inventory_item_selected)
-
-	if inventory_ui.has_signal("panel_closed"):
-		if not inventory_ui.panel_closed.is_connected(_on_inventory_panel_closed):
-			inventory_ui.panel_closed.connect(_on_inventory_panel_closed)
 
 	if not inventory_ui.has_selection():
 		if not inventory_ui.visible:

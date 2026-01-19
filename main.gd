@@ -99,7 +99,14 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 	print("[Main] tower_info.visible=", tower_info.visible, " tower=", tower_info.current_tower)
 	print("[Main] tower_manager.has_selection=", tower_manager.has_selection())
 	
-	# Pending Equip (kommt vom TowerInfo-Slot-Klick)
+	# Priorität: Wenn TowerInfo offen ist UND einen pending_equip_slot hat -> TowerInfo machen lassen
+	if tower_info and tower_info.visible and tower_info.current_tower:
+		if tower_info.has_method("_on_inventory_item_selected"):
+			# TowerInfo hat die komplette Slot-Verwaltung -> dort machen lassen
+			tower_info._on_inventory_item_selected(item)
+			return
+	
+	# Fallback: Pending Equip über Main Metas (sollte normalerweise nicht mehr vorkommen)
 	var pending_tower: Node2D = get_meta("pending_equip_tower", null) as Node2D
 	var pending_slot: int = int(get_meta("pending_equip_slot", -1))
 
@@ -127,23 +134,20 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 		set_meta("pending_equip_slot", -1)
 		return
 	
-	# 1) Priorität: TowerInfo ist offen -> equip auf den Tower aus dem Panel
+	# 2) Fallback: TowerInfo ist offen aber kein pending_equip_slot
 	if tower_info and tower_info.visible and tower_info.current_tower and ItemSystem:
 		var uid: String = item.get("uid", "")
 		if uid == "":
 			return
 
-		# Wenn TowerInfo eine Slot-Logik hat, soll TowerInfo das machen
-		if tower_info.has_method("_on_inventory_item_selected"):
-			tower_info._on_inventory_item_selected(item)
-			return
-
 		# Fallback: wenn kein TowerInfo-Handler existiert -> Slot 0
 		if ItemSystem.can_equip_on_tower(item, tower_info.current_tower):
 			ItemSystem.equip_item(tower_info.current_tower, uid, 0)
+			Sound.play_place()
+			item_inventory_ui.deselect_item()
 		return
 
-	# 2) Fallback: altes Verhalten (nur wenn wirklich ein Tower im TowerManager selektiert ist)
+	# 3) Fallback: altes Verhalten (nur wenn wirklich ein Tower im TowerManager selektiert ist)
 	if tower_manager.has_selection():
 		var selected_tower := tower_manager.get_selected_tower()
 		if selected_tower and ItemSystem:
