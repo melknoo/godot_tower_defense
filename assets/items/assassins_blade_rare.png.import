@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://krg4vdqr6874"
-path="res://.godot/imported/coin.png-68b3da3bdc45d50cc573547d84171f56.ctex"
+uid="uid://bropcmmx22rmh"
+path="res://.godot/imported/assassins_blade_rare.png-96d0629efe9de3a3b6845bce1bba1e97.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/coin.png"
-dest_files=["res://.godot/imported/coin.png-68b3da3bdc45d50cc573547d84171f56.ctex"]
+source_file="res://assets/items/assassins_blade_rare.png"
+dest_files=["res://.godot/imported/assassins_blade_rare.png-96d0629efe9de3a3b6845bce1bba1e97.ctex"]
 
 [params]
 

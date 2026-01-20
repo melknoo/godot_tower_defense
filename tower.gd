@@ -255,7 +255,7 @@ func _apply_item_bonuses() -> void:
 		splash_radius *= (1.0 + splash_bonus)
 	
 	# Crit Chance
-	var item_crit := ItemSystem.get_tower_item_bonus_percent(self, "crit_chance")
+	var item_crit_damage := ItemSystem.get_tower_item_bonus_percent(self, "crit_damage")
 	# Wird in _shoot() verwendet
 	
 	# Element-spezifische Boni
@@ -1037,8 +1037,21 @@ func _shoot() -> void:
 	
 	if randf() < crit_chance:
 		is_crit = true
-		var crit_mult: float = UpgradeSystem.get_crit_multiplier() if UpgradeSystem and UpgradeSystem.has_method("get_crit_multiplier") else 1.5
+		
+		# Crit-Multiplikator berechnen
+		var crit_mult: float = 1.5  # Base
+		
+		# Upgrade-System Bonus
+		if UpgradeSystem and UpgradeSystem.has_method("get_crit_multiplier"):
+			crit_mult = UpgradeSystem.get_crit_multiplier()
+		
+		# NEU: Item Bonus addieren
+		if ItemSystem:
+			var item_crit_dmg := ItemSystem.get_tower_item_bonus_percent(self, "crit_damage")
+			crit_mult += item_crit_dmg
+		
 		final_damage = int(float(damage) * crit_mult)
+		
 		if VFX:
 			VFX.spawn_pixels(position, "crit", 4, 15.0)
 	

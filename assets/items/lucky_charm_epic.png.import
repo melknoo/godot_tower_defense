@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://krg4vdqr6874"
-path="res://.godot/imported/coin.png-68b3da3bdc45d50cc573547d84171f56.ctex"
+uid="uid://cjdk2d0ug3dx2"
+path="res://.godot/imported/lucky_charm_epic.png-1379ab88a534249764d268846f0057a0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/coin.png"
-dest_files=["res://.godot/imported/coin.png-68b3da3bdc45d50cc573547d84171f56.ctex"]
+source_file="res://assets/items/lucky_charm_epic.png"
+dest_files=["res://.godot/imported/lucky_charm_epic.png-1379ab88a534249764d268846f0057a0.ctex"]
 
 [params]
 

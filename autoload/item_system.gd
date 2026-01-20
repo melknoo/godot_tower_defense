@@ -63,6 +63,82 @@ const ITEMS := {
 		"icon": "piercing_tip",
 		"allowed_towers": ["archer", "fire"]
 	},
+	"assassins_blade": {
+		"name": "Assassinen Klinge", "category": "weapon",
+		"description": "+{value}% Crit-Chance",
+		"stat": "crit_chance", "base_value": 6,
+		"icon": "assassins_blade",
+		"allowed_towers": ["sword", "archer"]
+	},
+	"lucky_charm": {
+		"name": "Glücksbringer", "category": "accessory",
+		"description": "+{value}% Crit-Chance",
+		"stat": "crit_chance", "base_value": 4,
+		"icon": "lucky_charm",
+		"allowed_towers": []  # Alle Tower
+	},
+	"hawks_eye": {
+		"name": "Falkenauge", "category": "accessory",
+		"description": "+{value}% Crit-Chance, +{value2}% Reichweite",
+		"stat": "crit_chance", "base_value": 3,
+		"stat2": "range", "value2": 8,
+		"icon": "hawks_eye",
+		"allowed_towers": ["archer", "sniper", "air"],
+		"min_rarity": "uncommon"
+	},
+	"brutal_edge": {
+		"name": "Brutale Schneide", "category": "weapon",
+		"description": "+{value}% Crit-Chance, -{penalty}% Feuerrate",
+		"stat": "crit_chance", "base_value": 10,
+		"penalty_stat": "fire_rate", "penalty_value": 15,
+		"icon": "brutal_edge",
+		"allowed_towers": ["sword", "earth"],
+		"min_rarity": "rare"
+	},
+	"critical_cape": {
+		"name": "Kritischer Cape", "category": "special",
+		"description": "+{value}% Crit-Chance, +{value2}% Crit-Schaden",
+		"stat": "crit_chance", "base_value": 5,
+		"stat2": "crit_damage", "value2": 15,
+		"icon": "critical_cape",
+		"allowed_towers": ["archer", "wizard"],
+		"min_rarity": "rare"
+	},
+	"vorpal_blade": {
+		"name": "Vorpal Klinge", "category": "weapon",
+		"description": "+{value}% Crit-Chance, +{value2}% Crit-Schaden",
+		"stat": "crit_chance", "base_value": 8,
+		"stat2": "crit_damage", "value2": 25,
+		"icon": "vorpal_blade",
+		"allowed_towers": ["sword", "archer"],
+		"min_rarity": "epic"
+	},
+	"longrange_bow": {
+		"name": "Langstrecken Bonge", "category": "accessory",
+		"description": "+{value}% Crit-Chance, aber nur auf große Distanz",
+		"stat": "crit_chance", "base_value": 15,
+		"icon": "longrange_bow",
+		"allowed_towers": ["archer", "sniper"],
+		"min_rarity": "rare"
+	},
+	
+	# NEU - Crit-Damage Items (braucht Crit-Damage System aus upgrade_system):
+	"executioners_axe": {
+		"name": "Henkers Axt", "category": "accessory",
+		"description": "+{value}% Crit-Schaden",
+		"stat": "crit_damage", "base_value": 20,
+		"icon": "executioners_axe",
+		"allowed_towers": [],
+		"min_rarity": "uncommon"
+	},
+	"death_mark": {
+		"name": "Todessiegel", "category": "special",
+		"description": "+{value}% Crit-Schaden",
+		"stat": "crit_damage", "base_value": 30,
+		"icon": "death_mark",
+		"allowed_towers": ["sword", "archer"],
+		"min_rarity": "rare"
+	},
 	
 	# === ACCESSOIRES ===
 	"swift_boots": {
@@ -299,7 +375,7 @@ func _create_item_instance(template_id: String, template: Dictionary, rarity: St
 		"color": rarity_data["color"],
 		"stat": template["stat"],
 		"value": final_value,
-		"icon": template.get("icon", template_id),  # Fallback auf template_id
+		"icon": template.get("icon", template_id),
 		"allowed_towers": template.get("allowed_towers", []),
 		"element": template.get("element", "")
 	}
@@ -310,6 +386,13 @@ func _create_item_instance(template_id: String, template: Dictionary, rarity: St
 		item["penalty_stat"] = template["penalty_stat"]
 		item["penalty_value"] = penalty_value
 		item["description"] = item["description"].replace("{penalty}", str(penalty_value))
+	
+	# NEU: Zweiter Stat (für Dual-Stat Items)
+	if template.has("stat2"):
+		var value2 := int(template.get("value2", 10) * rarity_data["multiplier"])
+		item["stat2"] = template["stat2"]
+		item["value2"] = value2
+		item["description"] = item["description"].replace("{value2}", str(value2))
 	
 	return item
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://krg4vdqr6874"
-path="res://.godot/imported/coin.png-68b3da3bdc45d50cc573547d84171f56.ctex"
+uid="uid://db6lklk0uiugh"
+path="res://.godot/imported/hawks_eye_epic.png-ac04556096a2896f80ef3fbda74f194c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/coin.png"
-dest_files=["res://.godot/imported/coin.png-68b3da3bdc45d50cc573547d84171f56.ctex"]
+source_file="res://assets/items/hawks_eye_epic.png"
+dest_files=["res://.godot/imported/hawks_eye_epic.png-ac04556096a2896f80ef3fbda74f194c.ctex"]
 
 [params]
 
