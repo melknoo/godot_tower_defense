@@ -8,7 +8,7 @@ signal element_upgraded(element: String, new_level: int)
 var element_levels: Dictionary = {}
 
 const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
-const ENGRAVABLE_TOWERS: Array[String] = ["archer", "sword"]
+const ENGRAVABLE_TOWERS: Array[String] = ["archer", "sword", "wizard", "cannon", "trapper", "aura"]
 const SUPPLY_BUILDINGS: Array[String] = ["farm"]  # Gebäude die max_supply erhöhen
 const DEBUG_EXTRA_TOWERS := false
 
@@ -70,6 +70,76 @@ var towers := {
 		"combinations": [],
 		"animated": false,
 		"attack_type": "none"
+	},
+	"wizard": {
+		"name": "Zauberer",
+		"description": "Schießt magische Projektile\nSpell ändert sich durch Gravur!",
+		"cost": 80,
+		"damage": [35, 55, 80, 140, 230],
+		"range": [180.0, 200.0, 220.0, 280.0, 350.0],
+		"fire_rate": [1.0, 0.9, 0.8, 0.7, 0.6],
+		"splash": [0.0, 0.0, 30.0, 50.0, 70.0],
+		"color": Color(0.6, 0.3, 0.9),
+		"upgrade_costs": [70, 150, 350, 800],
+		"special": "spell",
+		"is_base": true,
+		"engravable": true,
+		"animated": false,
+		"attack_type": "projectile"
+	},
+	
+	"cannon": {
+		"name": "Kanone",
+		"description": "Schwere Artillerie mit Explosion\nKann nahe Ziele NICHT treffen!",
+		"cost": 120,
+		"damage": [90, 140, 210, 350, 600],
+		"range": [250.0, 280.0, 310.0, 360.0, 420.0],
+		"min_range": [80.0, 80.0, 80.0, 80.0, 80.0],
+		"fire_rate": [2.5, 2.2, 1.9, 1.6, 1.3],
+		"splash": [80.0, 100.0, 120.0, 150.0, 180.0],
+		"color": Color(0.3, 0.3, 0.3),
+		"upgrade_costs": [100, 220, 480, 1100],
+		"special": "explosive",
+		"is_base": true,
+		"engravable": true,
+		"animated": false,
+		"attack_type": "cannon"
+	},
+	
+	"trapper": {
+		"name": "Fallensteller",
+		"description": "Platziert Fallen auf dem Pfad\nFallen bleiben für 15s",
+		"cost": 60,
+		"damage": [25, 40, 60, 100, 160],
+		"range": [120.0, 140.0, 160.0, 200.0, 240.0],
+		"fire_rate": [3.0, 2.5, 2.0, 1.5, 1.2],
+		"trap_duration": [15.0, 18.0, 20.0, 25.0, 30.0],
+		"max_traps": [2, 3, 4, 5, 6],
+		"splash": [0.0, 0.0, 40.0, 60.0, 80.0],
+		"color": Color(0.4, 0.6, 0.3),
+		"upgrade_costs": [50, 110, 250, 550],
+		"special": "trap",
+		"is_base": true,
+		"engravable": true,
+		"animated": false,
+		"attack_type": "trap"
+	},
+	
+	"aura": {
+		"name": "Aura-Turm",
+		"description": "Verstärkt nahe Türme\nEffekt durch Gravur bestimmt!",
+		"cost": 100,
+		"range": [200.0, 240.0, 280.0, 320.0, 360.0],
+		"buff_strength": [0.15, 0.20, 0.25, 0.30, 0.35],
+		"color": Color(1.0, 0.9, 0.4),
+		"upgrade_costs": [80, 170, 380, 850],
+		"special": "aura",
+		"is_base": true,
+		"engravable": true,
+		"animated": false,
+		"attack_type": "none",
+		"damage": [0, 0, 0, 0, 0],
+		"fire_rate": [0, 0, 0, 0, 0]
 	},
 	"water": {
 		"name": "Wasser",
@@ -335,7 +405,7 @@ func is_tower_available(tower_type: String) -> bool:
 
 
 func get_available_tower_types() -> Array[String]:
-	var available: Array[String] = ["archer", "sword", "farm"]
+	var available: Array[String] = ["archer", "sword", "wizard", "cannon", "trapper", "aura", "farm"]
 	for element in UNLOCKABLE_ELEMENTS:
 		if is_element_unlocked(element):
 			available.append(element)
@@ -462,7 +532,7 @@ func get_legacy_data(tower_type: String, level: int = 0) -> Dictionary:
 	var data := get_tower_data(tower_type)
 	if data.is_empty():
 		return {}
-	return {
+	var result := {
 		"cost": data.get("cost", 0),
 		"damage": get_stat(tower_type, "damage", level),
 		"range": get_stat(tower_type, "range", level),
@@ -471,6 +541,18 @@ func get_legacy_data(tower_type: String, level: int = 0) -> Dictionary:
 		"color": data.get("color", Color.WHITE),
 		"attack_type": data.get("attack_type", "projectile")
 	}
+	
+	# ✅ NEU: Spezielle Stats für neue Türme
+	if data.has("min_range"):
+		result["min_range"] = get_stat(tower_type, "min_range", level)
+	if data.has("max_traps"):
+		result["max_traps"] = get_stat(tower_type, "max_traps", level)
+	if data.has("trap_duration"):
+		result["trap_duration"] = get_stat(tower_type, "trap_duration", level)
+	if data.has("buff_strength"):
+		result["buff_strength"] = get_stat(tower_type, "buff_strength", level)
+	
+	return result
 
 
 func get_save_data() -> Dictionary:

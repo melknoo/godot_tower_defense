@@ -474,8 +474,8 @@ func _update_display() -> void:
 	if TowerData.is_supply_building(tower_type):
 		tower_level_label.text = "Supply-Gebäude"
 	elif tower_type in TowerData.UNLOCKABLE_ELEMENTS:
-		var elem_level := TowerData.get_element_level(tower_type)
-		var max_allowed := TowerData.get_max_tower_level_for_element(tower_type)
+		var elem_level: int = TowerData.get_element_level(tower_type)
+		var max_allowed: int = TowerData.get_max_tower_level_for_element(tower_type)
 		tower_level_label.text = "Level %d / %d (Element: %d/3)" % [level + 1, max_allowed + 1, elem_level]
 	else:
 		tower_level_label.text = "Level %d / %d" % [level + 1, TowerData.MAX_LEVEL + 1]
