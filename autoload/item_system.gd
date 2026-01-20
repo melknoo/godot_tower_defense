@@ -56,13 +56,6 @@ const ITEMS := {
 		"icon": "precision_bow",
 		"allowed_towers": ["archer", "air"]
 	},
-	"piercing_tip": {
-		"name": "Durchbohrende Spitze", "category": "weapon",
-		"description": "Ignoriert {value}% Gegner-Resistenz",
-		"stat": "armor_pen", "base_value": 15,
-		"icon": "piercing_tip",
-		"allowed_towers": ["archer", "fire"]
-	},
 	"assassins_blade": {
 		"name": "Assassinen Klinge", "category": "weapon",
 		"description": "+{value}% Crit-Chance",
@@ -191,7 +184,7 @@ const ITEMS := {
 	"earth_core": {
 		"name": "Erdkern", "category": "elemental",
 		"description": "+{value}% Stun-Chance",
-		"stat": "stun_chance", "base_value": 8,
+		"stat": "stun_bonus", "base_value": 8,
 		"icon": "earth_core",
 		"allowed_towers": ["earth", "sword"],
 		"element": "earth"
@@ -201,7 +194,7 @@ const ITEMS := {
 		"description": "+{value} Chain-Targets",
 		"stat": "chain_bonus", "base_value": 1,
 		"icon": "wind_essence",
-		"allowed_towers": ["air", "ice"],
+		"allowed_towers": ["air"],
 		"element": "air"
 	},
 	
