@@ -1,5 +1,9 @@
 # bullet.gd
-# Projektil mit Spezialeffekten, Arrow-Sprite und VFX
+# ÄNDERUNGEN FÜR CRIT-SYSTEM:
+# - is_crit Variable hinzugefügt
+# - setup_extended() speichert is_crit aus data
+# - _hit_single() übergibt is_crit an enemy.take_damage()
+
 extends Node2D
 class_name Bullet
 
@@ -9,6 +13,7 @@ var speed := 400.0
 var splash_radius := 0.0
 var bullet_type := "water"
 var bullet_level := 0
+var is_crit := false  # NEU: Crit-Flag
 
 # Spezialeffekte
 var special_type := ""
@@ -54,6 +59,7 @@ func setup_extended(data: Dictionary) -> void:
 	burn_damage = data.get("burn_damage", 0)
 	stun_chance = data.get("stun_chance", 0.0)
 	chain_targets = data.get("chain_targets", 0)
+	is_crit = data.get("is_crit", false)  # NEU: Crit-Flag aus data
 	_set_speed_for_type(bullet_type)
 
 
@@ -189,9 +195,9 @@ func _hit_single(enemy: Node2D) -> void:
 	
 	already_hit.append(enemy)
 	
-	# Element für Damage-Berechnung übergeben
+	# NEU: is_crit an take_damage übergeben
 	if enemy.has_method("take_damage"):
-		enemy.take_damage(damage, true, bullet_type)
+		enemy.take_damage(damage, true, bullet_type, is_crit)
 	
 	_apply_special_effects(enemy)
 
@@ -254,7 +260,8 @@ func _do_chain_attack() -> void:
 			_draw_chain_lightning(current.position, next.position)
 			already_hit.append(next)
 			if next.has_method("take_damage"):
-				next.take_damage(chain_dmg, true, "air")
+				# Chain-Hits sind keine Crits
+				next.take_damage(chain_dmg, true, "air", false)
 			_apply_special_effects(next)
 			current = next
 			remaining -= 1
@@ -311,7 +318,8 @@ func _spawn_lava_pool() -> void:
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if pool.position.distance_to(e.position) <= splash_radius:
 				if e.has_method("take_damage"):
-					e.take_damage(pool_dmg, false, "lava")
+					# Lava Pool Damage ist kein Crit
+					e.take_damage(pool_dmg, false, "lava", false)
 		if VFX and randf() > 0.5:
 			VFX.spawn_pixels(pool.position + Vector2(randf_range(-20, 20), randf_range(-20, 20)), "lava", 2, 10.0)
 	)

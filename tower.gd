@@ -18,6 +18,7 @@ var slow_amount := 0.0
 var burn_damage := 0
 var stun_chance := 0.0
 var chain_targets := 0
+var base_crit_chance := 0.0
 
 var bullet_scene: PackedScene
 var fire_timer := 0.0
@@ -206,6 +207,12 @@ func setup(data: Dictionary, type: String) -> void:
 	base_damage = data.get("damage", 20)
 	base_splash = data.get("splash", 0.0)
 	
+	# NEU: Base Crit-Chance basierend auf Tower-Typ
+	if tower_type == "archer":
+		base_crit_chance = 0.15  # 15% Base Crit für Archer
+	else:
+		base_crit_chance = 0.0
+	
 	# Aktuelle Werte setzen
 	tower_range = base_range
 	fire_rate = base_fire_rate
@@ -215,13 +222,13 @@ func setup(data: Dictionary, type: String) -> void:
 	attack_type = data.get("attack_type", "projectile")
 	_load_special_effects()
 	_apply_upgrade_bonuses()
-	_apply_item_bonuses()  # NEU
+	_apply_item_bonuses()
 	_update_archer_anim_speed()
 	_update_isolation_visual()
 	
 	if is_inside_tree():
 		_update_visuals()
-		_update_item_indicators()  # NEU
+		_update_item_indicators()
 
 
 func _apply_item_bonuses() -> void:
@@ -920,6 +927,23 @@ func _execute_melee_damage() -> void:
 			hit_enemies.append(enemy)
 	
 	var elem := get_effective_element()
+	
+	# Crit-Berechnung für Melee
+	var crit_chance := base_crit_chance  # NEU: Starte mit Base Crit
+	if UpgradeSystem:
+		crit_chance += UpgradeSystem.get_crit_chance()
+	if ItemSystem:
+		crit_chance += ItemSystem.get_tower_item_bonus_percent(self, "crit_chance")
+	
+	var is_crit := randf() < crit_chance
+	var melee_damage := damage
+	
+	if is_crit:
+		var crit_mult: float = UpgradeSystem.get_crit_multiplier() if UpgradeSystem and UpgradeSystem.has_method("get_crit_multiplier") else 1.5
+		melee_damage = int(float(damage) * crit_mult)
+		if VFX:
+			VFX.spawn_pixels(position, "crit", 6, 20.0)
+	
 	var kills := 0
 	
 	for enemy in hit_enemies:
@@ -930,7 +954,7 @@ func _execute_melee_damage() -> void:
 			was_alive = h > 0
 		
 		if enemy.has_method("take_damage"):
-			enemy.take_damage(damage, true, elem)
+			enemy.take_damage(melee_damage, true, elem, is_crit)
 		_apply_melee_effects(enemy)
 		
 		# Kill tracking für Life-Steal
@@ -1004,7 +1028,7 @@ func _shoot() -> void:
 	# Crit berechnen
 	var is_crit := false
 	var final_damage := damage
-	var crit_chance := 0.0
+	var crit_chance := base_crit_chance  # NEU: Starte mit Base Crit
 	
 	if UpgradeSystem:
 		crit_chance += UpgradeSystem.get_crit_chance()
@@ -1013,7 +1037,8 @@ func _shoot() -> void:
 	
 	if randf() < crit_chance:
 		is_crit = true
-		final_damage = int(float(damage) * 1.5)
+		var crit_mult: float = UpgradeSystem.get_crit_multiplier() if UpgradeSystem and UpgradeSystem.has_method("get_crit_multiplier") else 1.5
+		final_damage = int(float(damage) * crit_mult)
 		if VFX:
 			VFX.spawn_pixels(position, "crit", 4, 15.0)
 	
@@ -1118,6 +1143,18 @@ func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_widt
 		label.custom_minimum_size = Vector2(min_width, 20)
 		add_child(label)
 	return label
+
+
+func get_total_crit_chance() -> float:
+	var total := base_crit_chance
+	
+	if UpgradeSystem:
+		total += UpgradeSystem.get_crit_chance()
+	
+	if ItemSystem:
+		total += ItemSystem.get_tower_item_bonus_percent(self, "crit_chance")
+	
+	return total
 
 
 func _start_float_animation() -> void:

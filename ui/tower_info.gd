@@ -527,10 +527,6 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		damage_mult = UpgradeSystem.get_damage_multiplier(tower_type, elem)
 		range_mult = UpgradeSystem.get_range_multiplier(tower_type)
 		fire_rate_mult = UpgradeSystem.get_fire_rate_multiplier(tower_type)
-		
-		if current_tower.has_method("is_isolated") and current_tower.is_isolated():
-			damage_mult *= UpgradeSystem.get_isolated_damage_multiplier()
-			range_mult *= UpgradeSystem.get_isolated_range_multiplier()
 
 	var final_damage: int = int(current_tower.damage)
 	var final_range: float = float(current_tower.tower_range)
@@ -542,6 +538,31 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	var base_shots: float = 1.0 / base_fire_rate if base_fire_rate > 0 else 0.0
 	var fire_rate_bonus: float = shots_per_sec - base_shots
 
+	# NEU: Crit-Chance berechnen
+	var crit_chance: float = 0.0
+	var crit_base: float = 0.0
+	var crit_from_upgrades: float = 0.0
+	var crit_from_items: float = 0.0
+	
+	# Base Crit (z.B. Archer haben 15%)
+	if "base_crit_chance" in current_tower:
+		crit_base = current_tower.base_crit_chance
+		crit_chance += crit_base
+	
+	if UpgradeSystem:
+		crit_from_upgrades = UpgradeSystem.get_crit_chance()
+		crit_chance += crit_from_upgrades
+	
+	if ItemSystem:
+		crit_from_items = ItemSystem.get_tower_item_bonus_percent(current_tower, "crit_chance")
+		crit_chance += crit_from_items
+	
+	# NEU: Crit-Multiplikator holen
+	var crit_mult: float = 1.5  # Default
+	if UpgradeSystem and UpgradeSystem.has_method("get_crit_multiplier"):
+		crit_mult = UpgradeSystem.get_crit_multiplier()
+
+	# Stats-Text zusammenbauen
 	var damage_text := "Schaden: %d" % final_damage
 	if damage_bonus > 0:
 		damage_text += " (+%d)" % damage_bonus
@@ -554,31 +575,54 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	if fire_rate_bonus > 0.01:
 		fire_rate_text += " (+%.1f)" % fire_rate_bonus
 
-	stats_label.text = "%s\n%s\n%s" % [damage_text, range_text, fire_rate_text]
+	# NEU: Crit-Text nur wenn Crit-Chance > 0
+	var stats_lines: Array[String] = [damage_text, range_text, fire_rate_text]
+	
+	if crit_chance > 0.0:
+		var crit_percent := int(crit_chance * 100)
+		var crit_damage_percent := int((crit_mult - 1.0) * 100)
+		var crit_text := "Crit: %d%% (x%.1f)" % [crit_percent, crit_mult]
+		stats_lines.append(crit_text)
 
+	stats_label.text = "\n".join(stats_lines)
+
+	# Tooltip erweitern
 	var tooltip_lines: Array[String] = []
-	if current_tower.has_method("is_isolated"):
-		var is_isolated: bool = current_tower.is_isolated()
-		if UpgradeSystem and (UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0 or UpgradeSystem.get_upgrade_stacks("isolated_range") > 0):
-			if is_isolated:
-				tooltip_lines.append("🏔️ Isoliert: Keine Türme im Umkreis von 350")
-				if UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0:
-					var iso_dmg := (UpgradeSystem.get_isolated_damage_multiplier() - 1.0) * 100.0
-					tooltip_lines.append("  → +%.0f%% Schaden" % iso_dmg)
-				if UpgradeSystem.get_upgrade_stacks("isolated_range") > 0:
-					var iso_range := (UpgradeSystem.get_isolated_range_multiplier() - 1.0) * 100.0
-					tooltip_lines.append("  → +%.0f%% Reichweite" % iso_range)
-			else:
-				tooltip_lines.append("🏘️ Nicht isoliert: Türme in der Nähe")
+	
 	if damage_bonus > 0:
 		tooltip_lines.append("Schaden: %d Basis + %d Upgrade" % [base_damage, damage_bonus])
+	
 	if range_bonus > 0:
 		tooltip_lines.append("Reichweite: %d Basis + %d Upgrade" % [int(base_range), range_bonus])
+	
 	if fire_rate_bonus > 0.01:
 		tooltip_lines.append("Feuerrate: %.1f Basis + %.1f Upgrade" % [base_shots, fire_rate_bonus])
+	
+	# NEU: Crit-Details im Tooltip
+	if crit_chance > 0.0:
+		var crit_percent := int(crit_chance * 100)
+		var crit_details: Array[String] = []
+		
+		if crit_base > 0.0:
+			crit_details.append("Basis: %d%%" % int(crit_base * 100))
+		
+		if crit_from_upgrades > 0.0:
+			crit_details.append("Upgrades: %d%%" % int(crit_from_upgrades * 100))
+		
+		if crit_from_items > 0.0:
+			crit_details.append("Items: %d%%" % int(crit_from_items * 100))
+		
+		var crit_tooltip := "Crit-Chance: %d%%" % crit_percent
+		if crit_details.size() > 0:
+			crit_tooltip += " (%s)" % ", ".join(crit_details)
+		
+		var crit_damage_percent := int((crit_mult - 1.0) * 100)
+		crit_tooltip += "\nCrit-Schaden: +%d%% (x%.1f)" % [crit_damage_percent, crit_mult]
+		
+		tooltip_lines.append(crit_tooltip)
 
 	if tooltip_lines.size() > 0:
-		stats_label.tooltip_text = "Upgrade-Boni aktiv:\n" + "\n".join(tooltip_lines)
+		stats_label.tooltip_text = "Detaillierte Stats:\n" + "\n".join(tooltip_lines)
 	else:
 		stats_label.tooltip_text = ""
 

@@ -139,6 +139,11 @@ const UPGRADES := {
 		"icon": "🎯", "category": "special", "stat": "crit_chance",
 		"bonus": 0.10, "stackable": true, "max_stacks": 3
 	},
+	 "crit_damage": {
+		 "name": "Brutaler Treffer", "description": "+25% Crit-Schaden",
+		 "icon": "💢", "category": "special", "stat": "crit_damage",
+		 "bonus": 0.25, "stackable": true, "max_stacks": 4
+ 	},
 	"splash_bonus": {
 		"name": "Explosiv", "description": "+20% Splash-Radius",
 		"icon": "💥", "category": "special", "stat": "splash",
@@ -167,6 +172,8 @@ const UPGRADES := {
 		"tower_type": "sword", "bonus": 0.20, "stackable": true, "max_stacks": 3
 	}
 }
+
+const BASE_CRIT_MULTIPLIER := 1.5 
 
 var rng := RandomNumberGenerator.new()
 
@@ -326,6 +333,23 @@ func get_active_upgrade_count() -> int:
 	for id in active_upgrades:
 		total += active_upgrades[id]
 	return total
+	
+func get_crit_multiplier() -> float:
+	var multiplier := BASE_CRIT_MULTIPLIER
+	
+	# Bonus durch Crit-Damage Upgrades
+	var stacks: int = 0
+	for upgrade_id in active_upgrades.keys():
+		var upgrade: Dictionary = UPGRADES.get(upgrade_id, {})
+		if upgrade.get("stat", "") == "crit_damage":
+			stacks += active_upgrades[upgrade_id]
+	
+	if stacks > 0:
+		var bonus_per_stack: float = UPGRADES.get("crit_damage", {}).get("bonus", 0.25)
+		multiplier += bonus_per_stack * stacks
+	
+	return multiplier
+
 
 func reset() -> void:
 	active_upgrades.clear()

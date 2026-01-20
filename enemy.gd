@@ -328,25 +328,30 @@ func _update_status_effects(delta: float) -> void:
 		take_damage(int(burn_damage * delta), false, "fire")
 
 
-func take_damage(amount: int, trigger_effects: bool = true, attacker_element: String = "") -> void:
-	if _resolved:
+func take_damage(amount: int, apply_elemental: bool = false, attacker_element: String = "", is_crit: bool = false) -> void:
+	if health <= 0:
 		return
+	
 	var final_damage := amount
 	var multiplier := 1.0
-
-	# Elementar-Multiplikator berechnen
-	if attacker_element != "" and ElementalSystem:
-		multiplier = ElementalSystem.get_damage_multiplier(attacker_element, element)
-		final_damage = int(amount * multiplier)
-
+	
+	# Elementare Schwächen/Resistenzen
+	if apply_elemental and attacker_element != "" and element != "" and element != "neutral":
+		if ElementalSystem:
+			multiplier = ElementalSystem.get_damage_multiplier(attacker_element, element)
+			final_damage = int(amount * multiplier)
+	
+	# Schaden anwenden
 	health -= final_damage
-
-	if trigger_effects:
-		GameState.record_damage(final_damage)
+	_update_health_bar()
+	
+	# Hit-Flash
+	if flash_timer <= 0:
 		_do_hit_flash()
 
-		if VFX:
-			var is_crit := final_damage > damage_threshold_for_crit()
+	# VFX
+	if VFX:
+			# NEU: is_crit wird jetzt übergeben, nicht berechnet!
 			var is_effective := multiplier > 1.0
 			var is_resisted := multiplier < 1.0
 
@@ -362,6 +367,8 @@ func take_damage(amount: int, trigger_effects: bool = true, attacker_element: St
 
 	if health <= 0:
 		_die()
+
+
 
 
 func damage_threshold_for_crit() -> int:
