@@ -209,7 +209,9 @@ func setup(data: Dictionary, type: String) -> void:
 	
 	# NEU: Base Crit-Chance basierend auf Tower-Typ
 	if tower_type == "archer":
-		base_crit_chance = 0.15  # 15% Base Crit für Archer
+		base_crit_chance = 0.2  # 15% Base Crit für Archer
+	if tower_type == "sword":
+		base_crit_chance = 0.15
 	else:
 		base_crit_chance = 0.0
 	
