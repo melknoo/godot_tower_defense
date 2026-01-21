@@ -9,6 +9,9 @@ var element := ""
 var duration := 15.0
 var special_type := ""
 var source_tower: Node2D = null
+var is_armed := false  
+var arming_time := 0.5 
+
 
 var lifetime := 0.0
 var is_triggered := false
@@ -36,6 +39,7 @@ func setup(data: Dictionary) -> void:
 	duration = data.get("duration", 15.0)
 	special_type = data.get("special_type", "")
 	source_tower = data.get("tower", null)
+	arming_time = 0.5
 	
 	if source_tower and "slow_amount" in source_tower:
 		var trap_slow: float = source_tower.slow_amount
@@ -178,7 +182,10 @@ func _on_enemy_entered(area: Area2D) -> void:
 	if is_triggered:
 		return
 	
-	# ✅ Check das Parent-Node (der Enemy selbst)
+	if not is_armed:
+		print("[Trap] Noch nicht scharf, ignoriere Enemy")
+		return
+	
 	var body := area.get_parent()
 	if not body or not body.is_in_group("enemies"):
 		return
@@ -337,6 +344,17 @@ func _process(delta: float) -> void:
 		return
 	
 	lifetime += delta
+	
+	if not is_armed:
+		if lifetime >= arming_time:
+			is_armed = true
+			print("[Trap] Falle ist jetzt scharf!")
+			# Optional: Sound-Effekt
+			if Sound and Sound.has_method("play_click"):
+				Sound.play_click()
+			# Optional: Visuelle Änderung
+			if armed_indicator:
+				armed_indicator.modulate = Color(0, 1, 0)
 	
 	# Update Timer Bar
 	if timer_bar:
