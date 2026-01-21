@@ -178,6 +178,152 @@ func spawn_pixel_ring(pos: Vector2, element: String, radius: float = 40.0) -> vo
 		tween.chain().tween_callback(pixel.queue_free)
 
 
+func spawn_pixel_explosion(pos: Vector2, element: String, count: int = 12, spread: float = 40.0) -> void:
+	"""Größere Explosion mit mehr Partikeln - für Traps"""
+	var parent := _get_vfx_parent()
+	if not parent:
+		return
+	
+	var colors: Array = PALETTES.get(element, PALETTES["damage"])
+	
+	# Zentral-Flash
+	var flash := _create_pixel(Color.WHITE, 16)
+	flash.position = pos
+	flash.modulate.a = 0.9
+	parent.add_child(flash)
+	
+	var flash_tween := flash.create_tween()
+	flash_tween.tween_property(flash, "scale", Vector2(0.1, 0.1), 0.15)
+	flash_tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.15)
+	flash_tween.tween_callback(flash.queue_free)
+	
+	# Viele Partikel in alle Richtungen
+	for i in range(count):
+		var pixel := _create_pixel(colors[randi() % colors.size()], randi_range(4, 8))
+		pixel.position = pos
+		parent.add_child(pixel)
+		
+		var angle := randf() * TAU
+		var speed := randf_range(spread * 2, spread * 4)
+		var gravity := randf_range(300, 600)
+		_animate_pixel_physics(pixel, angle, speed, gravity)
+
+
+func spawn_freeze_effect(pos: Vector2) -> void:
+	"""Eis-Effekt für Wasser-Traps"""
+	var parent := _get_vfx_parent()
+	if not parent:
+		return
+	
+	var colors: Array = PALETTES["ice"]
+	
+	# Eisiger Flash
+	var flash := _create_pixel(colors[2], 14)
+	flash.position = pos
+	flash.modulate.a = 0.8
+	parent.add_child(flash)
+	
+	var flash_tween := flash.create_tween()
+	flash_tween.tween_property(flash, "scale", Vector2(2, 2), 0.2)
+	flash_tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.25)
+	flash_tween.tween_callback(flash.queue_free)
+	
+	# Eispartikel die nach außen fliegen
+	for i in range(8):
+		var ice := _create_pixel(colors[randi() % colors.size()], randi_range(3, 6))
+		ice.position = pos
+		parent.add_child(ice)
+		
+		var angle := (float(i) / 8) * TAU
+		var target := pos + Vector2(cos(angle), sin(angle)) * 40
+		
+		var ice_tween := ice.create_tween()
+		ice_tween.set_parallel(true)
+		ice_tween.tween_property(ice, "position", target, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		ice_tween.tween_property(ice, "modulate:a", 0.0, 0.4)
+		ice_tween.chain().tween_callback(ice.queue_free)
+
+
+func spawn_spike(pos: Vector2) -> void:
+	"""Einzelner Erdspike für Earth-Traps"""
+	var parent := _get_vfx_parent()
+	if not parent:
+		return
+	
+	var colors: Array = PALETTES["earth"]
+	
+	# Spike als Polygon
+	var spike := Polygon2D.new()
+	spike.polygon = PackedVector2Array([
+		Vector2(-4, 8), Vector2(4, 8), Vector2(0, -12)
+	])
+	spike.color = colors[1]
+	spike.position = pos + Vector2(0, 12)  # Startet unter der Erde
+	spike.scale = Vector2(0, 0)
+	parent.add_child(spike)
+	
+	# Spike schießt hoch
+	var tween := spike.create_tween()
+	tween.tween_property(spike, "scale", Vector2(1, 1), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(spike, "position:y", pos.y, 0.1)
+	tween.tween_interval(0.3)
+	tween.tween_property(spike, "scale", Vector2(1, 0), 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(spike, "position:y", pos.y + 12, 0.15)
+	tween.tween_callback(spike.queue_free)
+	
+	# Staub beim spawnen
+	for i in range(3):
+		var dust := _create_pixel(colors[randi() % colors.size()], 2)
+		dust.position = pos + Vector2(randf_range(-8, 8), 8)
+		parent.add_child(dust)
+		
+		var dust_tween := dust.create_tween()
+		dust_tween.set_parallel(true)
+		dust_tween.tween_property(dust, "position:y", dust.position.y - 15, 0.3)
+		dust_tween.tween_property(dust, "modulate:a", 0.0, 0.3)
+		dust_tween.chain().tween_callback(dust.queue_free)
+
+
+func spawn_lightning_arc(from_pos: Vector2, to_pos: Vector2) -> void:
+	"""Blitz-Bogen für Air-Traps - dünner als lightning_chain"""
+	var parent := _get_vfx_parent()
+	if not parent:
+		return
+	
+	var colors: Array = PALETTES["air"]
+	
+	# Haupt-Blitz
+	var arc := Line2D.new()
+	arc.width = 3
+	arc.default_color = colors[2]
+	
+	_generate_lightning_points(arc, from_pos, to_pos, 6)
+	parent.add_child(arc)
+	
+	# Glow
+	var glow := Line2D.new()
+	glow.width = 8
+	glow.default_color = Color(colors[1].r, colors[1].g, colors[1].b, 0.4)
+	glow.points = arc.points
+	glow.z_index = -1
+	parent.add_child(glow)
+	
+	# Flash am Ziel
+	var flash := _create_pixel(Color.WHITE, 8)
+	flash.position = to_pos
+	parent.add_child(flash)
+	
+	var flash_tween := flash.create_tween()
+	flash_tween.tween_property(flash, "modulate:a", 0.0, 0.1)
+	flash_tween.tween_callback(flash.queue_free)
+	
+	# Fadeout
+	var tween := arc.create_tween()
+	tween.tween_property(arc, "modulate:a", 0.0, 0.15)
+	tween.parallel().tween_property(glow, "modulate:a", 0.0, 0.2)
+	tween.tween_callback(arc.queue_free)
+	tween.tween_callback(glow.queue_free)
+
 # === MUZZLE FLASH ===
 
 func spawn_muzzle_flash(pos: Vector2, direction: Vector2, element: String) -> void:

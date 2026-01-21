@@ -27,6 +27,7 @@ func _ready() -> void:
 	_create_trigger_area()
 
 
+
 func setup(data: Dictionary) -> void:
 	"""Initialisiert die Falle mit Daten"""
 	damage = data.get("damage", 25)
@@ -35,6 +36,11 @@ func setup(data: Dictionary) -> void:
 	duration = data.get("duration", 15.0)
 	special_type = data.get("special_type", "")
 	source_tower = data.get("tower", null)
+	
+	if source_tower and "slow_amount" in source_tower:
+		var trap_slow: float = source_tower.slow_amount
+		if trap_slow > 0:
+			print("[Trap] Falle mit %d%% Slow erstellt" % int(trap_slow * 100))
 	
 	print("[Trap] Falle platziert - Damage: %d, Element: %s, Duration: %.1fs" % [
 		damage, element, duration
@@ -151,7 +157,7 @@ func _create_trigger_area() -> void:
 	"""Erstellt den Trigger-Bereich der Falle"""
 	trigger_area = Area2D.new()
 	trigger_area.collision_layer = 0
-	trigger_area.collision_mask = 2  # Enemy-Layer (anpassen an dein Projekt)
+	trigger_area.collision_mask = 2  # Enemy-Layer
 	add_child(trigger_area)
 	
 	var shape := CircleShape2D.new()
@@ -159,40 +165,71 @@ func _create_trigger_area() -> void:
 	
 	var collision := CollisionShape2D.new()
 	collision.shape = shape
+	collision.name = "TrapCollision"  # ✅ Namen geben für später
 	trigger_area.add_child(collision)
 	
 	# Signals
-	trigger_area.body_entered.connect(_on_enemy_entered)
+	trigger_area.area_entered.connect(_on_enemy_entered)
 
 
-func _on_enemy_entered(body: Node2D) -> void:
+
+func _on_enemy_entered(area: Area2D) -> void:
 	"""Wird aufgerufen wenn ein Enemy in die Falle läuft"""
 	if is_triggered:
 		return
 	
-	if not body.is_in_group("enemies"):
+	# ✅ Check das Parent-Node (der Enemy selbst)
+	var body := area.get_parent()
+	if not body or not body.is_in_group("enemies"):
 		return
 	
-	# Trigger!
+	# Trigger sofort!
 	_trigger_trap(body)
 
 
 func _trigger_trap(triggering_enemy: Node2D) -> void:
 	"""Aktiviert die Falle"""
+	if is_triggered:  # ✅ Double-check
+		return
+	
 	is_triggered = true
+	
+	# ✅ SOFORT Kollision deaktivieren damit keine weiteren Triggers kommen
+	if trigger_area:
+		trigger_area.set_deferred("monitoring", false)
+		trigger_area.set_deferred("monitorable", false)
+		var collision := trigger_area.get_node_or_null("TrapCollision")
+		if collision:
+			collision.set_deferred("disabled", true)
 	
 	print("[Trap] Falle ausgelöst von Enemy!")
 	
 	# Finde alle Enemies in Splash-Reichweite
 	var affected_enemies: Array[Node2D] = []
 	
+	if is_instance_valid(triggering_enemy):
+		affected_enemies.append(triggering_enemy)
+		print("[Trap] Triggering Enemy hinzugefügt")
+	
 	if splash_radius > 0:
-		for enemy in get_tree().get_nodes_in_group("enemies"):
+		var all_enemies := get_tree().get_nodes_in_group("enemies")
+		for enemy in all_enemies:
+			if not is_instance_valid(enemy):
+				continue
+			if enemy == triggering_enemy:  
+				continue
+			
 			var dist := position.distance_to(enemy.position)
 			if dist <= splash_radius:
 				affected_enemies.append(enemy)
-	else:
-		affected_enemies.append(triggering_enemy)
+				print("[Trap] Extra Enemy in Splash: %.0f" % dist)
+	
+	print("[Trap] Treffe insgesamt %d Enemies" % affected_enemies.size())
+	
+	# ✅ Slow-Amount vom Source-Tower holen
+	var trap_slow := 0.0
+	if source_tower and "slow_amount" in source_tower:
+		trap_slow = source_tower.slow_amount
 	
 	# Schaden anwenden
 	for enemy in affected_enemies:
@@ -201,6 +238,11 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 		
 		if enemy.has_method("take_damage"):
 			enemy.take_damage(damage, false, element, false)
+			print("[Trap] Schaden angewendet: %d" % damage)
+		
+		# ✅ Base-Slow anwenden
+		if trap_slow > 0 and enemy.has_method("apply_slow"):
+			enemy.apply_slow(trap_slow, 2.0)
 		
 		# Spezial-Effekte
 		_apply_trap_effects(enemy)
@@ -232,7 +274,10 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 	if splash_radius > 50 and VFX:
 		VFX.screen_shake(2.0, 0.1)
 	
-	# Falle zerstören
+	# ✅ Falle SOFORT unsichtbar machen
+	visible = false
+	
+	# ✅ Falle entfernen (deferred ist okay, da wir schon disabled haben)
 	queue_free()
 
 

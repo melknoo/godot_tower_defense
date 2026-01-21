@@ -271,6 +271,9 @@ func setup(data: Dictionary, type: String) -> void:
 		buff_strength = data.get("buff_strength", 0.15)
 		aura_range = tower_range  # Aura nutzt tower_range
 	
+	if data.has("slow_amount"):
+		slow_amount = data.get("slow_amount", 0.0)
+	
 	# Basis-Werte speichern
 	base_range = data.get("range", 150.0)
 	base_fire_rate = data.get("fire_rate", 1.0)
@@ -891,6 +894,14 @@ func _process(delta: float) -> void:
 		_update_archer_animation(delta)
 	elif sword_sprite:
 		_update_sword_animation(delta)
+		
+	if tower_type == "trapper" or attack_type == "trap":
+		if GameState.wave_active and fire_timer <= 0:
+			_place_trap()
+			fire_timer = fire_rate
+			print("[Tower Trapper] Falle platziert, nächste in %.1fs" % fire_rate)
+		_do_idle_animation(delta)
+		return
 	
 	if is_attacking and not sword_sprite:
 		attack_anim_time += delta
@@ -1346,6 +1357,7 @@ func _place_trap() -> void:
 	
 	# Max Fallen erreicht
 	if active_traps.size() >= max_traps:
+		print("[Tower] Max Fallen erreicht (%d/%d)" % [active_traps.size(), max_traps])
 		return
 	
 	# Finde Position
@@ -1368,6 +1380,8 @@ func _place_trap() -> void:
 			"special_type": special_type,
 			"tower": self
 		})
+		print("[Tower] Falle mit Slow: %.0f%%, Splash: %.0f" % [slow_amount * 100, splash_radius])
+
 	
 	get_parent().add_child(trap)
 	active_traps.append(trap)
@@ -1380,30 +1394,54 @@ func _place_trap() -> void:
 
 
 func _find_trap_position() -> Vector2:
-	"""Findet eine gute Position für eine Falle"""
-	# Strategie: Zufällige Position in Reichweite, 
-	# später könnte man den Pfad berücksichtigen
+	"""Findet eine gute Position für eine Falle - idealerweise auf dem Pfad"""
 	
-	var best_pos := Vector2.ZERO
-	var tries := 10
+	# Versuche Pfad vom WaveManager zu holen
+	var wave_manager: Node = get_node_or_null("/root/Main/WaveManager")
+	if not wave_manager or not wave_manager.has_method("get_path_points_in_range"):
+		return _find_random_trap_position()
 	
-	for i in range(tries):
-		var angle := randf() * TAU
-		var dist := randf_range(tower_range * 0.6, tower_range * 0.95)
-		var pos := position + Vector2(cos(angle), sin(angle)) * dist
-		
-		# Check ob Position frei ist (keine andere Falle zu nah)
+	# Hole Pfad-Punkte in Reichweite
+	var path_points: Array = wave_manager.get_path_points_in_range(position, tower_range)
+	
+	if path_points.is_empty():
+		return _find_random_trap_position()
+	
+	# Filtere Punkte die nicht zu nah an existierenden Fallen sind
+	var valid_points: Array[Vector2] = []
+	for point in path_points:
 		var too_close := false
 		for trap in active_traps:
-			if is_instance_valid(trap) and pos.distance_to(trap.position) < 40.0:
+			if is_instance_valid(trap) and point.distance_to(trap.position) < 50.0:
 				too_close = true
 				break
 		
 		if not too_close:
-			best_pos = pos
-			break
+			valid_points.append(point)
 	
-	return best_pos
+	if valid_points.is_empty():
+		# Alle Pfad-Punkte sind belegt, nimm den am weitesten entfernten
+		var furthest_point: Vector2 = path_points[0]  # ✅ Typ explizit
+		var max_dist: float = 0.0  # ✅ Typ explizit
+		for point in path_points:
+			var min_trap_dist := 999999.0
+			for trap in active_traps:
+				if is_instance_valid(trap):
+					min_trap_dist = min(min_trap_dist, point.distance_to(trap.position))
+			if min_trap_dist > max_dist:
+				max_dist = min_trap_dist
+				furthest_point = point
+		return furthest_point
+	
+	# Nimm zufälligen gültigen Punkt
+	return valid_points[randi() % valid_points.size()]
+
+
+func _find_random_trap_position() -> Vector2:
+	"""Fallback: Zufällige Position in Reichweite"""
+	var angle := randf() * TAU
+	var dist := randf_range(tower_range * 0.6, tower_range * 0.95)
+	return position + Vector2(cos(angle), sin(angle)) * dist
 
 
 func _update_aura_buffs() -> void:

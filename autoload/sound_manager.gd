@@ -20,6 +20,8 @@ const SOUND_DEFS := {
 	"hit": {"path": "res://assets/sounds/hit.wav", "volume": -8.0, "pitch_var": 0.1},
 	"enemy_death": {"path": "res://assets/sounds/enemy_death.wav", "volume": -5.0, "pitch_var": 0.08},
 	"upgrade": {"path": "res://assets/sounds/upgrade.wav", "volume": -3.0, "pitch_var": 0.03},
+	"impact": {"path": "res://assets/sounds/impact.wav", "volume": -3.0, "pitch_var": 0.03},
+	"explosion": {"path": "res://assets/sounds/explosion.wav", "volume": -3.0, "pitch_var": 0.03},
 	"wave_start": {"path": "res://assets/sounds/wave_start.wav", "volume": -2.0, "pitch_var": 0.0},
 	"error": {"path": "res://assets/sounds/error.wav", "volume": -5.0, "pitch_var": 0.0},
 	"sell": {"path": "res://assets/sounds/tower_sell.wav", "volume": -4.0, "pitch_var": 0.05},
@@ -177,6 +179,12 @@ func play_confirm() -> void:
 
 func play_coin() -> void:
 	play("coin")
+	
+func play_impact() -> void:
+	play("impact")
+	
+func play_explosion() -> void:
+	play("explosion")
 
 func play_place() -> void:
 	play("place")

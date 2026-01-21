@@ -291,6 +291,39 @@ func get_wave_info(wave_number: int) -> String:
 	return ", ".join(parts)
 
 
+
+func get_path_points_in_range(tower_pos: Vector2, range_radius: float) -> Array[Vector2]:
+	"""Gibt Pfad-Punkte zurück die in Reichweite des Turms sind"""
+	if path_points.is_empty():
+		return []
+	
+	var points_in_range: Array[Vector2] = []
+	
+	# Iteriere durch alle Pfad-Punkte
+	for point in path_points:
+		var dist := tower_pos.distance_to(point)
+		if dist <= range_radius:
+			points_in_range.append(point)
+	
+	# Wenn wir nicht genug Punkte haben, sample zwischen den Punkten
+	if points_in_range.size() < 3 and path_points.size() > 1:
+		# Sample zusätzliche Punkte zwischen den Pfad-Punkten
+		for i in range(path_points.size() - 1):
+			var start := path_points[i]
+			var end := path_points[i + 1]
+			var segment_length := start.distance_to(end)
+			var num_samples := int(segment_length / 30.0)  # Alle 30 Pixel
+			
+			for j in range(1, num_samples):
+				var t := float(j) / float(num_samples)
+				var sample_point := start.lerp(end, t)
+				var dist := tower_pos.distance_to(sample_point)
+				if dist <= range_radius:
+					points_in_range.append(sample_point)
+	
+	return points_in_range
+
+
 func get_wave_element_info(wave_number: int) -> String:
 	var preview := get_wave_preview(wave_number)
 	var wave_elem: String = preview["wave_element"]
