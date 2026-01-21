@@ -107,7 +107,7 @@ var towers := {
 	},
 	
 	"trapper": {
-		"name": "Fallensteller",
+		"name": "Falle",
 		"description": "Platziert Fallen auf dem Pfad\nFallen bleiben für 15s",
 		"cost": 60,
 		"damage": [40, 65, 95, 145, 220], 
