@@ -24,6 +24,7 @@ var aura_range := 0.0
 var buff_strength := 0.0
 var affected_towers: Array[Node2D] = []
 var aura_visual: Line2D = null
+var aura_buff_type := ""
 
 # Spezialeffekte
 var special_type := ""
@@ -92,6 +93,13 @@ var base_fire_rate := 1.0
 var base_splash := 0.0
 
 const ISOLATION_RADIUS := 350.0
+
+func _get_stat_value(data: Dictionary, key: String, default_val):
+	"""Helper um Werte aus Arrays oder direkte Werte zu extrahieren"""
+	var val = data.get(key, default_val)
+	if val is Array and val.size() > 0:
+		return val[0]
+	return val if val != null else default_val
 
 func is_isolated() -> bool:
 	if not is_inside_tree():
@@ -258,32 +266,15 @@ func _update_isolation_visual() -> void:
 func setup(data: Dictionary, type: String) -> void:
 	tower_type = type
 	
-	if data.has("min_range"):
-		min_range = data.get("min_range", 0.0)
-	
-	if data.has("max_traps"):
-		max_traps = data.get("max_traps", 2)
-	
-	if data.has("trap_duration"):
-		trap_duration = data.get("trap_duration", 15.0)
-	
-	if data.has("buff_strength"):
-		buff_strength = data.get("buff_strength", 0.15)
-		aura_range = tower_range  # Aura nutzt tower_range
-	
-	if data.has("slow_amount"):
-		slow_amount = data.get("slow_amount", 0.0)
-	
-	# Basis-Werte speichern
-	base_range = data.get("range", 150.0)
-	base_fire_rate = data.get("fire_rate", 1.0)
-	base_damage = data.get("damage", 20)
-	base_splash = data.get("splash", 0.0)
+	base_range = _get_stat_value(data, "range", 150.0)
+	base_fire_rate = _get_stat_value(data, "fire_rate", 1.0)
+	base_damage = _get_stat_value(data, "damage", 20)
+	base_splash = _get_stat_value(data, "splash", 0.0)
 	
 	# NEU: Base Crit-Chance basierend auf Tower-Typ
 	if tower_type == "archer":
-		base_crit_chance = 0.2  # 15% Base Crit für Archer
-	if tower_type == "sword":
+		base_crit_chance = 0.2
+	elif tower_type == "sword":
 		base_crit_chance = 0.15
 	else:
 		base_crit_chance = 0.0
@@ -295,6 +286,29 @@ func setup(data: Dictionary, type: String) -> void:
 	splash_radius = base_splash
 	
 	attack_type = data.get("attack_type", "projectile")
+	
+	# NEU: Spezielle Stats für neue Türme
+	if data.has("min_range"):
+		var min_r = data.get("min_range", 0.0)
+		min_range = min_r[0] if min_r is Array else min_r
+	
+	if data.has("max_traps"):
+		var mt = data.get("max_traps", 2)
+		max_traps = mt[0] if mt is Array else mt
+	
+	if data.has("trap_duration"):
+		var td = data.get("trap_duration", 15.0)
+		trap_duration = td[0] if td is Array else td
+	
+	if data.has("buff_strength"):
+		var bs = data.get("buff_strength", 0.15)
+		buff_strength = bs[0] if bs is Array else bs
+		aura_range = tower_range  # Aura nutzt tower_range
+	
+	if data.has("slow_amount"):
+		var sa = data.get("slow_amount", 0.0)
+		slow_amount = sa[0] if sa is Array else sa
+	
 	_load_special_effects()
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()
@@ -349,10 +363,10 @@ func _apply_item_bonuses() -> void:
 
 func recalculate_stats() -> void:
 	var data := TowerData.get_legacy_data(tower_type, level)
-	base_damage = data.get("damage", 20)
-	base_range = data.get("range", 150.0)
-	base_fire_rate = data.get("fire_rate", 1.0)
-	base_splash = data.get("splash", 0.0)
+	base_damage = _get_stat_value(data, "damage", 20)
+	base_range = _get_stat_value(data, "range", 150.0)
+	base_fire_rate = _get_stat_value(data, "fire_rate", 1.0)
+	base_splash = _get_stat_value(data, "splash", 0.0)
 	
 	# Zurück zu Basis-Werten
 	tower_range = base_range
@@ -362,7 +376,7 @@ func recalculate_stats() -> void:
 	
 	# Spezialeffekte neu laden
 	_load_special_effects()
-	
+
 	# Alle Boni anwenden
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()
@@ -437,10 +451,10 @@ func _update_item_indicators() -> void:
 func upgrade(data: Dictionary, new_level: int) -> void:
 	level = new_level
 	
-	base_damage = data.get("damage", base_damage)
-	base_range = data.get("range", base_range)
-	base_fire_rate = data.get("fire_rate", base_fire_rate)
-	base_splash = data.get("splash", base_splash)
+	base_range = _get_stat_value(data, "range", 150.0)
+	base_fire_rate = _get_stat_value(data, "fire_rate", 1.0)
+	base_damage = _get_stat_value(data, "damage", 20)
+	base_splash = _get_stat_value(data, "splash", 0.0)
 	
 	# Aktuelle Werte auf Basis setzen
 	tower_range = base_range
@@ -448,6 +462,12 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 	damage = base_damage
 	splash_radius = base_splash
 	attack_type = data.get("attack_type", attack_type)
+	
+	if data.has("buff_strength"):
+		var bs = data.get("buff_strength", 0.15)
+		buff_strength = bs[level] if (bs is Array and level < bs.size()) else (bs[0] if bs is Array else bs)
+		aura_range = tower_range  # Aura nutzt tower_range
+		print("[Tower Aura] Level %d: buff_strength=%.2f, aura_range=%.0f" % [level, buff_strength, aura_range])
 	
 	_load_special_effects()
 	_apply_upgrade_bonuses()
@@ -537,7 +557,9 @@ func _start_blocked_pulse() -> void:
 func _load_engraving_effects() -> void:
 	if engraved_element == "":
 		return
-	
+	if special_type == "aura":
+		print("[Tower Aura] Engraved mit %s - behalte special_type='aura'" % engraved_element)
+		return
 	match engraved_element:
 		"water":
 			special_type = "slow"
@@ -576,6 +598,58 @@ func is_engraved() -> bool:
 
 func can_be_engraved() -> bool:
 	return TowerData.can_engrave(tower_type) and engraved_element == ""
+
+
+func can_select_aura_buff() -> bool:
+	"""Aura-Türme können ihren Buff-Typ wählen wenn noch nicht gesetzt"""
+	return tower_type == "aura" and aura_buff_type == ""
+
+
+func select_aura_buff(buff_type: String) -> bool:
+	"""Setzt den Buff-Typ des Aura-Turms (permanent!)"""
+	if not can_select_aura_buff():
+		return false
+	
+	if buff_type not in ["damage", "range", "fire_rate"]:
+		return false
+	
+	aura_buff_type = buff_type
+	
+	# Visuals aktualisieren
+	if is_inside_tree():
+		_update_visuals()
+		_show_aura_selection_effect()
+	
+	# Alle betroffenen Türme neu berechnen
+	_update_aura_buffs()
+	
+	Sound.play_element_select()
+	print("[Tower Aura] Buff-Typ gewählt: %s (Stärke: %.2f)" % [aura_buff_type, buff_strength])
+	return true
+
+
+func _show_aura_selection_effect() -> void:
+	"""Visueller Effekt wenn Buff-Typ gewählt wird"""
+	if not VFX:
+		return
+	
+	var effect_color := _get_aura_buff_color()
+	VFX.spawn_pixel_burst(position, "air", 16)  # Nutze "air" als Basis
+	VFX.spawn_pixel_ring(position, "air", 60.0)
+	VFX.screen_flash(effect_color, 0.15)
+
+
+func _get_aura_buff_color() -> Color:
+	"""Gibt Farbe basierend auf Buff-Typ zurück"""
+	match aura_buff_type:
+		"damage":
+			return Color(1.0, 0.3, 0.3)  # Rot
+		"range":
+			return Color(0.3, 0.5, 1.0)  # Blau
+		"fire_rate":
+			return Color(0.3, 1.0, 0.4)  # Grün
+		_:
+			return Color(1.0, 0.9, 0.4)  # Gold (default)
 
 
 func _load_special_effects() -> void:
@@ -664,8 +738,8 @@ func _update_visuals() -> void:
 			aura_visual.z_index = -1
 			add_child(aura_visual)
 		
-		var elem := get_effective_element()
-		var aura_color := ElementalSystem.get_element_color(elem) if elem != "" and ElementalSystem else Color(1, 0.9, 0.4)
+		# ✅ NEU: Farbe basierend auf Buff-Typ
+		var aura_color := _get_aura_buff_color()
 		aura_visual.default_color = aura_color
 		aura_visual.default_color.a = 0.25
 		
@@ -955,7 +1029,7 @@ func _update_archer_animation(delta: float) -> void:
 		var max_frames := 6 if current_anim_row == 0 else 8
 		if current_anim_frame >= max_frames:
 			if is_playing_shoot_anim:
-				is_playing_shoot_anim = false
+
 				_shoot()
 				current_anim_row = 0
 				current_anim_frame = 0
@@ -1477,22 +1551,18 @@ func get_aura_buffs() -> Dictionary:
 	if attack_type != "none" or special_type != "aura":
 		return {}
 	
-	var elem := get_effective_element()
+	if aura_buff_type == "":
+		return {}  # Noch nicht konfiguriert
+	
 	var buffs := {}
 	
-	match elem:
-		"fire":
+	match aura_buff_type:
+		"damage":
 			buffs["damage_mult"] = buff_strength
-		"water":
+		"range":
 			buffs["range_mult"] = buff_strength
-		"earth":
-			buffs["crit_chance"] = buff_strength
-		"air":
+		"fire_rate":
 			buffs["fire_rate_mult"] = buff_strength
-		_:
-			# Ohne Engraving: Kleiner genereller Buff
-			buffs["damage_mult"] = buff_strength * 0.5
-			buffs["range_mult"] = buff_strength * 0.5
 	
 	return buffs
 

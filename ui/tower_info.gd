@@ -8,6 +8,7 @@ signal sell_pressed
 signal upgrade_pressed
 signal close_pressed
 signal engrave_pressed(element: String)
+signal aura_buff_selected(buff_type: String)
 signal pickup_pressed
 
 var tower_name_label: RichTextLabel
@@ -710,6 +711,11 @@ func _update_engrave_buttons() -> void:
 	if not current_tower:
 		engrave_container.visible = false
 		return
+	
+	# ✅ NEU: Spezielle Behandlung für Aura-Türme
+	if current_tower.tower_type == "aura":
+		_update_aura_buff_buttons()
+		return
 
 	if not current_tower.has_method("can_be_engraved") or not current_tower.can_be_engraved():
 		engrave_container.visible = false
@@ -741,6 +747,153 @@ func _update_engrave_buttons() -> void:
 		btn.pressed.connect(_on_engrave_button_pressed.bind(element))
 		UITheme.style_button(btn)
 		engrave_container.add_child(btn)
+
+
+func _update_aura_buff_buttons() -> void:
+	"""Zeigt Buff-Auswahl für Aura-Türme"""
+	if not current_tower.has_method("can_select_aura_buff"):
+		engrave_container.visible = false
+		return
+	
+	if not current_tower.can_select_aura_buff():
+	# Buff bereits gewählt - zeige aktuellen Status
+		var buff_type: String = current_tower.aura_buff_type
+		if buff_type != "":
+			engrave_container.visible = true
+			var label := engrave_container.get_node_or_null("SelectedLabel")
+			if not label:
+				for child in engrave_container.get_children():
+					if not child is Label or child.text != "Gravieren:":
+						child.queue_free()
+				
+				# ✅ RichTextLabel statt Label verwenden!
+				label = RichTextLabel.new()
+				label.name = "SelectedLabel"
+				label.bbcode_enabled = true
+				label.fit_content = true
+				label.scroll_active = false
+				label.add_theme_font_size_override("normal_font_size", 11)
+				label.add_theme_color_override("default_color", Color(0.094, 0.094, 0.094))
+				engrave_container.add_child(label)
+			
+			var buff_name := _get_aura_buff_name(buff_type)
+			var buff_icon := _get_aura_buff_icon_bb(buff_type)
+			var buff_percent := int(current_tower.buff_strength * 100)
+			print("buff_name %s" % buff_name )
+			print("buff_icon %s" % buff_icon )
+			print("buff_percent %d%%" % buff_percent)
+			label.text = "%s %s +%d%%" % [buff_icon, buff_name, buff_percent]
+		else:
+			engrave_container.visible = false
+		return
+	
+	# Buff noch nicht gewählt - zeige Auswahlbuttons
+	engrave_container.visible = true
+	
+	# Label anpassen
+	var header_label := engrave_container.get_child(0)
+	if header_label is Label:
+		header_label.text = "Buff wählen:"
+	
+	# ✅ Aktuellen buff_strength Wert holen
+	var buff_percent := int(current_tower.buff_strength * 100)
+	
+	var buff_options := [
+		{"type": "damage", "name": "Schaden", "icon": "damage", "desc": "Erhöht Schaden naher Türme um %d%%" % buff_percent},
+		{"type": "range", "name": "Reichweite", "icon": "range", "desc": "Erhöht Reichweite naher Türme um %d%%" % buff_percent},
+		{"type": "fire_rate", "name": "Tempo", "icon": "fire_rate", "desc": "Erhöht Feuerrate naher Türme um %d%%" % buff_percent}
+	]
+	
+	for option in buff_options:
+		var btn := Button.new()
+		btn.text = ""
+		
+		# ✅ Icon über IconSystem laden
+		if IconSystem:
+			btn.icon = IconSystem.get_texture(option["icon"])
+		
+		# Fallback wenn kein Icon
+		if not btn.icon:
+			btn.text = _get_aura_buff_fallback_icon(option["type"])
+		
+		btn.custom_minimum_size = Vector2(48, 40)
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.expand_icon = true
+		
+		# ✅ Detaillierter Tooltip mit Prozent-Wert
+		btn.tooltip_text = "%s\n%s\n(Reichweite: %.0f)" % [
+			option["name"],
+			option["desc"],
+			current_tower.aura_range
+		]
+		
+		if GameState.wave_active:
+			btn.disabled = true
+			btn.modulate.a = 0.5
+			btn.tooltip_text += "\n\nNicht während einer Welle"
+		
+		btn.pressed.connect(_on_aura_buff_button_pressed.bind(option["type"]))
+		UITheme.style_button(btn)
+		
+		# ✅ Farbe für Button basierend auf Typ
+		var bg_color := _get_aura_buff_button_color(option["type"])
+		btn.modulate = bg_color.lerp(Color.WHITE, 0.7)
+		
+		engrave_container.add_child(btn)
+
+
+func _get_aura_buff_icon_bb(buff_type: String) -> String:
+	"""Gibt BBCode-Icon zurück wenn IconSystem verfügbar"""
+	if not IconSystem:
+		return _get_aura_buff_fallback_icon(buff_type)
+	
+	match buff_type:
+		"damage": return IconSystem.bb("damage", 20)
+		"range": return IconSystem.bb("range", 20)
+		"fire_rate": return IconSystem.bb("fire_rate", 20)
+		_: return "?"
+
+
+func _get_aura_buff_fallback_icon(buff_type: String) -> String:
+	"""Fallback Text-Icons wenn IconSystem nicht verfügbar"""
+	match buff_type:
+		"damage": return "⚔"
+		"range": return "🎯"
+		"fire_rate": return "⚡"
+		_: return "?"
+
+
+func _get_aura_buff_button_color(buff_type: String) -> Color:
+	"""Gibt Farbe für Buff-Button zurück"""
+	match buff_type:
+		"damage": return Color(1.0, 0.3, 0.3)  # Rot
+		"range": return Color(0.3, 0.5, 1.0)   # Blau
+		"fire_rate": return Color(0.3, 1.0, 0.4)  # Grün
+		_: return Color(1.0, 0.9, 0.4)  # Gold
+
+
+func _get_aura_buff_name(buff_type: String) -> String:
+	match buff_type:
+		"damage": return "Schaden"
+		"range": return "Reichweite"
+		"fire_rate": return "Tempo"
+		_: return "Unbekannt"
+
+
+func _get_aura_buff_icon(buff_type: String) -> String:
+	match buff_type:
+		"damage": return "⚔"
+		"range": return "🎯"
+		"fire_rate": return "⚡"
+		_: return "?"
+
+
+func _on_aura_buff_button_pressed(buff_type: String) -> void:
+	if current_tower and current_tower.select_aura_buff(buff_type):
+		aura_buff_selected.emit(buff_type)
+		_update_display()
+		if VFX:
+			VFX.spawn_pixel_burst(current_tower.position, "air", 12)
 
 
 func _update_upgrade_button(tower_type: String, level: int) -> void:

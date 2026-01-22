@@ -8,7 +8,7 @@ signal element_upgraded(element: String, new_level: int)
 var element_levels: Dictionary = {}
 
 const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
-const ENGRAVABLE_TOWERS: Array[String] = ["archer", "sword", "wizard", "cannon", "trapper", "aura"]
+const ENGRAVABLE_TOWERS: Array[String] = ["archer", "sword", "wizard", "cannon", "trapper"]
 const SUPPLY_BUILDINGS: Array[String] = ["farm"]  # Gebäude die max_supply erhöhen
 const DEBUG_EXTRA_TOWERS := false
 
