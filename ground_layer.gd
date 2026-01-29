@@ -3,15 +3,16 @@ extends Node2D
 class_name GroundLayer
 
 const GRASS_TILEABLE_PATH := "res://assets/tiles/grass_tileable.png"
+const PATH_TILE_PATH := "res://assets/tiles/ground.png"  # Original Pfad-Tile
 
 @export var grid_size: int = 64
 @export var map_width: int = 12
 @export var map_height: int = 8
 
 var grass_texture: Texture2D
+var path_tile_texture: Texture2D  # Neues: Original ground.png
 var path_cells: Array[Vector2i] = []
 var decoration_manager: DecorationManager
-var path_line: Line2D
 
 # Größe der kachelbaren Textur
 const TILEABLE_SIZE := Vector2(152, 160)
@@ -28,6 +29,13 @@ func _load_grass_texture() -> void:
 		print("[GroundLayer] Gras-Textur geladen: %s" % GRASS_TILEABLE_PATH)
 	else:
 		push_error("[GroundLayer] Gras-Textur nicht gefunden: %s" % GRASS_TILEABLE_PATH)
+	
+	# Lade auch das Original Pfad-Tile
+	if ResourceLoader.exists(PATH_TILE_PATH):
+		path_tile_texture = load(PATH_TILE_PATH)
+		print("[GroundLayer] Pfad-Tile geladen: %s" % PATH_TILE_PATH)
+	else:
+		push_error("[GroundLayer] Pfad-Tile nicht gefunden: %s" % PATH_TILE_PATH)
 
 
 func _setup_decoration_manager() -> void:
@@ -39,7 +47,7 @@ func _setup_decoration_manager() -> void:
 func setup(cells: Array[Vector2i]) -> void:
 	path_cells = cells
 	_draw_background()
-	_draw_path()
+	_draw_path_tiles()  # Geändert: Zeichne Pfad als Tiles wie vorher
 	_place_decorations()
 
 
@@ -105,22 +113,17 @@ func set_decoration_seed(seed_value: int) -> void:
 		decoration_manager.set_seed(seed_value)
 
 
-func _draw_path() -> void:
-	# Erstelle Line2D für Pfad falls noch nicht vorhanden
-	if not path_line:
-		path_line = Line2D.new()
-		path_line.width = 48
-		path_line.default_color = Color(0.35, 0.3, 0.25)  # Dunkler Erdpfad
-		path_line.joint_mode = Line2D.LINE_JOINT_ROUND
-		path_line.end_cap_mode = Line2D.LINE_CAP_ROUND
-		path_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-		path_line.z_index = -10  # Über Ground (-100) und Decorations (-50)
-		add_child(path_line)
+func _draw_path_tiles() -> void:
+	# Zeichne Pfad-Tiles wie in der alten Version
+	if not path_tile_texture:
+		return
 	
-	# Zeichne Pfad
-	path_line.clear_points()
 	for cell in path_cells:
-		var point := Vector2(cell) * grid_size + Vector2(grid_size / 2, grid_size / 2)
-		path_line.add_point(point)
+		var sprite := Sprite2D.new()
+		sprite.texture = path_tile_texture
+		sprite.centered = true
+		sprite.position = Vector2(cell) * grid_size + Vector2(grid_size / 2, grid_size / 2)
+		sprite.z_index = -80  # Über Ground (-100), unter Decorations (-50)
+		add_child(sprite)
 	
-	print("[GroundLayer] Pfad gezeichnet mit %d Zellen" % path_cells.size())
+	print("[GroundLayer] Pfad gezeichnet: %d Tiles" % path_cells.size())
