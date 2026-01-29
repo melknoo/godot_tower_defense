@@ -16,7 +16,7 @@ const BASE_INTEREST_RATE := 0.10
 const BASE_MAX_INTEREST := 50
 const BASE_FLAT_BONUS := 25
 
-const STARTING_MAX_SUPPLY := 4
+const STARTING_MAX_SUPPLY := 5
 
 var gold := 100:
 	set(value):

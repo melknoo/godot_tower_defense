@@ -11,6 +11,20 @@ var splash_radius := 0.0
 var level := 0
 var attack_type := "projectile"
 var engraved_element := ""
+var min_range := 0.0
+var min_range_circle: Line2D = null
+
+# Trapper-spezifisch
+var active_traps: Array[Node2D] = []
+var max_traps := 2
+var trap_duration := 15.0
+
+# Aura-spezifisch
+var aura_range := 0.0
+var buff_strength := 0.0
+var affected_towers: Array[Node2D] = []
+var aura_visual: Line2D = null
+var aura_buff_type := ""
 
 # Spezialeffekte
 var special_type := ""
@@ -80,6 +94,13 @@ var base_splash := 0.0
 
 const ISOLATION_RADIUS := 350.0
 
+func _get_stat_value(data: Dictionary, key: String, default_val):
+	"""Helper um Werte aus Arrays oder direkte Werte zu extrahieren"""
+	var val = data.get(key, default_val)
+	if val is Array and val.size() > 0:
+		return val[0]
+	return val if val != null else default_val
+
 func is_isolated() -> bool:
 	if not is_inside_tree():
 		return false
@@ -135,22 +156,33 @@ func _apply_upgrade_bonuses() -> void:
 	var damage_mult := UpgradeSystem.get_damage_multiplier(tower_type, elem)
 	if isolated:
 		damage_mult *= UpgradeSystem.get_isolated_damage_multiplier()
-		print("[Tower %s] ISOLIERT! Damage Mult: %.2f (isolated bonus: %.2f)" % [
-			tower_type, damage_mult, UpgradeSystem.get_isolated_damage_multiplier()
-		])
-	damage = int(float(base_damage) * damage_mult)  # ✅ float() für saubere Multiplikation
+	
+	# NEU: Aura-Buffs von anderen Türmen
+	var aura_buffs := _collect_aura_buffs()
+	if aura_buffs.has("damage_mult"):
+		damage_mult *= (1.0 + aura_buffs["damage_mult"])
+	
+	damage = int(float(base_damage) * damage_mult)
 	
 	# Range Multiplikator
 	var range_mult := UpgradeSystem.get_range_multiplier(tower_type)
 	if isolated:
 		range_mult *= UpgradeSystem.get_isolated_range_multiplier()
+	
+	if aura_buffs.has("range_mult"):
+		range_mult *= (1.0 + aura_buffs["range_mult"])
+	
 	tower_range = base_range * range_mult
 	
-	# Fire Rate Multiplikator (schneller = niedrigerer Wert)
+	# Fire Rate Multiplikator
 	var fire_rate_mult := UpgradeSystem.get_fire_rate_multiplier(tower_type)
+	
+	if aura_buffs.has("fire_rate_mult"):
+		fire_rate_mult += aura_buffs["fire_rate_mult"]
+	
 	fire_rate = base_fire_rate / (1.0 + fire_rate_mult - 1.0)
 	
-	# Splash Multiplikator
+	# Splash
 	if base_splash > 0:
 		var splash_mult := UpgradeSystem.get_splash_multiplier()
 		splash_radius = base_splash * splash_mult
@@ -160,6 +192,39 @@ func _apply_upgrade_bonuses() -> void:
 		slow_amount += UpgradeSystem.get_slow_bonus(elem)
 		stun_chance += UpgradeSystem.get_stun_bonus(elem)
 		chain_targets += UpgradeSystem.get_chain_bonus(elem)
+	
+	# NEU: Crit von Aura
+	if aura_buffs.has("crit_chance"):
+		base_crit_chance += aura_buffs["crit_chance"]
+
+
+func _collect_aura_buffs() -> Dictionary:
+	"""Sammelt alle Aura-Buffs die diesen Turm betreffen"""
+	var combined_buffs := {}
+	
+	# ✅ Check ob Tower schon im Tree ist
+	if not is_inside_tree():
+		return combined_buffs
+	
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if tower == self:
+			continue
+		if tower.attack_type != "none" or tower.special_type != "aura":
+			continue
+		
+		var dist := position.distance_to(tower.position)
+		if dist > tower.aura_range:
+			continue
+		
+		# Sammle Buffs von diesem Aura-Turm
+		var buffs: Dictionary = tower.get_aura_buffs() if tower.has_method("get_aura_buffs") else {}
+		
+		for key in buffs:
+			if not combined_buffs.has(key):
+				combined_buffs[key] = 0.0
+			combined_buffs[key] += buffs[key]
+	
+	return combined_buffs
 
 
 func _update_isolation_visual() -> void:
@@ -201,16 +266,15 @@ func _update_isolation_visual() -> void:
 func setup(data: Dictionary, type: String) -> void:
 	tower_type = type
 	
-	# Basis-Werte speichern
-	base_range = data.get("range", 150.0)
-	base_fire_rate = data.get("fire_rate", 1.0)
-	base_damage = data.get("damage", 20)
-	base_splash = data.get("splash", 0.0)
+	base_range = _get_stat_value(data, "range", 150.0)
+	base_fire_rate = _get_stat_value(data, "fire_rate", 1.0)
+	base_damage = _get_stat_value(data, "damage", 20)
+	base_splash = _get_stat_value(data, "splash", 0.0)
 	
 	# NEU: Base Crit-Chance basierend auf Tower-Typ
 	if tower_type == "archer":
-		base_crit_chance = 0.2  # 15% Base Crit für Archer
-	if tower_type == "sword":
+		base_crit_chance = 0.2
+	elif tower_type == "sword":
 		base_crit_chance = 0.15
 	else:
 		base_crit_chance = 0.0
@@ -222,6 +286,29 @@ func setup(data: Dictionary, type: String) -> void:
 	splash_radius = base_splash
 	
 	attack_type = data.get("attack_type", "projectile")
+	
+	# NEU: Spezielle Stats für neue Türme
+	if data.has("min_range"):
+		var min_r = data.get("min_range", 0.0)
+		min_range = min_r[0] if min_r is Array else min_r
+	
+	if data.has("max_traps"):
+		var mt = data.get("max_traps", 2)
+		max_traps = mt[0] if mt is Array else mt
+	
+	if data.has("trap_duration"):
+		var td = data.get("trap_duration", 15.0)
+		trap_duration = td[0] if td is Array else td
+	
+	if data.has("buff_strength"):
+		var bs = data.get("buff_strength", 0.15)
+		buff_strength = bs[0] if bs is Array else bs
+		aura_range = tower_range  # Aura nutzt tower_range
+	
+	if data.has("slow_amount"):
+		var sa = data.get("slow_amount", 0.0)
+		slow_amount = sa[0] if sa is Array else sa
+	
 	_load_special_effects()
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()
@@ -276,10 +363,10 @@ func _apply_item_bonuses() -> void:
 
 func recalculate_stats() -> void:
 	var data := TowerData.get_legacy_data(tower_type, level)
-	base_damage = data.get("damage", 20)
-	base_range = data.get("range", 150.0)
-	base_fire_rate = data.get("fire_rate", 1.0)
-	base_splash = data.get("splash", 0.0)
+	base_damage = _get_stat_value(data, "damage", 20)
+	base_range = _get_stat_value(data, "range", 150.0)
+	base_fire_rate = _get_stat_value(data, "fire_rate", 1.0)
+	base_splash = _get_stat_value(data, "splash", 0.0)
 	
 	# Zurück zu Basis-Werten
 	tower_range = base_range
@@ -289,7 +376,7 @@ func recalculate_stats() -> void:
 	
 	# Spezialeffekte neu laden
 	_load_special_effects()
-	
+
 	# Alle Boni anwenden
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()
@@ -364,10 +451,10 @@ func _update_item_indicators() -> void:
 func upgrade(data: Dictionary, new_level: int) -> void:
 	level = new_level
 	
-	base_damage = data.get("damage", base_damage)
-	base_range = data.get("range", base_range)
-	base_fire_rate = data.get("fire_rate", base_fire_rate)
-	base_splash = data.get("splash", base_splash)
+	base_range = _get_stat_value(data, "range", 150.0)
+	base_fire_rate = _get_stat_value(data, "fire_rate", 1.0)
+	base_damage = _get_stat_value(data, "damage", 20)
+	base_splash = _get_stat_value(data, "splash", 0.0)
 	
 	# Aktuelle Werte auf Basis setzen
 	tower_range = base_range
@@ -375,6 +462,12 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 	damage = base_damage
 	splash_radius = base_splash
 	attack_type = data.get("attack_type", attack_type)
+	
+	if data.has("buff_strength"):
+		var bs = data.get("buff_strength", 0.15)
+		buff_strength = bs[level] if (bs is Array and level < bs.size()) else (bs[0] if bs is Array else bs)
+		aura_range = tower_range  # Aura nutzt tower_range
+		print("[Tower Aura] Level %d: buff_strength=%.2f, aura_range=%.0f" % [level, buff_strength, aura_range])
 	
 	_load_special_effects()
 	_apply_upgrade_bonuses()
@@ -464,7 +557,9 @@ func _start_blocked_pulse() -> void:
 func _load_engraving_effects() -> void:
 	if engraved_element == "":
 		return
-	
+	if special_type == "aura":
+		print("[Tower Aura] Engraved mit %s - behalte special_type='aura'" % engraved_element)
+		return
 	match engraved_element:
 		"water":
 			special_type = "slow"
@@ -503,6 +598,58 @@ func is_engraved() -> bool:
 
 func can_be_engraved() -> bool:
 	return TowerData.can_engrave(tower_type) and engraved_element == ""
+
+
+func can_select_aura_buff() -> bool:
+	"""Aura-Türme können ihren Buff-Typ wählen wenn noch nicht gesetzt"""
+	return tower_type == "aura" and aura_buff_type == ""
+
+
+func select_aura_buff(buff_type: String) -> bool:
+	"""Setzt den Buff-Typ des Aura-Turms (permanent!)"""
+	if not can_select_aura_buff():
+		return false
+	
+	if buff_type not in ["damage", "range", "fire_rate"]:
+		return false
+	
+	aura_buff_type = buff_type
+	
+	# Visuals aktualisieren
+	if is_inside_tree():
+		_update_visuals()
+		_show_aura_selection_effect()
+	
+	# Alle betroffenen Türme neu berechnen
+	_update_aura_buffs()
+	
+	Sound.play_element_select()
+	print("[Tower Aura] Buff-Typ gewählt: %s (Stärke: %.2f)" % [aura_buff_type, buff_strength])
+	return true
+
+
+func _show_aura_selection_effect() -> void:
+	"""Visueller Effekt wenn Buff-Typ gewählt wird"""
+	if not VFX:
+		return
+	
+	var effect_color := _get_aura_buff_color()
+	VFX.spawn_pixel_burst(position, "air", 16)  # Nutze "air" als Basis
+	VFX.spawn_pixel_ring(position, "air", 60.0)
+	VFX.screen_flash(effect_color, 0.15)
+
+
+func _get_aura_buff_color() -> Color:
+	"""Gibt Farbe basierend auf Buff-Typ zurück"""
+	match aura_buff_type:
+		"damage":
+			return Color(1.0, 0.3, 0.3)  # Rot
+		"range":
+			return Color(0.3, 0.5, 1.0)  # Blau
+		"fire_rate":
+			return Color(0.3, 1.0, 0.4)  # Grün
+		_:
+			return Color(1.0, 0.9, 0.4)  # Gold (default)
 
 
 func _load_special_effects() -> void:
@@ -547,21 +694,57 @@ func _create_visuals() -> void:
 
 
 func _update_visuals() -> void:
-	for child in turret.get_children():
-		child.queue_free()
+	print("[Tower %s] _update_visuals() START" % tower_type)
+	
+	print("[Tower %s] Clearing turret children..." % tower_type)
+	if turret.get_child_count() > 0:
+		print("[Tower %s] Clearing turret children..." % tower_type)
+		for child in turret.get_children():
+			turret.remove_child(child)
+			child.queue_free()
+	
+	print("[Tower %s] Resetting sprite vars..." % tower_type)
 	archer_sprite = null
 	sword_sprite = null
 	sprite = null
 	
+	print("[Tower %s] Checking tower_type, value is: '%s'" % [tower_type, tower_type])
+	
+	# ✅ SPRITE SETUP - nur eine Funktion wird aufgerufen
 	if tower_type == "archer":
+		print("[Tower] -> Branch: archer")
 		_setup_archer_sprite()
 	elif tower_type == "sword":
+		print("[Tower] -> Branch: sword")
 		_setup_sword_sprite()
 	elif tower_type == "farm":
+		print("[Tower] -> Branch: farm")
 		_setup_farm_sprite()
 	else:
+		print("[Tower] -> Branch: else (calling _setup_standard_sprite)")
 		_setup_standard_sprite()
 	
+	print("[Tower %s] After sprite setup, children count: %d" % [tower_type, turret.get_child_count()])
+	
+	# ✅ MIN-RANGE CIRCLE - separat, NACH dem Sprite-Setup
+	if tower_type == "cannon" and min_range > 0:
+		print("[Tower cannon] Setting up min_range_circle")
+		if not min_range_circle:
+			min_range_circle = Line2D.new()
+			min_range_circle.default_color = Color(1, 0.3, 0.3, 0.25)
+			min_range_circle.width = 2
+			min_range_circle.z_index = -1
+			add_child(min_range_circle)
+		
+		min_range_circle.clear_points()
+		for i in range(33):
+			var angle := i * TAU / 32
+			min_range_circle.add_point(Vector2(cos(angle), sin(angle)) * min_range)
+	elif min_range_circle:
+		min_range_circle.queue_free()
+		min_range_circle = null
+	
+	# Range Circle
 	range_circle.clear_points()
 	if attack_type != "none" and tower_range > 0:
 		for i in range(33):
@@ -572,12 +755,33 @@ func _update_visuals() -> void:
 			var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
 			range_circle.default_color = elem_color.lerp(Color.WHITE, 0.7)
 			range_circle.default_color.a = 0.2
+	elif attack_type == "none" and special_type == "aura":
+		if not aura_visual:
+			aura_visual = Line2D.new()
+			aura_visual.width = 3
+			aura_visual.z_index = -1
+			add_child(aura_visual)
+		
+		var aura_color := _get_aura_buff_color()
+		aura_visual.default_color = aura_color
+		aura_visual.default_color.a = 0.25
+		
+		aura_visual.clear_points()
+		for i in range(33):
+			var angle := i * TAU / 32
+			aura_visual.add_point(Vector2(cos(angle), sin(angle)) * aura_range)
+		
+		var tween := create_tween().set_loops()
+		tween.tween_property(aura_visual, "default_color:a", 0.1, 1.2)
+		tween.tween_property(aura_visual, "default_color:a", 0.4, 1.2)
 	else:
 		range_circle.visible = false
 	
 	_update_level_indicator()
 	_update_isolation_visual()
 	_update_engraving_indicator()
+	
+	print("[Tower %s] _update_visuals() END" % tower_type)
 
 
 func _setup_farm_sprite() -> void:
@@ -666,14 +870,15 @@ func _setup_sword_sprite() -> void:
 
 
 func _setup_standard_sprite() -> void:
+	print("[Tower %s] _setup_standard_sprite() START" % tower_type)
 	var texture_path := _get_tower_texture_path()
 	if not ResourceLoader.exists(texture_path) and level > 0:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
-	
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
 	
 	if ResourceLoader.exists(texture_path):
+		print("!!! RESOURCELOADER EXISTS!!!")
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
 		if is_animated:
@@ -692,14 +897,78 @@ func _setup_standard_sprite() -> void:
 			sprite.scale = Vector2(3, 3)
 		turret.add_child(sprite)
 	else:
+		print("[Tower %s] -> Creating polygon" % tower_type)
 		var poly := Polygon2D.new()
-		poly.polygon = PackedVector2Array([
-			Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
-			Vector2(0, -25), Vector2(-20, -10)
-		])
-		var color: Variant = TowerData.get_stat(tower_type, "color")
-		poly.color = color if color else Color.WHITE
+		
+		match tower_type:
+			"wizard":
+				poly.polygon = PackedVector2Array([
+					Vector2(-15, 20), Vector2(15, 20), Vector2(15, 0),
+					Vector2(8, 0), Vector2(0, -28), Vector2(-8, 0), Vector2(-15, 0)
+				])
+			
+			"cannon":
+				print("[Tower] -> cannon polygon")
+				# Einfache L-Form (Kanonen-Körper + Rohr)
+				poly.polygon = PackedVector2Array([
+					# Basis/Körper
+					Vector2(-18, 18), Vector2(18, 18),
+					Vector2(18, -2), Vector2(8, -2),
+					# Rohr
+					Vector2(8, -10), Vector2(-30, -10),
+					Vector2(-30, -2), Vector2(-18, -2),
+					# Zurück
+					Vector2(-18, 0)
+				])
+				poly.color = Color(0.5, 0.5, 0.55)  # Helleres Grau - besser sichtbar!
+				print("[Tower] -> cannon color set to: %s" % poly.color)
+			
+			"trapper":
+				poly.polygon = PackedVector2Array([
+					Vector2(-20, 20), Vector2(20, 20), Vector2(20, 5),
+					Vector2(12, 5), Vector2(12, -5), Vector2(-12, -5),
+					Vector2(-12, 5), Vector2(-20, 5)
+				])
+			
+			"aura":
+				poly.polygon = PackedVector2Array([
+					Vector2(0, -25), Vector2(12, -8), Vector2(18, 8),
+					Vector2(0, 20), Vector2(-18, 8), Vector2(-12, -8)
+				])
+			
+			_:
+				print("[Tower] -> default polygon")
+				poly.polygon = PackedVector2Array([
+					Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
+					Vector2(0, -25), Vector2(-20, -10)
+				])
+		
+		# ✅ NUR Farbe setzen wenn noch nicht gesetzt (für cannon)
+		if poly.color == Color.WHITE:
+			var color: Variant = data.get("color")
+			poly.color = color if color else Color.WHITE
+			print("[Tower %s] -> color from data: %s" % [tower_type, poly.color])
+		
+		print("[Tower %s] -> Adding poly to turret, children before: %d" % [tower_type, turret.get_child_count()])
 		turret.add_child(poly)
+		print("[Tower %s] -> turret children after: %d" % [tower_type, turret.get_child_count()])
+		
+		print("[Tower %s] === VISIBILITY CHECKS ===" % tower_type)
+		print("  turret.visible: %s" % turret.visible)
+		print("  turret.position: %s" % turret.position)
+		print("  turret.modulate: %s" % turret.modulate)
+		print("  turret.z_index: %d" % turret.z_index)
+		print("  poly.visible: %s" % poly.visible)
+		print("  poly.color: %s" % poly.color)
+		print("  poly.modulate: %s" % poly.modulate)
+		print("  poly.z_index: %d" % poly.z_index)
+		print("  poly.position: %s" % poly.position)
+		print("  poly.polygon points: %d" % poly.polygon.size())
+		print("=========================")
+		
+		sprite = null
+	print("[Tower %s] _setup_standard_sprite() END" % tower_type)
+
 
 
 func _get_tower_texture_path() -> String:
@@ -743,6 +1012,9 @@ func _show_upgrade_effect() -> void:
 
 func _process(delta: float) -> void:
 	if attack_type == "none":
+		# Aura-Update (kontinuierlich)
+		if special_type == "aura":
+			_update_aura_buffs()
 		_do_idle_animation(delta)
 		return
 	
@@ -752,6 +1024,14 @@ func _process(delta: float) -> void:
 		_update_archer_animation(delta)
 	elif sword_sprite:
 		_update_sword_animation(delta)
+		
+	if tower_type == "trapper" or attack_type == "trap":
+		if GameState.wave_active and fire_timer <= 0:
+			_place_trap()
+			fire_timer = fire_rate
+			print("[Tower Trapper] Falle platziert, nächste in %.1fs" % fire_rate)
+		_do_idle_animation(delta)
+		return
 	
 	if is_attacking and not sword_sprite:
 		attack_anim_time += delta
@@ -767,19 +1047,30 @@ func _process(delta: float) -> void:
 		is_shooting = true
 		if attack_type != "melee" and not archer_sprite:
 			_rotate_towards_target(delta)
+		
 		if fire_timer <= 0 and not is_playing_shoot_anim and not is_playing_attack_anim:
-			if attack_type == "melee":
-				if sword_sprite:
-					_start_sword_attack_animation()
-				else:
-					_melee_attack()
-				fire_timer = fire_rate
-			elif archer_sprite:
-				_start_archer_shoot_animation()
-				fire_timer = fire_rate
-			else:
-				_shoot()
-				fire_timer = fire_rate
+			match attack_type:
+				"melee":
+					if sword_sprite:
+						_start_sword_attack_animation()
+					else:
+						_melee_attack()
+					fire_timer = fire_rate
+				
+				"cannon":  # NEU
+					_cannon_shoot()
+					fire_timer = fire_rate
+				
+				"trap":  # NEU
+					_place_trap()
+					fire_timer = fire_rate
+				
+				_:  # Normal projectile
+					if archer_sprite:
+						_start_archer_shoot_animation()
+					else:
+						_shoot()
+					fire_timer = fire_rate
 	else:
 		is_shooting = false
 		if not archer_sprite and not sword_sprite:
@@ -794,7 +1085,7 @@ func _update_archer_animation(delta: float) -> void:
 		var max_frames := 6 if current_anim_row == 0 else 8
 		if current_anim_frame >= max_frames:
 			if is_playing_shoot_anim:
-				is_playing_shoot_anim = false
+
 				_shoot()
 				current_anim_row = 0
 				current_anim_frame = 0
@@ -894,10 +1185,18 @@ func _do_melee_animation(delta: float) -> void:
 func _find_target() -> void:
 	target = null
 	var best_progress := -1.0
+	
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var dist := position.distance_to(enemy.position)
+		
+		# Reichweiten-Check
 		if dist > tower_range:
 			continue
+		
+		# NEU: Mindestreichweite für Kanone
+		if tower_type == "cannon" and dist < min_range:
+			continue
+		
 		var progress: float = enemy.get_progress() if enemy.has_method("get_progress") else 0.0
 		if progress > best_progress:
 			best_progress = progress
@@ -1108,6 +1407,221 @@ func _do_recoil() -> void:
 	var tween := current_sprite.create_tween()
 	tween.tween_property(current_sprite, "position", original_pos + Vector2(0, 3), 0.05)
 	tween.tween_property(current_sprite, "position", original_pos, 0.1).set_trans(Tween.TRANS_ELASTIC)
+
+
+func _cannon_shoot() -> void:
+	"""Kanonen-Schuss mit großem Rückstoß und Screen Shake"""
+	if not target:
+		return
+	
+	var bullet := bullet_scene.instantiate()
+	bullet.position = position
+	
+	var elem := get_effective_element()
+	
+	# Crit-Berechnung
+	var is_crit := false
+	var final_damage := damage
+	var crit_chance := base_crit_chance
+	
+	if UpgradeSystem:
+		crit_chance += UpgradeSystem.get_crit_chance()
+	if ItemSystem:
+		crit_chance += ItemSystem.get_tower_item_bonus_percent(self, "crit_chance")
+	
+	if randf() < crit_chance:
+		is_crit = true
+		var crit_mult := UpgradeSystem.get_crit_multiplier() if UpgradeSystem else 1.5
+		if ItemSystem:
+			crit_mult += ItemSystem.get_tower_item_bonus_percent(self, "crit_damage")
+		final_damage = int(float(damage) * crit_mult)
+		if VFX:
+			VFX.spawn_pixels(position, "crit", 6, 25.0)
+	
+	var bullet_data := {
+		"target": target,
+		"damage": final_damage,
+		"splash": splash_radius,
+		"type": elem if elem != "" else "cannon",
+		"level": level,
+		"special": "explosive",  # Kanone hat immer Explosion
+		"is_crit": is_crit,
+		"is_cannon": true  # Marker für größere Explosion-VFX
+	}
+	
+	if bullet.has_method("setup_extended"):
+		bullet.setup_extended(bullet_data)
+	else:
+		bullet.setup(target, final_damage, splash_radius, "cannon")
+	
+	get_parent().add_child(bullet)
+	
+	# Großer Mündungsblitz
+	var direction := (target.position - position).normalized()
+	if VFX:
+		VFX.spawn_muzzle_flash(position + direction * 25, direction, elem if elem != "" else "cannon")
+		VFX.spawn_smoke_puff(position - direction * 20, 4)
+		VFX.screen_shake(3.0, 0.12)
+	
+	Sound.play_shoot("cannon", level)
+	_do_cannon_recoil()
+
+
+func _do_cannon_recoil() -> void:
+	"""Starker Rückstoß-Effekt für Kanone"""
+	if not sprite:
+		return
+	
+	var original_pos := sprite.position
+	var tween := sprite.create_tween()
+	tween.tween_property(sprite, "position", original_pos + Vector2(0, 10), 0.08)
+	tween.tween_property(sprite, "position", original_pos, 0.25).set_trans(Tween.TRANS_ELASTIC)
+
+
+func _place_trap() -> void:
+	"""Platziert eine Falle in Reichweite"""
+	# Cleanup alte Fallen
+	for i in range(active_traps.size() - 1, -1, -1):
+		if not is_instance_valid(active_traps[i]):
+			active_traps.remove_at(i)
+	
+	# Max Fallen erreicht
+	if active_traps.size() >= max_traps:
+		print("[Tower] Max Fallen erreicht (%d/%d)" % [active_traps.size(), max_traps])
+		return
+	
+	# Finde Position
+	var trap_pos := _find_trap_position()
+	if trap_pos == Vector2.ZERO:
+		return
+	
+	# ✅ Erstelle Falle mit preload (besser für Performance)
+	var trap: Node2D = preload("res://trap.tscn").instantiate()
+	trap.position = trap_pos
+	
+	var elem := get_effective_element()
+	
+	if trap.has_method("setup"):
+		trap.setup({
+			"damage": damage,
+			"splash": splash_radius,
+			"element": elem,
+			"duration": trap_duration,
+			"special_type": special_type,
+			"tower": self
+		})
+		print("[Tower] Falle mit Slow: %.0f%%, Splash: %.0f" % [slow_amount * 100, splash_radius])
+
+	
+	get_parent().add_child(trap)
+	active_traps.append(trap)
+
+	if VFX:
+		VFX.spawn_pixel_burst(trap_pos, elem if elem != "" else "earth", 4)
+	
+	Sound.play_click()
+	print("[Tower] Falle platziert bei %s (aktiv: %d/%d)" % [trap_pos, active_traps.size(), max_traps])
+
+
+func _find_trap_position() -> Vector2:
+	"""Findet eine gute Position für eine Falle - idealerweise auf dem Pfad"""
+	
+	# Versuche Pfad vom WaveManager zu holen
+	var wave_manager: Node = get_node_or_null("/root/Main/WaveManager")
+	if not wave_manager or not wave_manager.has_method("get_path_points_in_range"):
+		return _find_random_trap_position()
+	
+	# Hole Pfad-Punkte in Reichweite
+	var path_points: Array = wave_manager.get_path_points_in_range(position, tower_range)
+	
+	if path_points.is_empty():
+		return _find_random_trap_position()
+	
+	# Filtere Punkte die nicht zu nah an existierenden Fallen sind
+	var valid_points: Array[Vector2] = []
+	for point in path_points:
+		var too_close := false
+		for trap in active_traps:
+			if is_instance_valid(trap) and point.distance_to(trap.position) < 50.0:
+				too_close = true
+				break
+		
+		if not too_close:
+			valid_points.append(point)
+	
+	if valid_points.is_empty():
+		# Alle Pfad-Punkte sind belegt, nimm den am weitesten entfernten
+		var furthest_point: Vector2 = path_points[0]  # ✅ Typ explizit
+		var max_dist: float = 0.0  # ✅ Typ explizit
+		for point in path_points:
+			var min_trap_dist := 999999.0
+			for trap in active_traps:
+				if is_instance_valid(trap):
+					min_trap_dist = min(min_trap_dist, point.distance_to(trap.position))
+			if min_trap_dist > max_dist:
+				max_dist = min_trap_dist
+				furthest_point = point
+		return furthest_point
+	
+	# Nimm zufälligen gültigen Punkt
+	return valid_points[randi() % valid_points.size()]
+
+
+func _find_random_trap_position() -> Vector2:
+	"""Fallback: Zufällige Position in Reichweite"""
+	var angle := randf() * TAU
+	var dist := randf_range(tower_range * 0.6, tower_range * 0.95)
+	return position + Vector2(cos(angle), sin(angle)) * dist
+
+
+func _update_aura_buffs() -> void:
+	"""Updated welche Türme vom Aura-Buff betroffen sind"""
+	if attack_type != "none" or special_type != "aura":
+		return
+	
+	# Finde alle Türme in Reichweite
+	var new_affected: Array[Node2D] = []
+	
+	for tower in get_tree().get_nodes_in_group("towers"):
+		if tower == self:
+			continue
+		if tower.attack_type == "none":  # Keine Support-Türme buffed
+			continue
+		
+		var dist := position.distance_to(tower.position)
+		if dist <= aura_range:
+			new_affected.append(tower)
+	
+	# Wenn sich die Liste geändert hat, Stats neu berechnen
+	if new_affected.size() != affected_towers.size():
+		affected_towers = new_affected
+		
+		# Triggere Recalc bei allen betroffenen Türmen
+		for tower in affected_towers:
+			if tower.has_method("recalculate_stats"):
+				tower.recalculate_stats()
+
+
+func get_aura_buffs() -> Dictionary:
+	"""Gibt die Buffs zurück die dieser Aura-Turm gibt"""
+	if attack_type != "none" or special_type != "aura":
+		return {}
+	
+	if aura_buff_type == "":
+		return {}  # Noch nicht konfiguriert
+	
+	var buffs := {}
+	
+	match aura_buff_type:
+		"damage":
+			buffs["damage_mult"] = buff_strength
+		"range":
+			buffs["range_mult"] = buff_strength
+		"fire_rate":
+			buffs["fire_rate_mult"] = buff_strength
+	
+	return buffs
+
 
 
 func select() -> void:

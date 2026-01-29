@@ -332,7 +332,12 @@ func _spawn_lava_pool() -> void:
 
 func _explode() -> void:
 	if VFX:
-		if bullet_type == "archer":
+		if bullet_type == "cannon":
+			VFX.spawn_pixel_burst(position, "fire", 20)
+			VFX.spawn_pixel_ring(position, "fire", splash_radius * 1.5 if splash_radius > 0 else 80.0)
+			VFX.spawn_smoke_puff(position, 6)
+			VFX.screen_shake(4.0, 0.15)
+		elif bullet_type == "archer":
 			VFX.spawn_pixels(position, "archer", 3, 10.0)
 		else:
 			VFX.spawn_pixels(position, bullet_type, 4, 15.0)

@@ -54,10 +54,30 @@ var shadow_base_scale := Vector2.ONE
 var shadow_bob_t := 0.0
 var shadow_stun_t := 0.0
 
+var collision_area: Area2D
+var collision_shape: CollisionShape2D
+
 
 func _ready() -> void:
 	add_to_group("enemies")
+	_create_collision()
 	_create_visuals()
+
+
+func _create_collision() -> void:
+	"""Erstellt die Kollisions-Area für Traps und andere Detektionen"""
+	collision_area = Area2D.new()
+	collision_area.collision_layer = 2  # Enemy ist auf Layer 2
+	collision_area.collision_mask = 0   # Enemies detekten nichts selbst
+	add_child(collision_area)
+	
+	# Circle Shape für Kollision
+	var shape := CircleShape2D.new()
+	shape.radius = 12.0  # Angepasst an Enemy-Größe
+	
+	collision_shape = CollisionShape2D.new()
+	collision_shape.shape = shape
+	collision_area.add_child(collision_shape)
 
 
 func _create_visuals() -> void:
