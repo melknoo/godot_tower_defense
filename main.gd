@@ -17,6 +17,7 @@ const SWORD_COLUMNS := 6
 @onready var tower_shop: TowerShop = $UI/TowerShop
 @onready var tower_info: TowerInfo = $UI/TowerInfo
 
+
 var element_unlock_ui: ElementUnlockUI
 var wave_upgrade_ui: WaveUpgradeUI
 var upgrade_overview_ui: UpgradeOverviewUI
@@ -24,6 +25,7 @@ var path_generator: PathGenerator
 
 var path_points: Array[Vector2] = []
 var path_cells: Array[Vector2i] = []
+var path_line: Line2D
 var current_seed: int = 0
 
 var pending_element_core := false
@@ -171,27 +173,27 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 				item_inventory_ui.deselect_item()
 
 
-func _generate_new_path(seed_value: int = -1) -> void:
-	if seed_value >= 0:
-		current_seed = seed_value
-		path_generator.set_seed(seed_value)
-	else:
-		current_seed = randi()
-		path_generator.set_seed(current_seed)
+func _generate_new_path() -> void:
+	if not path_generator:
+		return
+	
+	current_seed = randi()
+	path_generator.set_seed(current_seed)
 	
 	var path_data := path_generator.generate()
-	path_generator.print_path_info(path_data)
 	
-	path_cells.clear()
-	path_points.clear()
+	if not path_data["valid"]:
+		push_error("[Main] Konnte keinen validen Pfad generieren")
+		return
 	
-	for cell in path_data["cells"]:
-		path_cells.append(cell)
+	path_points = path_data["points"]
+	path_cells = path_data["cells"]
 	
-	for point in path_data["points"]:
-		path_points.append(point)
+	# *** NEU: Setze auch Decoration-Seed ***
+	if ground_layer:
+		ground_layer.set_decoration_seed(current_seed)
 	
-	print("[Main] Neuer Pfad generiert - Seed: %d" % current_seed)
+	print("[Main] Neuer Pfad generiert (Seed: %d, Länge: %d)" % [current_seed, path_cells.size()])
 
 
 func _setup_ground() -> void:
@@ -354,13 +356,17 @@ func _regenerate_map() -> void:
 	_cancel_drag_or_pickup()
 	is_drag_potential = false
 	_generate_new_path()
+	
+	# Setup Ground Layer (inkl. Dekorationen)
 	ground_layer.setup(path_cells)
+	
 	wave_manager.path_points = path_points
 	tower_manager.set_blocked_cells(path_cells)
+	
 	if VFX:
 		VFX.screen_flash(Color(1, 1, 1), 0.2)
-	print("[Main] Map regeneriert! Blockierte Türme: %d" % tower_manager.get_blocked_tower_count())
-
+	
+	print("[Main] Map regeneriert mit Dekorationen!")
 
 
 func _handle_mouse_click(event: InputEventMouseButton) -> void:
