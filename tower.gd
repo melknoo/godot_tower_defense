@@ -694,15 +694,41 @@ func _create_visuals() -> void:
 
 
 func _update_visuals() -> void:
-	for child in turret.get_children():
-		child.queue_free()
+	print("[Tower %s] _update_visuals() START" % tower_type)
+	
+	print("[Tower %s] Clearing turret children..." % tower_type)
+	if turret.get_child_count() > 0:
+		print("[Tower %s] Clearing turret children..." % tower_type)
+		for child in turret.get_children():
+			turret.remove_child(child)
+			child.queue_free()
+	
+	print("[Tower %s] Resetting sprite vars..." % tower_type)
 	archer_sprite = null
 	sword_sprite = null
 	sprite = null
 	
+	print("[Tower %s] Checking tower_type, value is: '%s'" % [tower_type, tower_type])
+	
+	# ✅ SPRITE SETUP - nur eine Funktion wird aufgerufen
 	if tower_type == "archer":
+		print("[Tower] -> Branch: archer")
 		_setup_archer_sprite()
-	elif tower_type == "cannon" and min_range > 0:
+	elif tower_type == "sword":
+		print("[Tower] -> Branch: sword")
+		_setup_sword_sprite()
+	elif tower_type == "farm":
+		print("[Tower] -> Branch: farm")
+		_setup_farm_sprite()
+	else:
+		print("[Tower] -> Branch: else (calling _setup_standard_sprite)")
+		_setup_standard_sprite()
+	
+	print("[Tower %s] After sprite setup, children count: %d" % [tower_type, turret.get_child_count()])
+	
+	# ✅ MIN-RANGE CIRCLE - separat, NACH dem Sprite-Setup
+	if tower_type == "cannon" and min_range > 0:
+		print("[Tower cannon] Setting up min_range_circle")
 		if not min_range_circle:
 			min_range_circle = Line2D.new()
 			min_range_circle.default_color = Color(1, 0.3, 0.3, 0.25)
@@ -714,13 +740,11 @@ func _update_visuals() -> void:
 		for i in range(33):
 			var angle := i * TAU / 32
 			min_range_circle.add_point(Vector2(cos(angle), sin(angle)) * min_range)
-	elif tower_type == "sword":
-		_setup_sword_sprite()
-	elif tower_type == "farm":
-		_setup_farm_sprite()
-	else:
-		_setup_standard_sprite()
+	elif min_range_circle:
+		min_range_circle.queue_free()
+		min_range_circle = null
 	
+	# Range Circle
 	range_circle.clear_points()
 	if attack_type != "none" and tower_range > 0:
 		for i in range(33):
@@ -738,7 +762,6 @@ func _update_visuals() -> void:
 			aura_visual.z_index = -1
 			add_child(aura_visual)
 		
-		# ✅ NEU: Farbe basierend auf Buff-Typ
 		var aura_color := _get_aura_buff_color()
 		aura_visual.default_color = aura_color
 		aura_visual.default_color.a = 0.25
@@ -748,7 +771,6 @@ func _update_visuals() -> void:
 			var angle := i * TAU / 32
 			aura_visual.add_point(Vector2(cos(angle), sin(angle)) * aura_range)
 		
-		# Pulsierender Effekt
 		var tween := create_tween().set_loops()
 		tween.tween_property(aura_visual, "default_color:a", 0.1, 1.2)
 		tween.tween_property(aura_visual, "default_color:a", 0.4, 1.2)
@@ -758,6 +780,8 @@ func _update_visuals() -> void:
 	_update_level_indicator()
 	_update_isolation_visual()
 	_update_engraving_indicator()
+	
+	print("[Tower %s] _update_visuals() END" % tower_type)
 
 
 func _setup_farm_sprite() -> void:
@@ -846,14 +870,15 @@ func _setup_sword_sprite() -> void:
 
 
 func _setup_standard_sprite() -> void:
+	print("[Tower %s] _setup_standard_sprite() START" % tower_type)
 	var texture_path := _get_tower_texture_path()
 	if not ResourceLoader.exists(texture_path) and level > 0:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
-	
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
 	
 	if ResourceLoader.exists(texture_path):
+		print("!!! RESOURCELOADER EXISTS!!!")
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
 		if is_animated:
@@ -872,47 +897,78 @@ func _setup_standard_sprite() -> void:
 			sprite.scale = Vector2(3, 3)
 		turret.add_child(sprite)
 	else:
-		# Platzhalter-Polygon basierend auf Tower-Typ
+		print("[Tower %s] -> Creating polygon" % tower_type)
 		var poly := Polygon2D.new()
 		
 		match tower_type:
 			"wizard":
-				# Zauberer: Spitzer Hut
 				poly.polygon = PackedVector2Array([
 					Vector2(-15, 20), Vector2(15, 20), Vector2(15, 0),
 					Vector2(8, 0), Vector2(0, -28), Vector2(-8, 0), Vector2(-15, 0)
 				])
+			
 			"cannon":
-				# Kanone: Rechteckig mit Rohr
+				print("[Tower] -> cannon polygon")
+				# Einfache L-Form (Kanonen-Körper + Rohr)
 				poly.polygon = PackedVector2Array([
-					Vector2(-20, 15), Vector2(-20, -5), Vector2(-30, -5),
-					Vector2(-30, -10), Vector2(25, -10), Vector2(25, -5),
-					Vector2(-5, -5), Vector2(-5, 15)
+					# Basis/Körper
+					Vector2(-18, 18), Vector2(18, 18),
+					Vector2(18, -2), Vector2(8, -2),
+					# Rohr
+					Vector2(8, -10), Vector2(-30, -10),
+					Vector2(-30, -2), Vector2(-18, -2),
+					# Zurück
+					Vector2(-18, 0)
 				])
+				poly.color = Color(0.5, 0.5, 0.55)  # Helleres Grau - besser sichtbar!
+				print("[Tower] -> cannon color set to: %s" % poly.color)
+			
 			"trapper":
-				# Trapper: Niedriger, gedrungener Turm
 				poly.polygon = PackedVector2Array([
 					Vector2(-20, 20), Vector2(20, 20), Vector2(20, 5),
 					Vector2(12, 5), Vector2(12, -5), Vector2(-12, -5),
 					Vector2(-12, 5), Vector2(-20, 5)
 				])
+			
 			"aura":
-				# Aura: Kristall-Form
 				poly.polygon = PackedVector2Array([
 					Vector2(0, -25), Vector2(12, -8), Vector2(18, 8),
 					Vector2(0, 20), Vector2(-18, 8), Vector2(-12, -8)
 				])
+			
 			_:
-				# Standard Turm-Form
+				print("[Tower] -> default polygon")
 				poly.polygon = PackedVector2Array([
 					Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
 					Vector2(0, -25), Vector2(-20, -10)
 				])
 		
-		var color: Variant = data.get("color")
-		poly.color = color if color else Color.WHITE
+		# ✅ NUR Farbe setzen wenn noch nicht gesetzt (für cannon)
+		if poly.color == Color.WHITE:
+			var color: Variant = data.get("color")
+			poly.color = color if color else Color.WHITE
+			print("[Tower %s] -> color from data: %s" % [tower_type, poly.color])
+		
+		print("[Tower %s] -> Adding poly to turret, children before: %d" % [tower_type, turret.get_child_count()])
 		turret.add_child(poly)
-		sprite = null  # Kein Sprite, nur Polygon
+		print("[Tower %s] -> turret children after: %d" % [tower_type, turret.get_child_count()])
+		
+		print("[Tower %s] === VISIBILITY CHECKS ===" % tower_type)
+		print("  turret.visible: %s" % turret.visible)
+		print("  turret.position: %s" % turret.position)
+		print("  turret.modulate: %s" % turret.modulate)
+		print("  turret.z_index: %d" % turret.z_index)
+		print("  poly.visible: %s" % poly.visible)
+		print("  poly.color: %s" % poly.color)
+		print("  poly.modulate: %s" % poly.modulate)
+		print("  poly.z_index: %d" % poly.z_index)
+		print("  poly.position: %s" % poly.position)
+		print("  poly.polygon points: %d" % poly.polygon.size())
+		print("=========================")
+		
+		sprite = null
+	print("[Tower %s] _setup_standard_sprite() END" % tower_type)
+
 
 
 func _get_tower_texture_path() -> String:

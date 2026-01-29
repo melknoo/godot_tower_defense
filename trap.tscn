@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://ddd2s312g04au"]
+[gd_scene format=3 uid="uid://ddd2s312g04au"]
 
 [ext_resource type="Script" uid="uid://cxtpnk2jxf862" path="res://trap.gd" id="1_kd1db"]
 
-[node name="trap" type="Node2D"]
+[node name="trap" type="Node2D" unique_id=1517197694]
 script = ExtResource("1_kd1db")

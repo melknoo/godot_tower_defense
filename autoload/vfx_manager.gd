@@ -324,30 +324,60 @@ func spawn_lightning_arc(from_pos: Vector2, to_pos: Vector2) -> void:
 	tween.tween_callback(arc.queue_free)
 	tween.tween_callback(glow.queue_free)
 
-# === MUZZLE FLASH ===
+
+func spawn_smoke_puff(pos: Vector2, count: int = 4) -> void:
+	"""Raucheffekt für Cannon-Rückstoß"""
+	var parent := _get_vfx_parent()
+	if not parent:
+		return
+	
+	for i in range(count):
+		var smoke := _create_pixel(Color(0.3, 0.3, 0.35, 0.7), randi_range(8, 14))
+		smoke.position = pos + Vector2(randf_range(-8, 8), randf_range(-8, 8))
+		parent.add_child(smoke)
+		
+		# Rauch steigt auf und wird größer
+		var smoke_tween := smoke.create_tween()
+		smoke_tween.set_parallel(true)
+		smoke_tween.tween_property(smoke, "position:y", smoke.position.y - randf_range(25, 45), 0.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		smoke_tween.tween_property(smoke, "position:x", smoke.position.x + randf_range(-15, 15), 0.8)
+		smoke_tween.tween_property(smoke, "scale", Vector2(2.5, 2.5), 0.8).set_trans(Tween.TRANS_QUAD)
+		smoke_tween.tween_property(smoke, "modulate:a", 0.0, 0.8)
+		smoke_tween.chain().tween_callback(smoke.queue_free)
 
 func spawn_muzzle_flash(pos: Vector2, direction: Vector2, element: String) -> void:
 	var parent := _get_vfx_parent()
 	if not parent:
 		return
+	
 	var colors: Array = PALETTES.get(element, PALETTES["fire"])
-	var flash := _create_pixel(colors[2], 6)
+	
+	# NEU: Größerer Flash für Cannon
+	var flash_size := 12 if element == "cannon" else 6
+	var spark_count := 8 if element == "cannon" else 4
+	var spark_range := 40 if element == "cannon" else 30
+	
+	var flash := _create_pixel(colors[2], flash_size)
 	flash.position = pos
 	parent.add_child(flash)
+	
 	var tween := flash.create_tween()
-	tween.tween_property(flash, "scale", Vector2(0.2, 0.2), 0.1)
-	tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.1)
+	tween.tween_property(flash, "scale", Vector2(0.2, 0.2), 0.12 if element == "cannon" else 0.1)
+	tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.12 if element == "cannon" else 0.1)
 	tween.tween_callback(flash.queue_free)
-	for i in range(4):
-		var spark := _create_pixel(colors[randi() % colors.size()], 2)
+	
+	for i in range(spark_count):
+		var spark := _create_pixel(colors[randi() % colors.size()], 3 if element == "cannon" else 2)
 		spark.position = pos
 		parent.add_child(spark)
-		var spread := direction.rotated(randf_range(-0.4, 0.4))
-		var target := pos + spread * randf_range(15, 30)
+		
+		var spread := direction.rotated(randf_range(-0.5, 0.5))
+		var target := pos + spread * randf_range(spark_range * 0.5, spark_range)
+		
 		var spark_tween := spark.create_tween()
 		spark_tween.set_parallel(true)
-		spark_tween.tween_property(spark, "position", target, 0.15)
-		spark_tween.tween_property(spark, "modulate:a", 0.0, 0.15)
+		spark_tween.tween_property(spark, "position", target, 0.2)
+		spark_tween.tween_property(spark, "modulate:a", 0.0, 0.2)
 		spark_tween.chain().tween_callback(spark.queue_free)
 
 
