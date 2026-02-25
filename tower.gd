@@ -690,7 +690,6 @@ func _create_visuals() -> void:
 	engraving_indicator.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	engraving_indicator.add_theme_constant_override("outline_size", 2)
 	engraving_indicator.visible = false
-	add_child(engraving_indicator)
 
 
 func _update_visuals() -> void:

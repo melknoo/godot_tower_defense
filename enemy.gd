@@ -120,7 +120,6 @@ func _create_visuals() -> void:
 	#element_indicator.position = Vector2(-8, -44)
 	element_indicator.add_theme_font_size_override("font_size", 12)
 	element_indicator.visible = false
-	add_child(element_indicator)
 
 	# Status Indicator
 	status_indicator = Node2D.new()
@@ -171,7 +170,6 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 	if shadow:
 		shadow.scale = Vector2(final_scale * 0.8, final_scale * 0.4)
 
-	_update_element_indicator()
 
 
 func _setup_sprite() -> void:
