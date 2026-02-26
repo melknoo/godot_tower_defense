@@ -1225,65 +1225,62 @@ func _execute_melee_damage() -> void:
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if position.distance_to(enemy.position) <= tower_range:
 			hit_enemies.append(enemy)
-	
+
 	var elem := get_effective_element()
-	
-	# Crit-Berechnung für Melee
-	var crit_chance := base_crit_chance  # NEU: Starte mit Base Crit
+
+	var crit_chance := base_crit_chance
 	if UpgradeSystem:
 		crit_chance += UpgradeSystem.get_crit_chance()
 	if ItemSystem:
 		crit_chance += ItemSystem.get_tower_item_bonus_percent(self, "crit_chance")
-	
+
 	var is_crit := randf() < crit_chance
 	var melee_damage := damage
-	
+
 	if is_crit:
 		var crit_mult: float = UpgradeSystem.get_crit_multiplier() if UpgradeSystem and UpgradeSystem.has_method("get_crit_multiplier") else 1.5
 		melee_damage = int(float(damage) * crit_mult)
 		if VFX:
 			VFX.spawn_pixels(position, "crit", 6, 20.0)
-	
+
 	var kills := 0
-	
+
 	for enemy in hit_enemies:
 		var was_alive: bool = true
 		var h: Variant = enemy.get("health")
-
 		if typeof(h) == TYPE_INT or typeof(h) == TYPE_FLOAT:
 			was_alive = h > 0
-		
+
 		if enemy.has_method("take_damage"):
-			enemy.take_damage(melee_damage, true, elem, is_crit)
+			# NEU: tower_type als 5. Parameter
+			enemy.take_damage(melee_damage, true, elem, is_crit, tower_type)
 		_apply_melee_effects(enemy)
-		
-		# Kill tracking für Life-Steal
+
 		if was_alive and (not is_instance_valid(enemy) or enemy.health <= 0):
 			kills += 1
-	
-	# Life-Steal
+
+	# Life-Steal & Gold-Bonus (unverändert)
 	if kills > 0 and ItemSystem:
 		var life_steal := int(ItemSystem.get_tower_item_bonus(self, "life_steal"))
 		if life_steal > 0:
 			GameState.lives = mini(GameState.lives + life_steal * kills, 20)
 			if VFX:
 				VFX.spawn_pixels(position, "nature", 4, 15.0)
-	
-	# Gold-Bonus Item
+
 	if kills > 0 and ItemSystem:
 		var gold_bonus := int(ItemSystem.get_tower_item_bonus(self, "gold_bonus"))
 		if gold_bonus > 0:
 			GameState.gold += gold_bonus * kills
 			if VFX:
 				VFX.spawn_gold_number(position, gold_bonus * kills)
-	
+
 	if VFX:
 		VFX.spawn_cleave_effect(position, tower_range, elem if elem != "" else "sword")
 		if hit_enemies.size() > 0:
 			VFX.spawn_melee_hit_sparks(position, hit_enemies.size(), elem if elem != "" else "sword")
 		if hit_enemies.size() >= 3:
 			VFX.screen_shake(2.0, 0.08)
-	
+
 	Sound.play_shoot("sword", level)
 
 
@@ -1382,19 +1379,23 @@ func _shoot() -> void:
 
 func _fire_bullet(bullet: Node2D, elem: String, dmg: int, is_crit: bool) -> void:
 	var bullet_data := {
-		"target": target, "damage": dmg, "splash": splash_radius,
-		"type": elem if elem != "" else tower_type,
-		"level": level, "special": special_type,
-		"slow_amount": slow_amount, "burn_damage": burn_damage,
-		"stun_chance": stun_chance, "chain_targets": chain_targets,
-		"is_crit": is_crit
+		"target":            target,
+		"damage":            dmg,
+		"splash":            splash_radius,
+		"type":              elem if elem != "" else tower_type,
+		"level":             level,
+		"special":           special_type,
+		"slow_amount":       slow_amount,
+		"burn_damage":       burn_damage,
+		"stun_chance":       stun_chance,
+		"chain_targets":     chain_targets,
+		"is_crit":           is_crit,
+		"source_tower_type": tower_type,   # NEU
 	}
-	
 	if bullet.has_method("setup_extended"):
 		bullet.setup_extended(bullet_data)
 	else:
 		bullet.setup(target, dmg, splash_radius, tower_type)
-	
 	get_parent().add_child(bullet)
 
 
@@ -1445,7 +1446,8 @@ func _cannon_shoot() -> void:
 		"level": level,
 		"special": "explosive",  # Kanone hat immer Explosion
 		"is_crit": is_crit,
-		"is_cannon": true  # Marker für größere Explosion-VFX
+		"is_cannon": true,  # Marker für größere Explosion-VFX
+		"source_tower_type": "cannon"
 	}
 	
 	if bullet.has_method("setup_extended"):

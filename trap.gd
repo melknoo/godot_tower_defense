@@ -244,7 +244,7 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 			continue
 		
 		if enemy.has_method("take_damage"):
-			enemy.take_damage(damage, false, element, false)
+			enemy.take_damage(damage, false, element, false, "trapper")
 			print("[Trap] Schaden angewendet: %d" % damage)
 		
 		# ✅ Base-Slow anwenden
@@ -331,7 +331,7 @@ func _apply_trap_effects(enemy: Node2D) -> void:
 				if dist <= chain_range:
 					if other.has_method("take_damage"):
 						var chain_dmg := int(damage * 0.6)  # 60% auf gekettet
-						other.take_damage(chain_dmg, false, element, false)
+						other.take_damage(chain_dmg, false, element, false, "trapper")
 						chained += 1
 						
 						if VFX:

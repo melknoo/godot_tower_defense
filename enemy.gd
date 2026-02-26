@@ -11,6 +11,7 @@ var speed := 80.0
 var base_speed := 80.0
 var reward := 2
 var enemy_type := "normal"
+var tower_type_multipliers: Dictionary = {}
 var element := "neutral"
 var _resolved := false
 
@@ -169,7 +170,67 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 
 	if shadow:
 		shadow.scale = Vector2(final_scale * 0.8, final_scale * 0.4)
+	_setup_tower_type_multipliers()
 
+
+func _setup_tower_type_multipliers() -> void:
+	# Jeder Gegner-Typ definiert Schwächen (>1.0) und Resistenzen (<1.0)
+	# Nicht definierte Tower-Typen = 1.0 (neutral)
+	match enemy_type:
+
+		"tank":
+			# Schwer gepanzert – Pfeile finden Schwachstellen, Schwerter prallen ab
+			tower_type_multipliers = {
+				"archer":  2.0,   # SCHWACH – Pfeile in Gelenke
+				"sword":   0.4,   # STARK   – Rüstung blockt Hiebe
+				"wizard":  0.75,  # leicht resistent
+				"cannon":  1.0,
+				"trapper": 1.0,
+			}
+
+		"swift":
+			# Schnell und wendig – Schwerter erwischen ihn, Pfeile treffen nicht
+			tower_type_multipliers = {
+				"archer":  0.4,   # STARK   – zu flink für Pfeile
+				"sword":   2.0,   # SCHWACH – Klinge trifft bei Nahkampf
+				"wizard":  1.0,
+				"cannon":  0.75,  # leicht resistent (zu klein als Ziel)
+				"trapper": 1.25,  # Fallen halten ihn besonders gut
+			}
+
+		"ethereal":
+			# Magisches Wesen – Magie trifft, physisch kaum greifbar
+			tower_type_multipliers = {
+				"archer":  0.6,   # RESISTENT – Pfeile gehen durch
+				"sword":   0.6,   # RESISTENT – Klingen greifen nicht
+				"wizard":  2.0,   # SCHWACH   – Magie trifft die Essenz
+				"cannon":  0.5,   # RESISTENT – physische Explosion nutzlos
+				"trapper": 0.75,
+			}
+
+		"brute":
+			# Massiver Koloss – Kanone trifft hart, Magie verpufft
+			tower_type_multipliers = {
+				"archer":  1.0,
+				"sword":   1.25,
+				"wizard":  0.5,   # RESISTENT – magisch unempfindlich
+				"cannon":  2.0,   # SCHWACH   – Explosivschaden ideal
+				"trapper": 0.75,
+			}
+
+		"burrower":
+			# Unterirdisch – Fallen sind tödlich, Fernkämpfer hoffnungslos
+			tower_type_multipliers = {
+				"archer":  0.4,   # RESISTENT – taucht kurz auf
+				"sword":   0.5,   # RESISTENT – zu tief unten
+				"wizard":  1.25,
+				"cannon":  1.25,
+				"trapper": 2.0,   # SCHWACH   – Fallen halten ihn an der Oberfläche
+			}
+
+		_:
+			# "normal" und unbekannte Typen: alle 1.0
+			tower_type_multipliers = {}
 
 
 func _setup_sprite() -> void:
@@ -346,42 +407,55 @@ func _update_status_effects(delta: float) -> void:
 		take_damage(int(burn_damage * delta), false, "fire")
 
 
-func take_damage(amount: int, apply_elemental: bool = false, attacker_element: String = "", is_crit: bool = false) -> void:
+func take_damage(amount: int, apply_elemental: bool = false, attacker_element: String = "",
+		is_crit: bool = false, attacker_tower_type: String = "") -> void:
 	if health <= 0:
 		return
-	
+
 	var final_damage := amount
-	var multiplier := 1.0
-	
-	# Elementare Schwächen/Resistenzen
+	var elemental_mult := 1.0
+	var tower_mult := 1.0
+
+	# --- Elementar-Multiplikator ---
 	if apply_elemental and attacker_element != "" and element != "" and element != "neutral":
 		if ElementalSystem:
-			multiplier = ElementalSystem.get_damage_multiplier(attacker_element, element)
-			final_damage = int(amount * multiplier)
-	
-	# Schaden anwenden
+			elemental_mult = ElementalSystem.get_damage_multiplier(attacker_element, element)
+
+	# --- Tower-Typ-Multiplikator ---
+	if attacker_tower_type != "" and tower_type_multipliers.has(attacker_tower_type):
+		tower_mult = tower_type_multipliers[attacker_tower_type]
+
+	# Beide kombinieren (additive wäre zu schwach, multiplikativ kann extrem werden –
+	# daher: Elemental voll, Tower-Mult leicht gedämpft wenn beide aktiv)
+	var combined_mult: float
+	if elemental_mult != 1.0 and tower_mult != 1.0:
+		# Beide aktiv: nicht voll multiplizieren, sondern mitteln
+		combined_mult = (elemental_mult * tower_mult + elemental_mult + tower_mult) / 3.0
+	else:
+		combined_mult = elemental_mult * tower_mult
+
+	final_damage = int(amount * combined_mult)
+
 	health -= final_damage
 	_update_health_bar()
-	
-	# Hit-Flash
+
 	if flash_timer <= 0:
 		_do_hit_flash()
 
-	# VFX
+	# --- VFX mit kombiniertem Ergebnis ---
 	if VFX:
-			# NEU: is_crit wird jetzt übergeben, nicht berechnet!
-			var is_effective := multiplier > 1.0
-			var is_resisted := multiplier < 1.0
+		var is_effective := combined_mult > 1.2
+		var is_resisted  := combined_mult < 0.8
 
-			if is_effective:
-				VFX.spawn_pixel_burst(position, attacker_element, 10)
-				VFX.spawn_damage_number(position, final_damage, true, attacker_element)
-			elif is_resisted:
-				VFX.spawn_pixels(position, element, 4, 15.0)
-				VFX.spawn_damage_number(position, final_damage, false, "")
-			else:
-				VFX.spawn_hit_effect(position, attacker_element if attacker_element != "" else "damage", is_crit)
-				VFX.spawn_damage_number(position, final_damage, is_crit, attacker_element)
+		if is_effective:
+			VFX.spawn_pixel_burst(position, attacker_element if attacker_element != "" else "crit", 10)
+			VFX.spawn_damage_number(position, final_damage, true, attacker_element)
+		elif is_resisted:
+			VFX.spawn_pixels(position, element, 4, 15.0)
+			VFX.spawn_damage_number(position, final_damage, false, "")
+		else:
+			VFX.spawn_hit_effect(position, attacker_element if attacker_element != "" else "damage", is_crit)
+			VFX.spawn_damage_number(position, final_damage, is_crit, attacker_element)
 
 	if health <= 0:
 		_die()

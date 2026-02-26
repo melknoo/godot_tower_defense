@@ -25,6 +25,7 @@ var stun_chance := 0.0
 var stun_duration := 0.5
 var chain_targets := 0
 var chain_range := 100.0
+var source_tower_type := ""   # z.B. "archer", "sword", "wizard" ...
 var already_hit: Array[Node2D] = []
 
 # Visuals
@@ -59,7 +60,8 @@ func setup_extended(data: Dictionary) -> void:
 	burn_damage = data.get("burn_damage", 0)
 	stun_chance = data.get("stun_chance", 0.0)
 	chain_targets = data.get("chain_targets", 0)
-	is_crit = data.get("is_crit", false)  # NEU: Crit-Flag aus data
+	is_crit = data.get("is_crit", false) 
+	source_tower_type = data.get("source_tower_type", "")
 	_set_speed_for_type(bullet_type)
 
 
@@ -195,9 +197,8 @@ func _hit_single(enemy: Node2D) -> void:
 	
 	already_hit.append(enemy)
 	
-	# NEU: is_crit an take_damage übergeben
 	if enemy.has_method("take_damage"):
-		enemy.take_damage(damage, true, bullet_type, is_crit)
+		enemy.take_damage(damage, true, bullet_type, is_crit, source_tower_type)
 	
 	_apply_special_effects(enemy)
 

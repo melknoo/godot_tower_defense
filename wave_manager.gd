@@ -23,24 +23,39 @@ var _cached_next_wave_element: String = ""
 # Gegner-Typen Definition - SCHWERER
 var enemy_types := {
 	"normal": {
-		"health_base": 80, "health_per_wave": 18,
-		"speed_base": 85.0, "speed_per_wave": 6.0,
-		"reward": 1, "color": Color(0.8, 0.2, 0.2), "scale": 0.5
+		"health_base": 80,   "health_per_wave": 18,
+		"speed_base": 85.0,  "speed_per_wave": 6.0,
+		"reward": 1, "scale": 0.5
 	},
-	"fast": {
-		"health_base": 45, "health_per_wave": 10,
+	"swift": {                          # früher "fast"
+		"health_base": 45,   "health_per_wave": 10,
 		"speed_base": 160.0, "speed_per_wave": 10.0,
-		"reward": 2, "color": Color(0.2, 0.8, 0.2), "scale": 0.4
+		"reward": 2, "scale": 0.4
 	},
 	"tank": {
-		"health_base": 250, "health_per_wave": 50,
-		"speed_base": 50.0, "speed_per_wave": 2.0,
-		"reward": 5, "color": Color(0.4, 0.4, 0.8), "scale": 0.7
+		"health_base": 280,  "health_per_wave": 55,
+		"speed_base": 50.0,  "speed_per_wave": 2.0,
+		"reward": 5, "scale": 0.7
+	},
+	"ethereal": {                       # NEU – schwach gegen Wizard
+		"health_base": 120,  "health_per_wave": 22,
+		"speed_base": 75.0,  "speed_per_wave": 5.0,
+		"reward": 6, "scale": 0.5
+	},
+	"brute": {                          # NEU – schwach gegen Cannon
+		"health_base": 350,  "health_per_wave": 65,
+		"speed_base": 55.0,  "speed_per_wave": 2.5,
+		"reward": 7, "scale": 0.8
+	},
+	"burrower": {                       # NEU – schwach gegen Trapper
+		"health_base": 100,  "health_per_wave": 20,
+		"speed_base": 90.0,  "speed_per_wave": 7.0,
+		"reward": 4, "scale": 0.45
 	},
 	"boss": {
 		"health_base": 1200, "health_per_wave": 180,
-		"speed_base": 45.0, "speed_per_wave": 1.5,
-		"reward": 50, "color": Color(0.8, 0.2, 0.8), "scale": 1.0
+		"speed_base": 45.0,  "speed_per_wave": 1.5,
+		"reward": 50, "scale": 1.0
 	}
 }
 
@@ -135,39 +150,75 @@ func _determine_wave_element(wave: int) -> String:
 
 func generate_wave_composition(wave: int) -> Array[Dictionary]:
 	var composition: Array[Dictionary] = []
-	
-	# Mehr Gegner pro Welle
 	var total_enemies := 8 + wave * 3
-	
-	var fast_count := 0
+
+	# --- Anteile berechnen ---
+	# Swift ab Welle 3 (wie vorher "fast")
+	var swift_count := 0
 	if wave >= 3:
-		fast_count = mini(wave - 1, total_enemies / 3)
-	
+		swift_count = mini(wave - 1, total_enemies / 3)
+
+	# Tank ab Welle 4 (unverändert)
 	var tank_count := 0
 	if wave >= 4:
 		tank_count = mini((wave - 2) / 2, total_enemies / 4)
-	
+
+	# Ethereal ab Welle 5 (1 pro 2 Wellen, max 3)
+	var ethereal_count := 0
+	if wave >= 5:
+		ethereal_count = mini((wave - 3) / 2, 3)
+
+	# Brute ab Welle 6 (1 alle 3 Wellen, max 2)
+	var brute_count := 0
+	if wave >= 6:
+		brute_count = mini((wave - 4) / 3, 2)
+
+	# Burrower ab Welle 7 (1 alle 2 Wellen, max 3)
+	var burrower_count := 0
+	if wave >= 7:
+		burrower_count = mini((wave - 5) / 2, 3)
+
+	# Boss alle 5 Wellen
 	var boss_count := 0
 	if wave > 0 and wave % 5 == 0:
 		boss_count = 1 + wave / 10
-	
-	var normal_count := maxi(1, total_enemies - fast_count - tank_count - boss_count)
-	
+
+	# Normal füllt den Rest auf (mindestens 1)
+	var special_total := swift_count + tank_count + ethereal_count + brute_count + burrower_count + boss_count
+	var normal_count := maxi(1, total_enemies - special_total)
+
+	# --- Composition aufbauen ---
 	for i in range(normal_count):
 		composition.append(_create_enemy_data("normal", wave))
-	
-	for i in range(fast_count):
+
+	# Spezialtypen an zufälligen Positionen einfügen
+	for i in range(swift_count):
 		var pos := randi() % (composition.size() + 1)
-		composition.insert(pos, _create_enemy_data("fast", wave))
-	
+		composition.insert(pos, _create_enemy_data("swift", wave))
+
+	for i in range(ethereal_count):
+		var pos := randi() % (composition.size() + 1)
+		composition.insert(pos, _create_enemy_data("ethereal", wave))
+
+	for i in range(burrower_count):
+		var pos := randi() % (composition.size() + 1)
+		composition.insert(pos, _create_enemy_data("burrower", wave))
+
+	# Tanks und Brutes in der zweiten Hälfte (sie sind langsam/groß)
 	for i in range(tank_count):
 		var pos := (composition.size() / 2) + randi() % (composition.size() / 2 + 1)
 		composition.insert(pos, _create_enemy_data("tank", wave))
-	
+
+	for i in range(brute_count):
+		var pos := (composition.size() / 2) + randi() % (composition.size() / 2 + 1)
+		composition.insert(pos, _create_enemy_data("brute", wave))
+
+	# Boss immer am Ende
 	for i in range(boss_count):
 		composition.append(_create_enemy_data("boss", wave))
-	
+
 	return composition
+
 
 
 func _create_enemy_data(type: String, wave: int) -> Dictionary:
@@ -177,14 +228,13 @@ func _create_enemy_data(type: String, wave: int) -> Dictionary:
 	var elem_bonus := 1.0
 	if element != "neutral":
 		elem_bonus = 1.25
-	
+
 	return {
-		"type": type,
-		"health": int((base["health_base"] + base["health_per_wave"] * wave) * elem_bonus),
-		"speed": base["speed_base"] + base["speed_per_wave"] * wave,
-		"reward": base["reward"] + (1 if element != "neutral" else 0),
-		"color": base["color"],
-		"scale": base["scale"],
+		"type":    type,
+		"health":  int((base["health_base"] + base["health_per_wave"] * wave) * elem_bonus),
+		"speed":   base["speed_base"] + base["speed_per_wave"] * wave,
+		"reward":  base["reward"] + (1 if element != "neutral" else 0),
+		"scale":   base["scale"],
 		"element": element
 	}
 
@@ -204,10 +254,12 @@ func _spawn_next() -> void:
 	current_spawn_index += 1
 	
 	var delay := spawn_interval
-	if enemy_data["type"] == "fast":
-		delay *= 0.5
-	elif enemy_data["type"] == "boss":
-		delay *= 2.0
+	match enemy_data["type"]:
+		"swift":    delay *= 0.5
+		"boss":     delay *= 2.0
+		"brute":    delay *= 1.5   # kurze Pause vor großen Gegnern
+		"ethereal": delay *= 0.8   # leicht schneller (kommt in Gruppen besser)
+		_:          pass           # normal, tank, burrower: unverändert
 	
 	await get_tree().create_timer(delay).timeout
 	
@@ -248,47 +300,58 @@ func get_wave_preview(wave_number: int) -> Dictionary:
 		preview_element = _determine_wave_element(wave_number)
 		_cached_next_wave_number = wave_number
 		_cached_next_wave_element = preview_element
-	
+
 	var total: int = 8 + wave_number * 3
-	
-	var preview := {
-		"total": total,
-		"normal": 0, "fast": 0, "tank": 0, "boss": 0,
-		"wave_element": preview_element
-	}
-	
-	var fast := 0
+
+	var swift := 0
 	if wave_number >= 3:
-		fast = mini(wave_number - 1, total / 3)
+		swift = mini(wave_number - 1, total / 3)
 	var tank := 0
 	if wave_number >= 4:
 		tank = mini((wave_number - 2) / 2, total / 4)
+	var ethereal := 0
+	if wave_number >= 5:
+		ethereal = mini((wave_number - 3) / 2, 3)
+	var brute := 0
+	if wave_number >= 6:
+		brute = mini((wave_number - 4) / 3, 2)
+	var burrower := 0
+	if wave_number >= 7:
+		burrower = mini((wave_number - 5) / 2, 3)
 	var boss := 0
 	if wave_number > 0 and wave_number % 5 == 0:
 		boss = 1 + wave_number / 10
-	
-	preview["normal"] = maxi(1, total - fast - tank - boss)
-	preview["fast"] = fast
-	preview["tank"] = tank
-	preview["boss"] = boss
-	
-	return preview
+
+	var special_total := swift + tank + ethereal + brute + burrower + boss
+	var normal := maxi(1, total - special_total)
+
+	return {
+		"total":        total,
+		"normal":       normal,
+		"swift":        swift,       # früher "fast"
+		"tank":         tank,
+		"ethereal":     ethereal,
+		"brute":        brute,
+		"burrower":     burrower,
+		"boss":         boss,
+		"wave_element": preview_element
+	}
+
 
 
 func get_wave_info(wave_number: int) -> String:
 	var preview := get_wave_preview(wave_number)
 	var parts: Array[String] = []
-	
-	if preview["normal"] > 0:
-		parts.append("%d Normal" % preview["normal"])
-	if preview["fast"] > 0:
-		parts.append("%d Schnelle" % preview["fast"])
-	if preview["tank"] > 0:
-		parts.append("%d Tanks" % preview["tank"])
-	if preview["boss"] > 0:
-		parts.append("%d Boss" % preview["boss"])
-	
-	return ", ".join(parts)
+
+	if preview["normal"]   > 0: parts.append("%dx Norm"   % preview["normal"])
+	if preview["swift"]    > 0: parts.append("%dx Flink"  % preview["swift"])
+	if preview["tank"]     > 0: parts.append("%dx Tank"   % preview["tank"])
+	if preview["ethereal"] > 0: parts.append("%dx Äther"  % preview["ethereal"])
+	if preview["brute"]    > 0: parts.append("%dx Brute"  % preview["brute"])
+	if preview["burrower"] > 0: parts.append("%dx Grab"   % preview["burrower"])
+	if preview["boss"]     > 0: parts.append("%dx Boss"   % preview["boss"])
+
+	return " | ".join(parts)
 
 
 
