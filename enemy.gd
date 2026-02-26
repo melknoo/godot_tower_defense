@@ -159,6 +159,7 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 
 	# Sprite laden basierend auf Element
 	_setup_sprite()
+	_apply_type_visuals()
 
 	# Größe basierend auf Gegner-Typ
 	var type_scale: float = data.get("scale", 0.5)
@@ -257,6 +258,57 @@ func _setup_sprite() -> void:
 	else:
 		push_warning("[Enemy] Sprite nicht gefunden: %s" % sprite_path)
 		sprite.texture = null
+
+
+func _apply_type_visuals() -> void:
+	if not sprite:
+		return
+
+	match enemy_type:
+		"tank":
+			# Blau-grau getönt, etwas größer
+			sprite.modulate = Color(0.7, 0.8, 1.1)
+			sprite.scale *= 1.3
+
+		"swift":
+			# Grünlich, kleiner und flacher
+			sprite.modulate = Color(0.7, 1.2, 0.7)
+			sprite.scale *= 0.8
+			sprite.scale.y *= 0.85  # etwas flacher
+
+		"ethereal":
+			# Lila + halbtransparent, leichtes Pulsieren
+			sprite.modulate = Color(1.1, 0.6, 1.3, 0.75)
+			sprite.scale *= 1.0
+			# Pulsier-Tween für den Ghost-Effekt
+			var tween := create_tween().set_loops()
+			tween.tween_property(sprite, "modulate:a", 0.45, 0.9).set_trans(Tween.TRANS_SINE)
+			tween.tween_property(sprite, "modulate:a", 0.85, 0.9).set_trans(Tween.TRANS_SINE)
+
+		"brute":
+			# Rot-orange getönt, deutlich größer und breiter
+			sprite.modulate = Color(1.3, 0.6, 0.4)
+			sprite.scale *= 1.6
+			sprite.scale.x *= 1.15  # breiter
+
+		"burrower":
+			# Braun-erdfarben, dunkler
+			sprite.modulate = Color(0.75, 0.55, 0.3)
+			sprite.scale *= 0.9
+
+		"boss":
+			# Gold-gelb, groß, pulsierendes Leuchten
+			sprite.modulate = Color(1.4, 1.1, 0.3)
+			var tween := create_tween().set_loops()
+			tween.tween_property(sprite, "modulate:v", 0.85, 0.6)
+			tween.tween_property(sprite, "modulate:v", 1.0,  0.6)
+
+		_:
+			pass  # "normal" bleibt unverändert
+
+	# original_modulate NACH den Änderungen setzen,
+	# damit Hit-Flash korrekt zurückfedert
+	original_modulate = sprite.modulate
 
 
 func _update_element_indicator() -> void:
