@@ -174,6 +174,15 @@ func style_button(btn: Button, red: bool = false) -> void:
 	btn.add_theme_color_override("font_disabled_color", COLOR_TEXT_DISABLED)
 
 
+## Für Icon-only Buttons (Inventar, Kerne, Upgrades) - minimale Margins
+func style_icon_button(btn: Button) -> void:
+	btn.add_theme_stylebox_override("normal", _make_9slice(btn_blue_normal, BUTTON_9SLICE_MARGIN, 4))
+	btn.add_theme_stylebox_override("pressed", _make_9slice(btn_blue_pressed, BUTTON_9SLICE_MARGIN, 4))
+	btn.add_theme_stylebox_override("hover", _make_9slice(btn_blue_hover, BUTTON_9SLICE_MARGIN, 4))
+	btn.add_theme_stylebox_override("disabled", _make_9slice(btn_blue_disabled, BUTTON_9SLICE_MARGIN, 4))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
 ## Für Buttons die helle Schrift brauchen (z.B. "Nächste Welle" auf dunklem Hintergrund)
 func style_button_light_text(btn: Button) -> void:
 	style_button(btn)
@@ -222,6 +231,11 @@ func style_panel(panel: PanelContainer, panel_type: String = "carved") -> void:
 # =============================================
 # RIBBON / BANNER TITLE BARS
 # =============================================
+
+## Erstellt ein kleines Info-Banner (z.B. für Gold-Anzeige im HUD)
+func create_info_badge_style() -> StyleBoxTexture:
+	return _make_9slice(carved_9slice, CARVED_MARGIN, 6)
+
 
 ## Erstellt ein Ribbon-Label als Titel für ein Panel
 ## Gibt ein TextureRect + Label Konstrukt zurück

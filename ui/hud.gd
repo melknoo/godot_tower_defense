@@ -245,6 +245,18 @@ func _get_or_create_texture_rect_child(parent: Node, node_name: String, local_po
 
 
 func _apply_styles() -> void:
+	if gold_label:
+		gold_label.add_theme_font_size_override("normal_font_size", 14)
+		if UITheme and UITheme.game_font:
+			gold_label.add_theme_font_override("normal_font", UITheme.game_font)
+	
+	if bonus_preview_label:
+		bonus_preview_label.add_theme_font_size_override("font_size", 13)
+		bonus_preview_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		bonus_preview_label.add_theme_color_override("font_outline_color", Color(0.15, 0.1, 0.0))
+		bonus_preview_label.add_theme_constant_override("outline_size", 2)
+		if UITheme and UITheme.game_font:
+			bonus_preview_label.add_theme_font_override("font", UITheme.game_font)
 	if enemies_label:
 		enemies_label.add_theme_font_size_override("font_size", 11)
 
@@ -279,9 +291,6 @@ func _apply_styles() -> void:
 	if wave_element_label:
 		wave_element_label.add_theme_font_size_override("font_size", 11)
 
-	if bonus_preview_label:
-		bonus_preview_label.add_theme_font_size_override("font_size", 11)
-		bonus_preview_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 
 	if supply_label:
 		supply_label.add_theme_font_size_override("font_size", 11)
@@ -327,7 +336,7 @@ func _apply_styles() -> void:
 		cores_button.add_child(core_notification)
 
 	if UITheme and inventory_button:
-		UITheme.style_button(inventory_button)
+		UITheme.style_icon_button(inventory_button)
 	if inventory_button:
 		_apply_button_font_color(inventory_button)
 
@@ -359,12 +368,13 @@ func _apply_styles() -> void:
 		_style_fast_forward_button()
 
 	if UITheme:
-		if start_button:   UITheme.style_button_light_text(start_button)
-		if cores_button:   UITheme.style_button(cores_button)
-		if upgrades_button: UITheme.style_button(upgrades_button)
+		if start_button:
+			UITheme.style_button_light_text(start_button)
+		if cores_button:
+			UITheme.style_icon_button(cores_button)
+		if upgrades_button:
+			UITheme.style_icon_button(upgrades_button)
 
-	if cores_button:     _apply_button_font_color(cores_button)
-	if upgrades_button:  _apply_button_font_color(upgrades_button)
 
 
 func _style_fast_forward_button() -> void:
