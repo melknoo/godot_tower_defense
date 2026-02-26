@@ -1,5 +1,5 @@
 # main_menu.gd
-# Hauptmenü mit Charakterauswahl
+# Hauptmenü mit Charakterauswahl - Medieval Style
 extends Control
 
 signal game_started(character_id: String)
@@ -13,56 +13,28 @@ var character_grid: GridContainer
 var selected_character: String = ""
 var character_buttons: Dictionary = {}
 
-# Styles
-var button_normal_style: StyleBoxFlat
-var button_hover_style: StyleBoxFlat
-var button_selected_style: StyleBoxFlat
-var panel_style: StyleBoxFlat
+# Hintergrund-Textur (optional)
+var bg_texture: Texture2D
 
 
 func _ready() -> void:
-	_create_styles()
 	_create_ui()
 	_update_character_grid()
 	_show_main_menu()
 
 
-func _create_styles() -> void:
-	panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.12, 0.12, 0.15, 0.95)
-	panel_style.border_color = Color(0.3, 0.3, 0.35)
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(8)
-	panel_style.set_content_margin_all(20)
-	
-	button_normal_style = StyleBoxFlat.new()
-	button_normal_style.bg_color = Color(0.2, 0.2, 0.25)
-	button_normal_style.border_color = Color(0.4, 0.4, 0.45)
-	button_normal_style.set_border_width_all(2)
-	button_normal_style.set_corner_radius_all(6)
-	button_normal_style.set_content_margin_all(12)
-	
-	button_hover_style = StyleBoxFlat.new()
-	button_hover_style.bg_color = Color(0.25, 0.25, 0.3)
-	button_hover_style.border_color = Color(0.5, 0.5, 0.6)
-	button_hover_style.set_border_width_all(2)
-	button_hover_style.set_corner_radius_all(6)
-	button_hover_style.set_content_margin_all(12)
-	
-	button_selected_style = StyleBoxFlat.new()
-	button_selected_style.bg_color = Color(0.2, 0.35, 0.5)
-	button_selected_style.border_color = Color(0.4, 0.7, 1.0)
-	button_selected_style.set_border_width_all(3)
-	button_selected_style.set_corner_radius_all(6)
-	button_selected_style.set_content_margin_all(12)
-
-
 func _create_ui() -> void:
-	# Hintergrund
+	# Hintergrund - dunkles Pergament-Feeling
 	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.08, 0.1)
+	bg.color = Color(0.1, 0.08, 0.06)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	
+	# Optional: Hintergrund-Textur/Vignette
+	var vignette := ColorRect.new()
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.color = Color(0, 0, 0, 0)  # Placeholder für Shader/Textur
+	add_child(vignette)
 	
 	# Zentrierter Container
 	var center := CenterContainer.new()
@@ -70,82 +42,107 @@ func _create_ui() -> void:
 	add_child(center)
 	
 	var root_container := VBoxContainer.new()
-	root_container.add_theme_constant_override("separation", 30)
+	root_container.add_theme_constant_override("separation", 20)
 	center.add_child(root_container)
 	
-	# Titel
+	# === TITEL mit Ribbon ===
+	var title_section := VBoxContainer.new()
+	title_section.add_theme_constant_override("separation", 8)
+	title_section.alignment = BoxContainer.ALIGNMENT_CENTER
+	root_container.add_child(title_section)
+	
 	var title := Label.new()
 	title.text = "TOWER DEFENSE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if UITheme and UITheme.game_font:
+		title.add_theme_font_override("font", UITheme.game_font)
 	title.add_theme_font_size_override("font_size", 48)
-	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
-	root_container.add_child(title)
+	title.add_theme_color_override("font_color", UITheme.COLOR_TEXT_GOLD if UITheme else Color(1.0, 0.9, 0.7))
+	title.add_theme_color_override("font_outline_color", Color(0.15, 0.1, 0.05))
+	title.add_theme_constant_override("outline_size", 4)
+	title_section.add_child(title)
 	
-	var subtitle := Label.new()
-	subtitle.text = "Elementare Macht"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 24)
-	subtitle.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-	root_container.add_child(subtitle)
+	# Untertitel als Ribbon
+	if UITheme:
+		var subtitle_ribbon := UITheme.create_ribbon_title("Elementare Macht", "yellow", 280)
+		subtitle_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		title_section.add_child(subtitle_ribbon)
+	else:
+		var subtitle := Label.new()
+		subtitle.text = "Elementare Macht"
+		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		subtitle.add_theme_font_size_override("font_size", 20)
+		title_section.add_child(subtitle)
 	
 	# === HAUPTMENÜ PANEL ===
 	main_panel = VBoxContainer.new()
-	main_panel.add_theme_constant_override("separation", 15)
-	main_panel.custom_minimum_size = Vector2(300, 0)
+	main_panel.add_theme_constant_override("separation", 12)
+	main_panel.custom_minimum_size = Vector2(320, 0)
+	main_panel.alignment = BoxContainer.ALIGNMENT_CENTER
 	root_container.add_child(main_panel)
 	
 	_create_menu_button(main_panel, "Neues Spiel", "play", _on_new_game_pressed)
 	_create_menu_button(main_panel, "Charaktere", "characters", _on_characters_pressed)
 	_create_menu_button(main_panel, "Optionen", "settings", _on_options_pressed)
-	_create_menu_button(main_panel, "Beenden", "exit", _on_quit_pressed)
+	_create_menu_button(main_panel, "Beenden", "exit", _on_quit_pressed, true)  # Rot
 	
 	# === CHARAKTERAUSWAHL PANEL ===
 	character_select_panel = PanelContainer.new()
-	character_select_panel.add_theme_stylebox_override("panel", panel_style)
 	character_select_panel.visible = false
+	if UITheme:
+		UITheme.style_panel(character_select_panel, "carved")
+	character_select_panel.custom_minimum_size = Vector2(520, 0)
 	root_container.add_child(character_select_panel)
 	
 	var char_vbox := VBoxContainer.new()
-	char_vbox.add_theme_constant_override("separation", 20)
+	char_vbox.add_theme_constant_override("separation", 16)
 	character_select_panel.add_child(char_vbox)
 	
-	var char_title := Label.new()
-	char_title.text = "Wähle deinen Charakter"
-	char_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	char_title.add_theme_font_size_override("font_size", 28)
-	char_title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
-	char_vbox.add_child(char_title)
+	# Charakter-Titel als Ribbon
+	if UITheme:
+		var char_title_ribbon := UITheme.create_ribbon_title("Wähle deinen Charakter", "blue", 320)
+		char_title_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		char_vbox.add_child(char_title_ribbon)
+	else:
+		var char_title := Label.new()
+		char_title.text = "Wähle deinen Charakter"
+		char_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		char_title.add_theme_font_size_override("font_size", 24)
+		char_vbox.add_child(char_title)
 	
 	# Character Grid
 	character_grid = GridContainer.new()
 	character_grid.columns = 2
-	character_grid.add_theme_constant_override("h_separation", 15)
-	character_grid.add_theme_constant_override("v_separation", 15)
+	character_grid.add_theme_constant_override("h_separation", 12)
+	character_grid.add_theme_constant_override("v_separation", 12)
 	char_vbox.add_child(character_grid)
 	
 	# Buttons unter Grid
 	var char_buttons := HBoxContainer.new()
-	char_buttons.add_theme_constant_override("separation", 20)
+	char_buttons.add_theme_constant_override("separation", 16)
 	char_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	char_vbox.add_child(char_buttons)
 	
-	var back_btn := _create_styled_button("Zurück", _on_character_back_pressed)
-	back_btn.custom_minimum_size = Vector2(120, 45)
+	var back_btn := _create_styled_button("Zurück", _on_character_back_pressed, true)
+	back_btn.custom_minimum_size = Vector2(130, 40)
 	char_buttons.add_child(back_btn)
 	
 	var start_btn := _create_styled_button("Starten", _on_character_start_pressed)
-	start_btn.custom_minimum_size = Vector2(120, 45)
+	start_btn.custom_minimum_size = Vector2(130, 40)
 	start_btn.name = "StartButton"
 	char_buttons.add_child(start_btn)
 
 
-func _create_menu_button(parent: Node, text: String, icon_name: String, callback: Callable) -> Button:
+func _create_menu_button(parent: Node, text: String, icon_name: String, callback: Callable, red: bool = false) -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(280, 55)
-	btn.add_theme_font_size_override("font_size", 22)
-	btn.add_theme_stylebox_override("normal", button_normal_style)
-	btn.add_theme_stylebox_override("hover", button_hover_style)
-	btn.add_theme_stylebox_override("pressed", button_hover_style)
+	btn.custom_minimum_size = Vector2(300, 50)
+	
+	if UITheme:
+		UITheme.style_button(btn, red)
+		btn.add_theme_font_size_override("font_size", 20)
+	else:
+		btn.add_theme_font_size_override("font_size", 22)
+	
 	btn.pressed.connect(callback)
 	
 	# Button mit Icon
@@ -171,21 +168,27 @@ func _create_menu_button(parent: Node, text: String, icon_name: String, callback
 	
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 22)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if UITheme and UITheme.game_font:
+		label.add_theme_font_override("font", UITheme.game_font)
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK if UITheme else Color(0.9, 0.9, 0.9))
 	hbox.add_child(label)
 	
 	parent.add_child(btn)
 	return btn
 
 
-func _create_styled_button(text: String, callback: Callable) -> Button:
+func _create_styled_button(text: String, callback: Callable, red: bool = false) -> Button:
 	var btn := Button.new()
 	btn.text = text
-	btn.add_theme_font_size_override("font_size", 18)
-	btn.add_theme_stylebox_override("normal", button_normal_style)
-	btn.add_theme_stylebox_override("hover", button_hover_style)
-	btn.add_theme_stylebox_override("pressed", button_hover_style)
+	
+	if UITheme:
+		UITheme.style_button(btn, red)
+		btn.add_theme_font_size_override("font_size", 16)
+	else:
+		btn.add_theme_font_size_override("font_size", 18)
+	
 	btn.pressed.connect(callback)
 	return btn
 
@@ -209,31 +212,43 @@ func _update_character_grid() -> void:
 
 func _create_character_button(char_id: String, data: Dictionary, unlocked: bool) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(220, 160)
+	panel.custom_minimum_size = Vector2(230, 170)
 	
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.18) if unlocked else Color(0.1, 0.1, 0.1)
-	var char_color: Color = data.get("color", Color.WHITE)
-	style.border_color = char_color if unlocked else Color(0.3, 0.3, 0.3)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(15)
-	panel.add_theme_stylebox_override("panel", style)
+	# Carved-Style Panel für jeden Charakter
+	if UITheme:
+		UITheme.style_panel(panel, "carved")
+	
+	if not unlocked:
+		panel.modulate = Color(0.5, 0.5, 0.5, 0.8)
 	
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 6)
 	panel.add_child(vbox)
 	
 	# Name
-	var name_label := Label.new()
+	var char_color: Color = data.get("color", Color.WHITE)
 	var char_name: String = data.get("name", char_id)
+	
+	var name_label := Label.new()
 	name_label.text = char_name if unlocked else "???"
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 20)
-	name_label.add_theme_color_override("font_color", char_color if unlocked else Color(0.4, 0.4, 0.4))
+	if UITheme:
+		UITheme.style_label(name_label, 18, char_color if unlocked else UITheme.COLOR_TEXT_DISABLED)
+	else:
+		name_label.add_theme_font_size_override("font_size", 18)
+		name_label.add_theme_color_override("font_color", char_color if unlocked else Color(0.4, 0.4, 0.4))
+	
+	if unlocked:
+		name_label.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05))
+		name_label.add_theme_constant_override("outline_size", 2)
 	vbox.add_child(name_label)
 	
-	# Element Icon Container (zentriert)
+	# Trennlinie
+	var sep := HSeparator.new()
+	sep.add_theme_constant_override("separation", 4)
+	vbox.add_child(sep)
+	
+	# Element Icon Container
 	var icon_container := CenterContainer.new()
 	icon_container.custom_minimum_size = Vector2(0, 40)
 	vbox.add_child(icon_container)
@@ -273,8 +288,10 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	else:
 		ability_label.text = "Gesperrt"
 	ability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ability_label.add_theme_font_size_override("font_size", 14)
-	ability_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7) if unlocked else Color(0.4, 0.4, 0.4))
+	if UITheme:
+		UITheme.style_label(ability_label, 13, UITheme.COLOR_TEXT_DARK if unlocked else UITheme.COLOR_TEXT_DISABLED)
+	else:
+		ability_label.add_theme_font_size_override("font_size", 13)
 	vbox.add_child(ability_label)
 	
 	# Beschreibung
@@ -282,9 +299,12 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	var description: String = data.get("description", "")
 	desc_label.text = description if unlocked else ""
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	desc_label.add_theme_font_size_override("font_size", 11)
-	desc_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	if UITheme:
+		UITheme.style_label(desc_label, 11, Color(0.4, 0.35, 0.25))
+	else:
+		desc_label.add_theme_font_size_override("font_size", 11)
+		desc_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	vbox.add_child(desc_label)
 	
 	# Click Handler
@@ -292,6 +312,7 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 		var click_handler := Button.new()
 		click_handler.flat = true
 		click_handler.set_anchors_preset(Control.PRESET_FULL_RECT)
+		click_handler.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		click_handler.pressed.connect(_on_character_clicked.bind(char_id))
 		panel.add_child(click_handler)
 	
@@ -310,22 +331,17 @@ func _update_character_selection() -> void:
 		if not is_unlocked:
 			continue
 		
-		var style := StyleBoxFlat.new()
-		var char_data: Dictionary = AbilitySystem.CHARACTERS.get(char_id, {})
-		var char_color: Color = char_data.get("color", Color.WHITE)
-		
 		if is_selected:
-			style.border_color = Color(1.0, 0.9, 0.4)
-			style.set_border_width_all(3)
-			style.bg_color = Color(0.2, 0.2, 0.15)
+			# Gold-Rahmen für selektierten Charakter
+			panel.modulate = Color(1.1, 1.05, 0.9)
+			# Leichter Scale-Effekt
+			var tween := create_tween()
+			tween.tween_property(panel, "scale", Vector2(1.03, 1.03), 0.15).set_ease(Tween.EASE_OUT)
+			panel.pivot_offset = panel.size / 2
 		else:
-			style.border_color = char_color
-			style.set_border_width_all(2)
-			style.bg_color = Color(0.15, 0.15, 0.18)
-		
-		style.set_corner_radius_all(8)
-		style.set_content_margin_all(15)
-		panel.add_theme_stylebox_override("panel", style)
+			panel.modulate = Color.WHITE
+			var tween := create_tween()
+			tween.tween_property(panel, "scale", Vector2.ONE, 0.1)
 	
 	# Start Button aktivieren/deaktivieren
 	var start_btn: Button = character_select_panel.find_child("StartButton", true, false)
@@ -358,14 +374,12 @@ func _on_new_game_pressed() -> void:
 func _on_characters_pressed() -> void:
 	if Sound:
 		Sound.play_click()
-	# TODO: Charaktere-Übersicht mit Freischaltungen
 	print("[MainMenu] Charaktere-Übersicht (noch nicht implementiert)")
 
 
 func _on_options_pressed() -> void:
 	if Sound:
 		Sound.play_click()
-	# TODO: Optionen-Menü
 	print("[MainMenu] Optionen (noch nicht implementiert)")
 
 
@@ -397,7 +411,6 @@ func _on_character_start_pressed() -> void:
 	if Sound:
 		Sound.play_confirm()
 	
-	# Charakter im AbilitySystem setzen
 	if AbilitySystem:
 		AbilitySystem.select_character(selected_character)
 	

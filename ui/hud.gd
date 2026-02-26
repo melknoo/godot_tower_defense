@@ -359,11 +359,10 @@ func _apply_styles() -> void:
 		_style_fast_forward_button()
 
 	if UITheme:
-		if start_button:   UITheme.style_button(start_button)
+		if start_button:   UITheme.style_button_light_text(start_button)
 		if cores_button:   UITheme.style_button(cores_button)
 		if upgrades_button: UITheme.style_button(upgrades_button)
 
-	if start_button:     _apply_button_font_color(start_button)
 	if cores_button:     _apply_button_font_color(cores_button)
 	if upgrades_button:  _apply_button_font_color(upgrades_button)
 
