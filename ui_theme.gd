@@ -128,16 +128,16 @@ func _load_tex(path: String) -> Texture2D:
 # =============================================
 
 func create_button_style_idle() -> StyleBoxTexture:
-	return _make_9slice(btn_blue_normal, BUTTON_9SLICE_MARGIN, BUTTON_CONTENT_PADDING)
+	return _make_button_9slice(btn_blue_normal)
 
 func create_button_style_pressed() -> StyleBoxTexture:
-	return _make_9slice(btn_blue_pressed, BUTTON_9SLICE_MARGIN, BUTTON_CONTENT_PADDING)
+	return _make_button_9slice(btn_blue_pressed)
 
 func create_button_style_hover() -> StyleBoxTexture:
-	return _make_9slice(btn_blue_hover, BUTTON_9SLICE_MARGIN, BUTTON_CONTENT_PADDING)
+	return _make_button_9slice(btn_blue_hover)
 
 func create_button_style_disabled() -> StyleBoxTexture:
-	return _make_9slice(btn_blue_disabled, BUTTON_9SLICE_MARGIN, BUTTON_CONTENT_PADDING)
+	return _make_button_9slice(btn_blue_disabled)
 
 func create_button_style_red() -> StyleBoxTexture:
 	return _make_9slice(btn_red_normal, BUTTON_9SLICE_MARGIN)
@@ -239,7 +239,8 @@ func create_info_badge_style() -> StyleBoxTexture:
 
 ## Erstellt ein Ribbon-Label als Titel für ein Panel
 ## Gibt ein TextureRect + Label Konstrukt zurück
-func create_ribbon_title(text: String, color: String = "blue", width: float = 200.0) -> Control:
+func create_ribbon_title(text: String, color: String = "blue", width: float = 200.0, font_size: int = 14) -> Control:
+
 	var container := Control.new()
 	container.custom_minimum_size = Vector2(width, 32)
 	
@@ -268,7 +269,7 @@ func create_ribbon_title(text: String, color: String = "blue", width: float = 20
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if game_font:
 		label.add_theme_font_override("font", game_font)
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", COLOR_TEXT_LIGHT)
 	label.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05))
 	label.add_theme_constant_override("outline_size", 2)
@@ -322,5 +323,25 @@ func _make_9slice(tex: Texture2D, tex_margin: int = 6, content_margin: int = -1)
 	style.content_margin_right = cm
 	style.content_margin_top = cm
 	style.content_margin_bottom = cm
+	
+	return style
+
+
+## Buttons haben oft asymmetrische Ränder (Schatten unten dicker)
+## content_margin_top kleiner damit Text visuell zentriert wirkt
+func _make_button_9slice(tex: Texture2D) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	if tex:
+		style.texture = tex
+	
+	style.texture_margin_left = BUTTON_9SLICE_MARGIN
+	style.texture_margin_right = BUTTON_9SLICE_MARGIN
+	style.texture_margin_top = BUTTON_9SLICE_MARGIN
+	style.texture_margin_bottom = BUTTON_9SLICE_MARGIN
+	
+	style.content_margin_left = BUTTON_CONTENT_PADDING
+	style.content_margin_right = BUTTON_CONTENT_PADDING
+	style.content_margin_top = BUTTON_CONTENT_PADDING - 8  # Weniger oben = Text rutscht hoch
+	style.content_margin_bottom = BUTTON_CONTENT_PADDING + 8  # Mehr unten = kompensiert Schatten
 	
 	return style

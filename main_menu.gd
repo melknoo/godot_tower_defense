@@ -24,6 +24,13 @@ func _ready() -> void:
 
 
 func _create_ui() -> void:
+	# Sicherstellen dass das Control den ganzen Screen füllt
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	offset_left = 0
+	offset_top = 0
+	offset_right = 0
+	offset_bottom = 0
+	
 	# Hintergrund - dunkles Pergament-Feeling
 	var bg := ColorRect.new()
 	bg.color = Color(0.1, 0.08, 0.06)
@@ -39,6 +46,12 @@ func _create_ui() -> void:
 	# Zentrierter Container
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.offset_left = 0
+	center.offset_top = 0
+	center.offset_right = 0
+	center.offset_bottom = 0
+	center.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	center.grow_vertical = Control.GROW_DIRECTION_BOTH
 	add_child(center)
 	
 	var root_container := VBoxContainer.new()
@@ -64,7 +77,8 @@ func _create_ui() -> void:
 	
 	# Untertitel als Ribbon
 	if UITheme:
-		var subtitle_ribbon := UITheme.create_ribbon_title("Elementare Macht", "yellow", 280)
+		var subtitle_ribbon := UITheme.create_ribbon_title("Elementare Macht", "yellow", 440, 18)
+		subtitle_ribbon.custom_minimum_size.y = 52
 		subtitle_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		title_section.add_child(subtitle_ribbon)
 	else:
@@ -135,46 +149,26 @@ func _create_ui() -> void:
 
 func _create_menu_button(parent: Node, text: String, icon_name: String, callback: Callable, red: bool = false) -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(300, 50)
+	btn.text = " " + text
+	btn.custom_minimum_size = Vector2(300, 80)
+	btn.clip_text = false
+	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
 	if UITheme:
 		UITheme.style_button(btn, red)
-		btn.add_theme_font_size_override("font_size", 20)
+		btn.add_theme_font_size_override("font_size", 26)
 	else:
-		btn.add_theme_font_size_override("font_size", 22)
+		btn.add_theme_font_size_override("font_size", 26)
 	
-	btn.pressed.connect(callback)
-	
-	# Button mit Icon
-	var hbox := HBoxContainer.new()
-	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_theme_constant_override("separation", 12)
-	hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(hbox)
-	
-	# Icon
+	# Icon direkt auf dem Button
 	var icon_texture: Texture2D = null
 	if IconSystem:
 		icon_texture = IconSystem.get_texture(icon_name)
-	
 	if icon_texture:
-		var icon := TextureRect.new()
-		icon.texture = icon_texture
-		icon.custom_minimum_size = Vector2(24, 24)
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		hbox.add_child(icon)
+		btn.icon = icon_texture
+		btn.expand_icon = true
 	
-	var label := Label.new()
-	label.text = text
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if UITheme and UITheme.game_font:
-		label.add_theme_font_override("font", UITheme.game_font)
-	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK if UITheme else Color(0.9, 0.9, 0.9))
-	hbox.add_child(label)
-	
+	btn.pressed.connect(callback)
 	parent.add_child(btn)
 	return btn
 
