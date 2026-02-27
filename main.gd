@@ -109,6 +109,9 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 			return
 	
 	# Fallback: Pending Equip über Main Metas (sollte normalerweise nicht mehr vorkommen)
+	if not has_meta("pending_equip_tower"):
+		print("[Main] _on_inventory_item_selected: kein pending_equip_tower, ignoriert")
+		return
 	var pending_tower: Node2D = get_meta("pending_equip_tower", null) as Node2D
 	var pending_slot: int = int(get_meta("pending_equip_slot", -1))
 

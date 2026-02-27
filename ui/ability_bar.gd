@@ -69,7 +69,7 @@ func _connect_signals() -> void:
 		GameState.wave_completed.connect(_on_wave_completed)
 
 
-func _on_ability_upgraded(ability_id: String) -> void:
+func _on_ability_upgraded(ability_id: String, _stat: String, _new_value: float) -> void:
 	_update_ability_tooltip(ability_id)
 
 

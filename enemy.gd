@@ -192,8 +192,8 @@ func _setup_tower_type_multipliers() -> void:
 		"swift":
 			# Schnell und wendig – Schwerter erwischen ihn, Pfeile treffen nicht
 			tower_type_multipliers = {
-				"archer":  0.4,   # STARK   – zu flink für Pfeile
-				"sword":   2.0,   # SCHWACH – Klinge trifft bei Nahkampf
+				"archer":  0.75,   # STARK   – zu flink für Pfeile
+				"sword":   2.5,   # SCHWACH – Klinge trifft bei Nahkampf
 				"wizard":  1.0,
 				"cannon":  0.75,  # leicht resistent (zu klein als Ziel)
 				"trapper": 1.25,  # Fallen halten ihn besonders gut
@@ -202,10 +202,10 @@ func _setup_tower_type_multipliers() -> void:
 		"ethereal":
 			# Magisches Wesen – Magie trifft, physisch kaum greifbar
 			tower_type_multipliers = {
-				"archer":  0.6,   # RESISTENT – Pfeile gehen durch
-				"sword":   0.6,   # RESISTENT – Klingen greifen nicht
-				"wizard":  2.0,   # SCHWACH   – Magie trifft die Essenz
-				"cannon":  0.5,   # RESISTENT – physische Explosion nutzlos
+				"archer":  0.7,   # RESISTENT – Pfeile gehen durch
+				"sword":   0.7,   # RESISTENT – Klingen greifen nicht
+				"wizard":  2.5,   # SCHWACH   – Magie trifft die Essenz
+				"cannon":  0.6,   # RESISTENT – physische Explosion nutzlos
 				"trapper": 0.75,
 			}
 
@@ -215,18 +215,18 @@ func _setup_tower_type_multipliers() -> void:
 				"archer":  1.0,
 				"sword":   1.25,
 				"wizard":  0.5,   # RESISTENT – magisch unempfindlich
-				"cannon":  2.0,   # SCHWACH   – Explosivschaden ideal
+				"cannon":  3.0,   # SCHWACH   – Explosivschaden ideal
 				"trapper": 0.75,
 			}
 
 		"burrower":
 			# Unterirdisch – Fallen sind tödlich, Fernkämpfer hoffnungslos
 			tower_type_multipliers = {
-				"archer":  0.4,   # RESISTENT – taucht kurz auf
-				"sword":   0.5,   # RESISTENT – zu tief unten
+				"archer":  0.75,   # RESISTENT – taucht kurz auf
+				"sword":   0.75,   # RESISTENT – zu tief unten
 				"wizard":  1.25,
 				"cannon":  1.25,
-				"trapper": 2.0,   # SCHWACH   – Fallen halten ihn an der Oberfläche
+				"trapper": 3.0,   # SCHWACH   – Fallen halten ihn an der Oberfläche
 			}
 
 		_:
