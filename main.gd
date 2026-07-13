@@ -47,6 +47,7 @@ var ability_range_circle: Line2D
 var item_inventory_ui: ItemInventoryUI
 var ability_upgrade_ui: CanvasLayer
 var meta_progression_ui: MetaProgressionUI
+var pause_menu: PauseMenu
 var _auto_wave_generation := 0
 
 
@@ -66,6 +67,7 @@ func _ready() -> void:
 	_setup_ability_upgrade_ui()
 	_setup_ability_bar()
 	_setup_meta_progression_ui()
+	_setup_pause_menu()
 	_setup_ability_preview()
 	_connect_signals()
 	_setup_hover_preview()
@@ -256,7 +258,7 @@ func _setup_ability_bar() -> void:
 	ability_bar.name = "AbilityBar"
 	$UI.add_child(ability_bar)
 	var viewport_size := get_viewport_rect().size
-	ability_bar.position = Vector2(5, viewport_size.y - 205)
+	ability_bar.position = Vector2(5, viewport_size.y - 105 - ability_bar.custom_minimum_size.y)
 	print("[Main] AbilityBar erstellt")
 
 
@@ -265,6 +267,14 @@ func _setup_meta_progression_ui() -> void:
 	meta_progression_ui.name = "MetaProgressionUI"
 	add_child(meta_progression_ui)
 	meta_progression_ui.panel_closed.connect(_on_meta_progression_closed)
+
+
+func _setup_pause_menu() -> void:
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	add_child(pause_menu)
+	pause_menu.main_menu_requested.connect(_on_pause_main_menu_requested)
+	pause_menu.quit_requested.connect(_on_pause_quit_requested)
 
 
 func _setup_ability_preview() -> void:
@@ -288,6 +298,7 @@ func _connect_signals() -> void:
 	hud.open_upgrades_panel_pressed.connect(_on_open_upgrades_panel)
 	hud.open_inventory_pressed.connect(_on_open_inventory)
 	hud.open_research_pressed.connect(_on_open_research)
+	hud.pause_pressed.connect(_on_pause_requested)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
 	tower_manager.tower_selected.connect(_on_tower_selected)
@@ -334,6 +345,12 @@ func _input(event: InputEvent) -> void:
 			meta_progression_ui.toggle_panel()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		if meta_progression_ui and meta_progression_ui.visible:
+			meta_progression_ui.hide_panel()
+			return
+		if item_inventory_ui and item_inventory_ui.visible:
+			item_inventory_ui.hide_panel()
+			return
 		if element_unlock_ui and element_unlock_ui.visible:
 			element_unlock_ui.hide_panel()
 			return
@@ -348,7 +365,10 @@ func _input(event: InputEvent) -> void:
 			_cancel_drag_or_pickup()
 			is_drag_potential = false
 			return
-		_deselect_all()
+		if tower_info.visible or tower_shop.has_selection():
+			_deselect_all()
+			return
+		_on_pause_requested()
 		return
 	
 	if event is InputEventMouseButton:
@@ -546,6 +566,10 @@ func _handle_empty_cell_click(grid_pos: Vector2i, world_pos: Vector2) -> void:
 func _is_over_ui(pos: Vector2) -> bool:
 	# Tower Info Panel (hat feste Position)
 	if tower_info.visible and tower_info.get_global_rect().has_point(pos):
+		return true
+	if hud.progression_strip and hud.progression_strip.get_global_rect().has_point(pos):
+		return true
+	if hud.pause_button and hud.pause_button.get_global_rect().has_point(pos):
 		return true
 	
 	# wave_upgrade_ui blockiert auch, aber das ist ein modales Panel
@@ -913,6 +937,32 @@ func _on_open_upgrades_panel() -> void:
 func _on_open_research() -> void:
 	if meta_progression_ui:
 		meta_progression_ui.show_panel()
+
+
+func _on_pause_requested() -> void:
+	if not pause_menu or GameState.is_game_over():
+		return
+	_auto_wave_generation += 1
+	_deselect_all()
+	# Erst nach dem aktuellen Input-Event einblenden, damit dasselbe Esc-Ereignis
+	# das Menue nicht direkt wieder schliesst.
+	pause_menu.call_deferred("show_pause")
+
+
+func _on_pause_main_menu_requested() -> void:
+	Engine.time_scale = 1.0
+	if ProgressionSystem and ProgressionSystem.run_active:
+		ProgressionSystem.finish_run(GameState.current_wave)
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://main_menu.tscn")
+
+
+func _on_pause_quit_requested() -> void:
+	Engine.time_scale = 1.0
+	if ProgressionSystem and ProgressionSystem.run_active:
+		ProgressionSystem.finish_run(GameState.current_wave)
+	get_tree().paused = false
+	get_tree().quit()
 
 
 func _on_meta_progression_closed() -> void:

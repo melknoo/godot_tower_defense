@@ -8,6 +8,7 @@ signal open_element_panel_pressed
 signal open_upgrades_panel_pressed
 signal open_inventory_pressed
 signal open_research_pressed
+signal pause_pressed
 
 @export var gold_label: RichTextLabel
 @export var lives_label: RichTextLabel
@@ -80,6 +81,7 @@ var account_xp_bar: ProgressBar
 var milestone_progress_label: Label
 var research_button: Button
 var auto_wave_button: Button
+var pause_button: Button
 var streak_panel: PanelContainer
 var streak_label: Label
 var streak_bar: ProgressBar
@@ -195,7 +197,7 @@ func _find_or_create_ui_elements() -> void:
 	wave_element_icon  = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon",  Vector2(8, 5),  Vector2(24, 24))
 	wave_element_label = _get_or_create_label_child(wave_element_area,        "WaveElementLabel", Vector2(40, 8))
 
-	cores_button     = _get_or_create_button("CoresButton",      Vector2(440, zero_row_y - 5),              Vector2(64, 64))
+	cores_button     = _get_or_create_button("CoresButton",      Vector2(440, zero_row_y - 5),              Vector2(48, 48))
 	upgrades_button  = _get_or_create_button("UpgradesButton",   Vector2(520, zero_row_y - 5),              Vector2(48, 48))
 	inventory_button = _get_or_create_button("InventoryButton",  Vector2(380, zero_row_y - 5),              Vector2(48, 48))
 	start_button     = _get_or_create_button("StartWaveButton",  Vector2(viewport_size.x - 740, first_row_y  - 5), Vector2(130, 32))
@@ -208,22 +210,22 @@ func _create_progression_ui() -> void:
 	progression_strip.name = "ProgressionStrip"
 	# HUD-Origin liegt 105 px über dem unteren Rand; +123 ergibt global y=18.
 	progression_strip.position = Vector2(14, -viewport_size.y + 123)
-	progression_strip.custom_minimum_size = Vector2(690, 44)
-	var strip_style := StyleBoxFlat.new()
-	strip_style.bg_color = Color(0.045, 0.065, 0.12, 0.97)
-	strip_style.border_color = Color(0.18, 0.55, 0.78, 0.8)
-	strip_style.set_border_width_all(2)
-	strip_style.set_corner_radius_all(8)
-	strip_style.shadow_color = Color(0, 0, 0, 0.4)
-	strip_style.shadow_size = 6
+	progression_strip.custom_minimum_size = Vector2(690, 54)
+	var strip_style: StyleBox
+	if UITheme:
+		strip_style = UITheme.create_info_badge_style()
+	else:
+		var fallback := StyleBoxFlat.new()
+		fallback.bg_color = Color(0.7, 0.65, 0.5, 0.97)
+		strip_style = fallback
 	progression_strip.add_theme_stylebox_override("panel", strip_style)
 	add_child(progression_strip)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_top", 7)
+	margin.add_theme_constant_override("margin_bottom", 7)
 	progression_strip.add_child(margin)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -231,13 +233,13 @@ func _create_progression_ui() -> void:
 
 	essence_label = Label.new()
 	essence_label.custom_minimum_size.x = 130
-	essence_label.add_theme_color_override("font_color", Color("75ddff"))
+	essence_label.add_theme_color_override("font_color", Color("155d72"))
 	essence_label.add_theme_font_size_override("font_size", 13)
 	row.add_child(essence_label)
 
 	account_level_label = Label.new()
 	account_level_label.custom_minimum_size.x = 72
-	account_level_label.add_theme_color_override("font_color", Color("f4cf6a"))
+	account_level_label.add_theme_color_override("font_color", Color("775616"))
 	account_level_label.add_theme_font_size_override("font_size", 11)
 	row.add_child(account_level_label)
 
@@ -249,31 +251,43 @@ func _create_progression_ui() -> void:
 
 	milestone_progress_label = Label.new()
 	milestone_progress_label.custom_minimum_size.x = 135
-	milestone_progress_label.add_theme_color_override("font_color", Color(0.68, 0.75, 0.9))
+	milestone_progress_label.add_theme_color_override("font_color", Color("393128"))
 	milestone_progress_label.add_theme_font_size_override("font_size", 10)
 	row.add_child(milestone_progress_label)
 
 	auto_wave_button = Button.new()
-	auto_wave_button.custom_minimum_size = Vector2(76, 28)
+	auto_wave_button.custom_minimum_size = Vector2(76, 38)
 	auto_wave_button.tooltip_text = "Wellen automatisch starten"
 	auto_wave_button.pressed.connect(_on_auto_wave_pressed)
 	row.add_child(auto_wave_button)
 
 	research_button = Button.new()
 	research_button.text = "ARCHIV"
-	research_button.custom_minimum_size = Vector2(78, 28)
+	research_button.custom_minimum_size = Vector2(82, 38)
 	research_button.tooltip_text = "Dauerhafte Forschung öffnen (M)"
 	research_button.pressed.connect(_on_research_pressed)
 	row.add_child(research_button)
 	_style_progression_button(auto_wave_button)
 	_style_progression_button(research_button)
 
+	pause_button = Button.new()
+	pause_button.name = "PauseButton"
+	pause_button.position = Vector2(viewport_size.x - 66, -viewport_size.y + 123)
+	pause_button.custom_minimum_size = Vector2(50, 44)
+	pause_button.icon = IconSystem.get_texture("settings") if IconSystem else null
+	pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pause_button.expand_icon = true
+	pause_button.tooltip_text = "Pause & Optionen (Esc)"
+	pause_button.pressed.connect(func(): pause_pressed.emit())
+	if UITheme:
+		UITheme.style_icon_button(pause_button)
+	add_child(pause_button)
+
 	streak_panel = PanelContainer.new()
 	streak_panel.position = Vector2(viewport_size.x * 0.5 - 145, -viewport_size.y + 135)
 	streak_panel.custom_minimum_size = Vector2(290, 58)
 	streak_panel.visible = false
-	var streak_style: StyleBoxFlat = strip_style.duplicate()
-	streak_style.border_color = Color("d481ff")
+	var streak_style: StyleBox = UITheme.create_info_badge_style() if UITheme else strip_style.duplicate()
 	streak_panel.add_theme_stylebox_override("panel", streak_style)
 	add_child(streak_panel)
 	var streak_margin := MarginContainer.new()
@@ -287,7 +301,7 @@ func _create_progression_ui() -> void:
 	streak_margin.add_child(streak_box)
 	streak_label = Label.new()
 	streak_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	streak_label.add_theme_color_override("font_color", Color("f1c2ff"))
+	streak_label.add_theme_color_override("font_color", Color("6d277d"))
 	streak_label.add_theme_font_size_override("font_size", 14)
 	streak_box.add_child(streak_label)
 	streak_bar = ProgressBar.new()
@@ -315,19 +329,11 @@ func _style_arcane_progress_bar(bar: ProgressBar, color: Color) -> void:
 
 
 func _style_progression_button(button: Button) -> void:
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color("1d2b45")
-	normal.border_color = Color("3c668e")
-	normal.set_border_width_all(1)
-	normal.set_corner_radius_all(5)
-	var hover: StyleBoxFlat = normal.duplicate()
-	hover.bg_color = Color("294568")
-	hover.border_color = Color("70c8ef")
-	button.add_theme_stylebox_override("normal", normal)
-	button.add_theme_stylebox_override("hover", hover)
-	button.add_theme_stylebox_override("pressed", normal)
-	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	button.add_theme_color_override("font_color", Color("d8edff"))
+	if UITheme:
+		UITheme.style_icon_button(button)
+	button.add_theme_color_override("font_color", Color("211a12"))
+	button.add_theme_color_override("font_hover_color", Color("211a12"))
+	button.add_theme_color_override("font_pressed_color", Color("211a12"))
 	button.add_theme_font_size_override("font_size", 9)
 
 
@@ -455,6 +461,7 @@ func _apply_styles() -> void:
 		inventory_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		inventory_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		inventory_button.expand_icon = true
+		inventory_button.add_theme_constant_override("icon_max_width", 26)
 		inventory_button.tooltip_text = "Inventar öffnen (I)"
 
 		inventory_notification = Label.new()
@@ -486,7 +493,9 @@ func _apply_styles() -> void:
 	if cores_button:
 		cores_button.text = ""
 		cores_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cores_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		cores_button.expand_icon = true
+		cores_button.add_theme_constant_override("icon_max_width", 30)
 		var icon_path := "res://assets/elemental_symbols/four_elements.png"
 		if ResourceLoader.exists(icon_path):
 			cores_button.icon = load(icon_path)
@@ -496,6 +505,7 @@ func _apply_styles() -> void:
 		upgrades_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		upgrades_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 		upgrades_button.expand_icon = true
+		upgrades_button.add_theme_constant_override("icon_max_width", 26)
 		upgrades_button.tooltip_text = "Aktive Upgrades anzeigen (U)"
 
 	if start_button:
@@ -1386,14 +1396,8 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	overlay_layer.add_child(center)
 	var summary_panel := PanelContainer.new()
 	summary_panel.custom_minimum_size = Vector2(650, 480)
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color("161c2d")
-	panel_style.border_color = Color("7654a8")
-	panel_style.set_border_width_all(3)
-	panel_style.set_corner_radius_all(14)
-	panel_style.shadow_color = Color(0, 0, 0, 0.55)
-	panel_style.shadow_size = 12
-	summary_panel.add_theme_stylebox_override("panel", panel_style)
+	if UITheme:
+		UITheme.style_panel(summary_panel, "carved")
 	center.add_child(summary_panel)
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 34)
@@ -1405,25 +1409,20 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	box.add_theme_constant_override("separation", 16)
 	margin.add_child(box)
 
-	var title := Label.new()
-	title.text = "DIE BASTION IST GEFALLEN"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 27)
-	title.add_theme_color_override("font_color", Color("f0b7d9"))
+	var title := UITheme.create_ribbon_title("DIE BASTION IST GEFALLEN", "red", 520, 22)
+	title.custom_minimum_size.y = 58
+	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(title)
 	var wave_result := Label.new()
 	wave_result.text = "WELLE %d" % GameState.current_wave
 	wave_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	wave_result.add_theme_font_size_override("font_size", 46)
-	wave_result.add_theme_color_override("font_color", Color("f4cf6a"))
+	wave_result.add_theme_color_override("font_color", Color("795518"))
 	box.add_child(wave_result)
 
 	var payout_panel := PanelContainer.new()
-	var payout_style := panel_style.duplicate()
-	payout_style.bg_color = Color("0d2433")
-	payout_style.border_color = Color("4ebcdf")
-	payout_style.set_border_width_all(2)
-	payout_panel.add_theme_stylebox_override("panel", payout_style)
+	if UITheme:
+		payout_panel.add_theme_stylebox_override("panel", UITheme.create_info_badge_style())
 	box.add_child(payout_panel)
 	var payout := Label.new()
 	payout.text = "+%d AETHER   ·   +%d ARCHIV-XP" % [
@@ -1433,7 +1432,7 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	payout.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	payout.custom_minimum_size.y = 62
 	payout.add_theme_font_size_override("font_size", 19)
-	payout.add_theme_color_override("font_color", Color("75ddff"))
+	payout.add_theme_color_override("font_color", Color("185a78"))
 	payout_panel.add_child(payout)
 
 	var detail := Label.new()
@@ -1447,7 +1446,7 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	]
 	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	detail.add_theme_font_size_override("font_size", 14)
-	detail.add_theme_color_override("font_color", Color("b8c5dc"))
+	detail.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	detail.add_theme_constant_override("line_spacing", 6)
 	box.add_child(detail)
 
@@ -1455,7 +1454,7 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	hint.text = "Investiere Aether im Archiv und starte dauerhaft stärker."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", Color("8f9bb2"))
+	hint.add_theme_color_override("font_color", Color("554731"))
 	box.add_child(hint)
 
 	var buttons := HBoxContainer.new()
@@ -1477,10 +1476,12 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	menu_btn.custom_minimum_size = Vector2(150, 46)
 	menu_btn.pressed.connect(_on_main_menu_pressed)
 	buttons.add_child(menu_btn)
-	for button in [archive_btn, restart_btn, menu_btn]:
-		_style_progression_button(button)
+	for button in [archive_btn, restart_btn]:
+		UITheme.style_button(button)
 		button.add_theme_font_size_override("font_size", 11)
-	for label in [title, wave_result, payout, detail, hint]:
+	UITheme.style_button(menu_btn, true)
+	menu_btn.add_theme_font_size_override("font_size", 11)
+	for label in [wave_result, payout, detail, hint]:
 		if UITheme and UITheme.game_font:
 			label.add_theme_font_override("font", UITheme.game_font)
 

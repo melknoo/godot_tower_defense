@@ -23,6 +23,15 @@ func _run() -> void:
 		push_error("[UI Capture] Main-Szene konnte nicht geladen werden")
 		get_tree().quit(1)
 		return
+	_assert_ui(main.item_inventory_ui.panel.get_theme_stylebox("panel") is StyleBoxTexture, "Inventar nutzt ein Panel-Asset")
+	_assert_ui(main.element_unlock_ui.panel.get_theme_stylebox("panel") is StyleBoxTexture, "Element-Kerne nutzen ein Panel-Asset")
+	_assert_ui(main.upgrade_overview_ui.panel.get_theme_stylebox("panel") is StyleBoxTexture, "Aktive Upgrades nutzen ein Panel-Asset")
+	var ability_background := main.ability_bar.get_child(0) as PanelContainer
+	_assert_ui(ability_background != null and ability_background.get_theme_stylebox("panel") is StyleBoxTexture, "Ability-Bar nutzt ein Panel-Asset")
+	_assert_ui(main.hud.inventory_button.get_theme_constant("icon_max_width") == 26, "Inventar-Icon ist begrenzt")
+	_assert_ui(main.hud.cores_button.get_theme_constant("icon_max_width") == 30, "Element-Icon ist begrenzt")
+	_assert_ui(main.hud.upgrades_button.get_theme_constant("icon_max_width") == 26, "Upgrade-Icon ist begrenzt")
+	_assert_ui(main.hud.research_button.custom_minimum_size.y >= 38, "Archiv-Button hat genug Asset-Hoehe")
 
 	await _capture("01_gameplay")
 
@@ -100,6 +109,27 @@ func _run() -> void:
 	main.ability_upgrade_ui.visible = false
 	get_tree().paused = false
 
+	await _press_escape()
+	_assert_ui(main.pause_menu.visible, "Pausemenue ist sichtbar")
+	_assert_ui(get_tree().paused, "Pausemenue pausiert den Spielbaum")
+	await _capture("09_pause_menu")
+	main.pause_menu._on_options_pressed()
+	await get_tree().create_timer(0.2, true).timeout
+	_assert_ui(main.pause_menu.options_view.visible, "Optionen sind im Pausemenue erreichbar")
+	await _capture("10_pause_options")
+	await _press_escape()
+	_assert_ui(main.pause_menu.main_view.visible, "Esc fuehrt aus Optionen ins Pausemenue zurueck")
+	main.pause_menu._on_main_menu_pressed()
+	await get_tree().create_timer(0.2, true).timeout
+	_assert_ui(main.pause_menu.confirm_view.visible, "Hauptmenue verlangt eine Run-Bestaetigung")
+	_assert_ui(get_tree().paused, "Bestaetigungsdialog haelt den Run pausiert")
+	await _capture("11_leave_confirmation")
+	await _press_escape()
+	_assert_ui(main.pause_menu.main_view.visible, "Esc bricht das Verlassen des Runs ab")
+	await _press_escape()
+	_assert_ui(not main.pause_menu.visible, "Esc setzt das Spiel fort")
+	_assert_ui(not get_tree().paused, "Fortsetzen hebt die Pause auf")
+
 	main.hud.show_game_over({
 		"run_essence": 18,
 		"run_xp": 42,
@@ -109,7 +139,7 @@ func _run() -> void:
 		"essence_total": 31
 	})
 	await get_tree().create_timer(0.35, true).timeout
-	await _capture("09_run_summary")
+	await _capture("12_run_summary")
 
 	get_tree().paused = false
 	print("[UI Capture] Screenshots gespeichert: %s" % ProjectSettings.globalize_path(OUTPUT_DIR))
@@ -127,8 +157,7 @@ func _find_free_cell(manager: TowerManager, tower_type: String) -> Vector2i:
 
 func _capture(file_stem: String) -> void:
 	await get_tree().process_frame
-	RenderingServer.force_draw(false)
-	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
 	var image := get_tree().root.get_texture().get_image()
 	var path := "%s/%s.png" % [OUTPUT_DIR, file_stem]
 	var error := image.save_png(path)
@@ -136,6 +165,21 @@ func _capture(file_stem: String) -> void:
 		push_error("[UI Capture] Screenshot fehlgeschlagen: %s (%s)" % [path, error])
 	else:
 		print("[UI Capture] %s" % path)
+
+
+func _press_escape() -> void:
+	var press := InputEventKey.new()
+	press.keycode = KEY_ESCAPE
+	press.physical_keycode = KEY_ESCAPE
+	press.pressed = true
+	Input.parse_input_event(press)
+	await get_tree().process_frame
+	var release := InputEventKey.new()
+	release.keycode = KEY_ESCAPE
+	release.physical_keycode = KEY_ESCAPE
+	release.pressed = false
+	Input.parse_input_event(release)
+	await get_tree().process_frame
 
 
 func _assert_ui(condition: bool, label: String) -> void:

@@ -64,7 +64,7 @@ func _setup_ui() -> void:
 	
 	# Benutze UITheme für konsistentes Aussehen
 	if UITheme:
-		UITheme.style_panel(panel, "panel_dark")
+		UITheme.style_panel(panel, "carved")
 	
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 15)
@@ -84,7 +84,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		title_label.add_theme_font_override("font", UITheme.game_font)
 	title_label.add_theme_font_size_override("font_size", 18)
-	title_label.add_theme_color_override("font_color", Color("edf3ff"))
+	title_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	vbox.add_child(title_label)
 	
 	# Kerne-Anzeige
@@ -97,6 +97,7 @@ func _setup_ui() -> void:
 	
 	# Separator
 	var sep := HSeparator.new()
+	sep.add_theme_color_override("separator", Color("785d32"))
 	vbox.add_child(sep)
 	
 	# Info Text
@@ -106,7 +107,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		info_label.add_theme_font_override("font", UITheme.game_font)
 	info_label.add_theme_font_size_override("font_size", 11)
-	info_label.add_theme_color_override("font_color", Color("9aa8c2"))
+	info_label.add_theme_color_override("font_color", Color("554731"))
 	vbox.add_child(info_label)
 	
 	# CenterContainer für die Buttons
@@ -193,9 +194,9 @@ func _update_cores_display() -> void:
 	cores_label.text = "Verfügbar: %d | Investiert: %d/%d" % [cores, invested, max_possible]
 	
 	if cores > 0:
-		cores_label.add_theme_color_override("font_color", Color("75ddff"))
+		cores_label.add_theme_color_override("font_color", Color("185a78"))
 	else:
-		cores_label.add_theme_color_override("font_color", Color("77839a"))
+		cores_label.add_theme_color_override("font_color", Color("695c48"))
 
 
 func _create_element_buttons() -> void:

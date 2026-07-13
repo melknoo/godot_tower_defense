@@ -63,7 +63,7 @@ func _setup_ui() -> void:
 	add_child(panel)
 	
 	if UITheme:
-		UITheme.style_panel(panel, "panel_dark")
+		UITheme.style_panel(panel, "carved")
 	
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 15)
@@ -86,7 +86,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		title_label.add_theme_font_override("font", UITheme.game_font)
 	title_label.add_theme_font_size_override("font_size", 18)
-	title_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	title_label.add_theme_color_override("default_color", UITheme.COLOR_TEXT_DARK)
 	header.add_child(title_label)
 	
 	count_label = Label.new()
@@ -94,10 +94,11 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		count_label.add_theme_font_override("font", UITheme.game_font)
 	count_label.add_theme_font_size_override("font_size", 12)
-	count_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	count_label.add_theme_color_override("font_color", Color("554731"))
 	header.add_child(count_label)
 	
 	var sep := HSeparator.new()
+	sep.add_theme_color_override("separator", Color("785d32"))
 	vbox.add_child(sep)
 	
 	# Info Text
@@ -107,7 +108,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		info.add_theme_font_override("font", UITheme.game_font)
 	info.add_theme_font_size_override("font_size", 9)
-	info.add_theme_color_override("font_color", Color("9aa8c2"))
+	info.add_theme_color_override("font_color", Color("554731"))
 	vbox.add_child(info)
 	
 	# Scroll Container für Grid

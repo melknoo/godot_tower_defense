@@ -2,6 +2,8 @@
 # Autoload für Pixel-Art-freundliche visuelle Effekte
 extends Node
 
+var screen_shake_enabled := true
+
 const PALETTES := {
 	"water": [Color(0.2, 0.4, 0.8), Color(0.3, 0.6, 1.0), Color(0.6, 0.8, 1.0)],
 	"fire": [Color(0.8, 0.2, 0.0), Color(1.0, 0.5, 0.1), Color(1.0, 0.9, 0.3)],
@@ -539,6 +541,8 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 # === SCREEN EFFECTS ===
 
 func screen_shake(intensity: float = 5.0, duration: float = 0.2) -> void:
+	if not screen_shake_enabled:
+		return
 	var camera := _get_camera()
 	if not camera:
 		return

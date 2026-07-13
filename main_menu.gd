@@ -13,6 +13,7 @@ var character_grid: GridContainer
 var selected_character: String = ""
 var character_buttons: Dictionary = {}
 var meta_progression_ui: MetaProgressionUI
+var options_overlay: PauseMenu
 
 # Hintergrund-Textur (optional)
 var bg_texture: Texture2D
@@ -23,6 +24,9 @@ func _ready() -> void:
 	meta_progression_ui = MetaProgressionUI.new()
 	meta_progression_ui.name = "MetaProgressionUI"
 	add_child(meta_progression_ui)
+	options_overlay = PauseMenu.new()
+	options_overlay.name = "OptionsOverlay"
+	add_child(options_overlay)
 	_update_character_grid()
 	_show_main_menu()
 
@@ -416,7 +420,8 @@ func _on_archive_pressed() -> void:
 func _on_options_pressed() -> void:
 	if Sound:
 		Sound.play_click()
-	print("[MainMenu] Optionen (noch nicht implementiert)")
+	if options_overlay:
+		options_overlay.show_options_only()
 
 
 func _on_quit_pressed() -> void:

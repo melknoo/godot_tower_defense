@@ -176,9 +176,11 @@ func style_button(btn: Button, red: bool = false) -> void:
 
 
 ## Für Icon-only Buttons (Inventar, Kerne, Upgrades) - minimale Margins
-func style_icon_button(btn: Button) -> void:
-	btn.add_theme_stylebox_override("normal", _make_9slice(btn_blue_normal, BUTTON_9SLICE_MARGIN, 4))
-	btn.add_theme_stylebox_override("pressed", _make_9slice(btn_blue_pressed, BUTTON_9SLICE_MARGIN, 4))
+func style_icon_button(btn: Button, red: bool = false) -> void:
+	var normal_texture := btn_red_normal if red else btn_blue_normal
+	var pressed_texture := btn_red_pressed if red else btn_blue_pressed
+	btn.add_theme_stylebox_override("normal", _make_9slice(normal_texture, BUTTON_9SLICE_MARGIN, 4))
+	btn.add_theme_stylebox_override("pressed", _make_9slice(pressed_texture, BUTTON_9SLICE_MARGIN, 4))
 	btn.add_theme_stylebox_override("hover", _make_9slice(btn_blue_hover, BUTTON_9SLICE_MARGIN, 4))
 	btn.add_theme_stylebox_override("disabled", _make_9slice(btn_blue_disabled, BUTTON_9SLICE_MARGIN, 4))
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())

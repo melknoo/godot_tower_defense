@@ -29,29 +29,26 @@ func _ready() -> void:
 
 func _setup_ui() -> void:
 	var total_width := MAX_SLOTS * (BUTTON_SIZE + BUTTON_SPACING) - BUTTON_SPACING
-	custom_minimum_size = Vector2(total_width + 20, BUTTON_SIZE + 30)
+	custom_minimum_size = Vector2(total_width + 20, BUTTON_SIZE + 52)
 	
 	var bg := PanelContainer.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.15, 0.9)
-	style.border_color = Color(0.3, 0.3, 0.35)
-	style.border_width_top = 2
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	bg.add_theme_stylebox_override("panel", style)
+	if UITheme:
+		UITheme.style_panel(bg, "carved_small")
 	
 	var title := Label.new()
-	title.text = "Abilities"
-	title.position = Vector2(10, 2)
+	title.text = "Fähigkeiten"
+	title.position = Vector2(14, 9)
 	title.add_theme_font_size_override("font_size", 10)
-	title.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	title.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
+	if UITheme and UITheme.game_font:
+		title.add_theme_font_override("font", UITheme.game_font)
 	add_child(title)
 	
 	button_container = HBoxContainer.new()
-	button_container.position = Vector2(10, 18)
+	button_container.position = Vector2(10, 29)
 	button_container.add_theme_constant_override("separation", BUTTON_SPACING)
 	add_child(button_container)
 

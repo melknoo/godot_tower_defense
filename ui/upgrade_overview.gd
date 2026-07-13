@@ -61,7 +61,7 @@ func _setup_ui() -> void:
 	center.add_child(panel)
 	
 	if UITheme:
-		UITheme.style_panel(panel, "panel_dark")
+		UITheme.style_panel(panel, "carved")
 	
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
@@ -84,7 +84,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		title_label.add_theme_font_override("font", UITheme.game_font)
 	title_label.add_theme_font_size_override("font_size", 20)
-	title_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	title_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	header.add_child(title_label)
 	
 	count_label = Label.new()
@@ -92,10 +92,11 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		count_label.add_theme_font_override("font", UITheme.game_font)
 	count_label.add_theme_font_size_override("font_size", 14)
-	count_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	count_label.add_theme_color_override("font_color", Color("554731"))
 	header.add_child(count_label)
 	
 	var sep := HSeparator.new()
+	sep.add_theme_color_override("separator", Color("785d32"))
 	vbox.add_child(sep)
 	
 	scroll_container = ScrollContainer.new()
@@ -116,7 +117,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		no_upgrades_label.add_theme_font_override("font", UITheme.game_font)
 	no_upgrades_label.add_theme_font_size_override("font_size", 12)
-	no_upgrades_label.add_theme_color_override("font_color", Color("9aa8c2"))
+	no_upgrades_label.add_theme_color_override("font_color", Color("554731"))
 	no_upgrades_label.visible = false
 	upgrades_container.add_child(no_upgrades_label)
 	
@@ -206,7 +207,7 @@ func _create_category_section(category: String, upgrades: Array) -> VBoxContaine
 	if UITheme and UITheme.game_font:
 		cat_label.add_theme_font_override("font", UITheme.game_font)
 	cat_label.add_theme_font_size_override("font_size", 12)
-	cat_label.add_theme_color_override("font_color", CATEGORY_COLORS.get(category, Color.WHITE))
+	cat_label.add_theme_color_override("font_color", CATEGORY_COLORS.get(category, Color.WHITE).darkened(0.38))
 	section.add_child(cat_label)
 	
 	for upgrade_info in upgrades:
@@ -228,17 +229,8 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	
 	var entry := PanelContainer.new()
 	
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.15, 0.9)
-	style.border_color = cat_color.darkened(0.4)
-	style.border_width_left = 3
-	style.corner_radius_top_left = 4
-	style.corner_radius_bottom_left = 4
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
-	entry.add_theme_stylebox_override("panel", style)
+	if UITheme:
+		entry.add_theme_stylebox_override("panel", UITheme.create_info_badge_style())
 	
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 10)
@@ -249,6 +241,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	icon_label.custom_minimum_size = Vector2(30, 0)
 	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	icon_label.add_theme_font_size_override("font_size", 20)
+	icon_label.add_theme_color_override("font_color", cat_color.darkened(0.35))
 	hbox.add_child(icon_label)
 	
 	var info_vbox := VBoxContainer.new()
@@ -261,7 +254,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	if UITheme and UITheme.game_font:
 		name_label.add_theme_font_override("font", UITheme.game_font)
 	name_label.add_theme_font_size_override("font_size", 12)
-	name_label.add_theme_color_override("font_color", Color(0.95, 0.95, 0.95))
+	name_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	info_vbox.add_child(name_label)
 	
 	var desc_label := Label.new()
@@ -269,7 +262,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	if UITheme and UITheme.game_font:
 		desc_label.add_theme_font_override("font", UITheme.game_font)
 	desc_label.add_theme_font_size_override("font_size", 9)
-	desc_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	desc_label.add_theme_color_override("font_color", Color("554731"))
 	info_vbox.add_child(desc_label)
 	
 	if max_stacks > 1:
@@ -285,9 +278,9 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 		stack_label.add_theme_font_size_override("font_size", 11)
 		
 		if stacks >= max_stacks:
-			stack_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+			stack_label.add_theme_color_override("font_color", Color("795518"))
 		else:
-			stack_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			stack_label.add_theme_color_override("font_color", Color("554731"))
 		
 		stack_vbox.add_child(stack_label)
 		
@@ -298,7 +291,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 		dots_label.text = dots
 		dots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		dots_label.add_theme_font_size_override("font_size", 8)
-		dots_label.add_theme_color_override("font_color", cat_color)
+		dots_label.add_theme_color_override("font_color", cat_color.darkened(0.38))
 		stack_vbox.add_child(dots_label)
 	
 	return entry
