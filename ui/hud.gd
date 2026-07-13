@@ -45,6 +45,14 @@ const TOWER_NAMES := {
 	"trapper": "Falle",
 }
 
+const TOWER_SHORT_NAMES := {
+	"archer":  "Bogen",
+	"sword":   "Schwert",
+	"wizard":  "Magier",
+	"cannon":  "Kanone",
+	"trapper": "Falle",
+}
+
 var inventory_notification: Label
 var core_notification: Label
 
@@ -52,6 +60,7 @@ var current_wave_element_area: Control
 var current_wave_element_icon: TextureRect
 var current_wave_element_label: Label
 var current_wave_info_label: Label
+var current_wave_status_row: HBoxContainer
 
 var is_fast_forward := false
 const FAST_FORWARD_SPEED := 2.5
@@ -62,6 +71,9 @@ var ff_pressed_tex: Texture2D
 var element_textures: Dictionary = {}
 
 var wave_element_area: Control
+var wave_status_panel: PanelContainer
+var next_wave_title_label: Label
+var wave_advice_label: RichTextLabel
 var wave_tooltip: PanelContainer
 var wave_tooltip_title: Label
 var wave_tooltip_weak_icon: TextureRect
@@ -92,6 +104,7 @@ func _ready() -> void:
 	_load_element_textures()
 	_setup_hud_size()
 	_find_or_create_ui_elements()
+	_create_wave_status_ui()
 	_create_progression_ui()
 	_apply_styles()
 	_connect_signals()
@@ -202,6 +215,143 @@ func _find_or_create_ui_elements() -> void:
 	inventory_button = _get_or_create_button("InventoryButton",  Vector2(380, zero_row_y - 5),              Vector2(48, 48))
 	start_button     = _get_or_create_button("StartWaveButton",  Vector2(viewport_size.x - 740, first_row_y  - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
+
+
+func _create_wave_status_ui() -> void:
+	wave_status_panel = PanelContainer.new()
+	wave_status_panel.name = "WaveStatusPanel"
+	wave_status_panel.anchor_left = 1.0
+	wave_status_panel.anchor_right = 1.0
+	wave_status_panel.offset_left = -785.0
+	wave_status_panel.offset_right = -5.0
+	# Am Tower-Shop ausrichten und Abstand zur Fensterunterkante lassen.
+	# Das schützt die Ereigniszeile auch bei abweichenden Fensterformaten.
+	wave_status_panel.offset_top = -5.0
+	wave_status_panel.offset_bottom = 96.0
+	wave_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	# Identisch zum Rahmen des Tower-Shops, damit die untere HUD-Leiste
+	# wie eine gemeinsame Oberfläche wirkt.
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.15, 0.15, 0.18, 0.95)
+	panel_style.border_color = Color(0.4, 0.35, 0.3)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(4)
+	wave_status_panel.add_theme_stylebox_override("panel", panel_style)
+	add_child(wave_status_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	wave_status_panel.add_child(margin)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	margin.add_child(row)
+
+	var action_column := VBoxContainer.new()
+	action_column.custom_minimum_size.x = 220
+	action_column.add_theme_constant_override("separation", 3)
+	row.add_child(action_column)
+
+	var action_title := _create_wave_heading("WELLENSTEUERUNG")
+	action_column.add_child(action_title)
+
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 7)
+	action_column.add_child(action_row)
+	start_button.reparent(action_row, false)
+	start_button.position = Vector2.ZERO
+	start_button.custom_minimum_size = Vector2(171, 42)
+	start_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fast_forward_button.reparent(action_row, false)
+	fast_forward_button.position = Vector2.ZERO
+	fast_forward_button.custom_minimum_size = Vector2(42, 42)
+
+	current_wave_status_row = HBoxContainer.new()
+	current_wave_status_row.name = "CurrentWaveStatusRow"
+	current_wave_status_row.custom_minimum_size.y = 16
+	current_wave_status_row.add_theme_constant_override("separation", 6)
+	action_column.add_child(current_wave_status_row)
+
+	current_wave_info_label.reparent(current_wave_status_row, false)
+	current_wave_info_label.position = Vector2.ZERO
+	current_wave_info_label.custom_minimum_size = Vector2(78, 16)
+
+	current_wave_element_area.reparent(current_wave_status_row, false)
+	current_wave_element_area.position = Vector2.ZERO
+	current_wave_element_area.custom_minimum_size = Vector2(130, 16)
+	current_wave_element_icon.position = Vector2(0, 1)
+	current_wave_element_icon.custom_minimum_size = Vector2(14, 14)
+	current_wave_element_icon.size = Vector2(14, 14)
+	current_wave_element_label.position = Vector2(19, 1)
+
+	blocked_warning_label.reparent(action_column, false)
+	blocked_warning_label.position = Vector2.ZERO
+	blocked_warning_label.custom_minimum_size = Vector2(220, 16)
+	blocked_warning_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+	row.add_child(_create_wave_separator())
+
+	var next_column := VBoxContainer.new()
+	next_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	next_column.add_theme_constant_override("separation", 2)
+	row.add_child(next_column)
+
+	next_wave_title_label = _create_wave_heading("NÄCHSTE WELLE")
+	next_column.add_child(next_wave_title_label)
+
+	wave_preview_label.reparent(next_column, false)
+	wave_preview_label.position = Vector2.ZERO
+	wave_preview_label.custom_minimum_size = Vector2(0, 19)
+	wave_preview_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wave_preview_label.fit_content = false
+	wave_preview_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+
+	wave_advice_label = RichTextLabel.new()
+	wave_advice_label.name = "WaveAdviceLabel"
+	wave_advice_label.bbcode_enabled = true
+	wave_advice_label.fit_content = false
+	wave_advice_label.scroll_active = false
+	wave_advice_label.custom_minimum_size = Vector2(0, 28)
+	wave_advice_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wave_advice_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	next_column.add_child(wave_advice_label)
+
+	wave_events_label.reparent(next_column, false)
+	wave_events_label.position = Vector2.ZERO
+	wave_events_label.custom_minimum_size = Vector2(0, 18)
+	wave_events_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wave_events_label.fit_content = true
+	wave_events_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	wave_events_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	# Das Element steht jetzt kompakt in der immer sichtbaren Beratung.
+	# Die alte frei positionierte Zeile bleibt nur als Kompatibilitäts-Knoten erhalten.
+	wave_element_area.visible = false
+	wave_element_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _create_wave_heading(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 9)
+	label.add_theme_color_override("font_color", Color(0.68, 0.76, 0.84))
+	if UITheme and UITheme.game_font:
+		label.add_theme_font_override("font", UITheme.game_font)
+	return label
+
+
+func _create_wave_separator() -> VSeparator:
+	var separator := VSeparator.new()
+	separator.custom_minimum_size.x = 1
+	var line := StyleBoxFlat.new()
+	line.bg_color = Color(0.4, 0.35, 0.3, 0.72)
+	line.content_margin_left = 1
+	separator.add_theme_stylebox_override("separator", line)
+	return separator
 
 
 func _create_progression_ui() -> void:
@@ -418,24 +568,27 @@ func _apply_styles() -> void:
 		seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.7))
 
 	if current_wave_info_label:
-		current_wave_info_label.add_theme_font_size_override("font_size", 10)
-		current_wave_info_label.text = "Aktuelle Welle:"
-		current_wave_info_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
+		current_wave_info_label.add_theme_font_size_override("font_size", 8)
+		current_wave_info_label.text = "AKTUELL"
+		current_wave_info_label.add_theme_color_override("font_color", Color(0.68, 0.76, 0.84))
 
 	if current_wave_element_area:
-		current_wave_element_area.visible = false
+		current_wave_element_area.visible = true
 		current_wave_element_area.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	if current_wave_element_label:
-		current_wave_element_label.add_theme_font_size_override("font_size", 11)
+		current_wave_element_label.text = "—"
+		current_wave_element_label.add_theme_font_size_override("font_size", 9)
+		current_wave_element_label.add_theme_color_override("font_color", Color(0.58, 0.64, 0.7))
 
 	if wave_preview_label:
-		wave_preview_label.add_theme_font_size_override("font_size", 10)
+		wave_preview_label.add_theme_font_size_override("normal_font_size", 12)
+		wave_preview_label.add_theme_color_override("default_color", Color(0.95, 0.95, 0.98))
 		wave_preview_label.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	if wave_element_area:
-		wave_element_area.visible = true
-		wave_element_area.mouse_filter = Control.MOUSE_FILTER_STOP
+		wave_element_area.visible = false
+		wave_element_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	if wave_element_label:
 		wave_element_label.add_theme_font_size_override("font_size", 11)
@@ -446,15 +599,20 @@ func _apply_styles() -> void:
 		supply_label.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
 
 	if blocked_warning_label:
-		blocked_warning_label.add_theme_font_size_override("font_size", 12)
+		blocked_warning_label.add_theme_font_size_override("font_size", 9)
 		blocked_warning_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 		blocked_warning_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 		blocked_warning_label.add_theme_constant_override("outline_size", 2)
 		blocked_warning_label.visible = false
 
 	if wave_events_label:
-		wave_events_label.add_theme_font_size_override("font_size", 10)
+		wave_events_label.add_theme_font_size_override("normal_font_size", 9)
 		wave_events_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+
+	if wave_advice_label:
+		wave_advice_label.add_theme_font_size_override("normal_font_size", 9)
+		if UITheme and UITheme.game_font:
+			wave_advice_label.add_theme_font_override("normal_font", UITheme.game_font)
 
 	if inventory_button:
 		inventory_button.icon = IconSystem.get_texture("inventory")
@@ -522,7 +680,8 @@ func _apply_styles() -> void:
 
 	if UITheme:
 		if start_button:
-			UITheme.style_button_light_text(start_button)
+			UITheme.style_icon_button(start_button)
+			_apply_button_font_color(start_button)
 		if cores_button:
 			UITheme.style_icon_button(cores_button)
 		if upgrades_button:
@@ -743,8 +902,10 @@ func update_blocked_towers_warning(count: int) -> void:
 		return
 
 	if count > 0:
+		if current_wave_status_row:
+			current_wave_status_row.visible = false
 		blocked_warning_label.visible = true
-		blocked_warning_label.text = "⚠ %d Turm(e) auf Pfad! Umplatzieren!" % count
+		blocked_warning_label.text = "⚠ %d Türme blockieren den Pfad" % count
 
 		if not blocked_warning_label.has_meta("pulse_tween"):
 			var tween := blocked_warning_label.create_tween().set_loops()
@@ -756,6 +917,8 @@ func update_blocked_towers_warning(count: int) -> void:
 			start_button.disabled = true
 			start_button.text = "Türme umplatzieren!"
 	else:
+		if current_wave_status_row:
+			current_wave_status_row.visible = true
 		blocked_warning_label.visible = false
 		blocked_warning_label.modulate.a = 1.0
 
@@ -776,22 +939,22 @@ func update_wave_events_preview(next_wave: int) -> void:
 	var events: Array[String] = []
 
 	if next_wave >= 2 and (next_wave - 2) % 3 == 0:
-		events.append("%s Neuer Pfad" % IconSystem.bb("path", 22))
+		events.append("%s Neuer Pfad" % IconSystem.bb("path", 14))
 
 	if next_wave >= 3 and next_wave % 3 == 0:
-		events.append("%s Upgrade" % IconSystem.bb("upgrades", 22))
+		events.append("%s Upgrade" % IconSystem.bb("upgrades", 14))
 
 	if AbilitySystem.should_show_ability_upgrades(next_wave):
-		events.append("%s Ability Upgrade" % IconSystem.bb("abilities", 22))
+		events.append("%s Ability Upgrade" % IconSystem.bb("abilities", 14))
 
 	if next_wave > 0 and next_wave % 5 == 0:
-		events.append("+1 %s" % IconSystem.bb("core", 22))
+		events.append("+1 %s" % IconSystem.bb("core", 14))
 
 	if events.is_empty():
 		wave_events_label.text = ""
 		wave_events_label.visible = false
 	else:
-		wave_events_label.text = "Nach Welle %d: %s" % [next_wave, ", ".join(events)]
+		wave_events_label.text = "DANACH  %s" % " · ".join(events)
 		wave_events_label.visible = true
 
 		if "Upgrade" in wave_events_label.text:
@@ -952,13 +1115,12 @@ func _on_wave_started(wave: int) -> void:
 
 	if start_button:
 		start_button.disabled = true
-		start_button.text = "Wave läuft..."
+		start_button.text = "WELLE %d LÄUFT" % wave
 
 	if blocked_warning_label:
 		blocked_warning_label.visible = false
-
-	if wave_events_label:
-		wave_events_label.visible = false
+	if current_wave_status_row:
+		current_wave_status_row.visible = true
 
 	if fast_forward_button:
 		fast_forward_button.visible = true
@@ -975,8 +1137,10 @@ func _refresh_wave_panels_after_wave_started(wave: int) -> void:
 
 	if current_wave_info_label:
 		current_wave_info_label.visible = true
+		current_wave_info_label.text = "AKTUELL · %d" % wave
 
 	_update_wave_preview(wave + 1)
+	update_wave_events_preview(wave + 1)
 
 
 func _on_wave_completed(wave: int) -> void:
@@ -988,8 +1152,13 @@ func _on_wave_completed(wave: int) -> void:
 			start_button.disabled = true
 			start_button.text = "Türme umplatzieren!"
 
-	if current_wave_element_area:  current_wave_element_area.visible = false
-	if current_wave_info_label:    current_wave_info_label.visible   = false
+	if current_wave_element_area:
+		current_wave_element_area.visible = true
+	if current_wave_status_row:
+		current_wave_status_row.visible = true
+	if current_wave_info_label:
+		current_wave_info_label.visible = true
+		current_wave_info_label.text = "LETZTE · %d" % wave
 	if enemies_label:              enemies_label.visible              = false
 
 	_update_bonus_preview()
@@ -1019,6 +1188,17 @@ func _update_wave_display() -> void:
 		return
 	if GameState.current_wave == 0:
 		wave_label.text = "Welle: --"
+		if not GameState.wave_active:
+			if current_wave_info_label:
+				current_wave_info_label.text = "AKTUELL"
+			if current_wave_element_area:
+				current_wave_element_area.visible = true
+			if current_wave_element_icon:
+				current_wave_element_icon.texture = null
+				current_wave_element_icon.visible = false
+			if current_wave_element_label:
+				current_wave_element_label.text = "—"
+				current_wave_element_label.add_theme_color_override("font_color", Color(0.58, 0.64, 0.7))
 	else:
 		wave_label.text = "Welle: %d" % GameState.current_wave
 
@@ -1029,7 +1209,7 @@ func _update_current_wave_element_display(wave_elem: String) -> void:
 
 	if current_wave_info_label:
 		current_wave_info_label.visible = true
-		current_wave_info_label.text    = "Aktuelle Welle:"
+		current_wave_info_label.text = "AKTUELL · %d" % GameState.current_wave
 
 	wave_elem = String(wave_elem).to_lower()
 	current_wave_element_area.visible = true
@@ -1037,7 +1217,7 @@ func _update_current_wave_element_display(wave_elem: String) -> void:
 	if wave_elem == "neutral" or wave_elem == "":
 		current_wave_element_icon.texture = null
 		current_wave_element_icon.visible = false
-		current_wave_element_label.text = "Neutral"
+		current_wave_element_label.text = "NEUTRAL"
 		current_wave_element_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	else:
 		if element_textures.has(wave_elem):
@@ -1047,7 +1227,7 @@ func _update_current_wave_element_display(wave_elem: String) -> void:
 			current_wave_element_icon.texture = null
 			current_wave_element_icon.visible = false
 
-		current_wave_element_label.text = wave_elem.capitalize()
+		current_wave_element_label.text = wave_elem.to_upper()
 		var elem_color := ElementalSystem.get_element_color(wave_elem) if ElementalSystem else Color.WHITE
 		current_wave_element_label.add_theme_color_override("font_color", elem_color)
 
@@ -1060,7 +1240,11 @@ func _update_wave_preview(next_wave: int) -> void:
 
 	var wave_manager := get_node_or_null("/root/Main/WaveManager") as WaveManager
 	if not wave_manager:
-		wave_preview_label.text = "Nächste Welle bereit"
+		if next_wave_title_label:
+			next_wave_title_label.text = "NÄCHSTE WELLE"
+		wave_preview_label.text = "BEREIT"
+		if wave_advice_label:
+			wave_advice_label.text = "[color=#7d8b99]Vorschau wird vorbereitet[/color]"
 		_next_wave_element = "neutral"
 		_next_wave_preview = {}
 		return
@@ -1071,26 +1255,61 @@ func _update_wave_preview(next_wave: int) -> void:
 
 	_next_wave_element = wave_elem
 	_next_wave_preview = preview
+	if next_wave_title_label:
+		next_wave_title_label.text = "NÄCHSTE WELLE · %d" % next_wave
 
-	# Element-Icon inline einbetten
-	var elem_bb := ""
-	if wave_elem != "neutral" and wave_elem != "":
-		var tex_path := "res://assets/elemental_symbols/%s_element.png" % wave_elem
-		if ResourceLoader.exists(tex_path):
-			elem_bb = " [img=18]%s[/img] [color=%s]%s[/color]" % [
-				tex_path,
-				"#%s" % ElementalSystem.get_element_color(wave_elem).to_html(false) if ElementalSystem else "white",
-				wave_elem.capitalize()
-			]
-		elif ElementalSystem:
-			elem_bb = " " + ElementalSystem.get_element_bb(wave_elem, 14)
-
-	var boss_line := ""
+	var boss_badge := ""
 	if next_wave % 5 == 0:
-		boss_line = "\n[color=#ffaa44]Boss-Welle![/color]"
+		boss_badge = "  [color=#ffaa44]· BOSS-WELLE[/color]"
 
 	wave_preview_label.bbcode_enabled = true
-	wave_preview_label.text = "Nächste Welle: %s%s%s" % [info, elem_bb, boss_line]
+	wave_preview_label.text = "%s%s" % [info, boss_badge]
+	_update_wave_advice(preview, wave_elem)
+
+
+func _update_wave_advice(preview: Dictionary, wave_elem: String) -> void:
+	if not wave_advice_label:
+		return
+
+	wave_elem = wave_elem.to_lower()
+	var element_line := "[color=#718293]ELEMENT[/color]  [color=#c2c8ce]NEUTRAL[/color]"
+	if wave_elem != "" and wave_elem != "neutral":
+		var element_color := "#ffffff"
+		if ElementalSystem:
+			element_color = "#%s" % ElementalSystem.get_element_color(wave_elem).to_html(false)
+		var weak_element := ""
+		var resisted_element := ""
+		if ElementalSystem:
+			weak_element = String(ElementalSystem.get_effective_element(wave_elem)).to_upper()
+			resisted_element = String(ElementalSystem.RESISTANCES.get(wave_elem, "")).to_upper()
+		element_line = "[color=#718293]ELEMENT[/color]  [color=%s]%s[/color]" % [element_color, wave_elem.to_upper()]
+		if weak_element != "" and weak_element != "NEUTRAL":
+			element_line += "   [color=#65d879]SCHWACH[/color] %s" % weak_element
+		if resisted_element != "":
+			element_line += "   [color=#e06b6b]RESISTIERT[/color] %s" % resisted_element
+
+	var recommended: Array[String] = []
+	var ineffective: Array[String] = []
+	for enemy_type in ENEMY_TYPE_INFO:
+		if int(preview.get(enemy_type, 0)) <= 0:
+			continue
+		var type_info: Dictionary = ENEMY_TYPE_INFO[enemy_type]
+		var recommended_name := String(TOWER_SHORT_NAMES.get(type_info["weak"], type_info["weak"]))
+		var ineffective_name := String(TOWER_SHORT_NAMES.get(type_info["resist"], type_info["resist"]))
+		if not recommended.has(recommended_name):
+			recommended.append(recommended_name)
+		if not ineffective.has(ineffective_name):
+			ineffective.append(ineffective_name)
+
+	var tower_line := "[color=#718293]TURM-TIPP[/color]  Keine besonderen Konter"
+	if not recommended.is_empty() or not ineffective.is_empty():
+		tower_line = "[color=#718293]TURM-TIPP[/color]"
+		if not recommended.is_empty():
+			tower_line += "  [color=#65d879]▲[/color] %s" % ", ".join(recommended)
+		if not ineffective.is_empty():
+			tower_line += "   [color=#e06b6b]▼[/color] %s" % ", ".join(ineffective)
+
+	wave_advice_label.text = "%s\n%s" % [element_line, tower_line]
 
 
 func _update_wave_element_display(wave_elem: String) -> void:
@@ -1229,16 +1448,15 @@ func _create_wave_tooltip() -> void:
 
 
 func _connect_tooltip_hover_area() -> void:
-	if wave_element_area:
-		wave_element_area.mouse_entered.connect(_on_wave_element_hover_enter.bind("next"))
-		wave_element_area.mouse_exited.connect(_on_wave_element_hover_exit)
 	if current_wave_element_area:
 		current_wave_element_area.mouse_entered.connect(_on_wave_element_hover_enter.bind("current"))
 		current_wave_element_area.mouse_exited.connect(_on_wave_element_hover_exit)
-	# wave_preview_label triggert denselben Tooltip
 	if wave_preview_label:
 		wave_preview_label.mouse_entered.connect(_on_wave_element_hover_enter.bind("next"))
 		wave_preview_label.mouse_exited.connect(_on_wave_element_hover_exit)
+	if wave_advice_label:
+		wave_advice_label.mouse_entered.connect(_on_wave_element_hover_enter.bind("next"))
+		wave_advice_label.mouse_exited.connect(_on_wave_element_hover_exit)
 
 
 func _on_wave_element_hover_enter(which: String) -> void:
@@ -1266,7 +1484,7 @@ func _show_wave_tooltip(which: String) -> void:
 		preview = {}
 	else:
 		wave_elem    = String(_next_wave_element).to_lower()
-		hover_area   = wave_element_area if wave_element_area else wave_preview_label
+		hover_area   = wave_preview_label
 		title_prefix = "Nächste Welle: "
 		preview = _next_wave_preview
 

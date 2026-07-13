@@ -571,6 +571,8 @@ func _is_over_ui(pos: Vector2) -> bool:
 		return true
 	if hud.pause_button and hud.pause_button.get_global_rect().has_point(pos):
 		return true
+	if hud.wave_status_panel and hud.wave_status_panel.get_global_rect().has_point(pos):
+		return true
 	
 	# wave_upgrade_ui blockiert auch, aber das ist ein modales Panel
 	if wave_upgrade_ui and wave_upgrade_ui.visible:

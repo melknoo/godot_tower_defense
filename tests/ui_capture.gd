@@ -32,8 +32,57 @@ func _run() -> void:
 	_assert_ui(main.hud.cores_button.get_theme_constant("icon_max_width") == 30, "Element-Icon ist begrenzt")
 	_assert_ui(main.hud.upgrades_button.get_theme_constant("icon_max_width") == 26, "Upgrade-Icon ist begrenzt")
 	_assert_ui(main.hud.research_button.custom_minimum_size.y >= 38, "Archiv-Button hat genug Asset-Hoehe")
+	_assert_ui(main.hud.wave_status_panel != null, "Wellenstatus besitzt ein gemeinsames Panel")
+	_assert_ui(
+		main.hud.wave_status_panel.get_global_rect().encloses(main.hud.start_button.get_global_rect()),
+		"Wellenstart bleibt innerhalb des Statuspanels"
+	)
+	_assert_ui(
+		not main.hud.start_button.get_global_rect().intersects(main.hud.wave_preview_label.get_global_rect()),
+		"Wellenstart und Vorschau ueberlagern sich nicht"
+	)
+	_assert_ui("ELEMENT" in main.hud.wave_advice_label.text, "Element-Hinweis ist dauerhaft sichtbar")
+	_assert_ui("TURM-TIPP" in main.hud.wave_advice_label.text, "Turm-Kontering ist dauerhaft sichtbar")
+	_assert_ui(not main.hud.wave_element_area.visible, "Alte doppelte Elementzeile ist ausgeblendet")
+	var wave_panel_style := main.hud.wave_status_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	_assert_ui(
+		wave_panel_style != null and wave_panel_style.border_color.is_equal_approx(Color(0.4, 0.35, 0.3)),
+		"Wellenstatus nutzt den braunen Rahmen der unteren HUD-Leiste"
+	)
+	_assert_ui(main.hud.wave_preview_label.size.x >= 500.0, "Wellenvorschau hat ausreichend Textbreite")
+	_assert_ui(
+		main.hud.wave_status_panel.get_global_rect().encloses(main.hud.wave_events_label.get_global_rect()),
+		"Danach-Zeile bleibt vollstaendig innerhalb des Wellenstatus"
+	)
+	var wave_panel_rect: Rect2 = main.hud.wave_status_panel.get_global_rect()
+	var viewport_bottom: float = main.get_viewport_rect().size.y
+	_assert_ui(viewport_bottom - wave_panel_rect.end.y >= 8.0, "Wellenstatus hat sicheren Abstand zum unteren Fensterrand")
+	_assert_ui(
+		absf(wave_panel_rect.position.y - main.tower_shop.get_global_rect().position.y) <= 1.0,
+		"Wellenstatus und Tower-Shop sind oben ausgerichtet"
+	)
 
 	await _capture("01_gameplay")
+
+	GameState.current_wave = 1
+	GameState.wave_active = true
+	main.hud._on_wave_started(1)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_assert_ui(main.hud.fast_forward_button.visible, "Tempo-Button ist waehrend der Welle sichtbar")
+	_assert_ui(
+		not main.hud.fast_forward_button.get_global_rect().intersects(main.hud.current_wave_info_label.get_global_rect()),
+		"Tempo-Button und aktuelle Welle ueberlagern sich nicht"
+	)
+	_assert_ui(
+		main.hud.wave_events_label.get_content_height() <= main.hud.wave_events_label.size.y,
+		"Danach-Inhalt passt vollstaendig in seine Textzeile"
+	)
+	await _capture("01b_wave_hud_active")
+	GameState.wave_active = false
+	GameState.current_wave = 0
+	main.hud._on_wave_completed(1)
+	main.hud.update_all()
 
 	# Kontrollierter Tower-Zustand: genug Ressourcen, Bogen und Feuer freigeschaltet.
 	GameState.gold = 10_000
