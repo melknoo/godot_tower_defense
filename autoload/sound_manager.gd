@@ -156,7 +156,6 @@ func play_ability(ability_id: String) -> void:
 		"inferno": "shoot_fire_level_1",
 		"earthquake": "shoot_earth_level_1",
 		"fissure": "shoot_earth_level_1",
-		"stone_skin": "shoot_earth_level_1",
 		"tsunami": "shoot_water_level_1",
 		"sandstorm": "shoot_air_level_1",
 	}

@@ -37,6 +37,78 @@ ein nahes Wellenziel fuettern oder dauerhaft den naechsten Run verbessern.
 - Turm-Freischaltungen gelten ab dem folgenden Run. Dadurch bleibt Scheitern ein
   klarer Teil der Progression und ein Kauf veraendert keinen laufenden Versuch.
 
+## Charaktere: Spielstile und Rekrutierung
+
+### Zielbild
+
+- Der Menuepunkt `Charaktere` wird zur Sammlungs- und Rekrutierungsuebersicht.
+  Die Auswahl fuer den naechsten Run bleibt im Ablauf von `Neues Spiel`.
+- Die vorhandenen Charaktere Pyromant, Kryomant, Geomant und Aeromant bleiben
+  leicht verstaendliche Generalisten. Aktuell unterscheiden sie sich nur durch
+  ihre Start-Ability; langfristig erhaelt jeder Charakter zusaetzlich eine
+  kleine Passive und eine erhoehte Chance auf thematisch passende Ability-
+  Angebote.
+- Charaktere sind Seitwaertsfortschritt und neue Spielweisen, keine linearen
+  Macht-Upgrades. Harte Elementbeschraenkungen sind nicht vorgesehen.
+- Gesperrte Karten zeigen Name, Silhouette, Spielstil und Zielfortschritt statt
+  nur `???`, damit sie als sichtbare mittelfristige Ziele funktionieren.
+
+### Freischaltung und Waehrung
+
+- Es gibt vorerst keine weitere ausgebbare Waehrung. Eine Figur wird durch ein
+  Spielziel sichtbar freigeschaltet und danach einmalig mit Aether rekrutiert.
+- Der erste zusaetzliche Charakter soll direkt als Meilenstein-Belohnung ohne
+  Aetherkosten vergeben werden. So lernen Spieler das System kennen, ohne den
+  ersten Charakter gegen notwendige Archivforschung abwaegen zu muessen.
+- Charakterkosten bleiben moderat, weil das Archiv dauerhafte Macht verkauft,
+  Charaktere dagegen vor allem Build-Vielfalt schaffen.
+- Keine Charakter-Passive darf Aether oder Account-XP erhoehen. Andernfalls
+  entstuende ein wirtschaftlich optimaler Farm-Charakter.
+- Spaeter kann jeder Charakter eine nicht ausgebbare Meisterschaftsleiste fuer
+  kosmetische Rahmen, Portraets, Titel und persoenliche Statistiken erhalten.
+  Diese Meisterschaft ist keine zweite Waehrung.
+- Die fuer Prestige nach Welle 50 geplante langsame Ressource bleibt vom
+  normalen Charakterkader getrennt.
+
+### Erste freischaltbare Charaktere
+
+Die Werte sind Arbeitswerte fuer einen ersten Balance-Test. Die ersten vier
+Kandidaten verwenden bereits definierte Abilities und begrenzen so den
+Implementierungsumfang.
+
+| Charakter | Start-Ability | Geplante Passive | Beispiel-Freischaltung |
+| --- | --- | --- | --- |
+| Aschenweberin | Inferno | Brenneffekte halten 20 Prozent laenger. | 500 Gegner besiegen; erster Meilenstein-Charakter ohne Aetherkosten. |
+| Gezeitenhueter | Tsunami | Verlangsamte Gegner erleiden 8 Prozent mehr Turmschaden. | Beste Welle 10 und 90 Aether. |
+| Sturmjaeger | Kettenblitz | Ein zusaetzlicher Kettensprung und 15 Prozent mehr Sprungreichweite. | Hoechste Kill-Serie 24 und 120 Aether. |
+| Runenwaechter | Erdspalte | Beginnt jeden Run mit 2 zusaetzlichen Leben. | Beste Welle 15 und 160 Aether. |
+
+Die Startleben-Passive des Runenwaechters wirkt auf die Basis und setzt weder
+Tower-HP noch ein allgemeines Buff-System voraus.
+
+### Spaetere Charaktere
+
+- Chronomantin: `Zeitbruch` setzt Gegner einen kurzen Abschnitt auf dem Pfad
+  zurueck und eroeffnet einen kontrollorientierten Spielstil.
+- Arkanist: Verschiedene Elemente nacheinander zu wirken baut Resonanz auf und
+  belohnt gemischte Ability-Sets.
+- Konstrukteur: Uebertaktet gezielt einen einzelnen Turm und spielt staerker
+  ueber Positionierung als ueber Flaechenschaden.
+- Seelenhirtin: Gegner-Tode laden eine manuell ausloesbare Seelenwelle auf.
+
+### Technische Reihenfolge fuer das Charakter-MVP
+
+1. Charakterdaten um Passive, Unlock-Bedingung, Aetherkosten und
+   Freischaltungsstatus erweitern.
+2. Charakter-Freischaltungen in den persistenten Progressions-Save aufnehmen
+   und eine Migration fuer bestehende Saves vorsehen.
+3. Den leeren Menuepunkt `Charaktere` als Uebersicht mit Fortschritt und
+   Rekrutierungsaktion umsetzen.
+4. Passive Effekte zentral anwenden und die Ability-Auswahl leicht nach der
+   Affinitaet des gewaehlten Charakters gewichten.
+5. Kosten, Passivwerte und Unlock-Ziele in mehreren Runs testen und danach
+   festschreiben.
+
 ## Economy-Leitplanken
 
 - Der erste Run startet mit 60 Gold, 10 Leben und 3 Supply und ist bewusst nicht

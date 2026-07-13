@@ -211,20 +211,6 @@ const ABILITIES := {
 		"hotkey": KEY_1,
 		"is_starter": false,
 		"upgradeable_stats": ["cooldown", "damage", "chain_count", "chain_range"]
-	},
-	"stone_skin": {
-		"name": "Steinhaut",
-		"description": "Gibt allen Türmen temporär Schadensreduktion",
-		"icon_name": "ability_stone_skin",
-		"element": "earth",
-		"cooldown": 35.0,
-		"base_damage": 0,
-		"duration": 8.0,
-		"damage_reduction": 0.3,  # 30% weniger Schaden an Base
-		"tower_damage_bonus": 0.15,  # +15% Tower-Schaden
-		"hotkey": KEY_4,
-		"is_starter": false,
-		"upgradeable_stats": ["cooldown", "duration", "damage_reduction", "tower_damage_bonus"]
 	}
 }
 
@@ -247,9 +233,7 @@ const UPGRADE_VALUES := {
 	"area_radius": {"per_stack": 0.15, "display": "+15% Bereich", "format": "+%.0f"},
 	"wall_duration": {"per_stack": 0.25, "display": "+25% Wand-Dauer", "format": "+%.1fs"},
 	"wall_health": {"per_stack": 0.30, "display": "+30% Wand-HP", "format": "+%d"},
-	"length": {"per_stack": 0.20, "display": "+20% Länge", "format": "+%.0f"},
-	"damage_reduction": {"per_stack": 0.10, "display": "+10% Schadensred.", "format": "+%.0f%%"},
-	"tower_damage_bonus": {"per_stack": 0.10, "display": "+10% Tower-Bonus", "format": "+%.0f%%"}
+	"length": {"per_stack": 0.20, "display": "+20% Länge", "format": "+%.0f"}
 }
 
 # === RUNTIME STATE ===
@@ -606,8 +590,6 @@ func execute_ability(ability_id: String, target_pos: Vector2) -> bool:
 			_execute_fissure(target_pos, power_mult)
 		"chain_lightning":
 			_execute_chain_lightning(target_pos, power_mult)
-		"stone_skin":
-			_execute_stone_skin()
 	
 	is_targeting = false
 	selected_ability = ""
@@ -912,21 +894,6 @@ func _execute_chain_lightning(pos: Vector2, power_mult: float) -> void:
 			break
 
 
-func _execute_stone_skin() -> void:
-	var duration := get_effective_stat("stone_skin", "duration")
-	var dmg_reduction := get_effective_stat("stone_skin", "damage_reduction")
-	var tower_bonus := get_effective_stat("stone_skin", "tower_damage_bonus")
-	
-	if VFX:
-		VFX.spawn_stone_skin_effect(duration)
-	
-	# Buff auf GameState setzen (muss implementiert werden)
-	if GameState and GameState.has_method("apply_stone_skin_buff"):
-		GameState.apply_stone_skin_buff(duration, dmg_reduction, tower_bonus)
-	
-	print("[AbilitySystem] Stone Skin: %.1fs, %.0f%% reduction, %.0f%% tower bonus" % [duration, dmg_reduction * 100, tower_bonus * 100])
-
-
 # === UTILITY ===
 
 func get_available_abilities_for_unlock() -> Array[String]:
@@ -1060,8 +1027,21 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary) -> void:
 	selected_character = data.get("selected_character", "")
-	equipped_abilities.assign(data.get("equipped_abilities", []))
-	ability_upgrades = data.get("ability_upgrades", {}).duplicate(true)
+	equipped_abilities.clear()
+	for ability_id: String in data.get("equipped_abilities", []):
+		if ABILITIES.has(ability_id):
+			equipped_abilities.append(ability_id)
+
+	var saved_upgrades: Dictionary = data.get("ability_upgrades", {})
+	ability_upgrades.clear()
+	for ability_id in equipped_abilities:
+		var valid_upgrades: Dictionary = {}
+		var upgradeable_stats: Array = ABILITIES[ability_id].get("upgradeable_stats", [])
+		var ability_saved_upgrades: Dictionary = saved_upgrades.get(ability_id, {})
+		for stat in ability_saved_upgrades:
+			if stat in upgradeable_stats and UPGRADE_VALUES.has(stat):
+				valid_upgrades[stat] = clampi(int(ability_saved_upgrades[stat]), 0, MAX_UPGRADE_STACKS)
+		ability_upgrades[ability_id] = valid_upgrades
 	unlocked_characters = data.get("unlocked_characters", {}).duplicate()
 	
 	# Cooldowns initialisieren

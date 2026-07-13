@@ -13,6 +13,9 @@ var panel: PanelContainer
 var main_view: VBoxContainer
 var options_view: VBoxContainer
 var confirm_view: VBoxContainer
+var confirm_title_label: Label
+var confirm_message: Label
+var confirm_action_button: Button
 var master_slider: HSlider
 var sfx_slider: HSlider
 var master_value_label: Label
@@ -21,6 +24,7 @@ var fullscreen_toggle: CheckButton
 var shake_toggle: CheckButton
 var _tree_was_paused := false
 var _options_only := false
+var _pending_exit_action := ""
 
 
 func _ready() -> void:
@@ -138,25 +142,27 @@ func _build_confirm_view() -> void:
 	title.custom_minimum_size.y = 58
 	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	confirm_view.add_child(title)
+	for child in title.get_children():
+		if child is Label:
+			confirm_title_label = child
 
 	var warning_panel := PanelContainer.new()
 	warning_panel.custom_minimum_size = Vector2(390, 150)
 	UITheme.style_panel(warning_panel, "carved_small")
 	confirm_view.add_child(warning_panel)
-	var warning := Label.new()
-	warning.text = "Wenn du jetzt ins Hauptmenü zurückkehrst, wird der aktuelle Run beendet.\n\nDein verdientes Aether und dein Archiv-Fortschritt bleiben gespeichert."
-	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	warning.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UITheme.style_label(warning, 12, UITheme.COLOR_TEXT_DARK)
-	warning_panel.add_child(warning)
+	confirm_message = Label.new()
+	confirm_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	confirm_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	confirm_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.style_label(confirm_message, 12, UITheme.COLOR_TEXT_DARK)
+	warning_panel.add_child(confirm_message)
 
 	var continue_button := _make_menu_button("WEITERSPIELEN", "play", _on_confirm_cancel_pressed)
 	continue_button.name = "ContinueRunButton"
 	confirm_view.add_child(continue_button)
-	var leave_button := _make_menu_button("RUN BEENDEN", "exit", _on_confirm_leave_pressed, true)
-	leave_button.name = "ConfirmLeaveButton"
-	confirm_view.add_child(leave_button)
+	confirm_action_button = _make_menu_button("RUN BEENDEN", "exit", _on_confirm_leave_pressed, true)
+	confirm_action_button.name = "ConfirmLeaveButton"
+	confirm_view.add_child(confirm_action_button)
 
 
 func _make_menu_button(text: String, icon_name: String, callback: Callable, red: bool = false) -> Button:
@@ -274,6 +280,7 @@ func _animate_open() -> void:
 
 
 func _show_main_view() -> void:
+	_pending_exit_action = ""
 	main_view.visible = true
 	options_view.visible = false
 	confirm_view.visible = false
@@ -285,7 +292,16 @@ func _show_options_view() -> void:
 	confirm_view.visible = false
 
 
-func _show_confirm_view() -> void:
+func _show_confirm_view(action: String) -> void:
+	_pending_exit_action = action
+	if action == "quit":
+		confirm_title_label.text = "SPIEL BEENDEN?"
+		confirm_message.text = "Wenn du das Spiel jetzt beendest, wird der aktuelle Run abgeschlossen und das Spiel geschlossen.\n\nDein verdientes Aether und dein Archiv-Fortschritt bleiben gespeichert."
+		confirm_action_button.text = "  SPIEL BEENDEN"
+	else:
+		confirm_title_label.text = "RUN BEENDEN?"
+		confirm_message.text = "Wenn du jetzt ins Hauptmenü zurückkehrst, wird der aktuelle Run beendet.\n\nDein verdientes Aether und dein Archiv-Fortschritt bleiben gespeichert."
+		confirm_action_button.text = "  RUN BEENDEN"
 	main_view.visible = false
 	options_view.visible = false
 	confirm_view.visible = true
@@ -311,7 +327,7 @@ func _on_options_back_pressed() -> void:
 
 func _on_main_menu_pressed() -> void:
 	if Sound: Sound.play_click()
-	_show_confirm_view()
+	_show_confirm_view("main_menu")
 
 
 func _on_confirm_cancel_pressed() -> void:
@@ -321,14 +337,19 @@ func _on_confirm_cancel_pressed() -> void:
 
 func _on_confirm_leave_pressed() -> void:
 	if Sound: Sound.play_click()
+	var action := _pending_exit_action
 	hide_menu()
-	main_menu_requested.emit()
+	_pending_exit_action = ""
+	if action == "quit":
+		_save_settings()
+		quit_requested.emit()
+	else:
+		main_menu_requested.emit()
 
 
 func _on_quit_pressed() -> void:
 	if Sound: Sound.play_click()
-	_save_settings()
-	quit_requested.emit()
+	_show_confirm_view("quit")
 
 
 func _on_master_volume_changed(value: float) -> void:

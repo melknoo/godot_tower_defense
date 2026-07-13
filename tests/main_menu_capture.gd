@@ -11,7 +11,7 @@ func _capture() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
 	await get_tree().process_frame
 	await get_tree().create_timer(0.75).timeout
-	if not await _save_view("13_main_menu"):
+	if not await _save_view("14_main_menu"):
 		get_tree().quit(1)
 		return
 	var menu := get_parent()
@@ -26,7 +26,7 @@ func _capture() -> void:
 		push_error("[UI Capture] Optionen sind vom Hauptmenue aus nicht sichtbar")
 		get_tree().quit(1)
 		return
-	if not await _save_view("14_main_menu_options"):
+	if not await _save_view("15_main_menu_options"):
 		get_tree().quit(1)
 		return
 	menu.options_overlay.hide_menu()

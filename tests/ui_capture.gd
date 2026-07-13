@@ -126,6 +126,14 @@ func _run() -> void:
 	await _capture("11_leave_confirmation")
 	await _press_escape()
 	_assert_ui(main.pause_menu.main_view.visible, "Esc bricht das Verlassen des Runs ab")
+	main.pause_menu._on_quit_pressed()
+	await get_tree().create_timer(0.2, true).timeout
+	_assert_ui(main.pause_menu.confirm_view.visible, "Spiel beenden verlangt eine Sicherheitsabfrage")
+	_assert_ui(main.pause_menu._pending_exit_action == "quit", "Sicherheitsabfrage kennt das Beenden-Ziel")
+	_assert_ui("SPIEL BEENDEN" in main.pause_menu.confirm_title_label.text, "Beenden-Dialog hat den passenden Titel")
+	await _capture("12_quit_confirmation")
+	await _press_escape()
+	_assert_ui(main.pause_menu.main_view.visible, "Esc bricht Spiel beenden ab")
 	await _press_escape()
 	_assert_ui(not main.pause_menu.visible, "Esc setzt das Spiel fort")
 	_assert_ui(not get_tree().paused, "Fortsetzen hebt die Pause auf")
@@ -139,7 +147,7 @@ func _run() -> void:
 		"essence_total": 31
 	})
 	await get_tree().create_timer(0.35, true).timeout
-	await _capture("12_run_summary")
+	await _capture("13_run_summary")
 
 	get_tree().paused = false
 	print("[UI Capture] Screenshots gespeichert: %s" % ProjectSettings.globalize_path(OUTPUT_DIR))

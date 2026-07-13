@@ -171,14 +171,6 @@ func _update_ability_tooltip(ability_id: String) -> void:
 		var wall_dur := AbilitySystem.get_effective_stat(ability_id, "wall_duration")
 		special_effects.append("🧱 Wand: %d HP für %.1fs" % [health, wall_dur])
 	
-	# Stone Skin specific
-	if data.has("damage_reduction"):
-		var reduction := AbilitySystem.get_effective_stat(ability_id, "damage_reduction") * 100
-		special_effects.append("🛡 Schadensreduktion: %.0f%%" % reduction)
-	if data.has("tower_damage_bonus"):
-		var bonus := AbilitySystem.get_effective_stat(ability_id, "tower_damage_bonus") * 100
-		special_effects.append("⚔ Tower-Bonus: +%.0f%%" % bonus)
-	
 	if not special_effects.is_empty():
 		tooltip_parts.append("")  # Leerzeile
 		tooltip_parts.append("\n".join(special_effects))
@@ -229,8 +221,6 @@ func _get_stat_display_name(stat: String) -> String:
 		"area_radius": return "Bereich"
 		"wall_health": return "Wandgesundheit"
 		"wall_duration": return "Wanddauer"
-		"damage_reduction": return "Schadensreduktion"
-		"tower_damage_bonus": return "Tower-Bonus"
 		"length": return "Länge"
 		"width": return "Breite"
 		"push_distance": return "Rückstoß"

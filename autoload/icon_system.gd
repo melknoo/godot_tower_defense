@@ -39,7 +39,6 @@ var icons := {
 	"ability_inferno": "ability_inferno.png",
 	"ability_meteor_shower": "ability_meteor_shower.png",
 	"ability_sandstorm": "ability_sandstorm.png",
-	"ability_stone_skin": "ability_stone_skin.png",
 	"ability_tsunami": "ability_tsunami.png",
 	
 	# Elemente (in assets/icons)
