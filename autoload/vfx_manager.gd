@@ -2,6 +2,8 @@
 # Autoload für Pixel-Art-freundliche visuelle Effekte
 extends Node
 
+const RangeGridHelper = preload("res://autoload/range_grid.gd")
+
 var screen_shake_enabled := true
 
 const PALETTES := {
@@ -34,17 +36,17 @@ func spawn_cleave_effect(pos: Vector2, radius: float, element: String) -> void:
 	
 	var colors: Array = PALETTES.get(element, PALETTES["sword"])
 	
-	# Äußerer Schwung-Ring
+	# Äußerer Schwung folgt der tatsächlichen quadratischen Feldreichweite.
 	var arc := Line2D.new()
 	arc.width = 4
 	arc.default_color = colors[2]
 	arc.position = pos
-	
-	var segments := 24
-	for i in range(segments + 1):
-		var angle := (float(i) / segments) * TAU
-		var point := Vector2(cos(angle), sin(angle)) * radius
-		arc.add_point(point)
+	var extent := RangeGridHelper.get_half_extent(radius)
+	arc.points = PackedVector2Array([
+		Vector2(-extent, -extent), Vector2(extent, -extent),
+		Vector2(extent, extent), Vector2(-extent, extent),
+		Vector2(-extent, -extent),
+	])
 	
 	parent.add_child(arc)
 	
@@ -54,16 +56,18 @@ func spawn_cleave_effect(pos: Vector2, radius: float, element: String) -> void:
 	tween.tween_property(arc, "modulate:a", 0.0, 0.2)
 	tween.chain().tween_callback(arc.queue_free)
 	
-	# Innerer Ring
+	# Inneres Quadrat betont den Impuls, ohne eine falsche Kreisreichweite zu zeigen.
 	var inner_arc := Line2D.new()
 	inner_arc.width = 2
 	inner_arc.default_color = colors[1]
 	inner_arc.position = pos
 	
-	for i in range(segments + 1):
-		var angle := (float(i) / segments) * TAU
-		var point := Vector2(cos(angle), sin(angle)) * (radius * 0.6)
-		inner_arc.add_point(point)
+	var inner_extent := extent * 0.58
+	inner_arc.points = PackedVector2Array([
+		Vector2(-inner_extent, -inner_extent), Vector2(inner_extent, -inner_extent),
+		Vector2(inner_extent, inner_extent), Vector2(-inner_extent, inner_extent),
+		Vector2(-inner_extent, -inner_extent),
+	])
 	
 	parent.add_child(inner_arc)
 	
@@ -75,13 +79,19 @@ func spawn_cleave_effect(pos: Vector2, radius: float, element: String) -> void:
 	
 	# Funken am Rand
 	for i in range(8):
-		var angle := randf() * TAU
-		var spark_pos := pos + Vector2(cos(angle), sin(angle)) * radius
+		var side := i % 4
+		var along := randf_range(-extent, extent)
+		var local_pos := Vector2.ZERO
+		match side:
+			0: local_pos = Vector2(along, -extent)
+			1: local_pos = Vector2(extent, along)
+			2: local_pos = Vector2(along, extent)
+			_: local_pos = Vector2(-extent, along)
+		var spark_pos := pos + local_pos
 		var spark := _create_pixel(colors[randi() % colors.size()], 3)
 		spark.position = spark_pos
 		parent.add_child(spark)
-		
-		var outward := Vector2(cos(angle), sin(angle)) * randf_range(20, 40)
+		var outward := local_pos.normalized() * randf_range(20, 40)
 		var spark_tween := spark.create_tween()
 		spark_tween.set_parallel(true)
 		spark_tween.tween_property(spark, "position", spark_pos + outward, 0.2)
@@ -536,6 +546,64 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 	label.scale = Vector2(1.3, 1.3)
 	var scale_tween := label.create_tween()
 	scale_tween.tween_property(label, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_ELASTIC)
+
+
+func spawn_status_text(pos: Vector2, text: String, color: Color) -> void:
+	var parent := _get_vfx_parent()
+	if not parent:
+		return
+	var label := Label.new()
+	label.text = text
+	label.position = pos + Vector2(-42, -46)
+	label.custom_minimum_size.x = 84
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	label.add_theme_constant_override("outline_size", 2)
+	parent.add_child(label)
+	var tween := label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y - 34.0, 0.75).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "modulate:a", 0.0, 0.35).set_delay(0.42)
+	tween.tween_property(label, "scale", Vector2(1.12, 1.12), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_callback(label.queue_free)
+
+
+func spawn_wave_path_pulse(path_points: Array[Vector2], element: String = "air") -> void:
+	var parent := _get_vfx_parent()
+	if not parent or path_points.size() < 2:
+		return
+	var colors: Array = PALETTES.get(element, PALETTES["air"])
+	var glow := Line2D.new()
+	glow.points = PackedVector2Array(path_points)
+	glow.width = 5.0
+	glow.default_color = Color(colors[1].r, colors[1].g, colors[1].b, 0.48)
+	glow.z_index = -20
+	parent.add_child(glow)
+	var core := Line2D.new()
+	core.points = glow.points
+	core.width = 1.0
+	core.default_color = Color(colors[2].r, colors[2].g, colors[2].b, 0.85)
+	core.z_index = -19
+	parent.add_child(core)
+	var tween := glow.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(glow, "width", 11.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(glow, "modulate:a", 0.0, 0.5)
+	tween.tween_property(core, "modulate:a", 0.0, 0.42).set_delay(0.08)
+	tween.chain().tween_callback(glow.queue_free)
+	tween.chain().tween_callback(core.queue_free)
+	spawn_pixel_burst(path_points[0], element, 10)
+	for index in range(5, path_points.size(), 7):
+		spawn_pixels(path_points[index], element, 2, 12.0)
+
+
+func spawn_wave_complete_effect(center: Vector2) -> void:
+	spawn_pixel_ring(center, "gold", 115.0)
+	spawn_pixel_burst(center, "gold", 18)
+	spawn_status_text(center, "WELLE GESCHAFFT", Color("ffd86b"))
+	screen_flash(Color(1.0, 0.82, 0.35), 0.07)
 
 
 # === SCREEN EFFECTS ===

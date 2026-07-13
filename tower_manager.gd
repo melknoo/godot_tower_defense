@@ -84,11 +84,14 @@ func refresh_farm_supply_bonuses() -> void:
 			total_farm_bonus += bonus
 	
 	# Setze supply_max neu basierend auf allen Farmen
-	var base_supply := GameState.STARTING_MAX_SUPPLY
+	var archive_bonus := GameState.archive_supply_bonus
+	var base_supply := GameState.STARTING_MAX_SUPPLY + archive_bonus
 	GameState.supply_max = base_supply + total_farm_bonus
 	GameState.supply_changed.emit(GameState.supply_used, GameState.supply_max)
 	
-	print("[TowerManager] Farm-Boni neu berechnet: %d Supply von %d Farmen" % [total_farm_bonus, get_farm_count()])
+	print("[TowerManager] Supply neu: %d Basis + %d Archiv + %d Farmen" % [
+		GameState.STARTING_MAX_SUPPLY, archive_bonus, total_farm_bonus
+	])
 
 
 func get_farm_count() -> int:
@@ -291,6 +294,8 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	if TowerData.is_supply_building(tower_type):
 		var bonus := TowerData.get_supply_bonus(tower_type)
 		GameState.add_max_supply(bonus)
+		if VFX:
+			VFX.spawn_status_text(tower.position, "+%d SUPPLY" % bonus, Color("8fe88b"))
 	
 	_recalculate_all_tower_stats()
 	tower_placed.emit(tower, grid_pos)
@@ -327,9 +332,7 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	
 	if TowerData.is_supply_building(tower_type):
 		var bonus := TowerData.get_supply_bonus(tower_type)
-		var minimum_supply := GameState.STARTING_MAX_SUPPLY
-		if ProgressionSystem:
-			minimum_supply += ProgressionSystem.get_starting_supply_bonus()
+		var minimum_supply := GameState.STARTING_MAX_SUPPLY + GameState.archive_supply_bonus
 		GameState.supply_max = max(minimum_supply, GameState.supply_max - bonus)
 		GameState.supply_changed.emit(GameState.supply_used, GameState.supply_max)
 	

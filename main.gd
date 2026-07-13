@@ -2,6 +2,7 @@
 extends Node2D
 
 const GRID_SIZE := 64
+const RangeGridHelper = preload("res://autoload/range_grid.gd")
 const MAP_WIDTH := 30
 const MAP_HEIGHT := 15
 
@@ -32,6 +33,7 @@ var pending_element_core := false
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
+var hover_range_visual: Node2D
 var hover_sprite: Node2D
 
 var is_showing_pickup_preview := false
@@ -610,9 +612,10 @@ func _setup_hover_preview() -> void:
 	add_child(hover_preview)
 	hover_sprite = Node2D.new()
 	hover_preview.add_child(hover_sprite)
-	hover_range_circle = Line2D.new()
-	hover_range_circle.width = 2
-	hover_preview.add_child(hover_range_circle)
+	hover_range_visual = Node2D.new()
+	hover_range_visual.name = "HoverRangeGrid"
+	hover_range_visual.z_index = -2
+	hover_preview.add_child(hover_range_visual)
 
 func _update_ability_preview(mouse_pos: Vector2) -> void:
 	if not AbilitySystem or not AbilitySystem.is_targeting:
@@ -691,10 +694,10 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 	var can_place := tower_manager.can_place_at(grid_pos, tower_type)
 	if can_place:
-		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
+		RangeGridHelper.tint_visual(hover_range_visual, Color(0.25, 1.0, 0.55, 0.4))
 		hover_sprite.modulate = Color(1, 1, 1, 0.7)
 	else:
-		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
+		RangeGridHelper.tint_visual(hover_range_visual, Color(1.0, 0.2, 0.2, 0.4))
 		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
 
 
@@ -719,10 +722,10 @@ func _update_pickup_hover_preview(mouse_pos: Vector2) -> void:
 	
 	var can_relocate := tower_manager.can_relocate_to(grid_pos)
 	if can_relocate:
-		hover_range_circle.default_color = Color(0, 1, 0, 0.4)
+		RangeGridHelper.tint_visual(hover_range_visual, Color(0.25, 1.0, 0.55, 0.4))
 		hover_sprite.modulate = Color(1, 1, 1, 0.7)
 	else:
-		hover_range_circle.default_color = Color(1, 0, 0, 0.4)
+		RangeGridHelper.tint_visual(hover_range_visual, Color(1.0, 0.2, 0.2, 0.4))
 		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
 
 
@@ -813,13 +816,18 @@ func _update_hover_appearance(tower_type: String, level: int = 0) -> void:
 		level_label.add_theme_color_override("font_color", Color(1, 0.85, 0))
 		hover_sprite.add_child(level_label)
 	
-	hover_range_circle.clear_points()
 	var attack_type: String = data.get("attack_type", "projectile")
-	if attack_type != "none":
+	var is_aura := String(data.get("special", "")) == "aura"
+	if attack_type != "none" or is_aura:
 		var range_val: float = TowerData.get_stat(tower_type, "range", level)
-		for i in range(33):
-			var angle := i * TAU / 32
-			hover_range_circle.add_point(Vector2(cos(angle), sin(angle)) * range_val)
+		if UpgradeSystem:
+			range_val *= UpgradeSystem.get_range_multiplier(tower_type)
+		hover_range_circle = RangeGridHelper.rebuild_visual(
+			hover_range_visual, range_val, Color(0.25, 1.0, 0.55, 0.4), 2.0, true
+		)
+	else:
+		RangeGridHelper.clear_visual(hover_range_visual)
+		hover_range_circle = null
 
 
 func _create_fallback_preview(tower_type: String) -> void:
@@ -846,10 +854,15 @@ func _on_start_wave_pressed() -> void:
 
 func _on_wave_started(wave: int) -> void:
 	wave_manager.start_wave(wave)
+	if VFX:
+		var wave_element := wave_manager.current_wave_element
+		VFX.spawn_wave_path_pulse(path_points, "air" if wave_element == "neutral" else wave_element)
 
 
 func _on_wave_completed(wave: int) -> void:
 	print("[Main] Welle %d abgeschlossen" % wave)
+	if VFX:
+		VFX.spawn_wave_complete_effect(Vector2(MAP_WIDTH * GRID_SIZE * 0.5, MAP_HEIGHT * GRID_SIZE * 0.5))
 	
 	# 1. Pfad-Regenerierung (Runde 2, 5, 8, 11...)
 	if should_regenerate_path(wave):

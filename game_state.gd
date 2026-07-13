@@ -38,6 +38,7 @@ var element_cores := 0:
 
 var supply_used := 0
 var supply_max := STARTING_MAX_SUPPLY
+var archive_supply_bonus := 0
 
 var current_wave := 0
 var wave_active := false
@@ -233,11 +234,15 @@ func has_element_cores() -> bool:
 
 # === SUPPLY SYSTEM ===
 
-func can_use_supply(amount: int = 1) -> bool:
+func get_effective_supply_max() -> int:
 	var effective_max := supply_max
 	if UpgradeSystem:
 		effective_max += UpgradeSystem.get_supply_max_bonus()
-	return supply_used + amount <= effective_max
+	return effective_max
+
+
+func can_use_supply(amount: int = 1) -> bool:
+	return supply_used + amount <= get_effective_supply_max()
 
 
 func use_supply(amount: int = 1) -> bool:
@@ -259,14 +264,18 @@ func add_max_supply(amount: int = 1) -> void:
 
 
 func get_supply_info() -> Dictionary:
-	var effective_max := supply_max
-	if UpgradeSystem:
-		effective_max += UpgradeSystem.get_supply_max_bonus()
+	var archive_bonus := archive_supply_bonus
+	var run_bonus := UpgradeSystem.get_supply_max_bonus() if UpgradeSystem else 0
+	var farm_bonus := maxi(0, supply_max - STARTING_MAX_SUPPLY - archive_bonus)
+	var effective_max := get_effective_supply_max()
 	return {
 		"used": supply_used,
 		"max": effective_max,
 		"base_max": supply_max,
-		"available": effective_max - supply_used
+		"available": effective_max - supply_used,
+		"archive_bonus": archive_bonus,
+		"farm_bonus": farm_bonus,
+		"run_bonus": run_bonus,
 	}
 
 
@@ -307,7 +316,8 @@ func reset() -> void:
 	wave_active = false
 	enemies_remaining = 0
 	supply_used = 0
-	supply_max = STARTING_MAX_SUPPLY + (ProgressionSystem.get_starting_supply_bonus() if ProgressionSystem else 0)
+	archive_supply_bonus = ProgressionSystem.get_starting_supply_bonus() if ProgressionSystem else 0
+	supply_max = STARTING_MAX_SUPPLY + archive_supply_bonus
 	stats = {
 		"towers_placed": 0,
 		"towers_sold": 0,
@@ -332,6 +342,7 @@ func get_save_data() -> Dictionary:
 		"stats": stats,
 		"supply_used": supply_used,
 		"supply_max": supply_max,
+		"archive_supply_bonus": archive_supply_bonus,
 		"unlocked_elements": TowerData.unlocked_elements.duplicate() if TowerData else []
 	}
 
@@ -344,5 +355,9 @@ func load_save_data(data: Dictionary) -> void:
 	stats = data.get("stats", stats)
 	supply_used = data.get("supply_used", 0)
 	supply_max = data.get("supply_max", STARTING_MAX_SUPPLY)
+	archive_supply_bonus = data.get(
+		"archive_supply_bonus",
+		ProgressionSystem.get_starting_supply_bonus() if ProgressionSystem else 0
+	)
 	if TowerData and data.has("unlocked_elements"):
 		TowerData.unlocked_elements = data.get("unlocked_elements", [])

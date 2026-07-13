@@ -55,6 +55,7 @@ const TOWER_SHORT_NAMES := {
 
 var inventory_notification: Label
 var core_notification: Label
+var item_toast_container: VBoxContainer
 
 var current_wave_element_area: Control
 var current_wave_element_icon: TextureRect
@@ -106,6 +107,7 @@ func _ready() -> void:
 	_find_or_create_ui_elements()
 	_create_wave_status_ui()
 	_create_progression_ui()
+	_create_item_toast_layer()
 	_apply_styles()
 	_connect_signals()
 	_create_wave_tooltip()
@@ -464,6 +466,104 @@ func _create_progression_ui() -> void:
 	for label in [essence_label, account_level_label, milestone_progress_label, streak_label]:
 		if UITheme and UITheme.game_font:
 			label.add_theme_font_override("font", UITheme.game_font)
+
+
+func _create_item_toast_layer() -> void:
+	item_toast_container = VBoxContainer.new()
+	item_toast_container.name = "ItemToastContainer"
+	item_toast_container.anchor_left = 1.0
+	item_toast_container.anchor_right = 1.0
+	item_toast_container.anchor_top = 0.0
+	item_toast_container.anchor_bottom = 0.0
+	item_toast_container.offset_left = -390.0
+	item_toast_container.offset_right = -18.0
+	item_toast_container.offset_top = -300.0
+	item_toast_container.offset_bottom = -12.0
+	item_toast_container.alignment = BoxContainer.ALIGNMENT_END
+	item_toast_container.add_theme_constant_override("separation", 7)
+	item_toast_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(item_toast_container)
+
+
+func _show_item_toast(item: Dictionary) -> void:
+	if not item_toast_container:
+		return
+	while item_toast_container.get_child_count() >= 4:
+		var oldest := item_toast_container.get_child(0)
+		item_toast_container.remove_child(oldest)
+		oldest.queue_free()
+
+	var rarity_color: Color = item.get("color", Color("75ddff"))
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(340, 58)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.025, 0.04, 0.075, 0.96)
+	style.border_color = rarity_color
+	style.border_width_left = 4
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.set_corner_radius_all(5)
+	style.shadow_color = Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.28)
+	style.shadow_size = 5
+	panel.add_theme_stylebox_override("panel", style)
+	item_toast_container.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 9)
+	margin.add_theme_constant_override("margin_right", 11)
+	margin.add_theme_constant_override("margin_top", 7)
+	margin.add_theme_constant_override("margin_bottom", 7)
+	panel.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	margin.add_child(row)
+
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(38, 38)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture = ItemSystem.get_item_texture(item) if ItemSystem else null
+	icon.modulate = rarity_color.lerp(Color.WHITE, 0.45)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(icon)
+
+	var labels := VBoxContainer.new()
+	labels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	labels.add_theme_constant_override("separation", 1)
+	row.add_child(labels)
+	var title := Label.new()
+	title.text = String(item.get("name", "Unbekanntes Item"))
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Color(0.95, 0.98, 1.0))
+	labels.add_child(title)
+	var rarity_names := {
+		"common": "GEWÖHNLICH", "uncommon": "UNGEWÖHNLICH",
+		"rare": "SELTEN", "epic": "EPISCH",
+	}
+	var rarity := String(item.get("rarity", "common"))
+	var detail := Label.new()
+	detail.text = "%s  ·  INS INVENTAR AUFGENOMMEN" % rarity_names.get(rarity, rarity.to_upper())
+	detail.add_theme_font_size_override("font_size", 8)
+	detail.add_theme_color_override("font_color", rarity_color)
+	labels.add_child(detail)
+	for label in [title, detail]:
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if UITheme and UITheme.game_font:
+			label.add_theme_font_override("font", UITheme.game_font)
+
+	panel.modulate.a = 0.0
+	panel.scale = Vector2(0.94, 0.94)
+	var tween := panel.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.14)
+	tween.tween_property(panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_interval(2.25)
+	tween.chain().set_parallel(true)
+	tween.tween_property(panel, "modulate:a", 0.0, 0.22)
+	tween.tween_property(panel, "scale", Vector2(0.97, 0.97), 0.22)
+	tween.chain().tween_callback(panel.queue_free)
 
 
 func _style_arcane_progress_bar(bar: ProgressBar, color: Color) -> void:
@@ -851,11 +951,12 @@ func _on_inventory_button_pressed() -> void:
 	open_inventory_pressed.emit()
 
 
-func _on_item_collected(_item: Dictionary) -> void:
+func _on_item_collected(item: Dictionary) -> void:
 	if inventory_button:
 		var tween := inventory_button.create_tween()
 		tween.tween_property(inventory_button, "modulate", Color(1.5, 1.5, 0.5), 0.15)
 		tween.tween_property(inventory_button, "modulate", Color.WHITE, 0.2)
+	_show_item_toast(item)
 	_update_inventory_notification()
 
 
@@ -1013,23 +1114,29 @@ func _on_core_earned() -> void:
 	_flash_cores_label()
 
 
-func _on_supply_changed(used: int, max_supply: int) -> void:
+func _on_supply_changed(_used: int, _max_supply: int) -> void:
 	if not supply_label:
 		return
 
-	var upgrade_bonus := 0
-	if UpgradeSystem:
-		upgrade_bonus = UpgradeSystem.get_supply_max_bonus()
+	var info := GameState.get_supply_info()
+	var used := int(info.get("used", 0))
+	var effective_max := int(info.get("max", 0))
+	var available := int(info.get("available", 0))
+	var archive_bonus := int(info.get("archive_bonus", 0))
+	var farm_bonus := int(info.get("farm_bonus", 0))
+	var run_bonus := int(info.get("run_bonus", 0))
 
-	var effective_max := max_supply + upgrade_bonus
-	var available     := effective_max - used
-
-	if upgrade_bonus > 0:
-		supply_label.text = "%s %d/%d (+%d)" % [IconSystem.bb("supply", 24), used, max_supply, upgrade_bonus]
-	else:
-		supply_label.text = "%s %d/%d" % [IconSystem.bb("supply", 24), used, effective_max]
-
-	supply_label.tooltip_text = "Supply: %d verwendet von %d\n%d verfügbar" % [used, effective_max, available]
+	supply_label.text = "%s %d/%d" % [IconSystem.bb("supply", 24), used, effective_max]
+	var breakdown: Array[String] = ["Basis: %d" % GameState.STARTING_MAX_SUPPLY]
+	if archive_bonus > 0:
+		breakdown.append("Arkanes Lager: +%d" % archive_bonus)
+	if farm_bonus > 0:
+		breakdown.append("Farmen: +%d" % farm_bonus)
+	if run_bonus > 0:
+		breakdown.append("Run-Upgrades: +%d" % run_bonus)
+	supply_label.tooltip_text = "Supply: %d verwendet von %d\n%d verfügbar\n%s" % [
+		used, effective_max, available, "\n".join(breakdown)
+	]
 
 	if available <= 0:
 		supply_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))

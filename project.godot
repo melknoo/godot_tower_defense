@@ -32,6 +32,7 @@ UpgradeSystem="*res://autoload/upgrade_system.gd"
 AbilitySystem="*res://autoload/ability_system.gd"
 ItemSystem="*res://autoload/item_system.gd"
 IconSystem="*res://autoload/icon_system.gd"
+CursorManager="*res://autoload/cursor_manager.gd"
 
 [display]
 

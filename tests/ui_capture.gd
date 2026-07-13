@@ -97,7 +97,11 @@ func _run() -> void:
 		if tower:
 			main.tower_info.show_tower(tower, tower_pos)
 			await get_tree().process_frame
+			_assert_ui(tower.get_range_cells() >= 1, "Tower-Reichweite ist in Rasterfeldern verfuegbar")
+			_assert_ui(tower.range_visual.get_child_count() > 0, "Tower zeigt ein quadratisches Reichweitenraster")
+			_assert_ui(tower.level_indicator.get_child_count() == 1, "Tower-Level ist direkt am Tower sichtbar")
 			_assert_ui("Schaden:" in main.tower_info.stats_label.text, "Tower-Stats sind sichtbar")
+			_assert_ui("Felder" in main.tower_info.stats_label.text, "Tower-Info zeigt Reichweite als Felder")
 			_assert_ui(
 				"Aktuelle Tower-Stats:" in main.tower_info.stats_label.tooltip_text,
 				"Tower-Stat-Tooltip ist befuellt"
@@ -137,6 +141,10 @@ func _run() -> void:
 		"sharp_blade", ItemSystem.ITEMS["sharp_blade"], "rare"
 	)
 	ItemSystem.collect_item(item)
+	await get_tree().process_frame
+	_assert_ui(main.hud.item_toast_container.get_child_count() == 1, "Item-Aufnahme erzeugt einen HUD-Toast")
+	await get_tree().create_timer(0.2, true).timeout
+	await _capture("05b_item_toast")
 	main.item_inventory_ui.show_panel()
 	main.item_inventory_ui._show_item_detail(item)
 	await get_tree().process_frame
@@ -204,6 +212,12 @@ func _run() -> void:
 
 
 func _find_free_cell(manager: TowerManager, tower_type: String) -> Vector2i:
+	# Erst einen gut sichtbaren Bereich waehlen, damit Range und Level im Capture pruefbar bleiben.
+	for y in range(2, manager.map_height):
+		for x in range(8, manager.map_width):
+			var visible_cell := Vector2i(x, y)
+			if manager.can_place_at(visible_cell, tower_type):
+				return visible_cell
 	for y in range(manager.map_height):
 		for x in range(manager.map_width):
 			var cell := Vector2i(x, y)

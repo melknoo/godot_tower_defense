@@ -3,6 +3,8 @@
 extends Node2D
 class_name Tower
 
+const RangeGridHelper = preload("res://autoload/range_grid.gd")
+
 var tower_type := "archer"
 var tower_range := 150.0
 var fire_rate := 1.0
@@ -13,6 +15,7 @@ var attack_type := "projectile"
 var engraved_element := ""
 var min_range := 0.0
 var min_range_circle: Line2D = null
+var min_range_visual: Node2D = null
 
 # Trapper-spezifisch
 var active_traps: Array[Node2D] = []
@@ -23,7 +26,8 @@ var trap_duration := 15.0
 var aura_range := 0.0
 var buff_strength := 0.0
 var affected_towers: Array[Node2D] = []
-var aura_visual: Line2D = null
+var aura_visual: Node2D = null
+var aura_visual_tween: Tween = null
 var aura_buff_type := ""
 
 # Spezialeffekte
@@ -45,6 +49,7 @@ var blocked_pulse_tween: Tween
 
 # Visuals
 var range_circle: Line2D
+var range_visual: Node2D
 var turret: Node2D
 var sprite: Sprite2D
 var level_indicator: Node2D
@@ -212,8 +217,7 @@ func _collect_aura_buffs() -> Dictionary:
 		if tower.attack_type != "none" or tower.special_type != "aura":
 			continue
 		
-		var dist := position.distance_to(tower.position)
-		if dist > tower.aura_range:
+		if not RangeGridHelper.contains_point(tower.position, position, tower.aura_range):
 			continue
 		
 		# Sammle Buffs von diesem Aura-Turm
@@ -359,6 +363,8 @@ func _apply_item_bonuses() -> void:
 	
 	var chain_bonus := ItemSystem.get_tower_item_bonus(self, "chain_bonus")
 	chain_targets += int(chain_bonus)
+	if special_type == "aura":
+		aura_range = tower_range
 
 
 func recalculate_stats() -> void:
@@ -677,12 +683,13 @@ func _update_archer_anim_speed() -> void:
 func _create_visuals() -> void:
 	turret = Node2D.new()
 	add_child(turret)
-	range_circle = Line2D.new()
-	range_circle.default_color = Color(1, 1, 1, 0.15)
-	range_circle.width = 2
-	add_child(range_circle)
+	range_visual = Node2D.new()
+	range_visual.name = "RangeGrid"
+	range_visual.z_index = -6
+	add_child(range_visual)
 	level_indicator = Node2D.new()
-	level_indicator.position = Vector2(20, -20)
+	level_indicator.position = Vector2(18, -42)
+	level_indicator.z_index = 12
 	add_child(level_indicator)
 	
 	engraving_indicator = _get_or_create_rich_label("engraving_indicator", Vector2(-25, -45))
@@ -725,56 +732,52 @@ func _update_visuals() -> void:
 	
 	print("[Tower %s] After sprite setup, children count: %d" % [tower_type, turret.get_child_count()])
 	
-	# ✅ MIN-RANGE CIRCLE - separat, NACH dem Sprite-Setup
+	# Mindestreichweite der Kanone folgt demselben quadratischen Raster.
 	if tower_type == "cannon" and min_range > 0:
-		print("[Tower cannon] Setting up min_range_circle")
-		if not min_range_circle:
-			min_range_circle = Line2D.new()
-			min_range_circle.default_color = Color(1, 0.3, 0.3, 0.25)
-			min_range_circle.width = 2
-			min_range_circle.z_index = -1
-			add_child(min_range_circle)
-		
-		min_range_circle.clear_points()
-		for i in range(33):
-			var angle := i * TAU / 32
-			min_range_circle.add_point(Vector2(cos(angle), sin(angle)) * min_range)
-	elif min_range_circle:
-		min_range_circle.queue_free()
+		if not min_range_visual:
+			min_range_visual = Node2D.new()
+			min_range_visual.name = "MinimumRangeGrid"
+			min_range_visual.z_index = -5
+			add_child(min_range_visual)
+		min_range_circle = RangeGridHelper.rebuild_visual(
+			min_range_visual, min_range, Color(1, 0.3, 0.3, 0.24), 2.0, false
+		)
+	elif min_range_visual:
+		min_range_visual.queue_free()
+		min_range_visual = null
 		min_range_circle = null
 	
-	# Range Circle
-	range_circle.clear_points()
+	# Angriffs- und Aura-Reichweiten werden als exakte Rasterfelder angezeigt.
 	if attack_type != "none" and tower_range > 0:
-		for i in range(33):
-			var angle := i * TAU / 32
-			range_circle.add_point(Vector2(cos(angle), sin(angle)) * tower_range)
-		
+		var range_color := Color(1, 1, 1, 0.16)
 		if engraved_element != "":
 			var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
-			range_circle.default_color = elem_color.lerp(Color.WHITE, 0.7)
-			range_circle.default_color.a = 0.2
+			range_color = elem_color.lerp(Color.WHITE, 0.7)
+			range_color.a = 0.2
+		range_visual.visible = true
+		range_circle = RangeGridHelper.rebuild_visual(range_visual, tower_range, range_color, 2.0, true)
 	elif attack_type == "none" and special_type == "aura":
 		if not aura_visual:
-			aura_visual = Line2D.new()
-			aura_visual.width = 3
+			aura_visual = Node2D.new()
+			aura_visual.name = "AuraRangeGrid"
 			aura_visual.z_index = -1
 			add_child(aura_visual)
-		
+		range_visual.visible = false
+		RangeGridHelper.clear_visual(range_visual)
+		range_circle = null
 		var aura_color := _get_aura_buff_color()
-		aura_visual.default_color = aura_color
-		aura_visual.default_color.a = 0.25
-		
-		aura_visual.clear_points()
-		for i in range(33):
-			var angle := i * TAU / 32
-			aura_visual.add_point(Vector2(cos(angle), sin(angle)) * aura_range)
-		
-		var tween := create_tween().set_loops()
-		tween.tween_property(aura_visual, "default_color:a", 0.1, 1.2)
-		tween.tween_property(aura_visual, "default_color:a", 0.4, 1.2)
+		aura_color.a = 0.28
+		RangeGridHelper.rebuild_visual(aura_visual, aura_range, aura_color, 2.0, true)
+		if aura_visual_tween:
+			aura_visual_tween.kill()
+		aura_visual.modulate.a = 1.0
+		aura_visual_tween = create_tween().set_loops()
+		aura_visual_tween.tween_property(aura_visual, "modulate:a", 0.45, 1.2)
+		aura_visual_tween.tween_property(aura_visual, "modulate:a", 1.0, 1.2)
 	else:
-		range_circle.visible = false
+		range_visual.visible = false
+		RangeGridHelper.clear_visual(range_visual)
+		range_circle = null
 	
 	_update_level_indicator()
 	_update_isolation_visual()
@@ -980,15 +983,35 @@ func _get_tower_texture_path() -> String:
 func _update_level_indicator() -> void:
 	for child in level_indicator.get_children():
 		child.queue_free()
-	if level == 0:
-		return
-	for i in range(level):
-		var star := Label.new()
-		star.text = "★"
-		star.position = Vector2(i * 12, 0)
-		star.add_theme_font_size_override("font_size", 10)
-		star.add_theme_color_override("font_color", Color(1, 0.85, 0))
-		level_indicator.add_child(star)
+
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = Vector2(38, 17)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.025, 0.04, 0.075, 0.94)
+	var accent: Color = TowerData.get_tower_data(tower_type).get("color", Color("75ddff"))
+	if engraved_element != "" and ElementalSystem:
+		accent = ElementalSystem.get_element_color(engraved_element)
+	style.border_color = accent
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	panel.add_theme_stylebox_override("panel", style)
+	level_indicator.add_child(panel)
+
+	var label := Label.new()
+	label.text = "LV %d" % (level + 1)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_color_override("font_color", Color(0.92, 0.97, 1.0))
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	label.add_theme_constant_override("outline_size", 1)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(label)
+
+	level_indicator.scale = Vector2(1.18, 1.18)
+	var tween := level_indicator.create_tween()
+	tween.tween_property(level_indicator, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _show_upgrade_effect() -> void:
@@ -1186,14 +1209,10 @@ func _find_target() -> void:
 	var best_progress := -1.0
 	
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-		var dist := position.distance_to(enemy.position)
-		
-		# Reichweiten-Check
-		if dist > tower_range:
+		if not RangeGridHelper.contains_point(position, enemy.position, tower_range):
 			continue
 		
-		# NEU: Mindestreichweite für Kanone
-		if tower_type == "cannon" and dist < min_range:
+		if tower_type == "cannon" and RangeGridHelper.is_inside_minimum(position, enemy.position, min_range):
 			continue
 		
 		var progress: float = enemy.get_progress() if enemy.has_method("get_progress") else 0.0
@@ -1223,7 +1242,7 @@ func _melee_attack() -> void:
 func _execute_melee_damage() -> void:
 	var hit_enemies: Array[Node2D] = []
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if position.distance_to(enemy.position) <= tower_range:
+		if RangeGridHelper.contains_point(position, enemy.position, tower_range):
 			hit_enemies.append(enemy)
 
 	var elem := get_effective_element()
@@ -1569,10 +1588,9 @@ func _find_trap_position() -> Vector2:
 
 
 func _find_random_trap_position() -> Vector2:
-	"""Fallback: Zufällige Position in Reichweite"""
-	var angle := randf() * TAU
-	var dist := randf_range(tower_range * 0.6, tower_range * 0.95)
-	return position + Vector2(cos(angle), sin(angle)) * dist
+	"""Fallback: Zufällige Position in der quadratischen Rasterreichweite"""
+	var extent := RangeGridHelper.get_half_extent(tower_range) * 0.9
+	return position + Vector2(randf_range(-extent, extent), randf_range(-extent, extent))
 
 
 func _update_aura_buffs() -> void:
@@ -1589,8 +1607,7 @@ func _update_aura_buffs() -> void:
 		if tower.attack_type == "none":  # Keine Support-Türme buffed
 			continue
 		
-		var dist := position.distance_to(tower.position)
-		if dist <= aura_range:
+		if RangeGridHelper.contains_point(position, tower.position, aura_range):
 			new_affected.append(tower)
 	
 	# Wenn sich die Liste geändert hat, Stats neu berechnen
@@ -1641,8 +1658,12 @@ func select() -> void:
 		s.position = corner_data[1]
 		selection_corners.add_child(s)
 	_start_float_animation()
-	if range_circle:
-		range_circle.default_color = Color(1, 0.5, 0.5, 0.3)
+	if range_visual and range_visual.visible:
+		RangeGridHelper.tint_visual(range_visual, Color(1, 0.5, 0.5, 0.34))
+	elif aura_visual:
+		var aura_color := _get_aura_buff_color()
+		aura_color.a = 0.42
+		RangeGridHelper.tint_visual(aura_visual, aura_color)
 
 
 func deselect() -> void:
@@ -1652,13 +1673,22 @@ func deselect() -> void:
 	if selection_tween:
 		selection_tween.kill()
 		selection_tween = null
-	if range_circle:
+	if range_visual and range_visual.visible:
 		if engraved_element != "":
 			var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
-			range_circle.default_color = elem_color.lerp(Color.WHITE, 0.7)
-			range_circle.default_color.a = 0.2
+			var range_color := elem_color.lerp(Color.WHITE, 0.7)
+			range_color.a = 0.2
+			RangeGridHelper.tint_visual(range_visual, range_color)
 		else:
-			range_circle.default_color = Color(1, 1, 1, 0.15)
+			RangeGridHelper.tint_visual(range_visual, Color(1, 1, 1, 0.16))
+	elif aura_visual:
+		var aura_color := _get_aura_buff_color()
+		aura_color.a = 0.28
+		RangeGridHelper.tint_visual(aura_visual, aura_color)
+
+
+func get_range_cells() -> int:
+	return RangeGridHelper.get_cell_radius(tower_range)
 
 
 func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_width: float = 120.0) -> RichTextLabel:

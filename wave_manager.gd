@@ -3,6 +3,8 @@
 extends Node
 class_name WaveManager
 
+const RangeGridHelper = preload("res://autoload/range_grid.gd")
+
 signal wave_spawning_finished
 signal enemy_spawned(enemy: Node2D)
 
@@ -361,7 +363,7 @@ func get_path_points_in_range(tower_pos: Vector2, range_radius: float) -> Array[
 
 	var points_in_range: Array[Vector2] = []
 	for point in path_points:
-		if tower_pos.distance_to(point) <= range_radius:
+		if RangeGridHelper.contains_point(tower_pos, point, range_radius):
 			points_in_range.append(point)
 
 	if points_in_range.size() < 3 and path_points.size() > 1:
@@ -371,7 +373,7 @@ func get_path_points_in_range(tower_pos: Vector2, range_radius: float) -> Array[
 			var num_samples := int(start.distance_to(end) / 30.0)
 			for j in range(1, num_samples):
 				var sample := start.lerp(end, float(j) / float(num_samples))
-				if tower_pos.distance_to(sample) <= range_radius:
+				if RangeGridHelper.contains_point(tower_pos, sample, range_radius):
 					points_in_range.append(sample)
 
 	return points_in_range

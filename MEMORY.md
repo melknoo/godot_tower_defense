@@ -89,6 +89,13 @@ werden.
   `???`-Karten verschenken die motivierende Wirkung der Meta-Progression.
 - Haeufige Auszahlungen verwenden kurze Animationen; wichtige Zahlen sind
   groesser als Ursache und Fortschrittsdetail.
+- Tower-Reichweiten werden ueber `autoload/range_grid.gd` als quadratische
+  64-Pixel-Rasterfelder berechnet und gezeichnet. Targeting und Vorschau muessen
+  denselben Helper verwenden, damit die sichtbare Kante exakt der Mechanik
+  entspricht.
+- `GameState.supply_max` enthaelt Basis-, Archiv- und Farm-Supply;
+  `get_effective_supply_max()` addiert temporaere Run-Upgrades. UI und
+  Platzierungspruefungen beziehen den effektiven Wert zentral aus `GameState`.
 
 ## Persistenz
 

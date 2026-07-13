@@ -4,6 +4,8 @@
 extends PanelContainer
 class_name TowerInfo
 
+const RangeGridHelper = preload("res://autoload/range_grid.gd")
+
 signal sell_pressed
 signal upgrade_pressed
 signal close_pressed
@@ -544,7 +546,9 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	var final_fire_rate: float = float(current_tower.fire_rate)
 
 	var damage_bonus: int = final_damage - base_damage
-	var range_bonus: int = int(final_range - base_range)
+	var base_range_cells := RangeGridHelper.get_cell_radius(base_range)
+	var final_range_cells := RangeGridHelper.get_cell_radius(final_range)
+	var range_cell_bonus := final_range_cells - base_range_cells
 	var shots_per_sec: float = 1.0 / final_fire_rate if final_fire_rate > 0 else 0.0
 	var base_shots: float = 1.0 / base_fire_rate if base_fire_rate > 0 else 0.0
 	var fire_rate_bonus: float = shots_per_sec - base_shots
@@ -581,9 +585,9 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	if damage_bonus > 0:
 		damage_text += " [color=#75ddff](+%d)[/color]" % damage_bonus
 
-	var range_text := "%s Reichweite: [b]%d[/b]" % [range_icon, int(final_range)]
-	if range_bonus > 0:
-		range_text += " [color=#75ddff](+%d)[/color]" % range_bonus
+	var range_text := "%s Reichweite: [b]%d Felder[/b]" % [range_icon, final_range_cells]
+	if range_cell_bonus > 0:
+		range_text += " [color=#75ddff](+%d)[/color]" % range_cell_bonus
 
 	var fire_rate_text := "%s Angriffe/s: [b]%.1f[/b]" % [speed_icon, shots_per_sec]
 	if fire_rate_bonus > 0.01:
@@ -604,15 +608,15 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	# Tooltip erweitern
 	var tooltip_lines: Array[String] = [
 		"Schaden: %d" % final_damage,
-		"Reichweite: %d" % int(final_range),
+		"Reichweite: %d quadratische Rasterfelder" % final_range_cells,
 		"Angriffe pro Sekunde: %.1f" % shots_per_sec
 	]
 	
 	if damage_bonus > 0:
 		tooltip_lines.append("Schaden: %d Basis + %d Upgrade" % [base_damage, damage_bonus])
 	
-	if range_bonus > 0:
-		tooltip_lines.append("Reichweite: %d Basis + %d Upgrade" % [int(base_range), range_bonus])
+	if range_cell_bonus > 0:
+		tooltip_lines.append("Reichweite: %d Basisfelder + %d Bonusfeld(er)" % [base_range_cells, range_cell_bonus])
 	
 	if fire_rate_bonus > 0.01:
 		tooltip_lines.append("Feuerrate: %.1f Basis + %.1f Upgrade" % [base_shots, fire_rate_bonus])
@@ -836,10 +840,10 @@ func _update_aura_buff_buttons() -> void:
 		btn.expand_icon = true
 		
 		# ✅ Detaillierter Tooltip mit Prozent-Wert
-		btn.tooltip_text = "%s\n%s\n(Reichweite: %.0f)" % [
+		btn.tooltip_text = "%s\n%s\n(Reichweite: %d Felder)" % [
 			option["name"],
 			option["desc"],
-			current_tower.aura_range
+			RangeGridHelper.get_cell_radius(current_tower.aura_range)
 		]
 		
 		if GameState.wave_active:
@@ -953,8 +957,9 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 		upgrade_button.disabled = false
 		var new_damage: int = TowerData.get_stat(tower_type, "damage", level + 1)
 		var new_range: float = TowerData.get_stat(tower_type, "range", level + 1)
-		upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d\nKostet %d Gold und %d Supply" % [
-			new_damage, int(new_range), cost, supply_cost
+		var new_range_cells := RangeGridHelper.get_cell_radius(new_range)
+		upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d Felder\nKostet %d Gold und %d Supply" % [
+			new_damage, new_range_cells, cost, supply_cost
 		]
 	else:
 		upgrade_button.disabled = true

@@ -27,20 +27,25 @@ und Designentscheidungen stehen in `MEMORY.md`; geplante Ausbaustufen in
   spaeterer kosmetischer Meisterschaft ist in `INCREMENTAL_ROADMAP.md`
   dokumentiert.
 - Smoke-Test und visuelle Capture-Szenen liegen unter `tests/`.
+- Tower zeigen ihre Stufe direkt in der Spielwelt. Angriffs-, Nahkampf-,
+  Fallen- und Aura-Reichweiten verwenden ein gemeinsames quadratisches
+  64-Pixel-Raster fuer Anzeige und Trefferpruefung.
+- Item-Aufnahmen erzeugen animierte Toasts rechts ueber dem HUD. Ein eigener
+  arkaner Cursor sowie Wellen-, Supply- und Nahkampf-VFX ergaenzen das Feedback.
+- Supply zeigt immer `verwendet/effektives Maximum`; Archiv-, Farm- und
+  Run-Boni werden zentral aufgeschluesselt und nicht mehr gegeneinander
+  ueberschrieben.
+- Die sechs Stufen aller Basistuerme besitzen vollstaendige, geglaettete Werte.
+  Insbesondere Schwert-Schaden und Gegnertyp-Multiplikatoren erzeugen auf
+  Stufe 2/3 keine garantierten One-Shots mehr.
 
 ## In Arbeit im lokalen Arbeitsbaum
 
-Zum Zeitpunkt dieser Aktualisierung gibt es nicht committete Aenderungen in:
-
-- `ui/pause_menu.gd`: Sicherheitsabfrage unterscheidet zwischen Rueckkehr ins
-  Hauptmenue und vollstaendigem Beenden des Spiels.
-- `tests/ui_capture.gd`: Capture und Assertions fuer den Beenden-Dialog.
-- `tests/main_menu_capture.gd`: angepasste Screenshot-Nummerierung.
-- `INCREMENTAL_ROADMAP.md`, `PROGRESS.md` und `MEMORY.md`: Charakterplanung und
-  uebertragbarer Projektkontext.
-
-Diese Dateien muessen gemeinsam committed und in das Remote-Repository gepusht
-werden, bevor ein frischer Clone auf einem anderen Rechner den Stand enthaelt.
+Zum Zeitpunkt dieser Aktualisierung gibt es nicht committete Aenderungen fuer
+Range-Raster, Supply, Tower-Level, Item-Toasts, Cursor, VFX und Balancing in den
+zugehoerigen Spiel-, UI-, Autoload-, Daten- und Testdateien. Diese Dateien
+muessen gemeinsam committed und gepusht werden, bevor ein frischer Clone den
+Stand enthaelt.
 
 ## Bekannte Luecken
 
@@ -56,13 +61,13 @@ werden, bevor ein frischer Clone auf einem anderen Rechner den Stand enthaelt.
   Charakter-Freischaltungen. Die Save-Version ist noch 1.
 - Die lokalen Dokumentationsaenderungen wurden in dieser Umgebung nicht mit
   einem Markdown-Linter geprueft.
-- Eine Godot-Executable war in der aktuellen Shell nicht ueber `PATH`
-  auffindbar; die Tests wurden in dieser Sitzung deshalb nicht ausgefuehrt.
+- Godot liegt weiterhin nicht auf `PATH`, wurde fuer diese Sitzung aber unter
+  `Downloads/Godot_v4.6.3-stable_win64.exe` gefunden.
 
 ## Naechste empfohlene Arbeitsschritte
 
-1. Die laufenden Pausemenue-Aenderungen in Godot pruefen und danach zusammen
-   mit den Tests und Dokumentationsdateien committen und pushen.
+1. Das neue Tower-Balancing in mehreren echten Runs pruefen und danach die
+   Range-, UI-, VFX-, Test- und Dokumentationsaenderungen gemeinsam committen.
 2. Ein persistentes Datenmodell fuer Charakter-Unlocks mit Save-Migration
    anlegen.
 3. Den Charakterbildschirm als Sammlung, Fortschrittsanzeige und
@@ -86,6 +91,10 @@ godot --path . res://tests/main_menu_capture.tscn
 Die Capture-Tests schreiben Bilder nach `user://ui_audit`. Fuer einen sauberen
 manuellen Progressionsstart stehen `reset_progress.ps1` und
 `reset_progress.cmd` bereit.
+
+Letzte Verifikation dieser Sitzung: Progressions-Smoke-Test, Laden von
+`main.tscn` im Headless-Modus und der vollstaendige visuelle UI-Capture-Test
+liefen mit Godot 4.6.3 erfolgreich durch.
 
 ## Uebergabe-Checkliste
 

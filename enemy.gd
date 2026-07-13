@@ -182,9 +182,9 @@ func _setup_tower_type_multipliers() -> void:
 		"tank":
 			# Schwer gepanzert – Pfeile finden Schwachstellen, Schwerter prallen ab
 			tower_type_multipliers = {
-				"archer":  2.0,   # SCHWACH – Pfeile in Gelenke
-				"sword":   0.4,   # STARK   – Rüstung blockt Hiebe
-				"wizard":  0.75,  # leicht resistent
+				"archer":  1.6,   # SCHWACH – Pfeile in Gelenke
+				"sword":   0.65,  # STARK   – Rüstung blockt Hiebe
+				"wizard":  0.8,   # leicht resistent
 				"cannon":  1.0,
 				"trapper": 1.0,
 			}
@@ -192,8 +192,8 @@ func _setup_tower_type_multipliers() -> void:
 		"swift":
 			# Schnell und wendig – Schwerter erwischen ihn, Pfeile treffen nicht
 			tower_type_multipliers = {
-				"archer":  0.75,   # STARK   – zu flink für Pfeile
-				"sword":   2.5,   # SCHWACH – Klinge trifft bei Nahkampf
+				"archer":  0.8,   # STARK   – zu flink für Pfeile
+				"sword":   1.6,   # SCHWACH – Klinge trifft bei Nahkampf
 				"wizard":  1.0,
 				"cannon":  0.75,  # leicht resistent (zu klein als Ziel)
 				"trapper": 1.25,  # Fallen halten ihn besonders gut
@@ -204,8 +204,8 @@ func _setup_tower_type_multipliers() -> void:
 			tower_type_multipliers = {
 				"archer":  0.7,   # RESISTENT – Pfeile gehen durch
 				"sword":   0.7,   # RESISTENT – Klingen greifen nicht
-				"wizard":  2.5,   # SCHWACH   – Magie trifft die Essenz
-				"cannon":  0.6,   # RESISTENT – physische Explosion nutzlos
+				"wizard":  1.6,   # SCHWACH   – Magie trifft die Essenz
+				"cannon":  0.65,  # RESISTENT – physische Explosion nutzlos
 				"trapper": 0.75,
 			}
 
@@ -213,9 +213,9 @@ func _setup_tower_type_multipliers() -> void:
 			# Massiver Koloss – Kanone trifft hart, Magie verpufft
 			tower_type_multipliers = {
 				"archer":  1.0,
-				"sword":   1.25,
-				"wizard":  0.5,   # RESISTENT – magisch unempfindlich
-				"cannon":  3.0,   # SCHWACH   – Explosivschaden ideal
+				"sword":   1.15,
+				"wizard":  0.65,  # RESISTENT – magisch unempfindlich
+				"cannon":  1.7,   # SCHWACH   – Explosivschaden ideal
 				"trapper": 0.75,
 			}
 
@@ -224,9 +224,9 @@ func _setup_tower_type_multipliers() -> void:
 			tower_type_multipliers = {
 				"archer":  0.75,   # RESISTENT – taucht kurz auf
 				"sword":   0.75,   # RESISTENT – zu tief unten
-				"wizard":  1.25,
-				"cannon":  1.25,
-				"trapper": 3.0,   # SCHWACH   – Fallen halten ihn an der Oberfläche
+				"wizard":  1.15,
+				"cannon":  1.15,
+				"trapper": 1.7,   # SCHWACH   – Fallen halten ihn an der Oberfläche
 			}
 
 		_:
