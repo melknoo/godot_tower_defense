@@ -268,7 +268,6 @@ func _create_choice_panel(choice: Dictionary, index: int) -> PanelContainer:
 	btn.flat = true
 	btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	btn.set_anchors_preset(Control.PRESET_FULL_RECT)
-	btn.size = panel_node.custom_minimum_size
 	btn.pressed.connect(_on_choice_selected.bind(index))
 	btn.mouse_entered.connect(_on_choice_hover.bind(panel_node, true, is_new_ability))
 	btn.mouse_exited.connect(_on_choice_hover.bind(panel_node, false, is_new_ability))

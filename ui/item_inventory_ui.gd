@@ -7,7 +7,7 @@ signal item_selected(item: Dictionary)
 signal panel_closed
 
 var panel: PanelContainer
-var title_label = IconSystem
+var title_label: RichTextLabel
 var count_label: Label
 var grid_container: GridContainer
 var close_button: Button
@@ -80,7 +80,7 @@ func _setup_ui() -> void:
 	var header := HBoxContainer.new()
 	vbox.add_child(header)
 	
-	title_label = title_label.create_rich_label(200, 20)
+	title_label = IconSystem.create_rich_label(200, 20)
 	title_label.text = "%s Inventar" % IconSystem.bb("inventory", 18)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if UITheme and UITheme.game_font:
@@ -107,7 +107,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		info.add_theme_font_override("font", UITheme.game_font)
 	info.add_theme_font_size_override("font_size", 9)
-	info.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	info.add_theme_color_override("font_color", Color("9aa8c2"))
 	vbox.add_child(info)
 	
 	# Scroll Container für Grid
@@ -642,24 +642,21 @@ func _position_detail_panel_at_slot(slot: PanelContainer) -> void:
 	
 	# Globale Position des Slots
 	var slot_global_pos := slot.global_position
-	var slot_size := slot.size
-	
-	# Detail-Panel an bottom-right corner des Slots
-	var new_x := slot_global_pos.x + slot_size.x - 10  # 10px nach links für leichte Überlappung
-	var new_y := slot_global_pos.y + slot_size.y - 10  # 10px nach oben für leichte Überlappung
 	
 	# Viewport-Größe prüfen für Overflow-Schutz
 	var viewport_size := get_viewport().get_visible_rect().size
 	var panel_width: float = detail_panel.size.x if detail_panel.size.x > 0 else 200.0
 	var panel_height: float = detail_panel.size.y if detail_panel.size.y > 0 else 200.0
+	# Details liegen neben dem gesamten Inventar und verdecken keine Slots.
+	var new_x := panel.position.x + panel.size.x + 12.0
+	var new_y := slot_global_pos.y
 	
-	# Falls Panel rechts rausgeht, links vom Slot anzeigen
+	# Falls rechts kein Platz ist, links vom Inventar anzeigen.
 	if new_x + panel_width > viewport_size.x - 20:
-		new_x = slot_global_pos.x - panel_width + 10
+		new_x = panel.position.x - panel_width - 12.0
 	
-	# Falls Panel unten rausgeht, nach oben verschieben
-	if new_y + panel_height > viewport_size.y - 20:
-		new_y = slot_global_pos.y - panel_height + 10
+	new_x = clampf(new_x, 20.0, viewport_size.x - panel_width - 20.0)
+	new_y = clampf(new_y, 20.0, viewport_size.y - panel_height - 20.0)
 	
 	detail_panel.position = Vector2(new_x, new_y)
 

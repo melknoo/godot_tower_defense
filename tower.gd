@@ -1263,7 +1263,7 @@ func _execute_melee_damage() -> void:
 	if kills > 0 and ItemSystem:
 		var life_steal := int(ItemSystem.get_tower_item_bonus(self, "life_steal"))
 		if life_steal > 0:
-			GameState.lives = mini(GameState.lives + life_steal * kills, 20)
+			GameState.lives = mini(GameState.lives + life_steal * kills, GameState.get_max_lives())
 			if VFX:
 				VFX.spawn_pixels(position, "nature", 4, 15.0)
 

@@ -163,7 +163,8 @@ func generate_wave_composition(wave: int) -> Array[Dictionary]:
 	if wave < MIXED_WAVE_START:
 		# ---- Einzeltyp-Wellen (Welle 1–5) --------------------------------
 		var pool: Array[String] = LIGHT_TYPES if wave == 1 else ALL_TYPES
-		var chosen_type := pool[_rng.randi_range(0, pool.size() - 1)]
+		# Die erste Welle ist reproduzierbar und fordert den einzelnen Startturm.
+		var chosen_type := "normal" if wave == 1 else pool[_rng.randi_range(0, pool.size() - 1)]
 
 		for i in range(total):
 			composition.append(_create_enemy_data(chosen_type, wave))

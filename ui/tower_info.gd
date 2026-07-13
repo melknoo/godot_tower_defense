@@ -33,6 +33,11 @@ var equipment_slots: Array[PanelContainer] = []
 var equip_hint_label: Label
 var _pending_equip_slot: int = -1
 
+const COLOR_TEXT := Color("edf3ff")
+const COLOR_MUTED := Color("9aa8c2")
+const COLOR_ACCENT := Color("f4cf6a")
+const COLOR_DARK_BUTTON_TEXT := Color("181512")
+
 
 func _ready() -> void:
 	visible = false
@@ -66,6 +71,9 @@ func _create_rich_label(font_size: int = 11, min_width: float = 200.0) -> RichTe
 	label.scroll_active = false
 	label.custom_minimum_size = Vector2(min_width, 0)
 	label.add_theme_font_size_override("normal_font_size", font_size)
+	label.add_theme_color_override("default_color", COLOR_TEXT)
+	if UITheme and UITheme.game_font:
+		label.add_theme_font_override("normal_font", UITheme.game_font)
 	return label
 
 
@@ -76,11 +84,13 @@ func _setup_ui() -> void:
 
 	tower_name_label = _create_rich_label(16, 220)
 	tower_name_label.name = "TowerNameLabel"
+	tower_name_label.add_theme_color_override("default_color", COLOR_ACCENT)
 	vbox.add_child(tower_name_label)
 
 	tower_level_label = Label.new()
 	tower_level_label.name = "TowerLevelLabel"
 	tower_level_label.add_theme_font_size_override("font_size", 12)
+	tower_level_label.add_theme_color_override("font_color", COLOR_MUTED)
 	vbox.add_child(tower_level_label)
 
 	element_label = _create_rich_label(11, 200)
@@ -113,7 +123,7 @@ func _setup_ui() -> void:
 	var engrave_label := Label.new()
 	engrave_label.text = "Gravieren:"
 	engrave_label.add_theme_font_size_override("font_size", 10)
-	engrave_label.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	engrave_label.add_theme_color_override("font_color", COLOR_MUTED)
 	engrave_container.add_child(engrave_label)
 
 	var equip_sep := HSeparator.new()
@@ -122,7 +132,7 @@ func _setup_ui() -> void:
 	var equip_header := Label.new()
 	equip_header.text = "Ausrüstung:"
 	equip_header.add_theme_font_size_override("font_size", 11)
-	equip_header.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	equip_header.add_theme_color_override("font_color", COLOR_MUTED)
 	vbox.add_child(equip_header)
 
 	equipment_container = HBoxContainer.new()
@@ -138,33 +148,33 @@ func _setup_ui() -> void:
 	equip_hint_label = Label.new()
 	equip_hint_label.text = "Klicke Slot → Wähle Item aus Inventar"
 	equip_hint_label.add_theme_font_size_override("font_size", 8)
-	equip_hint_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+	equip_hint_label.add_theme_color_override("font_color", COLOR_MUTED.darkened(0.1))
 	equip_hint_label.visible = false
 	vbox.add_child(equip_hint_label)
 
 	pickup_button = Button.new()
 	pickup_button.name = "PickupButton"
 	pickup_button.text = "Aufnehmen"
-	pickup_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	pickup_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	pickup_button.pressed.connect(_on_pickup_pressed)
 	vbox.add_child(pickup_button)
 
 	upgrade_button = Button.new()
 	upgrade_button.name = "UpgradeButton"
-	upgrade_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	upgrade_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	vbox.add_child(upgrade_button)
 
 	sell_button = Button.new()
 	sell_button.name = "SellButton"
-	sell_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	sell_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	sell_button.pressed.connect(_on_sell_pressed)
 	vbox.add_child(sell_button)
 
 	close_button = Button.new()
 	close_button.name = "CloseButton"
 	close_button.text = "Schließen"
-	close_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+	close_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 
@@ -432,6 +442,7 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 
 	var screen_size := get_viewport_rect().size
 	var margin := 10.0
+	var top_safe_margin := 72.0
 	var tile := 64.0
 
 	var tower_y := float(grid_pos.y) * tile + tile * 0.5
@@ -444,7 +455,7 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 		position.x = float(grid_pos.x) * tile - size.x - margin
 
 	position.x = clamp(position.x, margin, screen_size.x - size.x - margin)
-	position.y = clamp(position.y, margin, screen_size.y - size.y - margin)
+	position.y = clamp(position.y, top_safe_margin, screen_size.y - size.y - margin)
 
 	call_deferred("_bring_to_front")
 
@@ -487,10 +498,9 @@ func _update_display() -> void:
 	_update_blocked_info(is_blocked)
 	_update_equipment_display()
 
-	var dark_color := Color(0.094, 0.094, 0.094)
-	tower_name_label.add_theme_color_override("default_color", dark_color)
-	tower_level_label.add_theme_color_override("font_color", dark_color)
-	stats_label.add_theme_color_override("default_color", dark_color)
+	tower_name_label.add_theme_color_override("default_color", COLOR_ACCENT)
+	tower_level_label.add_theme_color_override("font_color", COLOR_MUTED)
+	stats_label.add_theme_color_override("default_color", COLOR_TEXT)
 
 	_update_pickup_button(is_blocked)
 	_update_upgrade_button(tower_type, level)
@@ -564,17 +574,20 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		crit_mult = UpgradeSystem.get_crit_multiplier()
 
 	# Stats-Text zusammenbauen
-	var damage_text := "Schaden: %d" % final_damage
+	var damage_icon := IconSystem.bb("damage", 14) if IconSystem else ""
+	var range_icon := IconSystem.bb("range", 14) if IconSystem else ""
+	var speed_icon := IconSystem.bb("fire_rate", 14) if IconSystem else ""
+	var damage_text := "%s Schaden: [b]%d[/b]" % [damage_icon, final_damage]
 	if damage_bonus > 0:
-		damage_text += " (+%d)" % damage_bonus
+		damage_text += " [color=#75ddff](+%d)[/color]" % damage_bonus
 
-	var range_text := "Reichweite: %d" % int(final_range)
+	var range_text := "%s Reichweite: [b]%d[/b]" % [range_icon, int(final_range)]
 	if range_bonus > 0:
-		range_text += " (+%d)" % range_bonus
+		range_text += " [color=#75ddff](+%d)[/color]" % range_bonus
 
-	var fire_rate_text := "Feuerrate: %.1f/s" % shots_per_sec
+	var fire_rate_text := "%s Angriffe/s: [b]%.1f[/b]" % [speed_icon, shots_per_sec]
 	if fire_rate_bonus > 0.01:
-		fire_rate_text += " (+%.1f)" % fire_rate_bonus
+		fire_rate_text += " [color=#75ddff](+%.1f)[/color]" % fire_rate_bonus
 
 	# NEU: Crit-Text nur wenn Crit-Chance > 0
 	var stats_lines: Array[String] = [damage_text, range_text, fire_rate_text]
@@ -582,13 +595,18 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	if crit_chance > 0.0:
 		var crit_percent := int(crit_chance * 100)
 		var crit_damage_percent := int((crit_mult - 1.0) * 100)
-		var crit_text := "Crit: %d%% (x%.1f)" % [crit_percent, crit_mult]
+		var crit_icon := IconSystem.bb("star_full", 14) if IconSystem else ""
+		var crit_text := "%s Crit: [b]%d%%[/b] (x%.1f)" % [crit_icon, crit_percent, crit_mult]
 		stats_lines.append(crit_text)
 
 	stats_label.text = "\n".join(stats_lines)
 
 	# Tooltip erweitern
-	var tooltip_lines: Array[String] = []
+	var tooltip_lines: Array[String] = [
+		"Schaden: %d" % final_damage,
+		"Reichweite: %d" % int(final_range),
+		"Angriffe pro Sekunde: %.1f" % shots_per_sec
+	]
 	
 	if damage_bonus > 0:
 		tooltip_lines.append("Schaden: %d Basis + %d Upgrade" % [base_damage, damage_bonus])
@@ -622,10 +640,7 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		
 		tooltip_lines.append(crit_tooltip)
 
-	if tooltip_lines.size() > 0:
-		stats_label.tooltip_text = "Detaillierte Stats:\n" + "\n".join(tooltip_lines)
-	else:
-		stats_label.tooltip_text = ""
+	stats_label.tooltip_text = "Aktuelle Tower-Stats:\n" + "\n".join(tooltip_lines)
 
 
 func _has_prop(obj: Object, prop: StringName) -> bool:
@@ -657,11 +672,11 @@ func _update_pickup_button(is_blocked: bool) -> void:
 		if is_blocked:
 			pickup_button.text = "Aufnehmen"
 			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
-			pickup_button.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
+			pickup_button.add_theme_color_override("font_color", Color("8f241d"))
 		else:
 			pickup_button.text = "Aufnehmen"
 			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
-			pickup_button.add_theme_color_override("font_color", Color(0.094, 0.094, 0.094))
+			pickup_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 
 
 func _update_supply_info(level: int) -> void:
@@ -735,7 +750,7 @@ func _update_engrave_buttons() -> void:
 		var btn := Button.new()
 		btn.text = ""
 		btn.icon = IconSystem.get_texture(element) if IconSystem else null
-		btn.custom_minimum_size = Vector2(32, 28)
+		btn.custom_minimum_size = Vector2(40, 36)
 		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		btn.expand_icon = true
 		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [element.capitalize(), cost]
@@ -745,7 +760,7 @@ func _update_engrave_buttons() -> void:
 			btn.modulate.a = 0.5
 
 		btn.pressed.connect(_on_engrave_button_pressed.bind(element))
-		UITheme.style_button(btn)
+		UITheme.style_icon_button(btn)
 		engrave_container.add_child(btn)
 
 
@@ -773,7 +788,7 @@ func _update_aura_buff_buttons() -> void:
 				label.fit_content = true
 				label.scroll_active = false
 				label.add_theme_font_size_override("normal_font_size", 11)
-				label.add_theme_color_override("default_color", Color(0.094, 0.094, 0.094))
+				label.add_theme_color_override("default_color", COLOR_TEXT)
 				engrave_container.add_child(label)
 			
 			var buff_name := _get_aura_buff_name(buff_type)
@@ -833,7 +848,7 @@ func _update_aura_buff_buttons() -> void:
 			btn.tooltip_text += "\n\nNicht während einer Welle"
 		
 		btn.pressed.connect(_on_aura_buff_button_pressed.bind(option["type"]))
-		UITheme.style_button(btn)
+		UITheme.style_icon_button(btn)
 		
 		# ✅ Farbe für Button basierend auf Typ
 		var bg_color := _get_aura_buff_button_color(option["type"])
@@ -968,9 +983,9 @@ func _update_sell_button(level: int) -> void:
 		sell_button.text = "Verkaufen: %dg +%d (%d%%)" % [sell_value, supply_refund, sell_percent]
 
 	if sell_percent == 100:
-		sell_button.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
+		sell_button.add_theme_color_override("font_color", Color("12652d"))
 	else:
-		sell_button.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+		sell_button.add_theme_color_override("font_color", Color("555555"))
 
 
 func _on_engrave_button_pressed(element: String) -> void:

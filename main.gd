@@ -46,10 +46,15 @@ var ability_target_preview: Node2D
 var ability_range_circle: Line2D
 var item_inventory_ui: ItemInventoryUI
 var ability_upgrade_ui: CanvasLayer
+var meta_progression_ui: MetaProgressionUI
+var _auto_wave_generation := 0
 
 
 
 func _ready() -> void:
+	if ProgressionSystem and not ProgressionSystem.run_active:
+		GameState.reset()
+		ProgressionSystem.begin_run()
 	_setup_path_generator()
 	_generate_new_path()
 	_setup_ground()
@@ -60,6 +65,7 @@ func _ready() -> void:
 	_setup_element_unlock_ui()
 	_setup_ability_upgrade_ui()
 	_setup_ability_bar()
+	_setup_meta_progression_ui()
 	_setup_ability_preview()
 	_connect_signals()
 	_setup_hover_preview()
@@ -86,6 +92,13 @@ func _on_ability_upgrade_selected(choice: Dictionary) -> void:
 
 func _on_ability_upgrade_closed() -> void:
 	print("[Main] Ability Upgrade Panel geschlossen")
+	if pending_element_core:
+		pending_element_core = false
+		await get_tree().create_timer(0.3).timeout
+		if element_unlock_ui and GameState.has_element_cores():
+			element_unlock_ui.show_panel()
+			return
+	_maybe_queue_auto_wave()
 
 
 func _setup_item_inventory_ui() -> void:
@@ -247,6 +260,13 @@ func _setup_ability_bar() -> void:
 	print("[Main] AbilityBar erstellt")
 
 
+func _setup_meta_progression_ui() -> void:
+	meta_progression_ui = MetaProgressionUI.new()
+	meta_progression_ui.name = "MetaProgressionUI"
+	add_child(meta_progression_ui)
+	meta_progression_ui.panel_closed.connect(_on_meta_progression_closed)
+
+
 func _setup_ability_preview() -> void:
 	ability_target_preview = Node2D.new()
 	ability_target_preview.visible = false
@@ -267,6 +287,7 @@ func _connect_signals() -> void:
 	hud.open_element_panel_pressed.connect(_on_open_element_panel)
 	hud.open_upgrades_panel_pressed.connect(_on_open_upgrades_panel)
 	hud.open_inventory_pressed.connect(_on_open_inventory)
+	hud.open_research_pressed.connect(_on_open_research)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
 	tower_manager.tower_selected.connect(_on_tower_selected)
@@ -280,6 +301,12 @@ func _connect_signals() -> void:
 	tower_info.pickup_pressed.connect(_on_tower_info_pickup)
 	if element_unlock_ui:
 		element_unlock_ui.element_selected.connect(_on_element_unlocked)
+		element_unlock_ui.panel_closed.connect(_on_interstitial_panel_closed)
+	if wave_upgrade_ui:
+		wave_upgrade_ui.panel_closed.connect(_on_interstitial_panel_closed)
+	if ProgressionSystem:
+		ProgressionSystem.research_changed.connect(_on_meta_research_changed)
+		ProgressionSystem.auto_wave_changed.connect(_on_auto_wave_changed)
 
 func _on_open_inventory() -> void:
 	if item_inventory_ui:
@@ -301,6 +328,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_I:
 		if item_inventory_ui:
 			item_inventory_ui.toggle_panel()
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_M:
+		if meta_progression_ui:
+			meta_progression_ui.toggle_panel()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if element_unlock_ui and element_unlock_ui.visible:
@@ -778,6 +809,7 @@ func _create_fallback_preview(tower_type: String) -> void:
 
 
 func _on_start_wave_pressed() -> void:
+	_auto_wave_generation += 1
 	if tower_manager.has_blocked_towers():
 		Sound.play_error()
 		print("[Main] Kann Welle nicht starten - %d Türme auf Pfad!" % tower_manager.get_blocked_tower_count())
@@ -823,6 +855,7 @@ func _on_wave_completed(wave: int) -> void:
 	# HUD über Wellen-Events informieren
 	if hud:
 		hud.update_wave_events_preview(wave + 1)
+	_maybe_queue_auto_wave()
 
 
 func _on_element_core_earned() -> void:
@@ -844,6 +877,8 @@ func _on_upgrade_chosen(upgrade_id: String) -> void:
 		await get_tree().create_timer(0.3).timeout
 		if element_unlock_ui and GameState.has_element_cores():
 			element_unlock_ui.show_panel()
+			return
+	_maybe_queue_auto_wave()
 
 
 func _refresh_all_tower_stats() -> void:
@@ -857,8 +892,12 @@ func _refresh_all_tower_stats() -> void:
 
 
 func _on_game_over() -> void:
+	_auto_wave_generation += 1
+	var run_summary := {}
+	if ProgressionSystem:
+		run_summary = ProgressionSystem.finish_run(GameState.current_wave)
 	get_tree().paused = true
-	hud.show_game_over()
+	hud.show_game_over(run_summary)
 
 
 func _on_open_element_panel() -> void:
@@ -869,6 +908,65 @@ func _on_open_element_panel() -> void:
 func _on_open_upgrades_panel() -> void:
 	if upgrade_overview_ui:
 		upgrade_overview_ui.show_panel()
+
+
+func _on_open_research() -> void:
+	if meta_progression_ui:
+		meta_progression_ui.show_panel()
+
+
+func _on_meta_progression_closed() -> void:
+	_maybe_queue_auto_wave()
+
+
+func _on_meta_research_changed(_research_id: String, _level: int) -> void:
+	_refresh_all_tower_stats()
+	tower_manager.refresh_farm_supply_bonuses()
+	tower_shop._create_tower_buttons()
+	if hud:
+		hud.update_all()
+
+
+func _on_interstitial_panel_closed() -> void:
+	await get_tree().create_timer(0.3).timeout
+	_maybe_queue_auto_wave()
+
+
+func _on_auto_wave_changed(enabled: bool) -> void:
+	_auto_wave_generation += 1
+	if enabled:
+		_maybe_queue_auto_wave()
+
+
+func _maybe_queue_auto_wave() -> void:
+	if not ProgressionSystem or not ProgressionSystem.auto_wave_enabled:
+		return
+	if GameState.wave_active or GameState.is_game_over() or pending_element_core or get_tree().paused:
+		return
+	if tower_manager.has_blocked_towers():
+		return
+	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui]:
+		if overlay and overlay.visible:
+			return
+
+	_auto_wave_generation += 1
+	var generation := _auto_wave_generation
+	for countdown in [3, 2, 1]:
+		if generation != _auto_wave_generation or not ProgressionSystem.auto_wave_enabled:
+			return
+		if hud:
+			hud.show_auto_wave_countdown(countdown)
+		await get_tree().create_timer(1.0).timeout
+	if generation != _auto_wave_generation or GameState.wave_active or get_tree().paused:
+		return
+	if tower_manager.has_blocked_towers():
+		return
+	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui]:
+		if overlay and overlay.visible:
+			return
+	if GameState.is_game_over():
+		return
+	_on_start_wave_pressed()
 
 
 func _on_element_unlocked(element: String) -> void:

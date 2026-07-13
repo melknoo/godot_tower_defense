@@ -220,6 +220,8 @@ func _apply_instant_effect(id: String, data: Dictionary) -> void:
 func get_damage_multiplier(tower_type: String, element: String) -> float:
 	var mult := 1.0
 	mult += get_upgrade_bonus("global_damage")
+	if ProgressionSystem:
+		mult += ProgressionSystem.get_global_damage_bonus()
 	if element != "":
 		mult += get_element_bonus(element, "damage")
 	mult += get_tower_type_bonus(tower_type, "damage")

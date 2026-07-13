@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+ProgressionSystem="*res://autoload/progression_system.gd"
 GameState="*res://game_state.gd"
 TowerData="*res://data/tower_data.gd"
 UITheme="*res://ui_theme.gd"

@@ -101,6 +101,8 @@ func get_farm_count() -> int:
 	
 
 func can_place_at(grid_pos: Vector2i, tower_type: String) -> bool:
+	if not TowerData.is_tower_available(tower_type):
+		return false
 	if grid_pos.x < 0 or grid_pos.x >= map_width:
 		return false
 	if grid_pos.y < 0 or grid_pos.y >= map_height:
@@ -268,7 +270,7 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	if not can_place_at(grid_pos, tower_type):
 		return null
 	
-	var cost: int = TowerData.get_stat(tower_type, "cost")
+	var cost: int = TowerData.get_tower_cost(tower_type)
 	var tower_data := TowerData.get_legacy_data(tower_type, 0)
 	
 	var tower := tower_scene.instantiate()
@@ -325,7 +327,10 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	
 	if TowerData.is_supply_building(tower_type):
 		var bonus := TowerData.get_supply_bonus(tower_type)
-		GameState.supply_max = max(GameState.STARTING_MAX_SUPPLY, GameState.supply_max - bonus)
+		var minimum_supply := GameState.STARTING_MAX_SUPPLY
+		if ProgressionSystem:
+			minimum_supply += ProgressionSystem.get_starting_supply_bonus()
+		GameState.supply_max = max(minimum_supply, GameState.supply_max - bonus)
 		GameState.supply_changed.emit(GameState.supply_used, GameState.supply_max)
 	
 	tower.queue_free()

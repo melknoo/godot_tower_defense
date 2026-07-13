@@ -13,6 +13,8 @@ var grass_texture: Texture2D
 var path_tile_texture: Texture2D  # Neues: Original ground.png
 var path_cells: Array[Vector2i] = []
 var decoration_manager: DecorationManager
+var path_visuals: Node2D
+var visual_seed := 0
 
 # Größe der kachelbaren Textur
 const TILEABLE_SIZE := Vector2(152, 160)
@@ -109,6 +111,7 @@ func _place_decorations() -> void:
 
 
 func set_decoration_seed(seed_value: int) -> void:
+	visual_seed = seed_value
 	if decoration_manager:
 		decoration_manager.set_seed(seed_value)
 
@@ -117,6 +120,17 @@ func _draw_path_tiles() -> void:
 	# Zeichne Pfad-Tiles wie in der alten Version
 	if not path_tile_texture:
 		return
+	if is_instance_valid(path_visuals):
+		path_visuals.queue_free()
+	path_visuals = Node2D.new()
+	path_visuals.name = "PathVisuals"
+	add_child(path_visuals)
+
+	var path_lookup := {}
+	for path_cell in path_cells:
+		path_lookup[path_cell] = true
+	var rng := RandomNumberGenerator.new()
+	rng.seed = visual_seed + 104729
 	
 	for cell in path_cells:
 		var sprite := Sprite2D.new()
@@ -124,6 +138,52 @@ func _draw_path_tiles() -> void:
 		sprite.centered = true
 		sprite.position = Vector2(cell) * grid_size + Vector2(grid_size / 2, grid_size / 2)
 		sprite.z_index = -80  # Über Ground (-100), unter Decorations (-50)
-		add_child(sprite)
+		var shade := rng.randf_range(0.94, 1.04)
+		sprite.modulate = Color(shade, shade * 0.99, shade * 0.96)
+		path_visuals.add_child(sprite)
+		_add_path_details(cell, rng)
+		_add_exposed_path_edges(cell, path_lookup)
 	
 	print("[GroundLayer] Pfad gezeichnet: %d Tiles" % path_cells.size())
+
+
+func _add_path_details(cell: Vector2i, rng: RandomNumberGenerator) -> void:
+	var origin := Vector2(cell) * grid_size
+	for i in range(rng.randi_range(1, 3)):
+		var point := Polygon2D.new()
+		var radius := rng.randi_range(1, 3)
+		point.polygon = PackedVector2Array([
+			Vector2(-radius, 0), Vector2(0, -radius),
+			Vector2(radius, 0), Vector2(0, radius)
+		])
+		point.position = origin + Vector2(rng.randi_range(9, grid_size - 9), rng.randi_range(9, grid_size - 9))
+		point.color = Color(0.27, 0.16, 0.09, rng.randf_range(0.16, 0.3))
+		point.z_index = -78
+		path_visuals.add_child(point)
+
+
+func _add_exposed_path_edges(cell: Vector2i, path_lookup: Dictionary) -> void:
+	var origin := Vector2(cell) * grid_size
+	var edges := [
+		{"neighbor": cell + Vector2i.UP, "from": origin, "to": origin + Vector2(grid_size, 0), "inset": Vector2(0, 2)},
+		{"neighbor": cell + Vector2i.DOWN, "from": origin + Vector2(0, grid_size), "to": origin + Vector2(grid_size, grid_size), "inset": Vector2(0, -2)},
+		{"neighbor": cell + Vector2i.LEFT, "from": origin, "to": origin + Vector2(0, grid_size), "inset": Vector2(2, 0)},
+		{"neighbor": cell + Vector2i.RIGHT, "from": origin + Vector2(grid_size, 0), "to": origin + Vector2(grid_size, grid_size), "inset": Vector2(-2, 0)}
+	]
+	for edge in edges:
+		if path_lookup.has(edge.neighbor):
+			continue
+		var shadow := Line2D.new()
+		shadow.points = PackedVector2Array([edge.from, edge.to])
+		shadow.width = 4.0
+		shadow.default_color = Color(0.22, 0.12, 0.06, 0.62)
+		shadow.z_index = -77
+		shadow.antialiased = false
+		path_visuals.add_child(shadow)
+		var highlight := Line2D.new()
+		highlight.points = PackedVector2Array([edge.from + edge.inset, edge.to + edge.inset])
+		highlight.width = 1.0
+		highlight.default_color = Color(0.86, 0.65, 0.36, 0.5)
+		highlight.z_index = -76
+		highlight.antialiased = false
+		path_visuals.add_child(highlight)

@@ -563,7 +563,7 @@ func _die() -> void:
 		bonus_gold = UpgradeSystem.get_enemy_gold_bonus()
 	
 	var total_reward := reward + bonus_gold
-	GameState.enemy_died(total_reward)
+	total_reward = GameState.enemy_died(total_reward, enemy_type)
 	Sound.play_coin()
 	
 	# === NEU: Item Drop ===
@@ -574,19 +574,6 @@ func _die() -> void:
 		VFX.spawn_gold_number(position, total_reward)
 
 		# Extra VFX für elementare Gegner
-		if element != "neutral" and element != "":
-			VFX.spawn_pixel_ring(position, element, 30.0)
-
-		if enemy_type == "boss":
-			VFX.screen_shake(12.0, 0.4)
-			VFX.screen_flash(Color(1, 0.8, 0.3), 0.2)
-
-	queue_free()
-
-	if VFX:
-		VFX.spawn_death_effect(position, enemy_type)
-		VFX.spawn_gold_number(position, total_reward)
-
 		if element != "neutral" and element != "":
 			VFX.spawn_pixel_ring(position, element, 30.0)
 

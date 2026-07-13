@@ -12,6 +12,7 @@ var character_select_panel: PanelContainer
 var character_grid: GridContainer
 var selected_character: String = ""
 var character_buttons: Dictionary = {}
+var meta_progression_ui: MetaProgressionUI
 
 # Hintergrund-Textur (optional)
 var bg_texture: Texture2D
@@ -19,6 +20,9 @@ var bg_texture: Texture2D
 
 func _ready() -> void:
 	_create_ui()
+	meta_progression_ui = MetaProgressionUI.new()
+	meta_progression_ui.name = "MetaProgressionUI"
+	add_child(meta_progression_ui)
 	_update_character_grid()
 	_show_main_menu()
 
@@ -33,9 +37,10 @@ func _create_ui() -> void:
 	
 	# Hintergrund - dunkles Pergament-Feeling
 	var bg := ColorRect.new()
-	bg.color = Color(0.1, 0.08, 0.06)
+	bg.color = Color(0.035, 0.045, 0.085)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	_decorate_background(bg)
 	
 	# Optional: Hintergrund-Textur/Vignette
 	var vignette := ColorRect.new()
@@ -65,7 +70,7 @@ func _create_ui() -> void:
 	root_container.add_child(title_section)
 	
 	var title := Label.new()
-	title.text = "TOWER DEFENSE"
+	title.text = "ARCANE BASTION"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if UITheme and UITheme.game_font:
 		title.add_theme_font_override("font", UITheme.game_font)
@@ -77,13 +82,13 @@ func _create_ui() -> void:
 	
 	# Untertitel als Ribbon
 	if UITheme:
-		var subtitle_ribbon := UITheme.create_ribbon_title("Elementare Macht", "yellow", 440, 18)
+		var subtitle_ribbon := UITheme.create_ribbon_title("Aether & Elemente", "blue", 440, 18)
 		subtitle_ribbon.custom_minimum_size.y = 52
 		subtitle_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		title_section.add_child(subtitle_ribbon)
 	else:
 		var subtitle := Label.new()
-		subtitle.text = "Elementare Macht"
+		subtitle.text = "Aether & Elemente"
 		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		subtitle.add_theme_font_size_override("font_size", 20)
 		title_section.add_child(subtitle)
@@ -96,6 +101,7 @@ func _create_ui() -> void:
 	root_container.add_child(main_panel)
 	
 	_create_menu_button(main_panel, "Neues Spiel", "play", _on_new_game_pressed)
+	_create_menu_button(main_panel, "Arkanes Archiv", "star_full", _on_archive_pressed)
 	_create_menu_button(main_panel, "Charaktere", "characters", _on_characters_pressed)
 	_create_menu_button(main_panel, "Optionen", "settings", _on_options_pressed)
 	_create_menu_button(main_panel, "Beenden", "exit", _on_quit_pressed, true)  # Rot
@@ -145,6 +151,35 @@ func _create_ui() -> void:
 	start_btn.custom_minimum_size = Vector2(130, 40)
 	start_btn.name = "StartButton"
 	char_buttons.add_child(start_btn)
+
+
+func _decorate_background(background: Control) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 424242
+	for i in range(34):
+		var mote := ColorRect.new()
+		var size_value := rng.randi_range(1, 3)
+		mote.size = Vector2(size_value, size_value)
+		mote.position = Vector2(rng.randi_range(45, 1875), rng.randi_range(35, 1045))
+		mote.color = Color(0.35, 0.72, 1.0, rng.randf_range(0.06, 0.2))
+		mote.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		background.add_child(mote)
+
+	var elements := ["water", "fire", "earth", "air"]
+	var positions := [Vector2(150, 130), Vector2(1670, 130), Vector2(150, 810), Vector2(1670, 810)]
+	for i in range(elements.size()):
+		var texture := IconSystem.get_texture(elements[i]) if IconSystem else null
+		if not texture:
+			continue
+		var symbol := TextureRect.new()
+		symbol.texture = texture
+		symbol.position = positions[i]
+		symbol.size = Vector2(100, 100)
+		symbol.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		symbol.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		symbol.modulate = Color(0.45, 0.7, 1.0, 0.08)
+		symbol.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		background.add_child(symbol)
 
 
 func _create_menu_button(parent: Node, text: String, icon_name: String, callback: Callable, red: bool = false) -> Button:
@@ -371,6 +406,13 @@ func _on_characters_pressed() -> void:
 	print("[MainMenu] Charaktere-Übersicht (noch nicht implementiert)")
 
 
+func _on_archive_pressed() -> void:
+	if Sound:
+		Sound.play_click()
+	if meta_progression_ui:
+		meta_progression_ui.show_panel()
+
+
 func _on_options_pressed() -> void:
 	if Sound:
 		Sound.play_click()
@@ -413,6 +455,9 @@ func _on_character_start_pressed() -> void:
 
 
 func _start_game() -> void:
+	GameState.reset()
+	if ProgressionSystem:
+		ProgressionSystem.begin_run()
 	var err := get_tree().change_scene_to_file(game_scene_path)
 	if err != OK:
 		push_error("[MainMenu] Fehler beim Laden der Spielszene: %s" % err)

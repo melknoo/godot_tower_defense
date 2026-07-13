@@ -106,7 +106,8 @@ func _load_ribbon_textures() -> void:
 
 func _load_corner_pieces() -> void:
 	var base := "res://assets/ui/corners/"
-	for i in range(1, 7):
+	# Das verwendete Set beginnt bei 02; 01 ist im Asset-Paket nicht enthalten.
+	for i in range(2, 7):
 		var tex := _load_tex(base + "%02d.png" % i)
 		if tex:
 			corner_pieces.append(tex)
@@ -225,7 +226,19 @@ func create_hud_panel_style() -> StyleBoxTexture:
 
 
 func style_panel(panel: PanelContainer, panel_type: String = "carved") -> void:
-	panel.add_theme_stylebox_override("panel", create_panel_style(panel_type))
+	if panel_type == "panel_dark":
+		var dark_style := StyleBoxFlat.new()
+		dark_style.bg_color = Color(0.055, 0.07, 0.12, 0.98)
+		dark_style.border_color = Color(0.2, 0.42, 0.64, 0.9)
+		dark_style.set_border_width_all(2)
+		dark_style.set_corner_radius_all(10)
+		dark_style.set_content_margin_all(10)
+		dark_style.shadow_color = Color(0, 0, 0, 0.45)
+		dark_style.shadow_size = 8
+		dark_style.shadow_offset = Vector2(0, 4)
+		panel.add_theme_stylebox_override("panel", dark_style)
+	else:
+		panel.add_theme_stylebox_override("panel", create_panel_style(panel_type))
 
 
 # =============================================

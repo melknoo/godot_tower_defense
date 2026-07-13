@@ -84,7 +84,7 @@ func _setup_ui() -> void:
 	title_label.text = "Welle abgeschlossen!"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_label.add_theme_font_size_override("font_size", 24)
-	title_label.add_theme_color_override("font_color", Color(0.15, 0.15, 0.15))
+	title_label.add_theme_color_override("font_color", Color("edf3ff"))
 	vbox.add_child(title_label)
 	
 	# Untertitel
@@ -92,7 +92,7 @@ func _setup_ui() -> void:
 	subtitle_label.text = "Wähle ein Upgrade für diesen Run:"
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle_label.add_theme_font_size_override("font_size", 14)
-	subtitle_label.add_theme_color_override("font_color", Color(0.25, 0.25, 0.25))
+	subtitle_label.add_theme_color_override("font_color", Color("9aa8c2"))
 	vbox.add_child(subtitle_label)
 	
 	# Cards Container
@@ -265,8 +265,8 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	
 	# Card Style
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.85, 0.85, 0.88)
-	style.border_color = cat_color.darkened(0.3)
+	style.bg_color = Color("20273b")
+	style.border_color = cat_color.darkened(0.15)
 	style.border_width_left = 2
 	style.border_width_right = 2
 	style.border_width_top = 2
@@ -318,7 +318,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	name_label.text = data.get("name", "???")
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_font_size_override("font_size", 16)
-	name_label.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+	name_label.add_theme_color_override("font_color", Color("f2f5ff"))
 	vbox.add_child(name_label)
 	
 	# Stack-Anzeige
@@ -329,7 +329,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 			stack_label.text += " +%d" % (current_stacks - 5)
 		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		stack_label.add_theme_font_size_override("font_size", 12)
-		stack_label.add_theme_color_override("font_color", Color(0.8, 0.6, 0.1))
+		stack_label.add_theme_color_override("font_color", Color("f4cf6a"))
 		vbox.add_child(stack_label)
 	
 	# Beschreibung
@@ -339,7 +339,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	desc_label.custom_minimum_size.x = CARD_WIDTH - 20
 	desc_label.add_theme_font_size_override("font_size", 12)
-	desc_label.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
+	desc_label.add_theme_color_override("font_color", Color("c1cbe0"))
 	vbox.add_child(desc_label)
 	
 	# Tooltip falls vorhanden
@@ -350,7 +350,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 		tooltip_label.custom_minimum_size.x = CARD_WIDTH - 20
 		tooltip_label.add_theme_font_size_override("font_size", 10)
-		tooltip_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+		tooltip_label.add_theme_color_override("font_color", Color("8f9bb2"))
 		vbox.add_child(tooltip_label)
 	
 	# Kategorie-Badge
@@ -359,7 +359,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	category_label.text = cat_name
 	category_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	category_label.add_theme_font_size_override("font_size", 10)
-	category_label.add_theme_color_override("font_color", Color(0.35, 0.35, 0.35))
+	category_label.add_theme_color_override("font_color", cat_color.lightened(0.18))
 	vbox.add_child(category_label)
 	
 	# Stack-Info
@@ -368,7 +368,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		stack_info.text = "(%d/%d)" % [current_stacks + 1, max_stacks]
 		stack_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		stack_info.add_theme_font_size_override("font_size", 10)
-		stack_info.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+		stack_info.add_theme_color_override("font_color", Color("8491aa"))
 		vbox.add_child(stack_info)
 	
 	# Spacer - drückt Button nach unten
@@ -392,7 +392,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	# Hover-Effekt
 	card.mouse_entered.connect(func():
 		var hover_style := style.duplicate()
-		hover_style.bg_color = Color(0.75, 0.75, 0.78)
+		hover_style.bg_color = Color("2b3550")
 		hover_style.border_color = cat_color
 		card.add_theme_stylebox_override("panel", hover_style)
 	)

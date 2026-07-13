@@ -7,6 +7,7 @@ signal start_wave_pressed
 signal open_element_panel_pressed
 signal open_upgrades_panel_pressed
 signal open_inventory_pressed
+signal open_research_pressed
 
 @export var gold_label: RichTextLabel
 @export var lives_label: RichTextLabel
@@ -72,6 +73,16 @@ var _next_wave_element: String = "neutral"
 var _current_wave_element: String = "neutral"
 var _next_wave_preview: Dictionary = {}   # gecachte Preview für Tooltip
 var _blocked_tower_count: int = 0
+var progression_strip: PanelContainer
+var essence_label: Label
+var account_level_label: Label
+var account_xp_bar: ProgressBar
+var milestone_progress_label: Label
+var research_button: Button
+var auto_wave_button: Button
+var streak_panel: PanelContainer
+var streak_label: Label
+var streak_bar: ProgressBar
 
 
 func _ready() -> void:
@@ -79,6 +90,7 @@ func _ready() -> void:
 	_load_element_textures()
 	_setup_hud_size()
 	_find_or_create_ui_elements()
+	_create_progression_ui()
 	_apply_styles()
 	_connect_signals()
 	_create_wave_tooltip()
@@ -134,7 +146,9 @@ func _setup_hud_size() -> void:
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		bg.z_index = -1
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.2, 0.2, 0.22, 0.95)
+		style.bg_color = Color(0.035, 0.05, 0.09, 0.97)
+		style.border_color = Color(0.15, 0.38, 0.58, 0.8)
+		style.border_width_top = 2
 		bg.add_theme_stylebox_override("panel", style)
 		add_child(bg)
 		move_child(bg, 0)
@@ -186,6 +200,135 @@ func _find_or_create_ui_elements() -> void:
 	inventory_button = _get_or_create_button("InventoryButton",  Vector2(380, zero_row_y - 5),              Vector2(48, 48))
 	start_button     = _get_or_create_button("StartWaveButton",  Vector2(viewport_size.x - 740, first_row_y  - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
+
+
+func _create_progression_ui() -> void:
+	var viewport_size := get_viewport_rect().size
+	progression_strip = PanelContainer.new()
+	progression_strip.name = "ProgressionStrip"
+	# HUD-Origin liegt 105 px über dem unteren Rand; +123 ergibt global y=18.
+	progression_strip.position = Vector2(14, -viewport_size.y + 123)
+	progression_strip.custom_minimum_size = Vector2(690, 44)
+	var strip_style := StyleBoxFlat.new()
+	strip_style.bg_color = Color(0.045, 0.065, 0.12, 0.97)
+	strip_style.border_color = Color(0.18, 0.55, 0.78, 0.8)
+	strip_style.set_border_width_all(2)
+	strip_style.set_corner_radius_all(8)
+	strip_style.shadow_color = Color(0, 0, 0, 0.4)
+	strip_style.shadow_size = 6
+	progression_strip.add_theme_stylebox_override("panel", strip_style)
+	add_child(progression_strip)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	progression_strip.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	margin.add_child(row)
+
+	essence_label = Label.new()
+	essence_label.custom_minimum_size.x = 130
+	essence_label.add_theme_color_override("font_color", Color("75ddff"))
+	essence_label.add_theme_font_size_override("font_size", 13)
+	row.add_child(essence_label)
+
+	account_level_label = Label.new()
+	account_level_label.custom_minimum_size.x = 72
+	account_level_label.add_theme_color_override("font_color", Color("f4cf6a"))
+	account_level_label.add_theme_font_size_override("font_size", 11)
+	row.add_child(account_level_label)
+
+	account_xp_bar = ProgressBar.new()
+	account_xp_bar.custom_minimum_size = Vector2(140, 18)
+	account_xp_bar.show_percentage = false
+	_style_arcane_progress_bar(account_xp_bar, Color("6bbde8"))
+	row.add_child(account_xp_bar)
+
+	milestone_progress_label = Label.new()
+	milestone_progress_label.custom_minimum_size.x = 135
+	milestone_progress_label.add_theme_color_override("font_color", Color(0.68, 0.75, 0.9))
+	milestone_progress_label.add_theme_font_size_override("font_size", 10)
+	row.add_child(milestone_progress_label)
+
+	auto_wave_button = Button.new()
+	auto_wave_button.custom_minimum_size = Vector2(76, 28)
+	auto_wave_button.tooltip_text = "Wellen automatisch starten"
+	auto_wave_button.pressed.connect(_on_auto_wave_pressed)
+	row.add_child(auto_wave_button)
+
+	research_button = Button.new()
+	research_button.text = "ARCHIV"
+	research_button.custom_minimum_size = Vector2(78, 28)
+	research_button.tooltip_text = "Dauerhafte Forschung öffnen (M)"
+	research_button.pressed.connect(_on_research_pressed)
+	row.add_child(research_button)
+	_style_progression_button(auto_wave_button)
+	_style_progression_button(research_button)
+
+	streak_panel = PanelContainer.new()
+	streak_panel.position = Vector2(viewport_size.x * 0.5 - 145, -viewport_size.y + 135)
+	streak_panel.custom_minimum_size = Vector2(290, 58)
+	streak_panel.visible = false
+	var streak_style: StyleBoxFlat = strip_style.duplicate()
+	streak_style.border_color = Color("d481ff")
+	streak_panel.add_theme_stylebox_override("panel", streak_style)
+	add_child(streak_panel)
+	var streak_margin := MarginContainer.new()
+	streak_margin.add_theme_constant_override("margin_left", 12)
+	streak_margin.add_theme_constant_override("margin_right", 12)
+	streak_margin.add_theme_constant_override("margin_top", 7)
+	streak_margin.add_theme_constant_override("margin_bottom", 7)
+	streak_panel.add_child(streak_margin)
+	var streak_box := VBoxContainer.new()
+	streak_box.add_theme_constant_override("separation", 4)
+	streak_margin.add_child(streak_box)
+	streak_label = Label.new()
+	streak_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	streak_label.add_theme_color_override("font_color", Color("f1c2ff"))
+	streak_label.add_theme_font_size_override("font_size", 14)
+	streak_box.add_child(streak_label)
+	streak_bar = ProgressBar.new()
+	streak_bar.custom_minimum_size.y = 10
+	streak_bar.max_value = ProgressionSystem.STREAK_WINDOW if ProgressionSystem else 3.0
+	streak_bar.show_percentage = false
+	_style_arcane_progress_bar(streak_bar, Color("c35cf0"))
+	streak_box.add_child(streak_bar)
+
+	for label in [essence_label, account_level_label, milestone_progress_label, streak_label]:
+		if UITheme and UITheme.game_font:
+			label.add_theme_font_override("font", UITheme.game_font)
+
+
+func _style_arcane_progress_bar(bar: ProgressBar, color: Color) -> void:
+	var background := StyleBoxFlat.new()
+	background.bg_color = Color(0.02, 0.03, 0.06, 0.9)
+	background.set_corner_radius_all(4)
+	var fill: StyleBoxFlat = background.duplicate()
+	fill.bg_color = color
+	fill.shadow_color = Color(color.r, color.g, color.b, 0.35)
+	fill.shadow_size = 3
+	bar.add_theme_stylebox_override("background", background)
+	bar.add_theme_stylebox_override("fill", fill)
+
+
+func _style_progression_button(button: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("1d2b45")
+	normal.border_color = Color("3c668e")
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(5)
+	var hover: StyleBoxFlat = normal.duplicate()
+	hover.bg_color = Color("294568")
+	hover.border_color = Color("70c8ef")
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", normal)
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	button.add_theme_color_override("font_color", Color("d8edff"))
+	button.add_theme_font_size_override("font_size", 9)
 
 
 func _get_or_create_label(node_name: String, default_pos: Vector2) -> Label:
@@ -428,6 +571,111 @@ func _connect_signals() -> void:
 	if ItemSystem:
 		ItemSystem.item_collected.connect(_on_item_collected)
 		ItemSystem.inventory_changed.connect(_on_inventory_changed)
+	if ProgressionSystem:
+		ProgressionSystem.essence_changed.connect(_on_essence_changed)
+		ProgressionSystem.account_progress_changed.connect(_on_account_progress_changed)
+		ProgressionSystem.streak_changed.connect(_on_streak_changed)
+		ProgressionSystem.milestone_reached.connect(_on_milestone_reached)
+		ProgressionSystem.research_changed.connect(_on_research_changed)
+		ProgressionSystem.auto_wave_changed.connect(_on_auto_wave_changed)
+
+
+func _on_essence_changed(total: int, delta: int) -> void:
+	if essence_label:
+		essence_label.text = "✦ %s AETHER" % _format_number(total)
+		if delta > 0:
+			var tween := essence_label.create_tween()
+			tween.tween_property(essence_label, "modulate", Color(1.5, 1.7, 2.0), 0.10)
+			tween.tween_property(essence_label, "modulate", Color.WHITE, 0.20)
+	_update_progression_milestone()
+
+
+func _on_account_progress_changed(level: int, xp: int, required: int) -> void:
+	if account_level_label:
+		account_level_label.text = "STUFE %d" % level
+	if account_xp_bar:
+		account_xp_bar.max_value = maxi(1, required)
+		account_xp_bar.value = xp
+		account_xp_bar.tooltip_text = "Archiv-XP: %d/%d" % [xp, required]
+
+
+func _on_streak_changed(streak: int, multiplier: float, time_left: float) -> void:
+	if not streak_panel:
+		return
+	streak_panel.visible = streak >= 2 and GameState.wave_active
+	if not streak_panel.visible:
+		return
+	streak_label.text = "%d KILL-SERIE   ·   x%.1f GOLD" % [streak, multiplier]
+	streak_bar.value = time_left
+	if streak % 8 == 0 and time_left >= ProgressionSystem.STREAK_WINDOW - 0.1:
+		var tween := streak_panel.create_tween()
+		tween.tween_property(streak_panel, "scale", Vector2(1.08, 1.08), 0.08)
+		tween.tween_property(streak_panel, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_BACK)
+
+
+func _on_milestone_reached(wave: int, reward: int) -> void:
+	_update_progression_milestone()
+	if milestone_progress_label:
+		milestone_progress_label.text = "MEILENSTEIN %d  +%d ✦" % [wave, reward]
+		var tween := milestone_progress_label.create_tween()
+		tween.tween_property(milestone_progress_label, "modulate", Color("8eeeff"), 0.12)
+		tween.tween_interval(1.4)
+		tween.tween_property(milestone_progress_label, "modulate", Color.WHITE, 0.2)
+		tween.tween_callback(_update_progression_milestone)
+
+
+func _on_research_changed(_research_id: String, _level: int) -> void:
+	_update_progression_display()
+
+
+func _on_auto_wave_changed(enabled: bool) -> void:
+	if auto_wave_button:
+		auto_wave_button.text = "AUTO AN" if enabled else "AUTO AUS"
+	if not enabled and start_button and not GameState.wave_active:
+		start_button.text = "Nächste Welle"
+	_update_progression_display()
+
+
+func _on_research_pressed() -> void:
+	open_research_pressed.emit()
+
+
+func _on_auto_wave_pressed() -> void:
+	if not ProgressionSystem or not ProgressionSystem.is_automation_unlocked():
+		Sound.play_error()
+		return
+	Sound.play_click()
+	ProgressionSystem.set_auto_wave_enabled(not ProgressionSystem.auto_wave_enabled)
+
+
+func _update_progression_display() -> void:
+	if not ProgressionSystem:
+		return
+	_on_essence_changed(ProgressionSystem.essence, 0)
+	_on_account_progress_changed(ProgressionSystem.account_level, ProgressionSystem.account_xp, ProgressionSystem.get_xp_required())
+	if auto_wave_button:
+		auto_wave_button.visible = ProgressionSystem.is_automation_unlocked()
+		auto_wave_button.text = "AUTO AN" if ProgressionSystem.auto_wave_enabled else "AUTO AUS"
+	_update_progression_milestone()
+
+
+func _update_progression_milestone() -> void:
+	if not milestone_progress_label or not ProgressionSystem:
+		return
+	var milestone: Dictionary = ProgressionSystem.get_next_milestone()
+	var target_wave := int(milestone.get("wave", 0))
+	if target_wave > 0:
+		milestone_progress_label.text = "ZIEL W%d  ·  +%d ✦" % [target_wave, int(milestone.get("reward", 0))]
+	else:
+		milestone_progress_label.text = "ALLE ZIELE ERREICHT"
+
+
+func _format_number(value: int) -> String:
+	if value >= 1_000_000:
+		return "%.2fM" % (float(value) / 1_000_000.0)
+	if value >= 10_000:
+		return "%.1fK" % (float(value) / 1_000.0)
+	return str(value)
 
 
 func _on_inventory_button_pressed() -> void:
@@ -475,6 +723,7 @@ func update_all() -> void:
 	_update_bonus_preview()
 	_update_wave_preview(1)
 	update_wave_events_preview(1)
+	_update_progression_display()
 
 
 func update_blocked_towers_warning(count: int) -> void:
@@ -525,7 +774,7 @@ func update_wave_events_preview(next_wave: int) -> void:
 	if AbilitySystem.should_show_ability_upgrades(next_wave):
 		events.append("%s Ability Upgrade" % IconSystem.bb("abilities", 22))
 
-	if next_wave == 1 or (next_wave > 0 and next_wave % 5 == 0):
+	if next_wave > 0 and next_wave % 5 == 0:
 		events.append("+1 %s" % IconSystem.bb("core", 22))
 
 	if events.is_empty():
@@ -1117,46 +1366,130 @@ func _hide_wave_tooltip() -> void:
 # GAME OVER
 # ===================================================================
 
-func show_game_over() -> void:
+func show_game_over(summary: Dictionary = {}) -> void:
 	_set_fast_forward(false)
 	_hide_wave_tooltip()
+	if streak_panel: streak_panel.visible = false
 
-	for node in [start_button, cores_button, upgrades_button, fast_forward_button,
-			bonus_preview_label, blocked_warning_label, wave_element_area,
-			current_wave_element_area, wave_preview_label,
-			current_wave_info_label, wave_events_label]:
-		if node:
-			node.visible = false
+	var overlay_layer := CanvasLayer.new()
+	overlay_layer.name = "RunSummaryLayer"
+	overlay_layer.layer = 240
+	overlay_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(overlay_layer)
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.025, 0.035, 0.07, 0.9)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay_layer.add_child(backdrop)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay_layer.add_child(center)
+	var summary_panel := PanelContainer.new()
+	summary_panel.custom_minimum_size = Vector2(650, 480)
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color("161c2d")
+	panel_style.border_color = Color("7654a8")
+	panel_style.set_border_width_all(3)
+	panel_style.set_corner_radius_all(14)
+	panel_style.shadow_color = Color(0, 0, 0, 0.55)
+	panel_style.shadow_size = 12
+	summary_panel.add_theme_stylebox_override("panel", panel_style)
+	center.add_child(summary_panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 34)
+	margin.add_theme_constant_override("margin_right", 34)
+	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_bottom", 28)
+	summary_panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	margin.add_child(box)
 
-	var main := get_node_or_null("/root/Main")
-	var seed_text := ""
-	if main and main.has_method("get_current_seed"):
-		seed_text = "\nSeed: %d" % main.get_current_seed()
+	var title := Label.new()
+	title.text = "DIE BASTION IST GEFALLEN"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 27)
+	title.add_theme_color_override("font_color", Color("f0b7d9"))
+	box.add_child(title)
+	var wave_result := Label.new()
+	wave_result.text = "WELLE %d" % GameState.current_wave
+	wave_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wave_result.add_theme_font_size_override("font_size", 46)
+	wave_result.add_theme_color_override("font_color", Color("f4cf6a"))
+	box.add_child(wave_result)
 
-	var game_over_label := Label.new()
-	game_over_label.text = "GAME OVER\nWelle: %d\nKerne investiert: %d/%d%s" % [
-		GameState.current_wave,
+	var payout_panel := PanelContainer.new()
+	var payout_style := panel_style.duplicate()
+	payout_style.bg_color = Color("0d2433")
+	payout_style.border_color = Color("4ebcdf")
+	payout_style.set_border_width_all(2)
+	payout_panel.add_theme_stylebox_override("panel", payout_style)
+	box.add_child(payout_panel)
+	var payout := Label.new()
+	payout.text = "+%d AETHER   ·   +%d ARCHIV-XP" % [
+		int(summary.get("run_essence", 0)), int(summary.get("run_xp", 0))
+	]
+	payout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	payout.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	payout.custom_minimum_size.y = 62
+	payout.add_theme_font_size_override("font_size", 19)
+	payout.add_theme_color_override("font_color", Color("75ddff"))
+	payout_panel.add_child(payout)
+
+	var detail := Label.new()
+	detail.text = "Gegner besiegt: %d\nHöchste Kill-Serie: %d\nElement-Kerne investiert: %d/%d\nArchiv-Stufe: %d   ·   Aether gesamt: %d" % [
+		int(summary.get("kills", GameState.stats.get("enemies_killed", 0))),
+		int(summary.get("max_streak", 0)),
 		TowerData.get_total_cores_invested(),
 		TowerData.UNLOCKABLE_ELEMENTS.size() * TowerData.MAX_ELEMENT_LEVEL,
-		seed_text
+		int(summary.get("account_level", 1)),
+		int(summary.get("essence_total", 0))
 	]
-	game_over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	game_over_label.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	game_over_label.add_theme_font_size_override("font_size", 36)
-	game_over_label.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
-	game_over_label.position = Vector2(280, 100)
-	game_over_label.name     = "GameOverLabel"
-	add_child(game_over_label)
+	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detail.add_theme_font_size_override("font_size", 14)
+	detail.add_theme_color_override("font_color", Color("b8c5dc"))
+	detail.add_theme_constant_override("line_spacing", 6)
+	box.add_child(detail)
 
+	var hint := Label.new()
+	hint.text = "Investiere Aether im Archiv und starte dauerhaft stärker."
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", Color("8f9bb2"))
+	box.add_child(hint)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	box.add_child(buttons)
+	var archive_btn := Button.new()
+	archive_btn.text = "ARKANES ARCHIV"
+	archive_btn.custom_minimum_size = Vector2(180, 46)
+	archive_btn.pressed.connect(_on_research_pressed)
+	buttons.add_child(archive_btn)
 	var restart_btn := Button.new()
-	restart_btn.text = "Neustart"
-	restart_btn.position = Vector2(350, 240)
-	restart_btn.custom_minimum_size = Vector2(100, 35)
+	restart_btn.text = "NEUER RUN"
+	restart_btn.custom_minimum_size = Vector2(160, 46)
 	restart_btn.pressed.connect(_on_restart_pressed)
-	add_child(restart_btn)
+	buttons.add_child(restart_btn)
+	var menu_btn := Button.new()
+	menu_btn.text = "HAUPTMENÜ"
+	menu_btn.custom_minimum_size = Vector2(150, 46)
+	menu_btn.pressed.connect(_on_main_menu_pressed)
+	buttons.add_child(menu_btn)
+	for button in [archive_btn, restart_btn, menu_btn]:
+		_style_progression_button(button)
+		button.add_theme_font_size_override("font_size", 11)
+	for label in [title, wave_result, payout, detail, hint]:
+		if UITheme and UITheme.game_font:
+			label.add_theme_font_override("font", UITheme.game_font)
 
-	if UITheme: UITheme.style_button(restart_btn)
-	_apply_button_font_color(restart_btn)
+	summary_panel.modulate.a = 0.0
+	summary_panel.scale = Vector2(0.9, 0.9)
+	var tween := summary_panel.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.set_parallel(true)
+	tween.tween_property(summary_panel, "modulate:a", 1.0, 0.22)
+	tween.tween_property(summary_panel, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _on_start_button_pressed() -> void:
@@ -1179,10 +1512,26 @@ func _on_fast_forward_pressed() -> void:
 func _set_fast_forward(enabled: bool) -> void:
 	is_fast_forward = enabled
 	_update_fast_forward_icon()
-	Engine.time_scale = FAST_FORWARD_SPEED if enabled else 1.0
+	var fast_speed := ProgressionSystem.get_max_time_scale() if ProgressionSystem else FAST_FORWARD_SPEED
+	Engine.time_scale = fast_speed if enabled else 1.0
+	if fast_forward_button:
+		fast_forward_button.tooltip_text = "Spieltempo: x%.1f" % fast_speed
+
+
+func show_auto_wave_countdown(seconds: int) -> void:
+	if start_button and not GameState.wave_active:
+		start_button.text = "Auto in %d ..." % seconds
 
 
 func _on_restart_pressed() -> void:
 	GameState.reset()
+	if ProgressionSystem:
+		ProgressionSystem.begin_run()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+
+func _on_main_menu_pressed() -> void:
+	Engine.time_scale = 1.0
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://main_menu.tscn")

@@ -116,7 +116,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		no_upgrades_label.add_theme_font_override("font", UITheme.game_font)
 	no_upgrades_label.add_theme_font_size_override("font_size", 12)
-	no_upgrades_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	no_upgrades_label.add_theme_color_override("font_color", Color("9aa8c2"))
 	no_upgrades_label.visible = false
 	upgrades_container.add_child(no_upgrades_label)
 	

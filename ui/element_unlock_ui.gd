@@ -84,7 +84,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		title_label.add_theme_font_override("font", UITheme.game_font)
 	title_label.add_theme_font_size_override("font_size", 18)
-	title_label.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+	title_label.add_theme_color_override("font_color", Color("edf3ff"))
 	vbox.add_child(title_label)
 	
 	# Kerne-Anzeige
@@ -106,7 +106,7 @@ func _setup_ui() -> void:
 	if UITheme and UITheme.game_font:
 		info_label.add_theme_font_override("font", UITheme.game_font)
 	info_label.add_theme_font_size_override("font_size", 11)
-	info_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+	info_label.add_theme_color_override("font_color", Color("9aa8c2"))
 	vbox.add_child(info_label)
 	
 	# CenterContainer für die Buttons
@@ -193,9 +193,9 @@ func _update_cores_display() -> void:
 	cores_label.text = "Verfügbar: %d | Investiert: %d/%d" % [cores, invested, max_possible]
 	
 	if cores > 0:
-		cores_label.add_theme_color_override("font_color", Color(0.2, 0.6, 0.2))
+		cores_label.add_theme_color_override("font_color", Color("75ddff"))
 	else:
-		cores_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+		cores_label.add_theme_color_override("font_color", Color("77839a"))
 
 
 func _create_element_buttons() -> void:
@@ -210,7 +210,7 @@ func _create_element_buttons() -> void:
 		all_done.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if UITheme and UITheme.game_font:
 			all_done.add_theme_font_override("font", UITheme.game_font)
-		all_done.add_theme_color_override("font_color", Color(0.2, 0.6, 0.2))
+		all_done.add_theme_color_override("font_color", Color("78d58b"))
 		elements_container.add_child(all_done)
 		return
 	
@@ -261,7 +261,7 @@ func _create_element_button(element: String) -> Button:
 	if UITheme and UITheme.game_font:
 		name_label.add_theme_font_override("font", UITheme.game_font)
 	name_label.add_theme_font_size_override("font_size", 11)
-	name_label.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+	name_label.add_theme_color_override("font_color", Color("201b17"))
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(name_label)
 	
@@ -277,7 +277,7 @@ func _create_element_button(element: String) -> Button:
 	if UITheme and UITheme.game_font:
 		level_label.add_theme_font_override("font", UITheme.game_font)
 	level_label.add_theme_font_size_override("font_size", 9)
-	level_label.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+	level_label.add_theme_color_override("font_color", Color("3d4654"))
 	level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(level_label)
 	
@@ -321,11 +321,11 @@ func _create_element_button(element: String) -> Button:
 		cost_label.add_theme_color_override("font_color", Color(0.5, 0.3, 0.3))
 	elif current_level > 0:
 		# Leichter Element-Tint für bereits investierte
-		btn.modulate = element_color.lerp(Color.WHITE, 0.7)
-		cost_label.add_theme_color_override("font_color", Color(0.2, 0.5, 0.2))
+		btn.modulate = element_color.lerp(Color.WHITE, 0.84)
+		cost_label.add_theme_color_override("font_color", Color("235b2e"))
 	else:
 		btn.modulate = Color.WHITE
-		cost_label.add_theme_color_override("font_color", Color(0.2, 0.5, 0.2))
+		cost_label.add_theme_color_override("font_color", Color("235b2e"))
 	
 	return btn
 

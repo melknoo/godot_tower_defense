@@ -16,14 +16,14 @@ const BASE_INTEREST_RATE := 0.10
 const BASE_MAX_INTEREST := 50
 const BASE_FLAT_BONUS := 25
 
-const STARTING_MAX_SUPPLY := 5
+const STARTING_MAX_SUPPLY := 3
 
-var gold := 100:
+var gold := 60:
 	set(value):
 		gold = max(0, value)
 		gold_changed.emit(gold)
 
-var lives := 20:
+var lives := 10:
 	set(value):
 		var old_lives = lives
 		lives = max(0, value)
@@ -55,12 +55,12 @@ var stats := {
 	"elements_unlocked": 0
 }
 
-const DEFAULT_GOLD := 100
-const DEFAULT_LIVES := 20
+const DEFAULT_GOLD := 60
+const DEFAULT_LIVES := 10
 
 
 func _get_core_reward_waves() -> Array[int]:
-	var waves: Array[int] = [1]
+	var waves: Array[int] = []
 	for i in range(5, 101, 5):
 		waves.append(i)
 	return waves
@@ -76,6 +76,8 @@ func get_interest_rate() -> float:
 	var rate := BASE_INTEREST_RATE
 	if UpgradeSystem:
 		rate += UpgradeSystem.get_interest_rate_bonus()
+	if ProgressionSystem:
+		rate += ProgressionSystem.get_interest_rate_bonus()
 	return rate
 
 
@@ -83,6 +85,8 @@ func get_max_interest() -> int:
 	var max_int := BASE_MAX_INTEREST
 	if UpgradeSystem:
 		max_int += UpgradeSystem.get_max_interest_bonus()
+	if ProgressionSystem:
+		max_int += ProgressionSystem.get_max_interest_bonus()
 	return max_int
 
 
@@ -90,6 +94,8 @@ func get_flat_bonus(wave: int) -> int:
 	var base := BASE_FLAT_BONUS + wave * 5
 	if UpgradeSystem:
 		base += UpgradeSystem.get_flat_bonus_addition()
+	if ProgressionSystem:
+		base += ProgressionSystem.get_flat_wave_bonus()
 	return base
 
 
@@ -167,12 +173,17 @@ func calculate_enemies_for_wave(wave: int) -> int:
 	return 5 + wave * 2
 
 
-func enemy_died(reward: int) -> void:
-	gold += reward
+func enemy_died(reward: int, enemy_type: String = "normal") -> int:
+	var awarded_gold := reward
+	if ProgressionSystem:
+		var progress: Dictionary = ProgressionSystem.register_kill(enemy_type, reward)
+		awarded_gold += int(progress.get("gold_bonus", 0))
+	gold += awarded_gold
 	enemies_remaining -= 1
 	stats["enemies_killed"] += 1
-	stats["gold_earned"] += reward
+	stats["gold_earned"] += awarded_gold
 	_check_wave_end()
+	return awarded_gold
 
 
 func enemy_reached_end() -> void:
@@ -191,11 +202,16 @@ func _check_wave_end() -> void:
 		
 		gold += total_bonus
 		stats["gold_earned"] += total_bonus
+		if ProgressionSystem:
+			ProgressionSystem.register_wave_completed(current_wave)
 		
 		if current_wave in _get_core_reward_waves():
-			element_cores += 1
+			var core_reward := 1
+			if current_wave % 5 == 0 and ProgressionSystem:
+				core_reward += ProgressionSystem.get_boss_core_bonus()
+			element_cores += core_reward
 			element_core_earned.emit()
-			print("[GameState] Element-Kern erhalten! Gesamt: %d" % element_cores)
+			print("[GameState] %d Element-Kern(e) erhalten! Gesamt: %d" % [core_reward, element_cores])
 		
 		wave_completed.emit(current_wave)
 		print("[GameState] Wave %d abgeschlossen - Bonus: %d (Flat: %d, Zinsen: %d)" % [
@@ -254,6 +270,13 @@ func get_supply_info() -> Dictionary:
 	}
 
 
+func get_max_lives() -> int:
+	var result := DEFAULT_LIVES
+	if ProgressionSystem:
+		result += ProgressionSystem.get_starting_lives_bonus()
+	return result
+
+
 func tower_placed(cost: int) -> void:
 	gold -= cost
 	stats["towers_placed"] += 1
@@ -277,14 +300,14 @@ func is_game_over() -> bool:
 
 
 func reset() -> void:
-	gold = DEFAULT_GOLD
-	lives = DEFAULT_LIVES
+	gold = DEFAULT_GOLD + (ProgressionSystem.get_starting_gold_bonus() if ProgressionSystem else 0)
+	lives = get_max_lives()
 	element_cores = 0
 	current_wave = 0
 	wave_active = false
 	enemies_remaining = 0
 	supply_used = 0
-	supply_max = STARTING_MAX_SUPPLY
+	supply_max = STARTING_MAX_SUPPLY + (ProgressionSystem.get_starting_supply_bonus() if ProgressionSystem else 0)
 	stats = {
 		"towers_placed": 0,
 		"towers_sold": 0,

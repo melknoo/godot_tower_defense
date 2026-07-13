@@ -527,7 +527,7 @@ func _on_gold_changed(_amount: int) -> void:
 
 
 func _update_button_affordability(btn: Button, container: Control, type: String) -> void:
-	var cost: int = TowerData.get_stat(type, "cost")
+	var cost: int = TowerData.get_tower_cost(type)
 	var can_afford := GameState.can_afford(cost)
 	
 	container.modulate.a = 1.0 if can_afford else 0.5

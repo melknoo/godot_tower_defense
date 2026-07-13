@@ -389,11 +389,13 @@ func can_upgrade(tower_type: String, current_tower_level: int) -> bool:
 
 
 func is_tower_available(tower_type: String) -> bool:
-	# Farm ist immer verfügbar
-	if tower_type in SUPPLY_BUILDINGS:
+	# Der erste Run beginnt bewusst nur mit Schwert und Farm.
+	if tower_type in ["sword", "farm"]:
 		return true
 	if tower_type in ENGRAVABLE_TOWERS:
-		return true
+		return ProgressionSystem.is_tower_unlocked(tower_type) if ProgressionSystem else false
+	if tower_type == "aura":
+		return ProgressionSystem.is_tower_unlocked(tower_type) if ProgressionSystem else false
 	if towers.has(tower_type):
 		return is_element_unlocked(tower_type)
 	if combinations.has(tower_type):
@@ -406,7 +408,10 @@ func is_tower_available(tower_type: String) -> bool:
 
 
 func get_available_tower_types() -> Array[String]:
-	var available: Array[String] = ["archer", "sword", "wizard", "cannon", "trapper", "aura", "farm"]
+	var available: Array[String] = []
+	for tower_type in ["sword", "farm", "archer", "wizard", "trapper", "cannon", "aura"]:
+		if is_tower_available(tower_type):
+			available.append(tower_type)
 	for element in UNLOCKABLE_ELEMENTS:
 		if is_element_unlocked(element):
 			available.append(element)
