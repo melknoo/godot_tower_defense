@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://main_menu.tscn" id="1_menu"]
+[ext_resource type="Script" path="res://tests/character_roster_capture.gd" id="2_capture"]
+
+[node name="MainMenu" instance=ExtResource("1_menu")]
+
+[node name="UICaptureController" type="Node" parent="."]
+script = ExtResource("2_capture")

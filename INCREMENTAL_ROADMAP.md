@@ -98,15 +98,18 @@ Tower-HP noch ein allgemeines Buff-System voraus.
 
 ### Technische Reihenfolge fuer das Charakter-MVP
 
-1. Charakterdaten um Passive, Unlock-Bedingung, Aetherkosten und
+Stand 2026-07-16: Schritte 1-4 sind umgesetzt (siehe `PROGRESS.md`), alle vier
+geplanten Charaktere sind als Daten vorhanden. Offen ist Schritt 5.
+
+1. [x] Charakterdaten um Passive, Unlock-Bedingung, Aetherkosten und
    Freischaltungsstatus erweitern.
-2. Charakter-Freischaltungen in den persistenten Progressions-Save aufnehmen
-   und eine Migration fuer bestehende Saves vorsehen.
-3. Den leeren Menuepunkt `Charaktere` als Uebersicht mit Fortschritt und
+2. [x] Charakter-Freischaltungen in den persistenten Progressions-Save
+   aufnehmen und eine Migration fuer bestehende Saves vorsehen.
+3. [x] Den leeren Menuepunkt `Charaktere` als Uebersicht mit Fortschritt und
    Rekrutierungsaktion umsetzen.
-4. Passive Effekte zentral anwenden und die Ability-Auswahl leicht nach der
+4. [x] Passive Effekte zentral anwenden und die Ability-Auswahl leicht nach der
    Affinitaet des gewaehlten Charakters gewichten.
-5. Kosten, Passivwerte und Unlock-Ziele in mehreren Runs testen und danach
+5. [ ] Kosten, Passivwerte und Unlock-Ziele in mehreren Runs testen und danach
    festschreiben.
 
 ## Economy-Leitplanken

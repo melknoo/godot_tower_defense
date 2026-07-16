@@ -332,10 +332,11 @@ func _on_recruit_pressed(char_id: String, card: Control) -> void:
 func _resolve_portrait(data: Dictionary) -> Texture2D:
 	if not IconSystem:
 		return null
-	var texture: Texture2D = IconSystem.get_texture(String(data.get("icon_name", "")))
-	if texture == null:
-		texture = IconSystem.get_texture(String(data.get("element", "")))
-	return texture
+	# Charakter-Portraits existieren noch nicht als Assets — leise aufs Element ausweichen
+	var icon_name := String(data.get("icon_name", ""))
+	if IconSystem.icons.has(icon_name) or IconSystem.elemental_icons.has(icon_name):
+		return IconSystem.get_texture(icon_name)
+	return IconSystem.get_texture(String(data.get("element", "")))
 
 
 func _on_essence_changed(_total: int, _delta: int) -> void:

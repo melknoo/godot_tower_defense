@@ -856,8 +856,14 @@ func _on_essence_changed(total: int, delta: int) -> void:
 			var tween := essence_label.create_tween()
 			tween.tween_property(essence_label, "modulate", Color(1.5, 1.7, 2.0), 0.10)
 			tween.tween_property(essence_label, "modulate", Color.WHITE, 0.20)
+			if VFX:
+				var pos: Vector2 = essence_label.get_global_rect().get_center()
+				VFX.spawn_pixel_burst(pos, "water", 6, _vfx_layer())
+				VFX.spawn_status_text(pos, "+%d ✦" % delta, Color("75ddff"), _vfx_layer())
 	_update_progression_milestone()
 
+
+var _last_account_level := 0
 
 func _on_account_progress_changed(level: int, xp: int, required: int) -> void:
 	if account_level_label:
@@ -866,6 +872,17 @@ func _on_account_progress_changed(level: int, xp: int, required: int) -> void:
 		account_xp_bar.max_value = maxi(1, required)
 		account_xp_bar.value = xp
 		account_xp_bar.tooltip_text = "Archiv-XP: %d/%d" % [xp, required]
+	if level > _last_account_level and _last_account_level > 0 and VFX:
+		var pos: Vector2 = account_level_label.get_global_rect().get_center() if account_level_label else get_viewport().get_visible_rect().size * 0.5
+		VFX.spawn_pixel_ring(pos, "gold", 50.0, _vfx_layer())
+		VFX.screen_flash(Color(1.0, 0.85, 0.4, 0.4), 0.12)
+		VFX.spawn_status_text(pos, "STUFE %d ERREICHT" % level, Color("f4cf6a"), _vfx_layer())
+	_last_account_level = level
+
+
+# HUD-Effekte müssen im UI-CanvasLayer landen, sonst verschwinden sie hinter den Panels
+func _vfx_layer() -> Node:
+	return get_parent() if get_parent() is CanvasLayer else null
 
 
 func _on_streak_changed(streak: int, multiplier: float, time_left: float) -> void:
@@ -880,10 +897,14 @@ func _on_streak_changed(streak: int, multiplier: float, time_left: float) -> voi
 		var tween := streak_panel.create_tween()
 		tween.tween_property(streak_panel, "scale", Vector2(1.08, 1.08), 0.08)
 		tween.tween_property(streak_panel, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_BACK)
+		if VFX:
+			VFX.spawn_pixel_burst(streak_panel.get_global_rect().get_center(), "crit", 8, _vfx_layer())
 
 
 func _on_milestone_reached(wave: int, reward: int) -> void:
 	_update_progression_milestone()
+	if milestone_progress_label and VFX:
+		VFX.spawn_pixel_burst(milestone_progress_label.get_global_rect().get_center(), "gold", 12, _vfx_layer())
 	if milestone_progress_label:
 		milestone_progress_label.text = "MEILENSTEIN %d  +%d ✦" % [wave, reward]
 		var tween := milestone_progress_label.create_tween()
@@ -1072,9 +1093,21 @@ func _on_gold_changed(amount: int) -> void:
 	_update_bonus_preview()
 
 
+var _last_lives := -1
+
 func _on_lives_changed(amount: int) -> void:
 	if not lives_label:
 		return
+	if _last_lives >= 0 and amount < _last_lives and VFX:
+		var pos: Vector2 = lives_label.get_global_rect().get_center()
+		VFX.spawn_pixels(pos, "damage", 6, 20.0, _vfx_layer())
+		var shake_tween := lives_label.create_tween()
+		var base_pos: Vector2 = lives_label.position
+		for i in range(3):
+			shake_tween.tween_property(lives_label, "position", base_pos + Vector2(3 - i, 0), 0.03)
+			shake_tween.tween_property(lives_label, "position", base_pos - Vector2(3 - i, 0), 0.03)
+		shake_tween.tween_property(lives_label, "position", base_pos, 0.03)
+	_last_lives = amount
 	lives_label.text = "%s %d" % [IconSystem.bb("life", 22), amount]
 	if amount <= 5:
 		lives_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))

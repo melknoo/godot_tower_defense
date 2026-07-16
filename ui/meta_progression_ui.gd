@@ -357,11 +357,16 @@ func _on_purchase_pressed(research_id: String, card: Control) -> void:
 		if Sound: Sound.play_error()
 		return
 	if Sound: Sound.play_upgrade()
-	if VFX: VFX.screen_flash(COLOR_AETHER, 0.08)
+	var accent: Color = ProgressionSystem.get_research_data(research_id).get("color", COLOR_AETHER)
+	if VFX: VFX.screen_flash(Color(accent.r, accent.g, accent.b, 0.2), 0.12)
+	card.pivot_offset = card.size * 0.5
 	var tween := card.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.set_parallel(true)
 	tween.tween_property(card, "modulate", Color(1.35, 1.35, 1.55), 0.10)
-	tween.tween_property(card, "modulate", Color.WHITE, 0.18)
-	_refresh()
+	tween.tween_property(card, "scale", Vector2(1.05, 1.05), 0.10).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.chain().tween_property(card, "modulate", Color.WHITE, 0.18)
+	tween.parallel().tween_property(card, "scale", Vector2.ONE, 0.15)
+	tween.chain().tween_callback(_refresh)
 
 
 func _on_essence_changed(_total: int, _delta: int) -> void:

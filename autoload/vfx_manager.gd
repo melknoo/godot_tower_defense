@@ -136,8 +136,9 @@ func spawn_melee_hit_sparks(pos: Vector2, hit_count: int, element: String) -> vo
 
 # === PIXEL PARTICLES ===
 
-func spawn_pixels(pos: Vector2, element: String, count: int = 8, spread: float = 30.0) -> void:
-	var parent := _get_vfx_parent()
+func spawn_pixels(pos: Vector2, element: String, count: int = 8, spread: float = 30.0, parent_override: Node = null) -> void:
+	# parent_override erlaubt Screen-Space-Effekte (z.B. im HUD-CanvasLayer statt im Welt-VFXLayer)
+	var parent := parent_override if parent_override else _get_vfx_parent()
 	if not parent:
 		return
 	var colors: Array = PALETTES.get(element, PALETTES["damage"])
@@ -155,8 +156,8 @@ func spawn_pixels(pos: Vector2, element: String, count: int = 8, spread: float =
 		tween.chain().tween_callback(pixel.queue_free)
 
 
-func spawn_pixel_burst(pos: Vector2, element: String, count: int = 12) -> void:
-	var parent := _get_vfx_parent()
+func spawn_pixel_burst(pos: Vector2, element: String, count: int = 12, parent_override: Node = null) -> void:
+	var parent := parent_override if parent_override else _get_vfx_parent()
 	if not parent:
 		return
 	var colors: Array = PALETTES.get(element, PALETTES["damage"])
@@ -170,8 +171,8 @@ func spawn_pixel_burst(pos: Vector2, element: String, count: int = 12) -> void:
 		_animate_pixel_physics(pixel, angle, speed, gravity)
 
 
-func spawn_pixel_ring(pos: Vector2, element: String, radius: float = 40.0) -> void:
-	var parent := _get_vfx_parent()
+func spawn_pixel_ring(pos: Vector2, element: String, radius: float = 40.0, parent_override: Node = null) -> void:
+	var parent := parent_override if parent_override else _get_vfx_parent()
 	if not parent:
 		return
 	var colors: Array = PALETTES.get(element, PALETTES["damage"])
@@ -514,7 +515,7 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 		scale_tween.tween_property(label, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_ELASTIC)
 
 
-func spawn_gold_number(pos: Vector2, amount: int) -> void:
+func spawn_gold_number(pos: Vector2, amount: int, is_spend: bool = false) -> void:
 	var parent := _get_vfx_parent()
 	if not parent:
 		return
@@ -525,14 +526,14 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 	label.scroll_active = false
 	label.custom_minimum_size = Vector2(60, 20)
 	#var label := Label.new()
-	label.text = "+%d%s"  % [amount, IconSystem.bb("coin", 16)]
+	label.text = "%s%d%s"  % ["-" if is_spend else "+", amount, IconSystem.bb("coin", 16)]
 	label.position = pos + Vector2(-15, -30)
 	label.z_index = 100
 	if UITheme and UITheme.game_font:
 		label.add_theme_font_override("font", UITheme.game_font)
 	label.add_theme_font_size_override("font_size", 16)
-	label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.1))
-	label.add_theme_color_override("font_outline_color", Color(0.4, 0.25, 0.0))
+	label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.4) if is_spend else Color(1.0, 0.85, 0.1))
+	label.add_theme_color_override("font_outline_color", Color(0.3, 0.1, 0.05) if is_spend else Color(0.4, 0.25, 0.0))
 	label.add_theme_constant_override("outline_size", 3)
 	parent.add_child(label)
 	var start_y := label.position.y
@@ -548,8 +549,8 @@ func spawn_gold_number(pos: Vector2, amount: int) -> void:
 	scale_tween.tween_property(label, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_ELASTIC)
 
 
-func spawn_status_text(pos: Vector2, text: String, color: Color) -> void:
-	var parent := _get_vfx_parent()
+func spawn_status_text(pos: Vector2, text: String, color: Color, parent_override: Node = null) -> void:
+	var parent := parent_override if parent_override else _get_vfx_parent()
 	if not parent:
 		return
 	var label := Label.new()
@@ -624,16 +625,23 @@ func screen_shake(intensity: float = 5.0, duration: float = 0.2) -> void:
 
 
 func screen_flash(color: Color = Color.WHITE, duration: float = 0.1) -> void:
-	var canvas := _get_canvas_layer()
-	if not canvas:
-		return
+	var parent: Node = _get_canvas_layer()
+	if not parent:
+		# Fallback (z.B. Hauptmenü ohne "UI"-Layer): direkt in die Szene zeichnen
+		var scene := get_tree().current_scene
+		if scene is CanvasItem:
+			parent = scene
+		else:
+			return
 	var flash := ColorRect.new()
 	flash.color = color
-	flash.color.a = 0.3
+	flash.color.a = color.a if color.a < 1.0 else 0.3
 	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(flash)
-	var tween := flash.create_tween()
+	flash.z_index = 200
+	parent.add_child(flash)
+	# PROCESS-Modus, damit der Flash auch bei pausiertem Baum (Menü-Panels) ausblendet
+	var tween := flash.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(flash, "color:a", 0.0, duration)
 	tween.tween_callback(flash.queue_free)
 

@@ -14,7 +14,8 @@ func _run() -> void:
 	var game_state := root.get_node_or_null("GameState")
 	var tower_data := root.get_node_or_null("TowerData")
 	var upgrade_system := root.get_node_or_null("UpgradeSystem")
-	if not progression or not game_state or not tower_data or not upgrade_system:
+	var ability_system := root.get_node_or_null("AbilitySystem")
+	if not progression or not game_state or not tower_data or not upgrade_system or not ability_system:
 		push_error("Progression smoke test: Autoloads fehlen")
 		quit(1)
 		return
@@ -24,12 +25,15 @@ func _run() -> void:
 		"account_level": progression.account_level,
 		"account_xp": progression.account_xp,
 		"total_kills": progression.total_kills,
+		"best_wave": progression.best_wave,
 		"highest_streak": progression.highest_streak,
 		"research_levels": progression.research_levels.duplicate(true),
+		"recruited_characters": progression.recruited_characters.duplicate(true),
 		"run_active": progression.run_active,
 		"run_finalized": progression.run_finalized,
 		"run_tower_unlocks": progression.run_tower_unlocks.duplicate(true),
 		"active_upgrades": upgrade_system.active_upgrades.duplicate(true),
+		"selected_character": ability_system.selected_character,
 	}
 
 	for research_id in progression.RESEARCH:
@@ -100,18 +104,64 @@ func _run() -> void:
 		_assert_equal(tower_definition.get("range", []).size(), tower_data.MAX_LEVEL + 1, "%s Reichweitenstufen" % tower_type)
 		_assert_equal(tower_definition.get("upgrade_costs", []).size(), tower_data.MAX_LEVEL, "%s Upgradekosten" % tower_type)
 
+	# === Charakter-Rekrutierung & Passiven ===
+	# Migration v1 -> v2: leeres recruited_characters => Basis-4 frei, Rekrutierbare gesperrt
+	progression.recruited_characters = {}
+	_assert_equal(ability_system.is_character_unlocked("pyromancer"), true, "Basis-Charakter frei")
+	_assert_equal(ability_system.is_character_unlocked("ashweaver"), false, "Aschenweberin anfangs gesperrt")
+
+	# Rekrutierungs-Flow Aschenweberin (500 Kills, kostenlos)
+	progression.total_kills = 499
+	_assert_equal(progression.can_recruit_character("ashweaver"), false, "499 Kills reichen nicht")
+	progression.total_kills = 500
+	_assert_equal(progression.can_recruit_character("ashweaver"), true, "500 Kills schalten frei")
+	var essence_before: int = progression.essence
+	_assert_equal(progression.recruit_character("ashweaver"), true, "Kostenlose Rekrutierung")
+	_assert_equal(progression.essence, essence_before, "Kosten 0 lassen Aether unveraendert")
+	_assert_equal(ability_system.is_character_unlocked("ashweaver"), true, "Aschenweberin rekrutiert")
+	_assert_equal(progression.recruit_character("ashweaver"), false, "Doppel-Rekrutierung schlaegt fehl")
+
+	# Kostenpflichtige Rekrutierung Gezeitenhueter (Beste Welle 10, 90 Aether)
+	progression.best_wave = 10
+	progression.essence = 89
+	_assert_equal(progression.can_recruit_character("tidewarden"), false, "Zu wenig Aether")
+	progression.essence = 90
+	_assert_equal(progression.recruit_character("tidewarden"), true, "Rekrutierung mit Aether")
+	_assert_equal(progression.essence, 0, "Aetherkosten abgezogen")
+
+	# Passiven ueber den zentralen Modifier-Lookup
+	ability_system.selected_character = "stormhunter"
+	_assert_close(ability_system.get_effective_stat("chain_lightning", "chain_count"), 9.0, "Sturmjaeger +1 Kettensprung")
+	_assert_close(ability_system.get_effective_stat("chain_lightning", "chain_range"), 172.5, "Sturmjaeger Sprungreichweite x1.15")
+	ability_system.selected_character = "ashweaver"
+	_assert_close(ability_system.get_passive_modifier("burn_duration_mult", 1.0), 1.2, "Aschenweberin Brenndauer x1.2")
+	ability_system.selected_character = "tidewarden"
+	_assert_close(ability_system.get_passive_modifier("slowed_tower_damage_mult", 1.0), 1.08, "Gezeitenhueter Slow-Bonus")
+	for research_id in progression.RESEARCH:
+		progression.research_levels[research_id] = 0
+	ability_system.selected_character = "runewarden"
+	_assert_equal(game_state.get_max_lives(), 12, "Runenwaechter +2 Startleben")
+	ability_system.selected_character = "pyromancer"
+	_assert_equal(game_state.get_max_lives(), 10, "Basis-Charakter ohne Lebensbonus")
+	_assert_close(ability_system.get_passive_modifier("burn_duration_mult", 1.0), 1.0, "Kein Passiv-Bonus ohne Passive")
+
 	progression.essence = snapshot.essence
 	progression.account_level = snapshot.account_level
 	progression.account_xp = snapshot.account_xp
 	progression.total_kills = snapshot.total_kills
+	progression.best_wave = snapshot.best_wave
 	progression.highest_streak = snapshot.highest_streak
 	progression.research_levels = snapshot.research_levels
+	progression.recruited_characters = snapshot.recruited_characters
 	progression.run_active = snapshot.run_active
 	progression.run_finalized = snapshot.run_finalized
 	progression.run_tower_unlocks = snapshot.run_tower_unlocks
 	upgrade_system.active_upgrades = snapshot.active_upgrades
+	ability_system.selected_character = snapshot.selected_character
 	progression.current_streak = 0
 	progression.streak_time_left = 0.0
+	# recruit_character() hat waehrend des Tests gespeichert — echten Stand zurueckschreiben
+	progression.save_progress()
 	progression._save_dirty = false
 	if failed:
 		push_error("[TEST] Progression smoke test fehlgeschlagen")

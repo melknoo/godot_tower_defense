@@ -1,6 +1,6 @@
 # Projektfortschritt
 
-Letzte Aktualisierung: 2026-07-13
+Letzte Aktualisierung: 2026-07-16
 
 Diese Datei beschreibt den veraenderlichen Arbeitsstand. Sie soll am Ende
 jeder groesseren Arbeitssitzung aktualisiert werden. Dauerhafte Architektur-
@@ -22,10 +22,28 @@ und Designentscheidungen stehen in `MEMORY.md`; geplante Ausbaustufen in
 - Elemente, Element-Kerne, Run-Upgrades, Ability-Upgrades, Items, Inventar und
   Aura-Tuerme existieren als eigene Systeme.
 - Das Hauptmenue besitzt eine Charakterauswahl fuer neue Runs. Pyromant,
-  Kryomant, Geomant und Aeromant sind aktuell alle standardmaessig offen.
-- Das Charakterkonzept mit Aether-Rekrutierung, Zielbedingungen, Passiven und
-  spaeterer kosmetischer Meisterschaft ist in `INCREMENTAL_ROADMAP.md`
-  dokumentiert.
+  Kryomant, Geomant und Aeromant sind die Basis-Charaktere (`"base": true`).
+- Das Charakter-MVP ist implementiert: Aschenweberin, Gezeitenhueter,
+  Sturmjaeger und Runenwaechter sind rekrutierbar (Zielbedingung aus
+  `total_kills`/`best_wave`/`highest_streak` plus Aetherkosten; Aschenweberin
+  kostenlos). Rekrutierungen liegen persistent in
+  `ProgressionSystem.recruited_characters` (Save-Version 2, Migration von v1 =
+  fehlender Schluessel ergibt leeres Dict).
+- Der Menuepunkt `Charaktere` oeffnet `ui/character_roster_ui.gd`: gesperrte
+  Karten zeigen Name, Silhouette, Spielstil, Passive und Zielfortschritt; der
+  Menue-Button traegt ein `NEU!`-Badge, wenn jemand rekrutierbar ist.
+- Charakter-Passiven laufen zentral ueber
+  `AbilitySystem.get_passive_modifier()`; Hooks in `enemy.gd` (Brenndauer,
+  Slow-Bonusschaden), `ability_system.gd` (Kettensprung/-reichweite) und
+  `game_state.gd` (Startleben). Neue Ability-Angebote werden mit
+  `AFFINITY_WEIGHT` zur Element-Affinitaet des Charakters gewichtet.
+- VFX-Juice-Pass: Feedback fuer Tower-Pickup/-Abbruch, Fehlplatzierung
+  (ZU TEUER/BLOCKIERT/KEIN SUPPLY), Gold-Ausgaben (`spawn_gold_number` mit
+  `is_spend`), Upgrade-Punch, Wellenstart-Banner, Leben-Verlust, Aether-Gewinn,
+  Account-Level-Up, Meilensteine, Streak-Stufen, Element-Kern, Forschungskauf,
+  Game Over und Rekrutierung. HUD-Effekte laufen via `parent_override` im
+  UI-CanvasLayer; `screen_flash` funktioniert jetzt auch im Hauptmenue und bei
+  pausiertem Baum.
 - Smoke-Test und visuelle Capture-Szenen liegen unter `tests/`.
 - Tower zeigen ihre Stufe direkt in der Spielwelt. Angriffs-, Nahkampf-,
   Fallen- und Aura-Reichweiten verwenden ein gemeinsames quadratisches
@@ -49,34 +67,35 @@ Stand enthaelt.
 
 ## Bekannte Luecken
 
-- Der Hauptmenuepunkt `Charaktere` ist noch ein Platzhalter und erzeugt nur eine
-  Debug-Ausgabe.
-- Alle vier vorhandenen Charaktere sind freigeschaltet. Eine persistente
-  Rekrutierung mit Unlock-Bedingungen und Aetherkosten fehlt.
-- Charaktere unterscheiden sich praktisch nur durch ihre Start-Ability. Es gibt
-  noch keine Passiven und keine gewichteten Ability-Angebote.
-- Die Eiswand-Ability enthaelt ebenfalls noch einen expliziten Platzhalter fuer
-  die zu spawnende Wand-Entitaet.
-- Das persistente Progressions-Save schreibt derzeit keine
-  Charakter-Freischaltungen. Die Save-Version ist noch 1.
+- Charakter-Portraits (`char_*`-Icons) existieren noch nicht als Assets; das
+  Roster faellt leise auf die Element-Icons zurueck.
+- Der Gezeitenhueter-Bonus greift nicht auf Chain-Segmente von Bullets
+  (`bullet.gd` uebergibt dort keinen Tower-Typ) — akzeptierte MVP-Luecke.
+- Die Passiv-Hooks in `enemy.gd` (Brenndauer, Slow-Bonus) sind nur manuell
+  verifizierbar; der Smoke-Test prueft sie ueber `get_passive_modifier`, weil
+  ein nacktes `enemy.new()` ohne Szenen-Nodes bei `apply_burn` crasht.
+- Aetherkosten (90/120/160), Unlock-Ziele und `AFFINITY_WEIGHT` sind
+  Arbeitswerte und noch nicht in echten Runs ausbalanciert.
+- Die Eiswand-Ability enthaelt weiterhin einen expliziten Platzhalter fuer die
+  zu spawnende Wand-Entitaet.
 - Die lokalen Dokumentationsaenderungen wurden in dieser Umgebung nicht mit
   einem Markdown-Linter geprueft.
-- Godot liegt weiterhin nicht auf `PATH`, wurde fuer diese Sitzung aber unter
-  `Downloads/Godot_v4.6.3-stable_win64.exe` gefunden.
+- Godot liegt weiterhin nicht auf `PATH`; die Executable liegt im Ordner
+  `Downloads/Godot_v4.6.3-stable_win64.exe/` (der Ordner traegt die
+  `.exe`-Endung, die eigentliche Datei liegt darin).
 
 ## Naechste empfohlene Arbeitsschritte
 
-1. Das neue Tower-Balancing in mehreren echten Runs pruefen und danach die
-   Range-, UI-, VFX-, Test- und Dokumentationsaenderungen gemeinsam committen.
-2. Ein persistentes Datenmodell fuer Charakter-Unlocks mit Save-Migration
-   anlegen.
-3. Den Charakterbildschirm als Sammlung, Fortschrittsanzeige und
-   Rekrutierungsoberflaeche implementieren.
-4. Zunaechst einen neuen Charakter vollstaendig vertikal umsetzen, bevor der
-   gesamte geplante Kader hinzugefuegt wird. Die Aschenweberin ist dafuer der
-   einfachste Kandidat, weil `Inferno` bereits existiert.
-5. Passiven und Ability-Gewichtung erst nach funktionierender Rekrutierung
-   ergaenzen und anschliessend die Aetherkosten in echten Runs testen.
+1. Balance-Pass: 3-5 Runs pro Charakter spielen (Reset via
+   `reset_progress.ps1`) und Aetherkosten, Passiv-Werte, Unlock-Ziele und
+   `AFFINITY_WEIGHT` festschreiben; danach die Roadmap-Tabelle aktualisieren.
+2. Charakter-Portrait-Assets (`char_*`) zeichnen und in `IconSystem`
+   registrieren.
+3. Spaetere Charaktere aus der Roadmap (Chronomantin, Arkanist, Konstrukteur,
+   Seelenhirtin) benoetigen neue Abilities, bevor sie als Daten ergaenzt werden
+   koennen.
+4. Optional: Mid-Run-Toast, wenn eine Unlock-Bedingung erstmals erfuellt wird
+   (Hook in `register_kill`/`register_wave_completed`).
 
 ## Verifikation
 
@@ -86,15 +105,21 @@ Von einer Shell mit erreichbarer Godot-Executable im Repository:
 godot --headless --path . --script res://tests/progression_smoke.gd
 godot --path . res://tests/ui_capture.tscn
 godot --path . res://tests/main_menu_capture.tscn
+godot --path . res://tests/character_roster_capture.tscn
 ```
+
+Hinweis: Nach neuen `class_name`-Skripten einmal
+`godot --headless --path . --editor --quit-after 3` ausfuehren, damit der
+globale Klassen-Cache regeneriert wird.
 
 Die Capture-Tests schreiben Bilder nach `user://ui_audit`. Fuer einen sauberen
 manuellen Progressionsstart stehen `reset_progress.ps1` und
 `reset_progress.cmd` bereit.
 
-Letzte Verifikation dieser Sitzung: Progressions-Smoke-Test, Laden von
-`main.tscn` im Headless-Modus und der vollstaendige visuelle UI-Capture-Test
-liefen mit Godot 4.6.3 erfolgreich durch.
+Letzte Verifikation dieser Sitzung (2026-07-16): Progressions-Smoke-Test
+(inkl. neuer Rekrutierungs-, Migrations- und Passiv-Asserts), der vollstaendige
+UI-Capture-Test, die Hauptmenue-Capture und die neue Roster-Capture liefen mit
+Godot 4.6.3 erfolgreich durch; der Roster-Screenshot wurde visuell geprueft.
 
 ## Uebergabe-Checkliste
 

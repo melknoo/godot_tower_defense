@@ -100,27 +100,40 @@ werden.
 ## Persistenz
 
 - Persistenter Meta-Save:
-  `user://incremental_progression_v1.json`.
-- Aktuelle Save-Version: 1.
+  `user://incremental_progression_v1.json`. Der Dateiname bleibt bewusst
+  `_v1`, auch wenn die interne Save-Version steigt — Umbenennen wuerde
+  bestehende Saves verwaisen.
+- Aktuelle Save-Version: 2.
 - Persistiert werden unter anderem Aether, Account-Level und -XP, Bestwelle,
-  Runs, Kills, hoechste Serie, Forschungsränge und Meilensteine.
-- Charakter-Freischaltungen liegen zur Laufzeit in `AbilitySystem`, sind aber
-  noch nicht in den persistenten Meta-Save integriert. Die vorhandenen
-  `get_save_data()`- und `load_save_data()`-Hilfen werden derzeit nicht vom
-  Progressions-Save aufgerufen.
-- Beim Hinzufuegen von Charakterdaten muss die Save-Version erhoeht und eine
-  rueckwaertskompatible Migration vorgesehen werden. Bestehende Spielstaende
-  duerfen ihre vier bisher offenen Startcharaktere nicht unerwartet verlieren.
+  Runs, Kills, hoechste Serie, Forschungsränge, Meilensteine und
+  `recruited_characters`.
+- Charakter-Rekrutierungen gehoeren `ProgressionSystem`
+  (`recruited_characters`, `recruit_character()`); `AbilitySystem` besitzt nur
+  die Definitionen und delegiert `is_character_unlocked()`. Basis-Charaktere
+  (`"base": true`) stehen nie im Rekrutierungs-Dict.
+- Migration v1 -> v2: fehlender `recruited_characters`-Schluessel ergibt ein
+  leeres Dict; Basis-4 bleiben frei, Rekrutierbare gesperrt. Erfuellte
+  Zielbedingungen aus alten Stats machen Charaktere rekrutierbar, gewaehren sie
+  aber nie automatisch — auch bei Kosten 0 klickt der Spieler selbst.
 - Ein Git-Clone uebertraegt Quellcode und diese Dokumentation, aber keine
   `user://`-Dateien. Ein persoenlicher Laufzeit-Spielstand braucht einen
   separaten Export oder eine separate Sicherung.
 
 ## Bekannte technische Fallen
 
-- Die vier aktuellen Charakterdefinitionen setzen `unlocked` auf `true`.
-- `AbilitySystem.get_available_abilities_for_unlock()` bietet grundsaetzlich
-  alle noch nicht ausgeruesteten Abilities an. Ohne Gewichtung verliert die
-  Startcharakterwahl deshalb im Verlauf eines Runs an Bedeutung.
+- Charakter-Passiven laufen ausschliesslich ueber
+  `AbilitySystem.get_passive_modifier(key, default)`. Neue Passiven brauchen
+  nur einen Modifier-Key in `CHARACTERS` plus einen Hook an der Wirkstelle;
+  die Hooks duerfen nie Aether oder Account-XP anfassen.
+- Neue Ability-Angebote werden ueber `_pick_weighted_new_abilities()` zur
+  Element-Affinitaet des Charakters gewichtet (`AFFINITY_WEIGHT`);
+  Upgrade-Angebote bleiben uniform.
+- Ein nacktes `enemy.new()` ohne Szene crasht bei `apply_burn`/`take_damage`
+  (`status_indicator`/`health_bar` fehlen) — Passiv-Hooks dort nicht headless
+  ueber Instanzen testen.
+- Nach neuen `class_name`-Skripten muss der globale Klassen-Cache regeneriert
+  werden (`--headless --editor --quit-after 3`), sonst schlagen Szenenstarts
+  mit "Could not find type" fehl.
 - Aura-Turm-Boni sind keine zeitlich begrenzten Buffs. Sie werden anhand der
   aktuellen Reichweite der Aura-Tuerme gesammelt und gelten, solange die
   raeumlichen Bedingungen erfuellt sind.
@@ -136,6 +149,7 @@ werden.
 - Logischer Smoke-Test: `tests/progression_smoke.gd`.
 - Visuelle Regression der Spiel-UI: `tests/ui_capture.tscn`.
 - Visuelle Regression des Hauptmenues: `tests/main_menu_capture.tscn`.
+- Visuelle Regression des Charakter-Rosters: `tests/character_roster_capture.tscn`.
 - UI-Captures landen in `user://ui_audit` und werden nicht als Quellassets
   behandelt.
 - Vor einem Balance-Test kann der lokale Incremental-Spielstand mit

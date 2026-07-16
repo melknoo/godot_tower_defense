@@ -473,6 +473,8 @@ func _on_left_mouse_pressed(pos: Vector2) -> void:
 		if tower_manager.can_place_at(grid_pos, tower_type):
 			tower_manager.place_tower(grid_pos, tower_type)
 			_update_hover_preview(pos)
+		else:
+			_show_placement_error(pos, tower_type)
 		return
 	
 	var tower := tower_manager.get_tower_at(grid_pos)
@@ -545,6 +547,9 @@ func _handle_relocate_click(grid_pos: Vector2i) -> void:
 		_end_pickup_preview()
 	else:
 		Sound.play_error()
+		if VFX:
+			VFX.screen_flash(Color(1, 0, 0, 0.15), 0.1)
+			VFX.spawn_status_text(Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE, GRID_SIZE) * 0.5, "BLOCKIERT", Color(1.0, 0.45, 0.4))
 
 
 func _handle_tower_click(grid_pos: Vector2i) -> void:
@@ -563,6 +568,21 @@ func _handle_empty_cell_click(grid_pos: Vector2i, world_pos: Vector2) -> void:
 		if tower_manager.can_place_at(grid_pos, tower_type):
 			tower_manager.place_tower(grid_pos, tower_type)
 			_update_hover_preview(world_pos)
+		else:
+			_show_placement_error(world_pos, tower_type)
+
+
+func _show_placement_error(world_pos: Vector2, tower_type: String) -> void:
+	Sound.play_error()
+	if not VFX:
+		return
+	VFX.screen_flash(Color(1, 0, 0, 0.15), 0.1)
+	var reason := "BLOCKIERT"
+	if not GameState.can_afford(TowerData.get_tower_cost(tower_type)):
+		reason = "ZU TEUER"
+	elif not TowerData.is_supply_building(tower_type) and not GameState.can_use_supply(TowerData.get_supply_cost_place()):
+		reason = "KEIN SUPPLY"
+	VFX.spawn_status_text(world_pos, reason, Color(1.0, 0.45, 0.4))
 
 
 func _is_over_ui(pos: Vector2) -> bool:
@@ -846,17 +866,28 @@ func _on_start_wave_pressed() -> void:
 	_auto_wave_generation += 1
 	if tower_manager.has_blocked_towers():
 		Sound.play_error()
+		if VFX:
+			VFX.screen_flash(Color(1, 0, 0, 0.15), 0.1)
+			VFX.spawn_status_text(_map_center(), "TÜRME BLOCKIEREN DEN PFAD", Color(1.0, 0.45, 0.4))
 		print("[Main] Kann Welle nicht starten - %d Türme auf Pfad!" % tower_manager.get_blocked_tower_count())
 		return
 	Sound.play_wave_start()
 	GameState.start_wave()
 
 
+func _map_center() -> Vector2:
+	return Vector2(MAP_WIDTH * GRID_SIZE * 0.5, MAP_HEIGHT * GRID_SIZE * 0.5)
+
+
 func _on_wave_started(wave: int) -> void:
 	wave_manager.start_wave(wave)
 	if VFX:
 		var wave_element := wave_manager.current_wave_element
-		VFX.spawn_wave_path_pulse(path_points, "air" if wave_element == "neutral" else wave_element)
+		var effect_element := "air" if wave_element == "neutral" else wave_element
+		VFX.spawn_wave_path_pulse(path_points, effect_element)
+		var flash_color: Color = VFX.PALETTES.get(effect_element, VFX.PALETTES["air"])[1]
+		VFX.screen_flash(Color(flash_color.r, flash_color.g, flash_color.b, 0.5), 0.08)
+		VFX.spawn_status_text(_map_center(), "WELLE %d" % wave, flash_color)
 
 
 func _on_wave_completed(wave: int) -> void:
@@ -899,6 +930,9 @@ func _on_wave_completed(wave: int) -> void:
 
 func _on_element_core_earned() -> void:
 	pending_element_core = true
+	if VFX:
+		VFX.spawn_pixel_ring(_map_center(), "gold", 70.0)
+		VFX.spawn_status_text(_map_center(), "ELEMENT-KERN ERHALTEN", Color("ec84ff"))
 
 
 func _on_upgrade_chosen(upgrade_id: String) -> void:
@@ -935,6 +969,11 @@ func _on_game_over() -> void:
 	var run_summary := {}
 	if ProgressionSystem:
 		run_summary = ProgressionSystem.finish_run(GameState.current_wave)
+	if VFX:
+		VFX.screen_flash(Color(0.8, 0.1, 0.1, 0.45), 0.3)
+		VFX.screen_shake(8.0, 0.4)
+		# Effekt kurz wirken lassen, bevor der Baum pausiert und Tweens einfrieren
+		await get_tree().create_timer(0.45).timeout
 	get_tree().paused = true
 	hud.show_game_over(run_summary)
 

@@ -177,6 +177,9 @@ func pickup_tower(grid_pos: Vector2i) -> bool:
 	
 	tower_picked_up.emit(tower, grid_pos)
 	Sound.play_click()
+	if VFX:
+		VFX.spawn_smoke_puff(tower.position, 5)
+		VFX.spawn_pixels(tower.position, "earth", 6, 20.0)
 	print("[TowerManager] Turm aufgenommen von %s" % grid_pos)
 	return true
 
@@ -188,12 +191,17 @@ func cancel_pickup() -> void:
 	# Turm zurück an alte Position
 	picked_up_tower.visible = true
 	placed_towers[picked_up_from_pos] = picked_up_tower
-	
+
 	# Blocked-Status aktualisieren
 	if picked_up_from_pos in blocked_cells:
 		if picked_up_tower.has_method("set_blocked"):
 			picked_up_tower.set_blocked(true)
-	
+
+	# Turm "landet" wieder an seinem alten Platz
+	if VFX:
+		VFX.spawn_place_effect(picked_up_tower.position, picked_up_tower.tower_type)
+	Sound.play_click()
+
 	print("[TowerManager] Pickup abgebrochen, Turm zurück bei %s" % picked_up_from_pos)
 	
 	picked_up_tower = null
@@ -287,7 +295,9 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 	tower_levels[grid_pos] = 0
 	
 	GameState.tower_placed(cost)
-	
+	if VFX and cost > 0:
+		VFX.spawn_gold_number(tower.position + Vector2(0, 14), cost, true)
+
 	if not TowerData.is_supply_building(tower_type):
 		GameState.use_supply(TowerData.get_supply_cost_place())
 	
@@ -423,6 +433,9 @@ func upgrade_tower(grid_pos: Vector2i) -> bool:
 		tower.tower_type, new_level, GameState.supply_used, GameState.supply_max
 	])
 	Sound.play_upgrade()
+	if VFX:
+		VFX.screen_shake(2.0, 0.1)
+		VFX.spawn_gold_number(tower.position + Vector2(0, 14), upgrade_cost, true)
 	
 	# ✅ Tower-Info aktualisieren, falls dieser Tower gerade angezeigt wird
 	if tower_info and tower_info.visible and tower_info.current_tower == tower:
