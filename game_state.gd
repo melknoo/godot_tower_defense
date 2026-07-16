@@ -283,6 +283,8 @@ func get_max_lives() -> int:
 	var result := DEFAULT_LIVES
 	if ProgressionSystem:
 		result += ProgressionSystem.get_starting_lives_bonus()
+	if AbilitySystem:
+		result += int(AbilitySystem.get_passive_modifier("starting_lives_bonus", 0.0))
 	return result
 
 

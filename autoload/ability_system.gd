@@ -14,42 +14,110 @@ const MAX_ABILITY_SLOTS := 4
 const MAX_UPGRADE_STACKS := 5
 
 # === CHARAKTER-DEFINITIONEN ===
+# "base": true = von Anfang an verfügbar. Rekrutierbare Charaktere haben stattdessen
+# "unlock": {"stat": ProgressionSystem-Property, "target": int, "cost": Aether (0 = kostenlos)}
+# und "passive": {"description": String, "modifiers": {key: float}} — zentral abgefragt
+# über get_passive_modifier(). Keine Passive darf Aether oder Account-XP erhöhen.
 const CHARACTERS := {
 	"pyromancer": {
 		"name": "Pyromant",
 		"description": "Meister des Feuers. Startet mit Meteor.",
+		"playstyle": "Direkter Flächenschaden",
 		"icon_name": "char_pyromancer",
 		"element": "fire",
 		"starting_ability": "meteor",
 		"color": Color(1.0, 0.4, 0.2),
-		"unlocked": true  # Standardmäßig verfügbar
+		"base": true
 	},
 	"cryomancer": {
 		"name": "Kryomant",
 		"description": "Beherrscher des Eises. Startet mit Frostnova.",
+		"playstyle": "Kontrolle durch Einfrieren",
 		"icon_name": "char_cryomancer",
 		"element": "water",
 		"starting_ability": "frost_nova",
 		"color": Color(0.3, 0.6, 1.0),
-		"unlocked": true
+		"base": true
 	},
 	"geomancer": {
 		"name": "Geomant",
 		"description": "Herr der Erde. Startet mit Erdbeben.",
+		"playstyle": "Flächenkontrolle mit Stuns",
 		"icon_name": "char_geomancer",
 		"element": "earth",
 		"starting_ability": "earthquake",
 		"color": Color(0.6, 0.4, 0.2),
-		"unlocked": true
+		"base": true
 	},
 	"aeromancer": {
 		"name": "Aeromant",
 		"description": "Windläufer. Startet mit Blitzschlag.",
+		"playstyle": "Ketteneffekte gegen Gruppen",
 		"icon_name": "char_aeromancer",
 		"element": "air",
 		"starting_ability": "lightning",
 		"color": Color(0.8, 0.9, 1.0),
-		"unlocked": true
+		"base": true
+	},
+	"ashweaver": {
+		"name": "Aschenweberin",
+		"description": "Weberin des Feuers. Startet mit Inferno.",
+		"playstyle": "Flächenbrand über Zeit",
+		"icon_name": "char_ashweaver",
+		"element": "fire",
+		"starting_ability": "inferno",
+		"color": Color(0.95, 0.55, 0.25),
+		"base": false,
+		"passive": {
+			"description": "Brenneffekte halten 20% länger.",
+			"modifiers": {"burn_duration_mult": 1.2}
+		},
+		"unlock": {"stat": "total_kills", "target": 500, "cost": 0}
+	},
+	"tidewarden": {
+		"name": "Gezeitenhüter",
+		"description": "Wächter der Fluten. Startet mit Tsunami.",
+		"playstyle": "Verlangsamen und Nachsetzen",
+		"icon_name": "char_tidewarden",
+		"element": "water",
+		"starting_ability": "tsunami",
+		"color": Color(0.35, 0.75, 0.9),
+		"base": false,
+		"passive": {
+			"description": "Verlangsamte Gegner erleiden 8% mehr Turmschaden.",
+			"modifiers": {"slowed_tower_damage_mult": 1.08}
+		},
+		"unlock": {"stat": "best_wave", "target": 10, "cost": 90}
+	},
+	"stormhunter": {
+		"name": "Sturmjäger",
+		"description": "Jäger des Sturms. Startet mit Kettenblitz.",
+		"playstyle": "Springende Blitze gegen Massen",
+		"icon_name": "char_stormhunter",
+		"element": "air",
+		"starting_ability": "chain_lightning",
+		"color": Color(0.75, 0.85, 1.0),
+		"base": false,
+		"passive": {
+			"description": "+1 Kettensprung und 15% mehr Sprungreichweite.",
+			"modifiers": {"chain_count_bonus": 1.0, "chain_range_mult": 1.15}
+		},
+		"unlock": {"stat": "highest_streak", "target": 24, "cost": 120}
+	},
+	"runewarden": {
+		"name": "Runenwächter",
+		"description": "Hüter alter Runen. Startet mit Erdspalte.",
+		"playstyle": "Defensive mit Pfadkontrolle",
+		"icon_name": "char_runewarden",
+		"element": "earth",
+		"starting_ability": "fissure",
+		"color": Color(0.55, 0.5, 0.35),
+		"base": false,
+		"passive": {
+			"description": "Beginnt jeden Run mit 2 zusätzlichen Leben.",
+			"modifiers": {"starting_lives_bonus": 2.0}
+		},
+		"unlock": {"stat": "best_wave", "target": 15, "cost": 160}
 	}
 }
 
@@ -246,18 +314,9 @@ var cooldowns: Dictionary = {}
 var selected_ability: String = ""
 var is_targeting := false
 
-# Charakter-Freischaltungen (für Meta-Progression später)
-var unlocked_characters: Dictionary = {}
-
 
 func _ready() -> void:
-	_init_character_unlocks()
 	print("[AbilitySystem] Initialisiert mit %d Abilities, %d Charakteren" % [ABILITIES.size(), CHARACTERS.size()])
-
-
-func _init_character_unlocks() -> void:
-	for char_id in CHARACTERS:
-		unlocked_characters[char_id] = CHARACTERS[char_id].get("unlocked", false)
 
 
 func _process(delta: float) -> void:
@@ -330,14 +389,12 @@ func _setup_starting_abilities() -> void:
 
 
 func is_character_unlocked(char_id: String) -> bool:
-	return unlocked_characters.get(char_id, false)
-
-
-func unlock_character(char_id: String) -> bool:
-	if not CHARACTERS.has(char_id):
+	var data: Dictionary = CHARACTERS.get(char_id, {})
+	if data.is_empty():
 		return false
-	unlocked_characters[char_id] = true
-	return true
+	if data.get("base", false):
+		return true
+	return ProgressionSystem != null and ProgressionSystem.is_character_recruited(char_id)
 
 
 func get_unlocked_characters() -> Array[String]:
@@ -350,6 +407,12 @@ func get_unlocked_characters() -> Array[String]:
 
 func get_character_data(char_id: String) -> Dictionary:
 	return CHARACTERS.get(char_id, {})
+
+
+func get_passive_modifier(key: String, default_value: float) -> float:
+	var char_data: Dictionary = CHARACTERS.get(selected_character, {})
+	var modifiers: Dictionary = char_data.get("passive", {}).get("modifiers", {})
+	return float(modifiers.get(key, default_value))
 
 
 # === ABILITY SLOTS ===
@@ -491,7 +554,13 @@ func get_effective_stat(ability_id: String, stat: String) -> float:
 		else:
 			# Multiplikativ für Prozente
 			base_value *= (1.0 + per_stack * stacks)
-	
+
+	# Charakter-Passiven (z.B. Sturmjäger: +1 Kettensprung, +15% Sprungreichweite)
+	if stat == "chain_count":
+		base_value += get_passive_modifier("chain_count_bonus", 0.0)
+	elif stat == "chain_range":
+		base_value *= get_passive_modifier("chain_range_mult", 1.0)
+
 	return base_value
 
 
@@ -969,8 +1038,7 @@ func generate_ability_upgrade_choices(count: int = 3) -> Array[Dictionary]:
 	# Option 1: Neue Ability hinzufügen (wenn Slots frei)
 	if can_add_ability():
 		var available := get_available_abilities_for_unlock()
-		available.shuffle()
-		for ability_id in available.slice(0, 2):  # Max 2 neue Abilities anbieten
+		for ability_id in _pick_weighted_new_abilities(available, 2):  # Max 2 neue Abilities anbieten
 			choices.append({
 				"type": "new_ability",
 				"ability_id": ability_id,
@@ -1000,6 +1068,30 @@ func generate_ability_upgrade_choices(count: int = 3) -> Array[Dictionary]:
 	return choices.slice(0, count) as Array[Dictionary]
 
 
+# Angebote neuer Abilities werden zur Element-Affinität des gewählten Charakters
+# hin gewichtet (Roadmap: "leicht nach der Affinität gewichten") — Upgrades bleiben uniform.
+const AFFINITY_WEIGHT := 3.0
+
+func _pick_weighted_new_abilities(available: Array[String], count: int) -> Array[String]:
+	var pool := available.duplicate()
+	var char_element: String = CHARACTERS.get(selected_character, {}).get("element", "")
+	var picked: Array[String] = []
+
+	while picked.size() < count and not pool.is_empty():
+		var total_weight := 0.0
+		for ability_id in pool:
+			total_weight += AFFINITY_WEIGHT if ABILITIES[ability_id].get("element", "") == char_element else 1.0
+		var roll := randf() * total_weight
+		for ability_id in pool:
+			roll -= AFFINITY_WEIGHT if ABILITIES[ability_id].get("element", "") == char_element else 1.0
+			if roll <= 0.0:
+				picked.append(ability_id)
+				pool.erase(ability_id)
+				break
+
+	return picked
+
+
 # === SAVE/LOAD ===
 
 func reset_for_new_run() -> void:
@@ -1020,8 +1112,7 @@ func get_save_data() -> Dictionary:
 	return {
 		"selected_character": selected_character,
 		"equipped_abilities": equipped_abilities.duplicate(),
-		"ability_upgrades": ability_upgrades.duplicate(true),
-		"unlocked_characters": unlocked_characters.duplicate()
+		"ability_upgrades": ability_upgrades.duplicate(true)
 	}
 
 
@@ -1042,8 +1133,7 @@ func load_save_data(data: Dictionary) -> void:
 			if stat in upgradeable_stats and UPGRADE_VALUES.has(stat):
 				valid_upgrades[stat] = clampi(int(ability_saved_upgrades[stat]), 0, MAX_UPGRADE_STACKS)
 		ability_upgrades[ability_id] = valid_upgrades
-	unlocked_characters = data.get("unlocked_characters", {}).duplicate()
-	
+
 	# Cooldowns initialisieren
 	cooldowns.clear()
 	for ability_id in equipped_abilities:

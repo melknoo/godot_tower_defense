@@ -8,9 +8,11 @@ signal run_progress_changed(run_essence: int, run_xp: int)
 signal streak_changed(streak: int, multiplier: float, time_left: float)
 signal milestone_reached(wave: int, reward: int)
 signal auto_wave_changed(enabled: bool)
+signal character_recruited(char_id: String)
 
+# Der Dateiname bleibt "_v1" — Umbenennen wuerde bestehende Saves verwaisen.
 const SAVE_PATH := "user://incremental_progression_v1.json"
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 const STREAK_WINDOW := 3.0
 const MILESTONE_WAVES: Array[int] = [3, 5, 10, 15, 25, 40, 60, 100]
 const TOWER_RESEARCH := {
@@ -125,6 +127,7 @@ var highest_streak := 0
 var research_levels: Dictionary = {}
 var claimed_milestones: Dictionary = {}
 var auto_wave_enabled := false
+var recruited_characters: Dictionary = {}
 
 var run_essence := 0
 var run_xp := 0
@@ -394,6 +397,60 @@ func purchase_research(research_id: String) -> bool:
 	return true
 
 
+# --- Charakter-Rekrutierung ---------------------------------------------------
+# ProgressionSystem besitzt Rekrutierungs-Status und Transaktion (Aether + Stats);
+# die Charakter-Definitionen bleiben in AbilitySystem.CHARACTERS.
+
+func is_character_recruited(char_id: String) -> bool:
+	return bool(recruited_characters.get(char_id, false))
+
+
+func get_character_unlock_progress(char_id: String) -> Dictionary:
+	var char_data: Dictionary = AbilitySystem.get_character_data(char_id)
+	var unlock: Dictionary = char_data.get("unlock", {})
+	if unlock.is_empty():
+		return {}
+	var stat: String = unlock.get("stat", "")
+	var current := int(get(stat)) if stat in self else 0
+	var target := int(unlock.get("target", 0))
+	return {
+		"stat": stat,
+		"current": current,
+		"target": target,
+		"cost": int(unlock.get("cost", 0)),
+		"goal_met": current >= target
+	}
+
+
+func can_recruit_character(char_id: String) -> bool:
+	if is_character_recruited(char_id):
+		return false
+	var progress := get_character_unlock_progress(char_id)
+	if progress.is_empty():
+		return false
+	return progress["goal_met"] and essence >= int(progress["cost"])
+
+
+func recruit_character(char_id: String) -> bool:
+	if not can_recruit_character(char_id):
+		return false
+	var cost := int(get_character_unlock_progress(char_id)["cost"])
+	if cost > 0:
+		essence -= cost
+		essence_changed.emit(essence, -cost)
+	recruited_characters[char_id] = true
+	character_recruited.emit(char_id)
+	save_progress()
+	return true
+
+
+func has_recruitable_character() -> bool:
+	for char_id in AbilitySystem.CHARACTERS:
+		if can_recruit_character(char_id):
+			return true
+	return false
+
+
 func set_auto_wave_enabled(enabled: bool) -> void:
 	auto_wave_enabled = enabled and is_automation_unlocked()
 	auto_wave_changed.emit(auto_wave_enabled)
@@ -473,7 +530,8 @@ func save_progress() -> void:
 		"highest_streak": highest_streak,
 		"research_levels": research_levels,
 		"claimed_milestones": claimed_milestones,
-		"auto_wave_enabled": auto_wave_enabled
+		"auto_wave_enabled": auto_wave_enabled,
+		"recruited_characters": recruited_characters
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if not file:
@@ -506,6 +564,9 @@ func _load_progress() -> void:
 	research_levels = data.get("research_levels", {}).duplicate()
 	claimed_milestones = data.get("claimed_milestones", {}).duplicate()
 	auto_wave_enabled = bool(data.get("auto_wave_enabled", false))
+	# Migration v1 -> v2: fehlender Schluessel ergibt ein leeres Dict — Basis-Charaktere
+	# stehen nie in diesem Dict, Rekrutierbare starten gesperrt.
+	recruited_characters = data.get("recruited_characters", {}).duplicate()
 	_initialize_research()
 	if not is_automation_unlocked():
 		auto_wave_enabled = false

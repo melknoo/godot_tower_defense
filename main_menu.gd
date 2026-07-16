@@ -13,6 +13,8 @@ var character_grid: GridContainer
 var selected_character: String = ""
 var character_buttons: Dictionary = {}
 var meta_progression_ui: MetaProgressionUI
+var character_roster_ui: CharacterRosterUI
+var characters_button: Button
 var options_overlay: PauseMenu
 
 # Hintergrund-Textur (optional)
@@ -24,10 +26,15 @@ func _ready() -> void:
 	meta_progression_ui = MetaProgressionUI.new()
 	meta_progression_ui.name = "MetaProgressionUI"
 	add_child(meta_progression_ui)
+	character_roster_ui = CharacterRosterUI.new()
+	character_roster_ui.name = "CharacterRosterUI"
+	character_roster_ui.panel_closed.connect(_on_roster_closed)
+	add_child(character_roster_ui)
 	options_overlay = PauseMenu.new()
 	options_overlay.name = "OptionsOverlay"
 	add_child(options_overlay)
 	_update_character_grid()
+	_update_characters_button_badge()
 	_show_main_menu()
 
 
@@ -106,7 +113,7 @@ func _create_ui() -> void:
 	
 	_create_menu_button(main_panel, "Neues Spiel", "play", _on_new_game_pressed)
 	_create_menu_button(main_panel, "Arkanes Archiv", "star_full", _on_archive_pressed)
-	_create_menu_button(main_panel, "Charaktere", "characters", _on_characters_pressed)
+	characters_button = _create_menu_button(main_panel, "Charaktere", "characters", _on_characters_pressed)
 	_create_menu_button(main_panel, "Optionen", "settings", _on_options_pressed)
 	_create_menu_button(main_panel, "Beenden", "exit", _on_quit_pressed, true)  # Rot
 	
@@ -407,7 +414,21 @@ func _on_new_game_pressed() -> void:
 func _on_characters_pressed() -> void:
 	if Sound:
 		Sound.play_click()
-	print("[MainMenu] Charaktere-Übersicht (noch nicht implementiert)")
+	if character_roster_ui:
+		character_roster_ui.show_panel()
+
+
+func _on_roster_closed() -> void:
+	# Frisch Rekrutierte sofort in der Neues-Spiel-Auswahl anzeigen
+	_update_character_grid()
+	_update_characters_button_badge()
+
+
+func _update_characters_button_badge() -> void:
+	if not characters_button or not ProgressionSystem:
+		return
+	var badge := " Charaktere · NEU!" if ProgressionSystem.has_recruitable_character() else " Charaktere"
+	characters_button.text = badge
 
 
 func _on_archive_pressed() -> void:

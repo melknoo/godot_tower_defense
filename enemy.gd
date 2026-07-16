@@ -486,6 +486,10 @@ func take_damage(amount: int, apply_elemental: bool = false, attacker_element: S
 	else:
 		combined_mult = elemental_mult * tower_mult
 
+	# Charakter-Passive (Gezeitenhüter): verlangsamte/gefrorene Gegner nehmen mehr Turmschaden
+	if attacker_tower_type != "" and (slow_timer > 0.0 or is_frozen) and AbilitySystem:
+		combined_mult *= AbilitySystem.get_passive_modifier("slowed_tower_damage_mult", 1.0)
+
 	final_damage = int(amount * combined_mult)
 
 	health -= final_damage
@@ -599,6 +603,9 @@ func apply_slow(amount: float, duration: float) -> void:
 
 
 func apply_burn(damage_per_second: int, duration: float) -> void:
+	# Charakter-Passive (Aschenweberin): Empfänger-Hook deckt alle Brand-Quellen ab
+	if AbilitySystem:
+		duration *= AbilitySystem.get_passive_modifier("burn_duration_mult", 1.0)
 	burn_damage = damage_per_second
 	burn_timer = maxf(burn_timer, duration)
 
