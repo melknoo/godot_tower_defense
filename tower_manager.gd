@@ -84,7 +84,12 @@ func refresh_farm_supply_bonuses() -> void:
 			total_farm_bonus += bonus
 	
 	# Setze supply_max neu basierend auf allen Farmen
+	# Archiv-Bonus live aus ProgressionSystem beziehen, damit auch mitten im Run
+	# gekaufte Archiv-Upgrades ("Arkanes Lager") berücksichtigt werden.
 	var archive_bonus := GameState.archive_supply_bonus
+	if ProgressionSystem:
+		archive_bonus = ProgressionSystem.get_starting_supply_bonus()
+		GameState.archive_supply_bonus = archive_bonus
 	var base_supply := GameState.STARTING_MAX_SUPPLY + archive_bonus
 	GameState.supply_max = base_supply + total_farm_bonus
 	GameState.supply_changed.emit(GameState.supply_used, GameState.supply_max)

@@ -555,15 +555,26 @@ func _show_item_toast(item: Dictionary) -> void:
 
 	panel.modulate.a = 0.0
 	panel.scale = Vector2(0.94, 0.94)
-	var tween := panel.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.14)
-	tween.tween_property(panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.chain().tween_interval(2.25)
-	tween.chain().set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 0.0, 0.22)
-	tween.tween_property(panel, "scale", Vector2(0.97, 0.97), 0.22)
-	tween.chain().tween_callback(panel.queue_free)
+	var in_tween := panel.create_tween()
+	in_tween.set_parallel(true)
+	in_tween.tween_property(panel, "modulate:a", 1.0, 0.14)
+	in_tween.tween_property(panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await in_tween.finished
+	if not is_instance_valid(panel):
+		return
+
+	# ignore_time_scale=true haelt die Anzeigedauer unabhaengig vom Vorspulen (Engine.time_scale)
+	await get_tree().create_timer(4.5, true, false, true).timeout
+	if not is_instance_valid(panel):
+		return
+
+	var out_tween := panel.create_tween()
+	out_tween.set_parallel(true)
+	out_tween.tween_property(panel, "modulate:a", 0.0, 0.22)
+	out_tween.tween_property(panel, "scale", Vector2(0.97, 0.97), 0.22)
+	await out_tween.finished
+	if is_instance_valid(panel):
+		panel.queue_free()
 
 
 func _style_arcane_progress_bar(bar: ProgressBar, color: Color) -> void:
