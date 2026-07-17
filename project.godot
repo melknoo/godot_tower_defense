@@ -14,10 +14,10 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="tower defense"
+config/name="Arcane Defense"
 run/main_scene="uid://d1hk2dvb6ru7k"
 config/features=PackedStringArray("4.6", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="res://assets/elemental_symbols/four_elements.png"
 
 [autoload]
 
@@ -42,7 +42,7 @@ window/stretch/mode="canvas_items"
 
 [dotnet]
 
-project/assembly_name="tower defense"
+project/assembly_name="Arcane Defense"
 
 [rendering]
 

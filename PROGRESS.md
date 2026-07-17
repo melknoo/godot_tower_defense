@@ -1,6 +1,6 @@
 # Projektfortschritt
 
-Letzte Aktualisierung: 2026-07-16
+Letzte Aktualisierung: 2026-07-17
 
 Diese Datei beschreibt den veraenderlichen Arbeitsstand. Sie soll am Ende
 jeder groesseren Arbeitssitzung aktualisiert werden. Dauerhafte Architektur-
@@ -59,11 +59,10 @@ und Designentscheidungen stehen in `MEMORY.md`; geplante Ausbaustufen in
 
 ## In Arbeit im lokalen Arbeitsbaum
 
-Zum Zeitpunkt dieser Aktualisierung gibt es nicht committete Aenderungen fuer
-Range-Raster, Supply, Tower-Level, Item-Toasts, Cursor, VFX und Balancing in den
-zugehoerigen Spiel-, UI-, Autoload-, Daten- und Testdateien. Diese Dateien
-muessen gemeinsam committed und gepusht werden, bevor ein frischer Clone den
-Stand enthaelt.
+Keine offenen Aenderungen: `git status` ist sauber, alle zuvor hier notierten
+Aenderungen (Range-Raster, Supply, Tower-Level, Item-Toasts, Cursor, VFX,
+Balancing) sind im Commit `1887792` ("added more chars") enthalten und liegen
+auf `origin/main`. Ein frischer Clone entspricht dem aktuellen Stand.
 
 ## Bekannte Luecken
 

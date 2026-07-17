@@ -515,8 +515,8 @@ func take_damage(amount: int, apply_elemental: bool = false, attacker_element: S
 
 	if health <= 0:
 		_die()
-
-
+	else:
+		Sound.play_hit()
 
 
 func damage_threshold_for_crit() -> int:
@@ -568,6 +568,7 @@ func _die() -> void:
 	
 	var total_reward := reward + bonus_gold
 	total_reward = GameState.enemy_died(total_reward, enemy_type)
+	Sound.play_enemy_death()
 	Sound.play_coin()
 	
 	# === NEU: Item Drop ===

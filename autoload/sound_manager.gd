@@ -17,14 +17,18 @@ const SOUND_DEFS := {
 	"click": {"path": "res://assets/sounds/click.wav", "volume": -5.0, "pitch_var": 0.05},
 	"place": {"path": "res://assets/sounds/tower_place.wav", "volume": -3.0, "pitch_var": 0.05},
 	"shoot_base": {"path": "res://assets/sounds/shoot_base.wav", "volume": -10.0, "pitch_var": 0.1},
-	"hit": {"path": "res://assets/sounds/hit.wav", "volume": -8.0, "pitch_var": 0.1},
-	"enemy_death": {"path": "res://assets/sounds/enemy_death.wav", "volume": -5.0, "pitch_var": 0.08},
+	# TODO(SFX): "hit"/"enemy_death"/"error" reuse existing wavs as a stopgap since
+	# dedicated files don't exist yet (hit.wav, enemy_death.wav, error.wav). Swap in
+	# real assets and retune volume/pitch_var once they're available.
+	"hit": {"path": "res://assets/sounds/impact_sound.wav", "volume": -10.0, "pitch_var": 0.12},
+	"enemy_death": {"path": "res://assets/sounds/impact_sound.wav", "volume": -4.0, "pitch_var": 0.05},
 	"upgrade": {"path": "res://assets/sounds/upgrade.wav", "volume": -3.0, "pitch_var": 0.03},
-	"impact": {"path": "res://assets/sounds/impact.wav", "volume": -3.0, "pitch_var": 0.03},
+	"impact": {"path": "res://assets/sounds/impact_sound.wav", "volume": -3.0, "pitch_var": 0.03},
 	"explosion": {"path": "res://assets/sounds/explosion.wav", "volume": -3.0, "pitch_var": 0.03},
 	"wave_start": {"path": "res://assets/sounds/wave_start.wav", "volume": -2.0, "pitch_var": 0.0},
-	"error": {"path": "res://assets/sounds/error.wav", "volume": -5.0, "pitch_var": 0.0},
+	"error": {"path": "res://assets/sounds/click.wav", "volume": -3.0, "pitch_var": 0.0},
 	"sell": {"path": "res://assets/sounds/tower_sell.wav", "volume": -4.0, "pitch_var": 0.05},
+	"game_over": {"path": "res://assets/sounds/game_over.wav", "volume": 0.0, "pitch_var": 0.0},
 }
 
 const TOWER_ELEMENTS := ["base", "water", "fire", "earth", "air", "ice", "steam", "lava", "nature", "sword"]
@@ -208,6 +212,9 @@ func play_error() -> void:
 
 func play_sell() -> void:
 	play("sell")
+
+func play_game_over() -> void:
+	play("game_over")
 
 func play_element_select() -> void:
 	play("element_core_select")

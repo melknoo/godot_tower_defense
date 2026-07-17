@@ -966,6 +966,7 @@ func _refresh_all_tower_stats() -> void:
 
 func _on_game_over() -> void:
 	_auto_wave_generation += 1
+	Sound.play_game_over()
 	var run_summary := {}
 	if ProgressionSystem:
 		run_summary = ProgressionSystem.finish_run(GameState.current_wave)

@@ -249,7 +249,10 @@ const ABILITIES := {
 		"wall_health": 500,
 		"hotkey": KEY_2,
 		"is_starter": false,
-		"upgradeable_stats": ["cooldown", "wall_duration", "wall_health"]
+		"upgradeable_stats": ["cooldown", "wall_duration", "wall_health"],
+		# Für die Demo deaktiviert: die Wand ist bisher nur ein kosmetisches VFX
+		# ohne Kollision/HP-Abbau und blockiert Gegner nicht wirklich.
+		"disabled_for_demo": true
 	},
 	"fissure": {
 		"name": "Erdspalte",
@@ -970,6 +973,8 @@ func get_available_abilities_for_unlock() -> Array[String]:
 	var available: Array[String] = []
 	for ability_id in ABILITIES:
 		if ability_id in equipped_abilities:
+			continue
+		if ABILITIES[ability_id].get("disabled_for_demo", false):
 			continue
 		available.append(ability_id)
 	return available
