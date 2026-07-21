@@ -2,6 +2,8 @@
 # Erweitertes Ability-System mit Charakteren, Slots und Upgrades
 extends Node
 
+const RunSchedule = preload("res://autoload/run_schedule.gd")
+
 signal ability_used(ability_id: String)
 signal ability_ready(ability_id: String)
 signal cooldown_updated(ability_id: String, remaining: float, total: float)
@@ -994,19 +996,14 @@ func get_ability_data(ability_id: String) -> Dictionary:
 
 # === WELLEN-HELPER ===
 
-# Ability-Upgrades: Nach Welle 4, 7, 10, 13... → (wave - 1) % 3 == 0 für wave > 3
+# Ability-Upgrades: Nach Welle 4, 7, 10, 13...
+# Kadenz liegt in autoload/run_schedule.gd (gemeinsam mit Perks, Kernen, Schmiede).
 static func should_show_ability_upgrades(wave: int) -> bool:
-	if wave <= 3:
-		return false
-	return (wave - 1) % 3 == 0
+	return RunSchedule.has_ability_upgrade(wave)
 
 
 static func get_next_ability_upgrade_wave(current_wave: int) -> int:
-	if current_wave < 4:
-		return 4
-	var waves_since_4 := current_wave - 4
-	var next_cycle := ((waves_since_4 / 3) + 1) * 3
-	return 4 + next_cycle
+	return RunSchedule.get_next_ability_upgrade_wave(current_wave)
 
 func apply_ability_upgrade(ability_id: String, stat: String) -> bool:
 	if not can_upgrade_stat(ability_id, stat):

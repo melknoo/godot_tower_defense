@@ -97,6 +97,17 @@ const SWORD_DIRECTION_ROWS := {"up": 2, "up_right": 3, "right": 4, "down_right":
 static var corner_textures: Dictionary = {}
 static var corners_loaded := false
 
+# Platzhalter-Darstellung fuer Tuerme ohne eigenes Sprite (siehe ASSETS_TODO.md).
+# PLACEHOLDER_PIXEL entspricht der 3x-Skalierung der echten 16x16-Sprites, damit
+# der Platzhalter im selben Raster sitzt.
+const PLACEHOLDER_PIXEL := 3.0
+const PLACEHOLDER_GLYPHS := {
+	"wizard": "abilities",
+	"cannon": "damage",
+	"trapper": "path",
+	"aura": "star_full",
+}
+
 # Equipment
 var equipped_items: Array = [{}, {}]  # 2 Slots
 var item_indicators: Array[Node2D] = []
@@ -179,7 +190,6 @@ func _recalculate_after_ready() -> void:
 		_apply_upgrade_bonuses()
 		_apply_item_bonuses()
 		_update_isolation_visual()
-		print("[Tower %s] Stats nach _ready recalculated - isolated=%s, damage=%d" % [tower_type, is_isolated(), damage])
 
 func _apply_upgrade_bonuses() -> void:
 	if not UpgradeSystem:
@@ -447,11 +457,6 @@ func recalculate_stats() -> void:
 		_update_visuals()
 		_update_item_indicators()
 	
-	# ✅ Debug-Output
-	if UpgradeSystem and (UpgradeSystem.get_upgrade_stacks("isolated_damage") > 0 or UpgradeSystem.get_upgrade_stacks("isolated_range") > 0):
-		print("[Tower %s] Isolation-Check: isolated=%s, damage=%d, range=%.0f" % [tower_type, is_isolated(), damage, tower_range])
-
-
 # === NEUE FUNKTION: Item-Indikatoren anzeigen ===
 func _update_item_indicators() -> void:
 	# Alte entfernen
@@ -525,7 +530,6 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 		var bs = data.get("buff_strength", 0.15)
 		buff_strength = bs[level] if (bs is Array and level < bs.size()) else (bs[0] if bs is Array else bs)
 		aura_range = tower_range  # Aura nutzt tower_range
-		print("[Tower Aura] Level %d: buff_strength=%.2f, aura_range=%.0f" % [level, buff_strength, aura_range])
 	
 	_load_special_effects()
 	_apply_upgrade_bonuses()
@@ -619,7 +623,6 @@ func _load_engraving_effects() -> void:
 	if engraved_element == "":
 		return
 	if special_type == "aura":
-		print("[Tower Aura] Engraved mit %s - behalte special_type='aura'" % engraved_element)
 		return
 	match engraved_element:
 		"water":
@@ -685,7 +688,6 @@ func select_aura_buff(buff_type: String) -> bool:
 	_update_aura_buffs()
 	
 	Sound.play_element_select()
-	print("[Tower Aura] Buff-Typ gewählt: %s (Stärke: %.2f)" % [aura_buff_type, buff_strength])
 	return true
 
 
@@ -755,45 +757,30 @@ func _create_visuals() -> void:
 
 
 func _update_visuals() -> void:
-	print("[Tower %s] _update_visuals() START" % tower_type)
-	
-	print("[Tower %s] Clearing turret children..." % tower_type)
 	if turret.get_child_count() > 0:
-		print("[Tower %s] Clearing turret children..." % tower_type)
 		for child in turret.get_children():
 			turret.remove_child(child)
 			child.queue_free()
-	
-	print("[Tower %s] Resetting sprite vars..." % tower_type)
+
 	archer_sprite = null
 	sword_sprite = null
 	sprite = null
-	
-	print("[Tower %s] Checking tower_type, value is: '%s'" % [tower_type, tower_type])
-	
-	# ✅ SPRITE SETUP - nur eine Funktion wird aufgerufen
+
+	# SPRITE SETUP - nur eine Funktion wird aufgerufen
 	if tower_type == "archer":
-		print("[Tower] -> Branch: archer")
 		_setup_archer_sprite()
 	elif tower_type == "sword":
-		print("[Tower] -> Branch: sword")
 		_setup_sword_sprite()
 	elif tower_type == "farm":
-		print("[Tower] -> Branch: farm")
 		_setup_farm_sprite()
 	else:
-		print("[Tower] -> Branch: else (calling _setup_standard_sprite)")
 		_setup_standard_sprite()
-	
-	print("[Tower %s] After sprite setup, children count: %d" % [tower_type, turret.get_child_count()])
-	
+
 	_refresh_range_visuals()
 
 	_update_level_indicator()
 	_update_isolation_visual()
 	_update_engraving_indicator()
-	
-	print("[Tower %s] _update_visuals() END" % tower_type)
 
 
 # Baut Reichweiten-, Mindestreichweiten- und Aura-Raster neu auf.
@@ -945,105 +932,87 @@ func _setup_sword_sprite() -> void:
 
 
 func _setup_standard_sprite() -> void:
-	print("[Tower %s] _setup_standard_sprite() START" % tower_type)
 	var texture_path := _get_tower_texture_path()
 	if not ResourceLoader.exists(texture_path) and level > 0:
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
-	
-	if ResourceLoader.exists(texture_path):
-		print("!!! RESOURCELOADER EXISTS!!!")
-		sprite = Sprite2D.new()
-		sprite.texture = load(texture_path)
-		if is_animated:
-			sprite.vframes = 4
-			sprite.hframes = 1
-			sprite.scale = Vector2(3, 3)
-			var timer := Timer.new()
-			timer.name = "AnimTimer"
-			timer.wait_time = 0.15
-			timer.autostart = true
-			timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % 4)
-			turret.add_child(timer)
-		else:
-			sprite.vframes = 1
-			sprite.hframes = 1
-			sprite.scale = Vector2(3, 3)
-		turret.add_child(sprite)
-	else:
-		print("[Tower %s] -> Creating polygon" % tower_type)
-		var poly := Polygon2D.new()
-		
-		match tower_type:
-			"wizard":
-				poly.polygon = PackedVector2Array([
-					Vector2(-15, 20), Vector2(15, 20), Vector2(15, 0),
-					Vector2(8, 0), Vector2(0, -28), Vector2(-8, 0), Vector2(-15, 0)
-				])
-			
-			"cannon":
-				print("[Tower] -> cannon polygon")
-				# Einfache L-Form (Kanonen-Körper + Rohr)
-				poly.polygon = PackedVector2Array([
-					# Basis/Körper
-					Vector2(-18, 18), Vector2(18, 18),
-					Vector2(18, -2), Vector2(8, -2),
-					# Rohr
-					Vector2(8, -10), Vector2(-30, -10),
-					Vector2(-30, -2), Vector2(-18, -2),
-					# Zurück
-					Vector2(-18, 0)
-				])
-				poly.color = Color(0.5, 0.5, 0.55)  # Helleres Grau - besser sichtbar!
-				print("[Tower] -> cannon color set to: %s" % poly.color)
-			
-			"trapper":
-				poly.polygon = PackedVector2Array([
-					Vector2(-20, 20), Vector2(20, 20), Vector2(20, 5),
-					Vector2(12, 5), Vector2(12, -5), Vector2(-12, -5),
-					Vector2(-12, 5), Vector2(-20, 5)
-				])
-			
-			"aura":
-				poly.polygon = PackedVector2Array([
-					Vector2(0, -25), Vector2(12, -8), Vector2(18, 8),
-					Vector2(0, 20), Vector2(-18, 8), Vector2(-12, -8)
-				])
-			
-			_:
-				print("[Tower] -> default polygon")
-				poly.polygon = PackedVector2Array([
-					Vector2(-20, 20), Vector2(20, 20), Vector2(20, -10),
-					Vector2(0, -25), Vector2(-20, -10)
-				])
-		
-		# ✅ NUR Farbe setzen wenn noch nicht gesetzt (für cannon)
-		if poly.color == Color.WHITE:
-			var color: Variant = data.get("color")
-			poly.color = color if color else Color.WHITE
-			print("[Tower %s] -> color from data: %s" % [tower_type, poly.color])
-		
-		print("[Tower %s] -> Adding poly to turret, children before: %d" % [tower_type, turret.get_child_count()])
-		turret.add_child(poly)
-		print("[Tower %s] -> turret children after: %d" % [tower_type, turret.get_child_count()])
-		
-		print("[Tower %s] === VISIBILITY CHECKS ===" % tower_type)
-		print("  turret.visible: %s" % turret.visible)
-		print("  turret.position: %s" % turret.position)
-		print("  turret.modulate: %s" % turret.modulate)
-		print("  turret.z_index: %d" % turret.z_index)
-		print("  poly.visible: %s" % poly.visible)
-		print("  poly.color: %s" % poly.color)
-		print("  poly.modulate: %s" % poly.modulate)
-		print("  poly.z_index: %d" % poly.z_index)
-		print("  poly.position: %s" % poly.position)
-		print("  poly.polygon points: %d" % poly.polygon.size())
-		print("=========================")
-		
-		sprite = null
-	print("[Tower %s] _setup_standard_sprite() END" % tower_type)
 
+	if not ResourceLoader.exists(texture_path):
+		_setup_placeholder_sprite(data)
+		sprite = null
+		return
+
+	sprite = Sprite2D.new()
+	sprite.texture = load(texture_path)
+	sprite.hframes = 1
+	sprite.scale = Vector2(3, 3)
+	if is_animated:
+		sprite.vframes = 4
+		var timer := Timer.new()
+		timer.name = "AnimTimer"
+		timer.wait_time = 0.15
+		timer.autostart = true
+		timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % 4)
+		turret.add_child(timer)
+	else:
+		sprite.vframes = 1
+	turret.add_child(sprite)
+
+
+# Einheitlicher Platzhalter fuer Tuerme ohne Sprite (aktuell Zauberer, Kanone,
+# Falle und Aura - siehe ASSETS_TODO.md). Bewusst ein Look fuer alle: vier
+# verschiedene Vektorformen lesen sich wie ein Bug, ein konsistenter Sockel mit
+# Typ-Glyphe wie eine Designentscheidung. Raster und Groesse folgen den echten
+# Sprites (16x16 bei Skalierung 3).
+func _setup_placeholder_sprite(data: Dictionary) -> void:
+	var color: Color = data.get("color", Color.WHITE)
+
+	var shadow := Polygon2D.new()
+	shadow.polygon = _placeholder_silhouette(1.12, Vector2(0, PLACEHOLDER_PIXEL))
+	shadow.color = Color(0.04, 0.05, 0.09, 0.5)
+	turret.add_child(shadow)
+
+	var outline := Polygon2D.new()
+	outline.polygon = _placeholder_silhouette(1.12, Vector2.ZERO)
+	outline.color = Color(0.08, 0.09, 0.14)
+	turret.add_child(outline)
+
+	var body := Polygon2D.new()
+	body.polygon = _placeholder_silhouette(1.0, Vector2.ZERO)
+	body.color = color
+	turret.add_child(body)
+
+	# Oberer Absatz etwas heller, damit der Sockel Volumen bekommt.
+	var highlight := Polygon2D.new()
+	highlight.polygon = PackedVector2Array([
+		Vector2(-5, -3) * PLACEHOLDER_PIXEL, Vector2(5, -3) * PLACEHOLDER_PIXEL,
+		Vector2(5, -1) * PLACEHOLDER_PIXEL, Vector2(-5, -1) * PLACEHOLDER_PIXEL
+	])
+	highlight.color = color.lightened(0.35)
+	turret.add_child(highlight)
+
+	var glyph_name: String = PLACEHOLDER_GLYPHS.get(tower_type, "upgrades")
+	var glyph_texture: Texture2D = IconSystem.get_texture(glyph_name) if IconSystem else null
+	if glyph_texture:
+		var glyph := Sprite2D.new()
+		glyph.texture = glyph_texture
+		glyph.position = Vector2(0, -PLACEHOLDER_PIXEL)
+		glyph.modulate = Color(0.96, 0.96, 1.0)
+		turret.add_child(glyph)
+
+
+# Turm-Silhouette in "Pixeln" a PLACEHOLDER_PIXEL: breiter Sockel, verjuengter Kopf.
+func _placeholder_silhouette(scale_factor: float, offset: Vector2) -> PackedVector2Array:
+	var points := PackedVector2Array([
+		Vector2(-7, 7), Vector2(7, 7), Vector2(7, 2), Vector2(5, 2),
+		Vector2(5, -3), Vector2(3, -6), Vector2(-3, -6), Vector2(-5, -3),
+		Vector2(-5, 2), Vector2(-7, 2)
+	])
+	var result := PackedVector2Array()
+	for point in points:
+		result.append(point * PLACEHOLDER_PIXEL * scale_factor + offset)
+	return result
 
 
 func _get_tower_texture_path() -> String:
@@ -1124,7 +1093,6 @@ func _process(delta: float) -> void:
 		if GameState.wave_active and fire_timer <= 0:
 			_place_trap()
 			fire_timer = fire_rate
-			print("[Tower Trapper] Falle platziert, nächste in %.1fs" % fire_rate)
 		_do_idle_animation(delta)
 		return
 	
@@ -1623,7 +1591,6 @@ func _place_trap() -> void:
 	
 	# Max Fallen erreicht
 	if active_traps.size() >= max_traps:
-		print("[Tower] Max Fallen erreicht (%d/%d)" % [active_traps.size(), max_traps])
 		return
 	
 	# Finde Position
@@ -1646,7 +1613,6 @@ func _place_trap() -> void:
 			"special_type": special_type,
 			"tower": self
 		})
-		print("[Tower] Falle mit Slow: %.0f%%, Splash: %.0f" % [slow_amount * 100, splash_radius])
 
 	
 	get_parent().add_child(trap)
@@ -1656,7 +1622,6 @@ func _place_trap() -> void:
 		VFX.spawn_pixel_burst(trap_pos, elem if elem != "" else "earth", 4)
 	
 	Sound.play_click()
-	print("[Tower] Falle platziert bei %s (aktiv: %d/%d)" % [trap_pos, active_traps.size(), max_traps])
 
 
 func _find_trap_position() -> Vector2:

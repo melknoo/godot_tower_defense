@@ -189,6 +189,25 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 		shadow.scale = Vector2(final_scale * 0.8, final_scale * 0.4)
 	_setup_tower_type_multipliers()
 
+	if enemy_type == "boss":
+		_announce_boss()
+
+
+# Ein Boss ist der wichtigste Moment einer Welle und soll auch so ankommen:
+# Banner, Wackeln, roter Blitz - und eine eigene Leiste oben im HUD.
+func _announce_boss() -> void:
+	if VFX:
+		VFX.spawn_status_text(position + Vector2(0, -60), "BOSS", Color(1.0, 0.75, 0.2))
+		VFX.spawn_pixel_ring(position, "fire", 90.0)
+		VFX.screen_shake(6.0, 0.35)
+		VFX.screen_flash(Color(0.9, 0.3, 0.15, 0.28), 0.18)
+	if Sound:
+		Sound.play_explosion()
+
+	var hud := get_tree().get_first_node_in_group("hud")
+	if hud and hud.has_method("show_boss_bar"):
+		hud.show_boss_bar(self)
+
 
 func _setup_tower_type_multipliers() -> void:
 	# Jeder Gegner-Typ definiert Schwächen (>1.0) und Resistenzen (<1.0)

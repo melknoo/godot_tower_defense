@@ -1,6 +1,7 @@
 extends SceneTree
 
 const RangeGridHelper = preload("res://autoload/range_grid.gd")
+const RunSchedule = preload("res://autoload/run_schedule.gd")
 
 var failed := false
 
@@ -45,6 +46,8 @@ func _run() -> void:
 	_assert_equal(1 in game_state._get_core_reward_waves(), false, "Kein Element-Kern in Welle 1")
 	_assert_equal(3 in game_state._get_core_reward_waves(), true, "Erster Element-Kern in Welle 3")
 	_assert_equal(10 in game_state._get_core_reward_waves(), true, "Element-Kern in Welle 10")
+
+	_check_run_schedule(ability_system)
 
 	progression.research_levels["starting_funds"] = 2
 	progression.research_levels["fortification"] = 1
@@ -170,6 +173,41 @@ func _run() -> void:
 	else:
 		print("[TEST] Progression smoke test bestanden")
 		quit(0)
+
+
+# Die Wellen-Kadenzen liegen in autoload/run_schedule.gd. HUD, Fahrplan-Panel und
+# die Panel-Logik in main.gd lesen alle daraus - eine Verschiebung hier faellt sonst
+# erst im Spiel auf.
+func _check_run_schedule(ability_system: Node) -> void:
+	var upgrade_waves: Array[int] = []
+	var ability_waves: Array[int] = []
+	var forge_waves: Array[int] = []
+	var boss_waves: Array[int] = []
+	for wave in range(1, 16):
+		if RunSchedule.has_upgrade(wave):
+			upgrade_waves.append(wave)
+		if RunSchedule.has_ability_upgrade(wave):
+			ability_waves.append(wave)
+		if RunSchedule.has_item_combine(wave):
+			forge_waves.append(wave)
+		if RunSchedule.has_boss(wave):
+			boss_waves.append(wave)
+
+	_assert_equal(upgrade_waves, [3, 6, 9, 12, 15], "Perk-Kadenz")
+	_assert_equal(ability_waves, [4, 7, 10, 13], "Ability-Upgrade-Kadenz")
+	_assert_equal(forge_waves, [5, 10, 15], "Schmiede-Kadenz")
+	_assert_equal(boss_waves, [5, 10, 15], "Boss-Kadenz")
+
+	# AbilitySystem delegiert an dieselbe Quelle
+	_assert_equal(ability_system.should_show_ability_upgrades(7), true, "AbilitySystem delegiert Kadenz")
+	_assert_equal(ability_system.get_next_ability_upgrade_wave(8), 10, "Naechste Ability-Welle")
+
+	# get_events liefert das wichtigste Ereignis zuerst (Boss vor dem Rest)
+	var wave_10_events := RunSchedule.get_events(10)
+	_assert_equal(wave_10_events.size(), 4, "Welle 10 hat vier Ereignisse")
+	_assert_equal(wave_10_events[0]["id"], "boss", "Boss steht in Welle 10 vorn")
+	_assert_equal(RunSchedule.get_events(1).is_empty(), true, "Welle 1 ohne Ereignis")
+	_assert_equal(RunSchedule.get_upcoming(8, 3).size(), 3, "Fahrplan liefert angeforderte Laenge")
 
 
 func _assert_equal(actual: Variant, expected: Variant, label: String) -> void:

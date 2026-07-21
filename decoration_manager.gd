@@ -38,7 +38,6 @@ func _load_decorations() -> void:
 		
 		if ResourceLoader.exists(file_path):
 			decorations[i] = load(file_path)
-			print("[DecorationManager] Geladen: %s" % filename)
 		else:
 			push_warning("[DecorationManager] Nicht gefunden: %s" % file_path)
 	

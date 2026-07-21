@@ -3,12 +3,15 @@
 extends Control
 class_name HUD
 
+const RunSchedule = preload("res://autoload/run_schedule.gd")
+
 signal start_wave_pressed
 signal open_element_panel_pressed
 signal open_upgrades_panel_pressed
 signal open_inventory_pressed
 signal open_research_pressed
 signal open_synergy_panel_pressed
+signal open_schedule_pressed
 signal pause_pressed
 
 @export var gold_label: RichTextLabel
@@ -30,6 +33,7 @@ var wave_preview_label: RichTextLabel
 @export var wave_events_label: RichTextLabel
 @export var inventory_button: Button
 var synergy_button: Button
+var schedule_button: Button
 
 const ENEMY_TYPE_INFO := {
 	"tank":     {"weak": "archer",  "resist": "sword",   "name": "Tank"},
@@ -101,8 +105,17 @@ var streak_panel: PanelContainer
 var streak_label: Label
 var streak_bar: ProgressBar
 
+const BOSS_BAR_WIDTH := 620.0
+const BOSS_BAR_TOP_MARGIN := 14.0
+
+var boss_bar_root: VBoxContainer
+var boss_bar_label: Label
+var boss_bar: ProgressBar
+var tracked_boss: Node2D
+
 
 func _ready() -> void:
+	add_to_group("hud")
 	_load_fast_forward_textures()
 	_load_element_textures()
 	_setup_hud_size()
@@ -110,11 +123,16 @@ func _ready() -> void:
 	_create_wave_status_ui()
 	_create_progression_ui()
 	_create_item_toast_layer()
+	_create_boss_bar()
 	_apply_styles()
 	_connect_signals()
 	_create_wave_tooltip()
 	_connect_tooltip_hover_area()
 	update_all()
+
+
+func _process(_delta: float) -> void:
+	_update_boss_bar()
 
 
 func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_width: float = 120.0) -> RichTextLabel:
@@ -218,6 +236,7 @@ func _find_or_create_ui_elements() -> void:
 	upgrades_button  = _get_or_create_button("UpgradesButton",   Vector2(520, zero_row_y - 5),              Vector2(48, 48))
 	inventory_button = _get_or_create_button("InventoryButton",  Vector2(380, zero_row_y - 5),              Vector2(48, 48))
 	synergy_button   = _get_or_create_button("SynergyButton",    Vector2(580, zero_row_y - 5),              Vector2(48, 48))
+	schedule_button  = _get_or_create_button("ScheduleButton",   Vector2(640, zero_row_y - 5),              Vector2(48, 48))
 	start_button     = _get_or_create_button("StartWaveButton",  Vector2(viewport_size.x - 740, first_row_y  - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
 
@@ -580,6 +599,96 @@ func _show_item_toast(item: Dictionary) -> void:
 		panel.queue_free()
 
 
+# === BOSS-LEISTE ===
+# Eigene Leiste am oberen Bildrand, solange ein Boss lebt. Sie macht den
+# wichtigsten Gegner einer Welle als eigenen Kampf lesbar, statt ihn als
+# groesseren Gegner in der Masse untergehen zu lassen.
+func _create_boss_bar() -> void:
+	boss_bar_root = VBoxContainer.new()
+	boss_bar_root.name = "BossBar"
+	boss_bar_root.visible = false
+	boss_bar_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boss_bar_root.add_theme_constant_override("separation", 4)
+	# Gehoert an den oberen Bildschirmrand, nicht in die HUD-Leiste unten -
+	# deshalb im UI-CanvasLayer statt im HUD-Control.
+	boss_bar_root.anchor_left = 0.5
+	boss_bar_root.anchor_right = 0.5
+	boss_bar_root.anchor_top = 0.0
+	boss_bar_root.anchor_bottom = 0.0
+	boss_bar_root.offset_left = -BOSS_BAR_WIDTH * 0.5
+	boss_bar_root.offset_right = BOSS_BAR_WIDTH * 0.5
+	boss_bar_root.offset_top = BOSS_BAR_TOP_MARGIN
+	boss_bar_root.offset_bottom = BOSS_BAR_TOP_MARGIN + 46.0
+	# Deferred, weil der UI-CanvasLayer waehrend _ready() noch seine Kinder aufbaut.
+	var host: Node = get_parent() if get_parent() else self
+	host.add_child.call_deferred(boss_bar_root)
+
+	boss_bar_label = Label.new()
+	boss_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if UITheme and UITheme.game_font:
+		boss_bar_label.add_theme_font_override("font", UITheme.game_font)
+	boss_bar_label.add_theme_font_size_override("font_size", 14)
+	boss_bar_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
+	boss_bar_label.add_theme_color_override("font_outline_color", Color(0.1, 0.03, 0.02))
+	boss_bar_label.add_theme_constant_override("outline_size", 4)
+	boss_bar_root.add_child(boss_bar_label)
+
+	boss_bar = ProgressBar.new()
+	boss_bar.custom_minimum_size = Vector2(BOSS_BAR_WIDTH, 18)
+	boss_bar.show_percentage = false
+	boss_bar.max_value = 1.0
+	_style_arcane_progress_bar(boss_bar, Color(0.85, 0.25, 0.2))
+	boss_bar_root.add_child(boss_bar)
+
+
+func show_boss_bar(boss: Node2D) -> void:
+	if not boss_bar_root or not is_instance_valid(boss):
+		return
+	tracked_boss = boss
+	boss_bar_label.text = "BOSS"
+	boss_bar.value = 1.0
+	boss_bar_root.visible = true
+	boss_bar_root.modulate.a = 0.0
+	var tween := boss_bar_root.create_tween()
+	tween.tween_property(boss_bar_root, "modulate:a", 1.0, 0.25)
+
+
+func _update_boss_bar() -> void:
+	if not boss_bar_root or not boss_bar_root.visible:
+		return
+
+	# Ein toter Boss gibt die Leiste an den naechsten weiter; ab Welle 10 spawnen mehrere.
+	if not _is_living_boss(tracked_boss):
+		var bosses := _living_bosses()
+		if bosses.is_empty():
+			boss_bar_root.visible = false
+			tracked_boss = null
+			return
+		tracked_boss = bosses[0]
+
+	var max_health: float = maxf(1.0, float(tracked_boss.max_health))
+	boss_bar.value = clampf(float(tracked_boss.health) / max_health, 0.0, 1.0)
+
+	var boss_count := _living_bosses().size()
+	boss_bar_label.text = "BOSS" if boss_count <= 1 else "BOSS  (%d)" % boss_count
+
+
+# Bewusst untypisiert: die Referenz kann bereits freigegeben sein, und ein
+# typisierter Parameter wuerde beim Uebergeben genau daran scheitern.
+func _is_living_boss(enemy) -> bool:
+	if not is_instance_valid(enemy):
+		return false
+	return enemy.get("enemy_type") == "boss" and float(enemy.health) > 0.0
+
+
+func _living_bosses() -> Array:
+	var result: Array = []
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if _is_living_boss(enemy):
+			result.append(enemy)
+	return result
+
+
 func _style_arcane_progress_bar(bar: ProgressBar, color: Color) -> void:
 	var background := StyleBoxFlat.new()
 	background.bg_color = Color(0.02, 0.03, 0.06, 0.9)
@@ -786,6 +895,14 @@ func _apply_styles() -> void:
 		synergy_button.add_theme_font_size_override("font_size", 22)
 		synergy_button.tooltip_text = "Meisterschaft & Synergien (Y)"
 
+	if schedule_button:
+		schedule_button.icon = IconSystem.get_texture("path")
+		schedule_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		schedule_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		schedule_button.expand_icon = true
+		schedule_button.add_theme_constant_override("icon_max_width", 26)
+		schedule_button.tooltip_text = "Fahrplan der kommenden Wellen (F)"
+
 	if start_button:
 		start_button.text = "Nächste Welle"
 
@@ -806,6 +923,8 @@ func _apply_styles() -> void:
 			UITheme.style_icon_button(cores_button)
 		if upgrades_button:
 			UITheme.style_icon_button(upgrades_button)
+		if schedule_button:
+			UITheme.style_icon_button(schedule_button)
 
 
 
@@ -858,6 +977,7 @@ func _connect_signals() -> void:
 	if fast_forward_button: fast_forward_button.pressed.connect(_on_fast_forward_pressed)
 	if inventory_button:  inventory_button.pressed.connect(_on_inventory_button_pressed)
 	if synergy_button:    synergy_button.pressed.connect(_on_synergy_button_pressed)
+	if schedule_button:   schedule_button.pressed.connect(_on_schedule_button_pressed)
 	if ItemSystem:
 		ItemSystem.item_collected.connect(_on_item_collected)
 		ItemSystem.inventory_changed.connect(_on_inventory_changed)
@@ -1079,34 +1199,20 @@ func update_wave_events_preview(next_wave: int) -> void:
 	if not wave_events_label:
 		return
 
-	var events: Array[String] = []
-
-	if next_wave >= 2 and (next_wave - 2) % 3 == 0:
-		events.append("%s Neuer Pfad" % IconSystem.bb("path", 14))
-
-	if next_wave >= 3 and next_wave % 3 == 0:
-		events.append("%s Upgrade" % IconSystem.bb("upgrades", 14))
-
-	if AbilitySystem.should_show_ability_upgrades(next_wave):
-		events.append("%s Ability Upgrade" % IconSystem.bb("abilities", 14))
-
-	if next_wave > 0 and next_wave % 5 == 0:
-		events.append("+1 %s" % IconSystem.bb("core", 14))
-		events.append("%s Schmiede" % IconSystem.bb("inventory", 14))
-
-	if events.is_empty():
+	var schedule := RunSchedule.get_events(next_wave)
+	if schedule.is_empty():
 		wave_events_label.text = ""
 		wave_events_label.visible = false
-	else:
-		wave_events_label.text = "DANACH  %s" % " · ".join(events)
-		wave_events_label.visible = true
+		return
 
-		if "Upgrade" in wave_events_label.text:
-			wave_events_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
-		elif "Neuer Pfad" in wave_events_label.text:
-			wave_events_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
-		else:
-			wave_events_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+	var events: Array[String] = []
+	for event in schedule:
+		events.append("%s %s" % [IconSystem.bb(event["icon"], 14), event["label"]])
+
+	wave_events_label.text = "DANACH  %s" % " · ".join(events)
+	wave_events_label.visible = true
+	# Faerbung nach dem wichtigsten Ereignis - get_events() liefert es zuerst.
+	wave_events_label.add_theme_color_override("font_color", schedule[0]["color"])
 
 
 func _on_gold_changed(amount: int) -> void:
@@ -1329,10 +1435,6 @@ func _on_wave_completed(wave: int) -> void:
 	if fast_forward_button:
 		fast_forward_button.visible = false
 	_set_fast_forward(false)
-
-
-func update_wave_preview_after_regen() -> void:
-	_update_wave_preview(GameState.current_wave + 1)
 
 
 func _on_enemy_count_changed(count: int) -> void:
@@ -1887,6 +1989,10 @@ func _on_upgrades_button_pressed() -> void:
 
 func _on_synergy_button_pressed() -> void:
 	open_synergy_panel_pressed.emit()
+
+
+func _on_schedule_button_pressed() -> void:
+	open_schedule_pressed.emit()
 
 
 func _on_fast_forward_pressed() -> void:

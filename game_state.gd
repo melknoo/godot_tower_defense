@@ -1,6 +1,8 @@
 # game_state.gd
 extends Node
 
+const RunSchedule = preload("res://autoload/run_schedule.gd")
+
 signal gold_changed(new_amount: int)
 signal lives_changed(new_amount: int)
 signal wave_started(wave_number: int)
@@ -62,10 +64,8 @@ const DEFAULT_LIVES := 10
 
 func _get_core_reward_waves() -> Array[int]:
 	# Frühe Kerne (Welle 3 & 6), damit Kombi-Türme ~Welle 6 baubar sind, danach alle 5 Wellen.
-	var waves: Array[int] = [3, 6]
-	for i in range(10, 101, 5):
-		waves.append(i)
-	return waves
+	# Kadenz liegt in autoload/run_schedule.gd, damit HUD und Fahrplan dasselbe zeigen.
+	return RunSchedule.get_core_reward_waves()
 
 
 func _ready() -> void:
@@ -347,6 +347,10 @@ func reset() -> void:
 		UpgradeSystem.reset()
 	if SynergySystem:
 		SynergySystem.reset()
+	# Items sind Run-Loot: Das Inventar darf einen Run nicht ueberleben. ItemSystem ist
+	# ein Autoload und wuerde sonst ueber Szenenwechsel hinweg gefuellt bleiben.
+	if ItemSystem:
+		ItemSystem.reset()
 	print("[GameState] Zurückgesetzt")
 
 

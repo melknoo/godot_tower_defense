@@ -36,6 +36,8 @@ func _ready() -> void:
 	_update_character_grid()
 	_update_characters_button_badge()
 	_show_main_menu()
+	if Music:
+		Music.play_state("menu")
 
 
 func _create_ui() -> void:

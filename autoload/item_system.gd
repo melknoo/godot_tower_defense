@@ -10,6 +10,15 @@ signal inventory_changed
 
 const ITEM_ICON_PATH := "res://assets/items/"
 
+# Sammelicons je Kategorie - letzte Fallback-Stufe fuer Items, deren eigenes
+# Icon noch nicht gezeichnet ist (siehe ASSETS_TODO.md).
+const CATEGORY_FALLBACK_ICONS := {
+	"weapon": "weapons",
+	"accessory": "accessories",
+	"elemental": "gems",
+	"special": "special",
+}
+
 
 # Inventar für gesammelte Items
 var inventory: Array[Dictionary] = []
@@ -900,9 +909,46 @@ func get_item_texture(item: Dictionary) -> Texture2D:
 		var tex := load(base_path) as Texture2D
 		_icon_cache[cache_key] = tex
 		return tex
-	
-	push_warning("[ItemSystem] Icon nicht gefunden: %s (weder %s noch %s)" % [icon_name, rarity_path, base_path])
-	return null
+
+	# 3. Fallback: Kategorie-Icon in Raritaetsfarbe. Ohne diese Stufe blieben Slots
+	#    fuer Items ohne gezeichnetes Icon komplett leer (siehe ASSETS_TODO.md).
+	var category: String = item.get("category", "")
+	if category.is_empty():
+		var template: Dictionary = ITEMS.get(item.get("id", ""), {})
+		category = template.get("category", "")
+	var tex := _create_category_fallback_texture(category, rarity)
+	_icon_cache[cache_key] = tex
+	return tex
+
+
+# Faerbt das Kategorie-Sammelicon in der Raritaetsfarbe ein, damit Platzhalter
+# trotzdem Kategorie und Wertigkeit eines Items kommunizieren.
+func _create_category_fallback_texture(category: String, rarity: String) -> Texture2D:
+	var path: String = ITEM_ICON_PATH + CATEGORY_FALLBACK_ICONS.get(category, "special") + ".png"
+	if not ResourceLoader.exists(path):
+		return null
+
+	var source: Texture2D = load(path)
+	var image := source.get_image()
+	if image == null:
+		return source
+	image = image.duplicate()
+	if image.is_compressed():
+		image.decompress()
+
+	var tint: Color = RARITIES.get(rarity, RARITIES["common"])["color"]
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			var pixel := image.get_pixel(x, y)
+			if pixel.a <= 0.0:
+				continue
+			# Helligkeit des Originals erhalten, Farbton aus der Raritaet nehmen.
+			var value := maxf(pixel.r, maxf(pixel.g, pixel.b))
+			image.set_pixel(x, y, Color(
+				tint.r * value, tint.g * value, tint.b * value, pixel.a
+			))
+
+	return ImageTexture.create_from_image(image)
 
 
 

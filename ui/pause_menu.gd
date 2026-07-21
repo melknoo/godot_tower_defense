@@ -18,8 +18,10 @@ var confirm_message: Label
 var confirm_action_button: Button
 var master_slider: HSlider
 var sfx_slider: HSlider
+var music_slider: HSlider
 var master_value_label: Label
 var sfx_value_label: Label
+var music_value_label: Label
 var fullscreen_toggle: CheckButton
 var shake_toggle: CheckButton
 var _tree_was_paused := false
@@ -124,6 +126,12 @@ func _build_options_view() -> void:
 	sfx_value_label = sfx_row.value_label
 	sfx_slider.value_changed.connect(_on_sfx_volume_changed)
 	options_view.add_child(sfx_row.root)
+
+	var music_row := _create_slider_row("MUSIKLAUTSTÄRKE")
+	music_slider = music_row.slider
+	music_value_label = music_row.value_label
+	music_slider.value_changed.connect(_on_music_volume_changed)
+	options_view.add_child(music_row.root)
 
 	fullscreen_toggle = _create_toggle("VOLLBILD")
 	fullscreen_toggle.toggled.connect(_on_fullscreen_toggled)
@@ -354,6 +362,7 @@ func _on_quit_pressed() -> void:
 
 func _on_master_volume_changed(value: float) -> void:
 	if Sound: Sound.set_master_volume(value)
+	if Music: Music.set_master_volume(value)
 	master_value_label.text = "%d%%" % _db_to_percent(value)
 	_save_settings()
 
@@ -361,6 +370,12 @@ func _on_master_volume_changed(value: float) -> void:
 func _on_sfx_volume_changed(value: float) -> void:
 	if Sound: Sound.set_sfx_volume(value)
 	sfx_value_label.text = "%d%%" % _db_to_percent(value)
+	_save_settings()
+
+
+func _on_music_volume_changed(value: float) -> void:
+	if Music: Music.set_music_volume(value)
+	music_value_label.text = "%d%%" % _db_to_percent(value)
 	_save_settings()
 
 
@@ -380,19 +395,25 @@ func _load_settings() -> void:
 	var loaded := config.load(SETTINGS_PATH) == OK
 	var master := float(config.get_value("audio", "master_db", 0.0)) if loaded else 0.0
 	var sfx := float(config.get_value("audio", "sfx_db", 0.0)) if loaded else 0.0
+	var music := float(config.get_value("audio", "music_db", -6.0)) if loaded else -6.0
 	var fullscreen_default := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 	var fullscreen := bool(config.get_value("video", "fullscreen", fullscreen_default)) if loaded else fullscreen_default
 	var shake := bool(config.get_value("video", "screen_shake", true)) if loaded else true
 
 	master_slider.set_value_no_signal(master)
 	sfx_slider.set_value_no_signal(sfx)
+	music_slider.set_value_no_signal(music)
 	fullscreen_toggle.set_pressed_no_signal(fullscreen)
 	shake_toggle.set_pressed_no_signal(shake)
 	master_value_label.text = "%d%%" % _db_to_percent(master)
 	sfx_value_label.text = "%d%%" % _db_to_percent(sfx)
+	music_value_label.text = "%d%%" % _db_to_percent(music)
 	if Sound:
 		Sound.set_master_volume(master)
 		Sound.set_sfx_volume(sfx)
+	if Music:
+		Music.set_master_volume(master)
+		Music.set_music_volume(music)
 	if VFX:
 		VFX.screen_shake_enabled = shake
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
@@ -404,6 +425,7 @@ func _save_settings() -> void:
 	var config := ConfigFile.new()
 	config.set_value("audio", "master_db", master_slider.value)
 	config.set_value("audio", "sfx_db", sfx_slider.value)
+	config.set_value("audio", "music_db", music_slider.value)
 	config.set_value("video", "fullscreen", fullscreen_toggle.button_pressed)
 	config.set_value("video", "screen_shake", shake_toggle.button_pressed)
 	config.save(SETTINGS_PATH)

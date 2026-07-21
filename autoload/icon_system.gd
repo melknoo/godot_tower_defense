@@ -70,17 +70,56 @@ var elemental_icons := {
 	"four_elements": "four_elements.png",
 }
 
+# Ersatz fuer registrierte Icons, deren Datei noch fehlt (siehe ASSETS_TODO.md).
+# Ohne Ersatz liefert bb() nur "[?]" und create_icon_node() gar nichts.
+const FALLBACKS := {
+	"warning": "damage",
+	"core_fire": "core",
+	"core_ice": "core",
+	"core_lightning": "core",
+	"core_earth": "core",
+	"core_nature": "core",
+}
+
 # Cache für geladene Texturen
 var _texture_cache := {}
+# Cache für aufgeloeste Pfade - bb() laeuft bei jedem HUD-Update durch,
+# die Existenzpruefung soll nicht pro Aufruf ins Dateisystem gehen.
+var _path_cache := {}
 
 
-# Gibt den vollständigen Pfad für ein Icon zurück
+# Gibt den vollständigen Pfad für ein Icon zurück.
+# Existiert die Datei nicht, wird auf ein registriertes Ersatz-Icon ausgewichen.
 func get_icon_path(icon_name: String) -> String:
+	if _path_cache.has(icon_name):
+		return _path_cache[icon_name]
+	var resolved := _resolve_icon_path(icon_name)
+	_path_cache[icon_name] = resolved
+	return resolved
+
+
+func _resolve_icon_path(icon_name: String) -> String:
+	var path := _raw_icon_path(icon_name)
+	if not path.is_empty() and ResourceLoader.exists(path):
+		return path
+
+	if FALLBACKS.has(icon_name):
+		var fallback_path := _raw_icon_path(FALLBACKS[icon_name])
+		if ResourceLoader.exists(fallback_path):
+			return fallback_path
+
+	if path.is_empty():
+		push_warning("IconSystem: Unbekanntes Icon '%s'" % icon_name)
+	else:
+		push_warning("IconSystem: Icon-Datei nicht gefunden: %s" % path)
+	return ""
+
+
+func _raw_icon_path(icon_name: String) -> String:
 	if icons.has(icon_name):
 		return ICON_PATH + icons[icon_name]
 	if elemental_icons.has(icon_name):
 		return ELEMENTAL_PATH + elemental_icons[icon_name]
-	push_warning("IconSystem: Unbekanntes Icon '%s'" % icon_name)
 	return ""
 
 
@@ -88,18 +127,14 @@ func get_icon_path(icon_name: String) -> String:
 func get_texture(icon_name: String) -> Texture2D:
 	if _texture_cache.has(icon_name):
 		return _texture_cache[icon_name]
-	
+
 	var path := get_icon_path(icon_name)
 	if path.is_empty():
 		return null
-	
-	if ResourceLoader.exists(path):
-		var tex := load(path) as Texture2D
-		_texture_cache[icon_name] = tex
-		return tex
-	
-	push_warning("IconSystem: Icon-Datei nicht gefunden: %s" % path)
-	return null
+
+	var tex := load(path) as Texture2D
+	_texture_cache[icon_name] = tex
+	return tex
 
 
 # BBCode für RichTextLabel - fügt Icon inline ein
@@ -138,8 +173,8 @@ func value_with_icon(icon_name: String, value, size: int = DEFAULT_SIZE) -> Stri
 func register_icon(short_name: String, filename: String) -> void:
 	icons[short_name] = filename
 	# Cache invalidieren falls bereits geladen
-	if _texture_cache.has(short_name):
-		_texture_cache.erase(short_name)
+	_texture_cache.erase(short_name)
+	_path_cache.erase(short_name)
 
 
 # Erstellt ein RichTextLabel mit BBCode-Unterstützung für Icons

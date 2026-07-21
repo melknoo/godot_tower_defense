@@ -42,6 +42,9 @@ oder wichtige bekannte Falle veraendert.
 - `autoload/upgrade_system.gd`: temporaere Run-Upgrades ausserhalb der
   Ability-Upgrades.
 - `autoload/item_system.gd`: Items und Inventardaten.
+- `autoload/run_schedule.gd`: einzige Quelle fuer die Wellen-Kadenzen eines Runs
+  (Perk, Ability-Upgrade, Element-Kern, Schmiede, Boss).
+- `autoload/music_manager.gd`: Hintergrundmusik mit Crossfade je Spielzustand.
 - `main.gd`: Aufbau und Koordination der eigentlichen Spielszene.
 - `main_menu.gd`: Hauptmenue und Charakterwahl vor einem neuen Run.
 - `ui/meta_progression_ui.gd`: Oberflaeche des Arkanen Archivs.
@@ -63,6 +66,16 @@ werden.
 - Turm-Unlocks werden erst beim Beginn des folgenden Runs in den Run-Snapshot
   uebernommen. Ein Kauf veraendert keinen laufenden Versuch.
 - Tiefe Runs sollen effizienter sein als schnelles Neustart-Farming.
+- Die Karte wird **einmal pro Run** erzeugt und bleibt danach stabil. Eine Karte,
+  die sich mitten im Run aendert, entwertet jeden Turmaufbau und nimmt dem Ort
+  seine Identitaet. Die frueher vorhandene Pfad-Regenerierung alle 3 Wellen ist
+  bewusst entfernt.
+- Items sind Run-Loot und ueberleben einen Run nicht. `GameState.reset()` leert
+  das Inventar ueber `ItemSystem.reset()`; equipte Items sterben ohnehin mit den
+  Turm-Nodes.
+- Alle Wellen-Kadenzen stehen in `autoload/run_schedule.gd` und werden nirgends
+  dupliziert. Wer ein Intervall aendert, aendert genau eine Datei; HUD-Vorschau,
+  Fahrplan-Panel und die Panel-Logik in `main.gd` folgen automatisch.
 
 ### Charaktere
 
@@ -138,6 +151,12 @@ werden.
   aktuellen Reichweite der Aura-Tuerme gesammelt und gelten, solange die
   raeumlichen Bedingungen erfuellt sind.
 - Die Eiswand besitzt noch keine implementierte Wand-Entitaet.
+- Fehlende Assets duerfen nie zu leeren Feldern fuehren: `ItemSystem` faellt auf
+  das Kategorie-Sammelicon in Raritaetsfarbe zurueck, `IconSystem` auf die
+  `FALLBACKS`-Tabelle, Tuerme ohne Sprite auf einen einheitlichen Platzhalter.
+  Was wirklich fehlt, steht in `ASSETS_TODO.md`.
+- Musik ist optional: fehlt eine Datei in `assets/music/`, ist der Zustands-
+  wechsel ein No-Op. Tracks lassen sich ohne Codeaenderung nachreichen.
 - `ProgressionSystem.begin_run()` erstellt einen Snapshot der permanenten
   Turm-Unlocks. Diese Semantik bei Refactorings erhalten.
 - Tests, die Progressions-Singletons veraendern, muessen ihren Zustand
@@ -147,6 +166,8 @@ werden.
 ## Test- und Arbeitskonventionen
 
 - Logischer Smoke-Test: `tests/progression_smoke.gd`.
+- Funktionaler Smoke-Test in einer echten `main.tscn`: `tests/feature_smoke.gd`
+  (Icon-Fallbacks, Turm-Platzhalter, Boss-Leiste, Fahrplan, Inventar-Reset).
 - Visuelle Regression der Spiel-UI: `tests/ui_capture.tscn`.
 - Visuelle Regression des Hauptmenues: `tests/main_menu_capture.tscn`.
 - Visuelle Regression des Charakter-Rosters: `tests/character_roster_capture.tscn`.

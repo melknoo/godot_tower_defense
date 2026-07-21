@@ -41,14 +41,6 @@ func setup(data: Dictionary) -> void:
 	source_tower = data.get("tower", null)
 	arming_time = 0.5
 	
-	if source_tower and "slow_amount" in source_tower:
-		var trap_slow: float = source_tower.slow_amount
-		if trap_slow > 0:
-			print("[Trap] Falle mit %d%% Slow erstellt" % int(trap_slow * 100))
-	
-	print("[Trap] Falle platziert - Damage: %d, Element: %s, Duration: %.1fs" % [
-		damage, element, duration
-	])
 
 
 func _create_visuals() -> void:
@@ -183,7 +175,6 @@ func _on_enemy_entered(area: Area2D) -> void:
 		return
 	
 	if not is_armed:
-		print("[Trap] Noch nicht scharf, ignoriere Enemy")
 		return
 	
 	var body := area.get_parent()
@@ -209,14 +200,12 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 		if collision:
 			collision.set_deferred("disabled", true)
 	
-	print("[Trap] Falle ausgelöst von Enemy!")
 	
 	# Finde alle Enemies in Splash-Reichweite
 	var affected_enemies: Array[Node2D] = []
 	
 	if is_instance_valid(triggering_enemy):
 		affected_enemies.append(triggering_enemy)
-		print("[Trap] Triggering Enemy hinzugefügt")
 	
 	if splash_radius > 0:
 		var all_enemies := get_tree().get_nodes_in_group("enemies")
@@ -229,9 +218,7 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 			var dist := position.distance_to(enemy.position)
 			if dist <= splash_radius:
 				affected_enemies.append(enemy)
-				print("[Trap] Extra Enemy in Splash: %.0f" % dist)
 	
-	print("[Trap] Treffe insgesamt %d Enemies" % affected_enemies.size())
 	
 	# ✅ Slow-Amount vom Source-Tower holen
 	var trap_slow := 0.0
@@ -246,7 +233,6 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 		if enemy.has_method("take_damage"):
 			var dealt: int = enemy.take_damage(damage, false, element, false, "trapper", 1.0, source_tower)
 			_credit_damage(dealt)
-			print("[Trap] Schaden angewendet: %d" % damage)
 		
 		# ✅ Base-Slow anwenden
 		if trap_slow > 0 and enemy.has_method("apply_slow"):
@@ -358,7 +344,6 @@ func _process(delta: float) -> void:
 	if not is_armed:
 		if lifetime >= arming_time:
 			is_armed = true
-			print("[Trap] Falle ist jetzt scharf!")
 			# Optional: Sound-Effekt
 			if Sound and Sound.has_method("play_click"):
 				Sound.play_click()
@@ -377,7 +362,6 @@ func _process(delta: float) -> void:
 
 func _expire() -> void:
 	"""Falle ist abgelaufen ohne zu triggern"""
-	print("[Trap] Falle abgelaufen")
 	
 	# Kleiner Verpuff-Effekt
 	if VFX:

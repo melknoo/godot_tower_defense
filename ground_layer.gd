@@ -28,14 +28,12 @@ func _ready() -> void:
 func _load_grass_texture() -> void:
 	if ResourceLoader.exists(GRASS_TILEABLE_PATH):
 		grass_texture = load(GRASS_TILEABLE_PATH)
-		print("[GroundLayer] Gras-Textur geladen: %s" % GRASS_TILEABLE_PATH)
 	else:
 		push_error("[GroundLayer] Gras-Textur nicht gefunden: %s" % GRASS_TILEABLE_PATH)
 	
 	# Lade auch das Original Pfad-Tile
 	if ResourceLoader.exists(PATH_TILE_PATH):
 		path_tile_texture = load(PATH_TILE_PATH)
-		print("[GroundLayer] Pfad-Tile geladen: %s" % PATH_TILE_PATH)
 	else:
 		push_error("[GroundLayer] Pfad-Tile nicht gefunden: %s" % PATH_TILE_PATH)
 

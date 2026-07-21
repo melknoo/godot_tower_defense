@@ -3,10 +3,9 @@ extends Node2D
 
 const GRID_SIZE := 64
 const RangeGridHelper = preload("res://autoload/range_grid.gd")
+const RunSchedule = preload("res://autoload/run_schedule.gd")
 const MAP_WIDTH := 30
 const MAP_HEIGHT := 15
-# Rhythmus für das Item-Kombinieren-Panel (alle N Wellen)
-const ITEM_COMBINE_INTERVAL := 5
 
 const ARCHER_FRAME_SIZE := Vector2(192, 192)
 const ARCHER_COLUMNS := 8
@@ -25,6 +24,7 @@ var element_unlock_ui: ElementUnlockUI
 var wave_upgrade_ui: WaveUpgradeUI
 var upgrade_overview_ui: UpgradeOverviewUI
 var synergy_panel: SynergyPanel
+var run_schedule_ui: RunScheduleUI
 var path_generator: PathGenerator
 
 var path_points: Array[Vector2] = []
@@ -70,6 +70,7 @@ func _ready() -> void:
 	_setup_wave_upgrade_ui()
 	_setup_upgrade_overview_ui()
 	_setup_synergy_panel()
+	_setup_run_schedule_ui()
 	_setup_item_inventory_ui()
 	_setup_item_combine_ui()
 	_setup_element_unlock_ui()
@@ -80,6 +81,8 @@ func _ready() -> void:
 	_setup_ability_preview()
 	_connect_signals()
 	_setup_hover_preview()
+	if Music:
+		Music.play_state("build")
 
 
 func _setup_path_generator() -> void:
@@ -98,11 +101,12 @@ func _setup_ability_upgrade_ui() -> void:
 	ability_upgrade_ui.upgrade_selected.connect(_on_ability_upgrade_selected)
 	ability_upgrade_ui.panel_closed.connect(_on_ability_upgrade_closed)
 
-func _on_ability_upgrade_selected(choice: Dictionary) -> void:
-	print("[Main] Ability Upgrade gewählt: ", choice)
+func _on_ability_upgrade_selected(_choice: Dictionary) -> void:
+	# Die Auswahl wird im AbilitySystem angewendet; hier gibt es nichts zu tun.
+	pass
+
 
 func _on_ability_upgrade_closed() -> void:
-	print("[Main] Ability Upgrade Panel geschlossen")
 	if await _show_pending_post_wave_panels():
 		return
 	_maybe_queue_auto_wave()
@@ -116,7 +120,6 @@ func _setup_item_inventory_ui() -> void:
 	# Wegklicken des Inventars muss den pending Equip-Slot in TowerInfo zurücksetzen
 	if tower_info and tower_info.has_method("_on_inventory_panel_closed"):
 		item_inventory_ui.panel_closed.connect(tower_info._on_inventory_panel_closed)
-	print("[Main] ItemInventoryUI erstellt")
 
 
 func _setup_item_combine_ui() -> void:
@@ -124,7 +127,6 @@ func _setup_item_combine_ui() -> void:
 	item_combine_ui.name = "ItemCombineUI"
 	add_child(item_combine_ui)
 	item_combine_ui.panel_closed.connect(_on_item_combine_closed)
-	print("[Main] ItemCombineUI erstellt")
 
 
 func _on_item_combine_closed() -> void:
@@ -133,9 +135,6 @@ func _on_item_combine_closed() -> void:
 
 # Neue Callback-Funktion:
 func _on_inventory_item_selected(item: Dictionary) -> void:
-	print("[Main] item_selected:", item.get("name","?"), " uid=", item.get("uid",""))
-	print("[Main] tower_info.visible=", tower_info.visible, " tower=", tower_info.current_tower)
-	print("[Main] tower_manager.has_selection=", tower_manager.has_selection())
 	
 	# Priorität: Wenn TowerInfo offen ist UND einen pending_equip_slot hat -> TowerInfo machen lassen
 	if tower_info and tower_info.visible and tower_info.current_tower:
@@ -146,7 +145,6 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 	
 	# Fallback: Pending Equip über Main Metas (sollte normalerweise nicht mehr vorkommen)
 	if not has_meta("pending_equip_tower"):
-		print("[Main] _on_inventory_item_selected: kein pending_equip_tower, ignoriert")
 		return
 	var pending_tower: Node2D = get_meta("pending_equip_tower", null) as Node2D
 	var pending_slot: int = int(get_meta("pending_equip_slot", -1))
@@ -256,7 +254,6 @@ func _setup_element_unlock_ui() -> void:
 	element_unlock_ui = ElementUnlockUI.new()
 	element_unlock_ui.name = "ElementUnlockUI"
 	add_child(element_unlock_ui)
-	print("[Main] ElementUnlockUI erstellt")
 
 
 func _setup_wave_upgrade_ui() -> void:
@@ -264,14 +261,18 @@ func _setup_wave_upgrade_ui() -> void:
 	wave_upgrade_ui.name = "WaveUpgradeUI"
 	add_child(wave_upgrade_ui)
 	wave_upgrade_ui.upgrade_chosen.connect(_on_upgrade_chosen)
-	print("[Main] WaveUpgradeUI erstellt und Signal verbunden")
 
 
 func _setup_upgrade_overview_ui() -> void:
 	upgrade_overview_ui = UpgradeOverviewUI.new()
 	upgrade_overview_ui.name = "UpgradeOverviewUI"
 	add_child(upgrade_overview_ui)
-	print("[Main] UpgradeOverviewUI erstellt")
+
+
+func _setup_run_schedule_ui() -> void:
+	run_schedule_ui = RunScheduleUI.new()
+	run_schedule_ui.name = "RunScheduleUI"
+	add_child(run_schedule_ui)
 
 
 func _setup_synergy_panel() -> void:
@@ -280,7 +281,6 @@ func _setup_synergy_panel() -> void:
 	add_child(synergy_panel)
 	if SynergySystem:
 		SynergySystem.tier_unlocked.connect(_on_synergy_tier_unlocked)
-	print("[Main] SynergyPanel erstellt")
 
 
 func _on_synergy_tier_unlocked(tag: String, tier: int) -> void:
@@ -303,7 +303,6 @@ func _setup_ability_bar() -> void:
 	$UI.add_child(ability_bar)
 	var viewport_size := get_viewport_rect().size
 	ability_bar.position = Vector2(5, viewport_size.y - 105 - ability_bar.custom_minimum_size.y)
-	print("[Main] AbilityBar erstellt")
 
 
 func _setup_meta_progression_ui() -> void:
@@ -343,6 +342,7 @@ func _connect_signals() -> void:
 	hud.open_inventory_pressed.connect(_on_open_inventory)
 	hud.open_research_pressed.connect(_on_open_research)
 	hud.open_synergy_panel_pressed.connect(_on_open_synergy_panel)
+	hud.open_schedule_pressed.connect(_on_open_schedule)
 	hud.pause_pressed.connect(_on_pause_requested)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
@@ -402,6 +402,10 @@ func _input(event: InputEvent) -> void:
 		if synergy_panel:
 			synergy_panel.toggle_panel()
 		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+		if run_schedule_ui:
+			run_schedule_ui.toggle_panel()
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if meta_progression_ui and meta_progression_ui.visible:
 			meta_progression_ui.hide_panel()
@@ -417,6 +421,9 @@ func _input(event: InputEvent) -> void:
 			return
 		if synergy_panel and synergy_panel.visible:
 			synergy_panel.hide_panel()
+			return
+		if run_schedule_ui and run_schedule_ui.visible:
+			run_schedule_ui.hide_panel()
 			return
 		if AbilitySystem and AbilitySystem.is_targeting:
 			AbilitySystem.cancel_targeting()
@@ -439,61 +446,17 @@ func _input(event: InputEvent) -> void:
 
 
 # === WELLEN-EREIGNIS LOGIK ===
-
-# Pfad-Regenerierung: Nach Runde 2, dann alle 3 Runden (2, 5, 8, 11...)
-func should_regenerate_path(wave: int) -> bool:
-	if wave < 2:
-		return false
-	return (wave - 2) % 3 == 0
+# Die Kadenzen selbst stehen in autoload/run_schedule.gd; hier nur Delegation.
+# Der Pfad wird bewusst nur einmal pro Run erzeugt (_generate_new_path in _ready):
+# eine Karte, die sich mitten im Run aendert, entwertet jeden Turmaufbau.
 
 # Upgrade-Auswahl: Nach Runde 3, dann alle 3 Runden (3, 6, 9, 12...)
 func should_show_upgrades(wave: int) -> bool:
-	if wave < 3:
-		return false
-	return wave % 3 == 0
+	return RunSchedule.has_upgrade(wave)
 
 # Item-Kombination: Nach Runde 5, dann alle 5 Runden (5, 10, 15, 20...)
 func should_show_item_combine(wave: int) -> bool:
-	if wave < ITEM_COMBINE_INTERVAL:
-		return false
-	return wave % ITEM_COMBINE_INTERVAL == 0
-
-# Nächste Runde mit Item-Kombination
-func get_next_item_combine_wave(current_wave: int) -> int:
-	if current_wave < ITEM_COMBINE_INTERVAL:
-		return ITEM_COMBINE_INTERVAL
-	return ((current_wave / ITEM_COMBINE_INTERVAL) + 1) * ITEM_COMBINE_INTERVAL
-
-# Nächste Runde mit Pfad-Regenerierung
-func get_next_path_regen_wave(current_wave: int) -> int:
-	if current_wave < 2:
-		return 2
-	var waves_since_2 := current_wave - 2
-	var next_cycle := ((waves_since_2 / 3) + 1) * 3
-	return 2 + next_cycle
-
-# Nächste Runde mit Upgrade-Auswahl
-func get_next_upgrade_wave(current_wave: int) -> int:
-	if current_wave < 3:
-		return 3
-	return ((current_wave / 3) + 1) * 3
-
-
-func _regenerate_map() -> void:
-	_cancel_drag_or_pickup()
-	is_drag_potential = false
-	_generate_new_path()
-	
-	# Setup Ground Layer (inkl. Dekorationen)
-	ground_layer.setup(path_cells)
-	
-	wave_manager.path_points = path_points
-	tower_manager.set_blocked_cells(path_cells)
-	
-	if VFX:
-		VFX.screen_flash(Color(1, 1, 1), 0.2)
-	
-	print("[Main] Map regeneriert mit Dekorationen!")
+	return RunSchedule.has_item_combine(wave)
 
 
 func _handle_mouse_click(event: InputEventMouseButton) -> void:
@@ -969,6 +932,8 @@ func _map_center() -> Vector2:
 
 func _on_wave_started(wave: int) -> void:
 	wave_manager.start_wave(wave)
+	if Music:
+		Music.play_state("boss" if RunSchedule.has_boss(wave) else "wave")
 	if VFX:
 		var wave_element := wave_manager.current_wave_element
 		var effect_element := "air" if wave_element == "neutral" else wave_element
@@ -979,36 +944,28 @@ func _on_wave_started(wave: int) -> void:
 
 
 func _on_wave_completed(wave: int) -> void:
-	print("[Main] Welle %d abgeschlossen" % wave)
+	if Music:
+		Music.play_state("build")
 	if VFX:
 		VFX.spawn_wave_complete_effect(Vector2(MAP_WIDTH * GRID_SIZE * 0.5, MAP_HEIGHT * GRID_SIZE * 0.5))
 	
-	# 1. Pfad-Regenerierung (Runde 2, 5, 8, 11...)
-	if should_regenerate_path(wave):
-		print("[Main] Regeneriere Pfad nach Welle %d..." % wave)
-		_regenerate_map()
-		if hud:
-			hud.update_wave_preview_after_regen()
-	
-	# 2. Item-Kombination (Runde 5, 10, 15...) nur vormerken - das Panel kommt
+	# 1. Item-Kombination (Runde 5, 10, 15...) nur vormerken - das Panel kommt
 	#    zum Schluss, damit es Ability-/Perk-Panel nicht verschluckt (und umgekehrt)
 	if should_show_item_combine(wave):
 		pending_item_combine = true
 
-	# 3. Ability-Upgrades (Runde 4, 7, 10, 13...)
+	# 2. Ability-Upgrades (Runde 4, 7, 10, 13...)
 	if AbilitySystem.should_show_ability_upgrades(wave):
-		print("[Main] Zeige Ability-Upgrade-Panel nach Welle %d..." % wave)
 		ability_upgrade_ui.show_panel()
 		return  # Wichtig: Nicht auch noch Perks zeigen!
 
-	# 4. Perk-Auswahl (Runde 3, 6, 9, 12...)
+	# 3. Perk-Auswahl (Runde 3, 6, 9, 12...)
 	if should_show_upgrades(wave):
-		print("[Main] Zeige Perk-Panel nach Welle %d..." % wave)
 		if wave_upgrade_ui:
 			wave_upgrade_ui.show_upgrades(wave)
 		return
 
-	# 5. Vorgemerkte Panels (Element-Core, Item-Kombination) wenn nichts anderes läuft
+	# 4. Vorgemerkte Panels (Element-Core, Item-Kombination) wenn nichts anderes läuft
 	await _show_pending_post_wave_panels()
 
 	# HUD über Wellen-Events informieren
@@ -1026,7 +983,6 @@ func _on_element_core_earned() -> void:
 
 func _on_upgrade_chosen(upgrade_id: String) -> void:
 	if upgrade_id != "":
-		print("[Main] Upgrade gewählt: %s" % upgrade_id)
 		_refresh_all_tower_stats()
 		tower_manager.refresh_farm_supply_bonuses()
 		if hud:
@@ -1052,6 +1008,8 @@ func _refresh_all_tower_stats() -> void:
 func _on_game_over() -> void:
 	_auto_wave_generation += 1
 	Sound.play_game_over()
+	if Music:
+		Music.play_state("game_over")
 	var run_summary := {}
 	if ProgressionSystem:
 		run_summary = ProgressionSystem.finish_run(GameState.current_wave)
@@ -1077,6 +1035,11 @@ func _on_open_upgrades_panel() -> void:
 func _on_open_synergy_panel() -> void:
 	if synergy_panel:
 		synergy_panel.show_panel()
+
+
+func _on_open_schedule() -> void:
+	if run_schedule_ui:
+		run_schedule_ui.show_panel()
 
 
 func _on_open_research() -> void:
@@ -1233,7 +1196,6 @@ func _on_tower_relocated(_tower: Node2D, _old_pos: Vector2i, _new_pos: Vector2i)
 
 
 func _on_blocked_towers_changed(count: int) -> void:
-	print("[Main] Blockierte Türme geändert: %d" % count)
 	if hud:
 		hud.update_blocked_towers_warning(count)
 
