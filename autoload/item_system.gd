@@ -24,6 +24,14 @@ const RARITIES := {
 }
 
 
+# Reihenfolge der Raritäten - Basis für Auf-/Abstieg (z.B. beim Kombinieren)
+const RARITY_ORDER := ["common", "uncommon", "rare", "epic"]
+
+# === TUNABLES KOMBINIEREN ===
+# Gewicht der min_rarity beim Bestimmen des "besseren" Ausgangs-Items.
+# Hoch genug, damit ein exklusiveres Template immer vor dem Basiswert gewinnt.
+const COMBINE_MIN_RARITY_WEIGHT := 1000.0
+
 const DROP_CHANCES := {
 	"normal": 0.03,
 	"fast": 0.05,
@@ -153,7 +161,7 @@ const ITEMS := {
 		"description": "+{value}% Splash-Radius",
 		"stat": "splash", "base_value": 20,
 		"icon": "blast_powder",
-		"allowed_towers": ["fire", "earth"]
+		"allowed_towers": ["fire", "earth", "cannon"]
 	},
 	
 	# === ELEMENTAR-GEMS ===
@@ -409,14 +417,14 @@ func _roll_rarity(enemy_type: String) -> String:
 
 func _get_valid_items_for_rarity(rarity: String, enemy_element: String) -> Array[String]:
 	var valid: Array[String] = []
-	var rarity_index := ["common", "uncommon", "rare", "epic"].find(rarity)
-	
+	var rarity_index := RARITY_ORDER.find(rarity)
+
 	for item_id in ITEMS:
 		var template: Dictionary = ITEMS[item_id]
-		
+
 		# Min-Rarity Check
 		var min_rarity: String = template.get("min_rarity", "common")
-		var min_index := ["common", "uncommon", "rare", "epic"].find(min_rarity)
+		var min_index := RARITY_ORDER.find(min_rarity)
 		if rarity_index < min_index:
 			continue
 		
@@ -516,6 +524,117 @@ func get_item_by_uid(uid: String) -> Dictionary:
 		if item.get("uid") == uid:
 			return item
 	return {}
+
+
+# === KOMBINIEREN ===
+# Regel: Zwei Items derselben Rarität ergeben ein Item der nächsthöheren Rarität.
+# Kategorie/Typ spielt keine Rolle. Kostenlos - der Verzicht auf den Verkaufserlös
+# ist der Preis. Items der höchsten Rarität sind nicht weiter kombinierbar.
+
+func get_next_rarity(rarity: String) -> String:
+	var idx := RARITY_ORDER.find(rarity)
+	if idx < 0 or idx >= RARITY_ORDER.size() - 1:
+		return ""
+	return RARITY_ORDER[idx + 1]
+
+
+func is_max_rarity(rarity: String) -> bool:
+	return get_next_rarity(rarity) == ""
+
+
+func can_combine(item_a: Dictionary, item_b: Dictionary) -> bool:
+	if item_a.is_empty() or item_b.is_empty():
+		return false
+	# Nicht dasselbe Item zweimal
+	if item_a.get("uid", "") == item_b.get("uid", ""):
+		return false
+	var rarity: String = item_a.get("rarity", "common")
+	if rarity != item_b.get("rarity", ""):
+		return false
+	return not is_max_rarity(rarity)
+
+
+# Für die UI: Item ist kombinierbar, wenn ein Partner derselben Rarität im Inventar liegt
+func is_item_combinable(item: Dictionary) -> bool:
+	if item.is_empty() or is_max_rarity(item.get("rarity", "common")):
+		return false
+	for other in inventory:
+		if can_combine(item, other):
+			return true
+	return false
+
+
+# Gibt es überhaupt ein kombinierbares Paar? (Panel sonst gar nicht erst öffnen)
+func has_combinable_pair() -> bool:
+	var counts := {}
+	for item in inventory:
+		var rarity: String = item.get("rarity", "common")
+		if is_max_rarity(rarity):
+			continue
+		counts[rarity] = int(counts.get(rarity, 0)) + 1
+		if counts[rarity] >= 2:
+			return true
+	return false
+
+
+# Kombiniert zwei Inventar-Items zu einem Item der nächsthöheren Rarität.
+# An Türmen ausgerüstete Items liegen nicht im Inventar und sind damit automatisch ausgeschlossen.
+# Rückgabe: das neue Item, oder ein leeres Dictionary wenn die Kombination ungültig ist.
+func combine_items(uid_a: String, uid_b: String) -> Dictionary:
+	if uid_a.is_empty() or uid_b.is_empty() or uid_a == uid_b:
+		return {}
+
+	var item_a := get_item_by_uid(uid_a)
+	var item_b := get_item_by_uid(uid_b)
+	if not can_combine(item_a, item_b):
+		return {}
+
+	var new_rarity := get_next_rarity(item_a.get("rarity", "common"))
+	if new_rarity.is_empty():
+		return {}
+
+	var source := _pick_combine_source(item_a, item_b)
+	var template_id: String = source.get("id", "")
+	if not ITEMS.has(template_id):
+		return {}
+
+	# Ergebnis wird komplett neu aus dem Template gerollt, damit alle abgeleiteten
+	# Werte (Beschreibung, value/value2, Penalty, Proc) zur neuen Rarität passen.
+	# Stats der Ausgangs-Items werden bewusst NICHT addiert.
+	var result := _create_item_instance(template_id, ITEMS[template_id], new_rarity)
+	result["uid"] = _generate_uid()
+
+	_remove_item_silent(uid_a)
+	_remove_item_silent(uid_b)
+	inventory.append(result)
+	inventory_changed.emit()
+
+	print("[ItemSystem] Kombiniert: %s + %s -> %s (%s)" % [
+		item_a.get("name", "?"), item_b.get("name", "?"), result["name"], new_rarity
+	])
+	return result
+
+
+# Das "bessere" der beiden Items liefert das Template fürs Ergebnis.
+# Beide haben dieselbe Rarität, deshalb entscheidet zuerst die Exklusivität des
+# Templates (min_rarity), danach der höhere Basiswert. Gleichstand -> item_a.
+func _pick_combine_source(item_a: Dictionary, item_b: Dictionary) -> Dictionary:
+	return item_b if _combine_source_score(item_b) > _combine_source_score(item_a) else item_a
+
+
+func _combine_source_score(item: Dictionary) -> float:
+	var template: Dictionary = ITEMS.get(item.get("id", ""), {})
+	var min_index := RARITY_ORDER.find(template.get("min_rarity", "common"))
+	return float(maxi(min_index, 0)) * COMBINE_MIN_RARITY_WEIGHT + float(template.get("base_value", 0))
+
+
+# Entfernt ohne inventory_changed - für Operationen, die am Ende einmal sammeln melden
+func _remove_item_silent(uid: String) -> bool:
+	for i in range(inventory.size()):
+		if inventory[i].get("uid") == uid:
+			inventory.remove_at(i)
+			return true
+	return false
 
 
 # === EQUIPMENT ===

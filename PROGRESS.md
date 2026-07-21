@@ -1,6 +1,6 @@
 # Projektfortschritt
 
-Letzte Aktualisierung: 2026-07-17
+Letzte Aktualisierung: 2026-07-21
 
 Diese Datei beschreibt den veraenderlichen Arbeitsstand. Sie soll am Ende
 jeder groesseren Arbeitssitzung aktualisiert werden. Dauerhafte Architektur-
@@ -56,13 +56,31 @@ und Designentscheidungen stehen in `MEMORY.md`; geplante Ausbaustufen in
 - Die sechs Stufen aller Basistuerme besitzen vollstaendige, geglaettete Werte.
   Insbesondere Schwert-Schaden und Gegnertyp-Multiplikatoren erzeugen auf
   Stufe 2/3 keine garantierten One-Shots mehr.
+- Reichweiten-Raster (Angriff, Aura, Kanonen-Mindestreichweite) sind nur noch
+  beim ausgewaehlten Turm sichtbar und werden bei jeder Auswahl mit den
+  aktuellen Werten neu aufgebaut.
+- Das Inventar kennt beim Equippen den Zielturm (`filter_tower`): kompatible
+  Items sind gruen umrandet, inkompatible gedimmt.
+- Tuerme zaehlen Kills und ausgeteilten Schaden getrennt nach aktueller Runde
+  und gesamtem Run; `enemy.take_damage()` liefert dafuer den real zugefuegten
+  Schaden zurueck und nimmt optional den Verursacher-Turm entgegen. TowerInfo
+  zeigt beide Werte an.
+- Tuerme lassen sich per Drag & Drop auf einen belegten Platz ziehen und
+  tauschen dann die Position (`TowerManager.swap_towers`).
+- Items koennen kombiniert werden: zwei Items gleicher Raritaet ergeben ein neu
+  gerolltes Item der naechsthoeheren Raritaet. Angeboten wird das kostenlos in
+  der "Schmiede" (`ui/item_combine_ui.gd`) nach jeder 5. Welle.
 
 ## In Arbeit im lokalen Arbeitsbaum
 
-Keine offenen Aenderungen: `git status` ist sauber, alle zuvor hier notierten
-Aenderungen (Range-Raster, Supply, Tower-Level, Item-Toasts, Cursor, VFX,
-Balancing) sind im Commit `1887792` ("added more chars") enthalten und liegen
-auf `origin/main`. Ein frischer Clone entspricht dem aktuellen Stand.
+Branch `playtest-backlog` (von `origin/master`) enthaelt die uncommitteten
+Aenderungen aus der Abarbeitung von `playtest-backlog.md` — alle neun Parts A
+bis I sind umgesetzt, siehe die Haken in dieser Datei. Neu hinzugekommen ist
+`ui/item_combine_ui.gd`.
+
+Achtung Branch-Lage: `origin/master` ist deutlich weiter als `origin/main`
+(Synergie-System, erweitertes Item-System). `main` ist der aeltere Stand; die
+beiden Branches sollten zusammengefuehrt und einer davon stillgelegt werden.
 
 ## Bekannte Luecken
 
@@ -75,13 +93,26 @@ auf `origin/main`. Ein frischer Clone entspricht dem aktuellen Stand.
   ein nacktes `enemy.new()` ohne Szenen-Nodes bei `apply_burn` crasht.
 - Aetherkosten (90/120/160), Unlock-Ziele und `AFFINITY_WEIGHT` sind
   Arbeitswerte und noch nicht in echten Runs ausbalanciert.
+- Aether-Zufluss wurde rechnerisch gedrosselt (Konstantenblock am Kopf von
+  `autoload/progression_system.gd`), aber noch nicht in echten Runs
+  gegengeprueft. Kumuliert gegenueber vorher: Welle 10 x0.82, Welle 20 x0.68,
+  Welle 30 x0.58, Welle 40 x0.50.
+- Kills/Schaden werden nicht attribuiert fuer Abilities, Item-Procs und
+  Burn/Bleed-Ticks — diese haben keinen Verursacher-Turm. Der Execute-Proc aus
+  `item_system.gd` kann einem Turm den Kill wegnehmen.
+- Item-Kombinieren hat keinen Schutz gegen "Raritaets-Waesche": genuegend
+  Commons lassen sich ueber mehrere Schmiede-Besuche bis Episch hochziehen.
+- Das Schmiede-Intervall steht als `ITEM_COMBINE_INTERVAL` in `main.gd`,
+  `ui/hud.gd` prueft dagegen weiterhin hart `% 5` (wie die uebrigen Cadences
+  dort). Beim Nachtunen beide Stellen anfassen.
 - Die Eiswand-Ability enthaelt weiterhin einen expliziten Platzhalter fuer die
   zu spawnende Wand-Entitaet.
 - Die lokalen Dokumentationsaenderungen wurden in dieser Umgebung nicht mit
   einem Markdown-Linter geprueft.
-- Godot liegt weiterhin nicht auf `PATH`; die Executable liegt im Ordner
+- Godot liegt weiterhin nicht auf `PATH`. Windows: Ordner
   `Downloads/Godot_v4.6.3-stable_win64.exe/` (der Ordner traegt die
-  `.exe`-Endung, die eigentliche Datei liegt darin).
+  `.exe`-Endung, die eigentliche Datei liegt darin). Linux:
+  `~/godot-toolchain/Godot_v4.6.3-stable_linux.x86_64`.
 
 ## Naechste empfohlene Arbeitsschritte
 

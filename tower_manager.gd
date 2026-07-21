@@ -154,6 +154,24 @@ func can_relocate_to(grid_pos: Vector2i) -> bool:
 	return true
 
 
+func can_swap_with(grid_pos: Vector2i) -> bool:
+	"""Prüft ob der aufgenommene Turm mit dem Turm auf grid_pos die Plätze tauschen kann"""
+	if not picked_up_tower:
+		return false
+	if grid_pos == picked_up_from_pos:
+		return false
+	if grid_pos.x < 0 or grid_pos.x >= map_width:
+		return false
+	if grid_pos.y < 0 or grid_pos.y >= map_height:
+		return false
+	# Nur belegte Zellen können getauscht werden (leere Zellen -> can_relocate_to)
+	if not placed_towers.has(grid_pos):
+		return false
+	if GameState.wave_active:
+		return false
+	return true
+
+
 # === PICKUP SYSTEM ===
 
 func pickup_tower(grid_pos: Vector2i) -> bool:
@@ -258,6 +276,87 @@ func relocate_tower(new_grid_pos: Vector2i) -> bool:
 	_recalculate_all_tower_stats()
 	_update_blocked_towers()
 	return true
+
+
+func swap_towers(from_grid: Vector2i, to_grid: Vector2i) -> bool:
+	"""Tauscht zwei Türme inkl. Metadaten. Funktioniert auch aus dem Pickup-Zustand
+	heraus (from_grid ist dann die Zelle, aus der der Turm aufgenommen wurde)."""
+	if from_grid == to_grid:
+		return false
+	if GameState.wave_active:
+		return false
+
+	# Aufgenommenen Turm zuerst wieder eintragen, damit ein normaler Tausch möglich ist
+	var from_pickup := picked_up_tower != null and picked_up_from_pos == from_grid
+	if from_pickup:
+		placed_towers[from_grid] = picked_up_tower
+		picked_up_tower.visible = true
+
+	if not placed_towers.has(from_grid) or not placed_towers.has(to_grid):
+		# Tausch nicht möglich - Pickup-Zustand unverändert lassen
+		if from_pickup:
+			placed_towers.erase(from_grid)
+			picked_up_tower.visible = false
+		return false
+
+	var tower_a: Node2D = placed_towers[from_grid]
+	var tower_b: Node2D = placed_towers[to_grid]
+
+	# Auswahl auflösen, solange die Zuordnung noch stimmt
+	if selected_grid_pos == from_grid or selected_grid_pos == to_grid:
+		deselect_tower()
+
+	# Turm-Nodes tauschen
+	placed_towers[from_grid] = tower_b
+	placed_towers[to_grid] = tower_a
+
+	# Pro-Zelle-Metadaten mitziehen (Level + Platzierungs-Welle für Verkaufswert)
+	_swap_dict_entries(tower_levels, from_grid, to_grid)
+	_swap_dict_entries(tower_placed_wave, from_grid, to_grid)
+
+	# Beide Türme neu positionieren
+	tower_a.position = grid_to_world(to_grid)
+	tower_b.position = grid_to_world(from_grid)
+
+	# VFX
+	if VFX:
+		VFX.spawn_place_effect(tower_a.position, tower_a.tower_type)
+		VFX.spawn_place_effect(tower_b.position, tower_b.tower_type)
+
+	Sound.play_place()
+
+	# Pickup beenden
+	if from_pickup:
+		picked_up_tower = null
+		picked_up_from_pos = Vector2i(-1, -1)
+
+	tower_relocated.emit(tower_a, from_grid, to_grid)
+	tower_relocated.emit(tower_b, to_grid, from_grid)
+	print("[TowerManager] Türme getauscht: %s (%s) <-> %s (%s)" % [
+		from_grid, tower_a.tower_type, to_grid, tower_b.tower_type
+	])
+
+	_recalculate_all_tower_stats()
+	_update_blocked_towers()
+	return true
+
+
+func _swap_dict_entries(dict: Dictionary, pos_a: Vector2i, pos_b: Vector2i) -> void:
+	"""Tauscht die Einträge zweier Zellen in einem pro-Zelle-Dictionary"""
+	var has_a := dict.has(pos_a)
+	var has_b := dict.has(pos_b)
+	var val_a: Variant = dict.get(pos_a)
+	var val_b: Variant = dict.get(pos_b)
+
+	if has_b:
+		dict[pos_a] = val_b
+	else:
+		dict.erase(pos_a)
+
+	if has_a:
+		dict[pos_b] = val_a
+	else:
+		dict.erase(pos_b)
 
 
 func has_picked_up_tower() -> bool:

@@ -167,8 +167,20 @@ func start_wave() -> void:
 	current_wave += 1
 	wave_active = true
 	enemies_remaining = calculate_enemies_for_wave(current_wave)
+	_reset_tower_round_stats()
 	wave_started.emit(current_wave)
 	print("[GameState] Wave %d gestartet - %d Gegner" % [current_wave, enemies_remaining])
+
+
+# Runden-Statistik (Kills/Schaden) aller Türme zum Wellenstart zurücksetzen.
+# Die Run-Zähler bleiben erhalten.
+func _reset_tower_round_stats() -> void:
+	var tree := get_tree()
+	if not tree:
+		return
+	for tower in tree.get_nodes_in_group("towers"):
+		if tower.has_method("reset_round_stats"):
+			tower.reset_round_stats()
 
 
 func calculate_enemies_for_wave(wave: int) -> int:

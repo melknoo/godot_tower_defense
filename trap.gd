@@ -244,7 +244,8 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 			continue
 		
 		if enemy.has_method("take_damage"):
-			enemy.take_damage(damage, false, element, false, "trapper")
+			var dealt: int = enemy.take_damage(damage, false, element, false, "trapper", 1.0, source_tower)
+			_credit_damage(dealt)
 			print("[Trap] Schaden angewendet: %d" % damage)
 		
 		# ✅ Base-Slow anwenden
@@ -286,6 +287,14 @@ func _trigger_trap(triggering_enemy: Node2D) -> void:
 	
 	# ✅ Falle entfernen (deferred ist okay, da wir schon disabled haben)
 	queue_free()
+
+
+func _credit_damage(amount: int) -> void:
+	"""Schreibt real ausgeteilten Schaden dem platzierenden Trapper-Turm gut"""
+	if amount <= 0:
+		return
+	if is_instance_valid(source_tower) and source_tower.has_method("register_damage_dealt"):
+		source_tower.register_damage_dealt(amount)
 
 
 func _apply_trap_effects(enemy: Node2D) -> void:
@@ -331,7 +340,8 @@ func _apply_trap_effects(enemy: Node2D) -> void:
 				if dist <= chain_range:
 					if other.has_method("take_damage"):
 						var chain_dmg := int(damage * 0.6)  # 60% auf gekettet
-						other.take_damage(chain_dmg, false, element, false, "trapper")
+						var dealt: int = other.take_damage(chain_dmg, false, element, false, "trapper", 1.0, source_tower)
+						_credit_damage(dealt)
 						chained += 1
 						
 						if VFX:

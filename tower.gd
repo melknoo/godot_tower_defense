@@ -39,6 +39,13 @@ var chain_targets := 0
 var base_crit_chance := 0.0
 var shots_fired := 0   # für Proc-Items (jeder N-te Schuss)
 
+# Kampfstatistik: Kills & Schaden, getrennt nach aktueller Runde und gesamtem Run.
+# Hängt an der Turm-Node, überlebt also das Verschieben eines Turms.
+var kills_run := 0
+var kills_round := 0
+var damage_run := 0
+var damage_round := 0
+
 var bullet_scene: PackedScene
 var fire_timer := 0.0
 var target: Node2D = null
@@ -57,6 +64,8 @@ var level_indicator: Node2D
 var selection_corners: Node2D
 var selection_tween: Tween
 var engraving_indicator: RichTextLabel
+# Reichweiten-Raster wird nur beim ausgewaehlten Turm eingeblendet.
+var is_selected := false
 
 # Animation
 var idle_time := 0.0
@@ -121,6 +130,27 @@ func is_isolated() -> bool:
 	
 	return true
 
+
+# === KAMPFSTATISTIK (Kills & Schaden) ===
+
+func register_damage_dealt(amount: int) -> void:
+	"""Schreibt real ausgeteilten Schaden diesem Turm gut"""
+	if amount <= 0:
+		return
+	damage_run += amount
+	damage_round += amount
+
+
+func register_kill() -> void:
+	"""Schreibt einen erledigten Gegner diesem Turm gut"""
+	kills_run += 1
+	kills_round += 1
+
+
+func reset_round_stats() -> void:
+	"""Runden-Zähler zurücksetzen (bei Wellenstart)"""
+	kills_round = 0
+	damage_round = 0
 
 
 func _ready() -> void:
@@ -757,6 +787,22 @@ func _update_visuals() -> void:
 	
 	print("[Tower %s] After sprite setup, children count: %d" % [tower_type, turret.get_child_count()])
 	
+	_refresh_range_visuals()
+
+	_update_level_indicator()
+	_update_isolation_visual()
+	_update_engraving_indicator()
+	
+	print("[Tower %s] _update_visuals() END" % tower_type)
+
+
+# Baut Reichweiten-, Mindestreichweiten- und Aura-Raster neu auf.
+# Die Raster bleiben unsichtbar, solange der Turm nicht ausgewaehlt ist,
+# werden aber bei jeder Auswahl mit den aktuellen Stats neu erzeugt.
+func _refresh_range_visuals() -> void:
+	if not range_visual:
+		return
+
 	# Mindestreichweite der Kanone folgt demselben quadratischen Raster.
 	if tower_type == "cannon" and min_range > 0:
 		if not min_range_visual:
@@ -767,11 +813,12 @@ func _update_visuals() -> void:
 		min_range_circle = RangeGridHelper.rebuild_visual(
 			min_range_visual, min_range, Color(1, 0.3, 0.3, 0.24), 2.0, false
 		)
+		min_range_visual.visible = is_selected
 	elif min_range_visual:
 		min_range_visual.queue_free()
 		min_range_visual = null
 		min_range_circle = null
-	
+
 	# Angriffs- und Aura-Reichweiten werden als exakte Rasterfelder angezeigt.
 	if attack_type != "none" and tower_range > 0:
 		var range_color := Color(1, 1, 1, 0.16)
@@ -779,8 +826,10 @@ func _update_visuals() -> void:
 			var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
 			range_color = elem_color.lerp(Color.WHITE, 0.7)
 			range_color.a = 0.2
-		range_visual.visible = true
+		if is_selected:
+			range_color = Color(1, 0.5, 0.5, 0.34)
 		range_circle = RangeGridHelper.rebuild_visual(range_visual, tower_range, range_color, 2.0, true)
+		range_visual.visible = is_selected
 	elif attack_type == "none" and special_type == "aura":
 		if not aura_visual:
 			aura_visual = Node2D.new()
@@ -791,24 +840,23 @@ func _update_visuals() -> void:
 		RangeGridHelper.clear_visual(range_visual)
 		range_circle = null
 		var aura_color := _get_aura_buff_color()
-		aura_color.a = 0.28
+		aura_color.a = 0.42 if is_selected else 0.28
 		RangeGridHelper.rebuild_visual(aura_visual, aura_range, aura_color, 2.0, true)
 		if aura_visual_tween:
 			aura_visual_tween.kill()
+			aura_visual_tween = null
 		aura_visual.modulate.a = 1.0
-		aura_visual_tween = create_tween().set_loops()
-		aura_visual_tween.tween_property(aura_visual, "modulate:a", 0.45, 1.2)
-		aura_visual_tween.tween_property(aura_visual, "modulate:a", 1.0, 1.2)
+		aura_visual.visible = is_selected
+		if is_selected:
+			aura_visual_tween = create_tween().set_loops()
+			aura_visual_tween.tween_property(aura_visual, "modulate:a", 0.45, 1.2)
+			aura_visual_tween.tween_property(aura_visual, "modulate:a", 1.0, 1.2)
 	else:
 		range_visual.visible = false
 		RangeGridHelper.clear_visual(range_visual)
 		range_circle = null
-	
-	_update_level_indicator()
-	_update_isolation_visual()
-	_update_engraving_indicator()
-	
-	print("[Tower %s] _update_visuals() END" % tower_type)
+		if aura_visual:
+			aura_visual.visible = false
 
 
 func _setup_farm_sprite() -> void:
@@ -1309,8 +1357,9 @@ func _execute_melee_damage() -> void:
 			bonus_mult = ItemSystem.get_tower_conditional_mult(self, enemy)
 
 		if enemy.has_method("take_damage"):
-			# NEU: tower_type als 5. Parameter, bonus_mult als 6.
-			enemy.take_damage(melee_damage, true, elem, is_crit, tower_type, bonus_mult)
+			# NEU: tower_type als 5. Parameter, bonus_mult als 6., self als Verursacher
+			var dealt: int = enemy.take_damage(melee_damage, true, elem, is_crit, tower_type, bonus_mult, self)
+			register_damage_dealt(dealt)
 		_apply_melee_effects(enemy)
 
 		# Treffer-basierte Procs (chance_on_hit / execute)
@@ -1710,6 +1759,9 @@ func get_aura_buffs() -> Dictionary:
 
 
 func select() -> void:
+	is_selected = true
+	# Reichweiten-Raster mit aktuellen Stats neu aufbauen und einblenden.
+	_refresh_range_visuals()
 	if selection_corners or corner_textures.size() < 4:
 		return
 	selection_corners = Node2D.new()
@@ -1725,33 +1777,18 @@ func select() -> void:
 		s.position = corner_data[1]
 		selection_corners.add_child(s)
 	_start_float_animation()
-	if range_visual and range_visual.visible:
-		RangeGridHelper.tint_visual(range_visual, Color(1, 0.5, 0.5, 0.34))
-	elif aura_visual:
-		var aura_color := _get_aura_buff_color()
-		aura_color.a = 0.42
-		RangeGridHelper.tint_visual(aura_visual, aura_color)
 
 
 func deselect() -> void:
+	is_selected = false
 	if selection_corners:
 		selection_corners.queue_free()
 		selection_corners = null
 	if selection_tween:
 		selection_tween.kill()
 		selection_tween = null
-	if range_visual and range_visual.visible:
-		if engraved_element != "":
-			var elem_color := ElementalSystem.get_element_color(engraved_element) if ElementalSystem else Color.WHITE
-			var range_color := elem_color.lerp(Color.WHITE, 0.7)
-			range_color.a = 0.2
-			RangeGridHelper.tint_visual(range_visual, range_color)
-		else:
-			RangeGridHelper.tint_visual(range_visual, Color(1, 1, 1, 0.16))
-	elif aura_visual:
-		var aura_color := _get_aura_buff_color()
-		aura_color.a = 0.28
-		RangeGridHelper.tint_visual(aura_visual, aura_color)
+	# Reichweiten-Raster wieder ausblenden.
+	_refresh_range_visuals()
 
 
 func get_range_cells() -> int:

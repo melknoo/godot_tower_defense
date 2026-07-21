@@ -17,24 +17,38 @@ kopieren (neben `PROGRESS.md` / `INCREMENTAL_ROADMAP.md`). Danach Parts einzeln 
 
 ## Übersicht
 
-| Part | Note | Typ | Aufwand | Abhängig |
-|---|---|---|---|---|
-| A | #4 Hover-Bug nach Equip | Bugfix | S | — |
-| B | #1 Splash-Items auf Kanone | Quick-Win | XS | — |
-| C | #5 Range nur bei Auswahl zeigen | UX | S | — |
-| D | #2 Tower-Baumenü scrollbar | UX | S | — |
-| E | #3 Equipbare Items markieren | UX | M | (A) |
-| F | #7 Turm-Drag → Plätze tauschen | Feature | M | — |
-| G | #6 Stats pro Turm (Kills/Schaden) | Feature | L | — |
-| H | #8 Item-Kombinieren alle paar Runden | Feature | L | — |
-| I | #9 Aether-Balancing | Balancing | M | — |
+| Part | Note | Typ | Aufwand | Abhängig | Status |
+|---|---|---|---|---|---|
+| A | #4 Hover-Bug nach Equip | Bugfix | S | — | ✅ |
+| B | #1 Splash-Items auf Kanone | Quick-Win | XS | — | ✅ |
+| C | #5 Range nur bei Auswahl zeigen | UX | S | — | ✅ |
+| D | #2 Tower-Baumenü scrollbar | UX | S | — | ✅ |
+| E | #3 Equipbare Items markieren | UX | M | (A) | ✅ |
+| F | #7 Turm-Drag → Plätze tauschen | Feature | M | — | ✅ |
+| G | #6 Stats pro Turm (Kills/Schaden) | Feature | L | — | ✅ |
+| H | #8 Item-Kombinieren alle paar Runden | Feature | L | — | ✅ |
+| I | #9 Aether-Balancing | Balancing | M | — | ✅ |
 
 **Empfohlene Reihenfolge:** Phase 1 = A, B, C, D (schnelle Wins + Bug). Phase 2 = E, F.
 Phase 3 = G. Phase 4 = H, I. Parts sind bewusst entkoppelt; Reihenfolge frei anpassbar.
 
+## Abarbeitung 2026-07-21
+
+Alle neun Parts sind auf Branch `playtest-backlog` (von `origin/master`) umgesetzt.
+Verifiziert wurde bisher nur statisch: Projekt-Import ohne Skriptfehler und
+`tests/progression_smoke.gd` gruen. **Die Verifikationsschritte der einzelnen Parts
+sind noch nicht im laufenden Spiel durchgespielt** — das steht als Naechstes an.
+
+Bei Part H wurden die offenen Design-Fragen so entschieden: gleiche Raritaet ->
+naechsthoehere (Kategorie egal), kostenlos, eigenes Panel nach jeder 5. Welle.
+
+Nebenbefund: `tests/progression_smoke.gd` pruefte den Element-Kern noch fuer Welle 5,
+obwohl `_get_core_reward_waves()` laengst `[3, 6, 10, 15, ...]` liefert. Der Test war
+schon vor dieser Sitzung rot und wurde auf den aktuellen Stand korrigiert.
+
 ---
 
-## Part A — Bug: Hover im Inventar tot nach Equip (#4)
+## Part A ✅ — Bug: Hover im Inventar tot nach Equip (#4)
 
 **Ziel:** Nach dem Equippen eines Items funktioniert das Hover-Detail im Inventar wieder,
 ohne dass man es neu öffnen muss.
@@ -64,7 +78,7 @@ hovern → Detail-Panel erscheint wieder.
 
 ---
 
-## Part B — Splash-Radius von Items auch auf Kanone (#1)
+## Part B ✅ — Splash-Radius von Items auch auf Kanone (#1)
 
 **Ziel:** Die Kanone kann Splash-Items equippen und profitiert vom Splash-Bonus.
 
@@ -82,7 +96,7 @@ Splash-relevante Items existieren, die konsistent auch die Kanone erlauben sollt
 
 ---
 
-## Part C — Range der Türme ausblenden, wenn nicht angeklickt (#5)
+## Part C ✅ — Range der Türme ausblenden, wenn nicht angeklickt (#5)
 
 **Ziel:** Der Reichweiten-Grid wird nur beim **ausgewählten** Turm gezeigt.
 
@@ -104,7 +118,7 @@ dessen Range erscheint. Woanders klicken → Range verschwindet wieder.
 
 ---
 
-## Part D — Tower-Baumenü scrollbar (#2)
+## Part D ✅ — Tower-Baumenü scrollbar (#2)
 
 **Ziel:** Alle Türme im Baumenü erreichbar, auch per Mausrad.
 
@@ -124,7 +138,7 @@ Pfeile) → alle Türme erreichbar.
 
 ---
 
-## Part E — Im Inventar markieren, welche Items für den Turm equipbar sind (#3)
+## Part E ✅ — Im Inventar markieren, welche Items für den Turm equipbar sind (#3)
 
 **Ziel:** Wenn ein Turm ausgewählt ist und man ein Item equippen will, sind im Inventar die
 kompatiblen Items hervorgehoben (inkompatible gedimmt).
@@ -150,7 +164,7 @@ andere gedimmt. Anderen Turm wählen → Markierung ändert sich entsprechend.
 
 ---
 
-## Part F — Turm per Drag & Drop auf anderen Turm → Plätze tauschen (#7)
+## Part F ✅ — Turm per Drag & Drop auf anderen Turm → Plätze tauschen (#7)
 
 **Ziel:** Zieht man einen Turm auf einen belegten Platz eines anderen Turms, tauschen beide
 ihre Positionen.
@@ -176,7 +190,7 @@ Level/Items/Stats beider Türme bleiben korrekt; Blockier-/Pfadprüfung stimmt w
 
 ---
 
-## Part G — Stats pro Turm: Kills & Schaden (letzte Runde + gesamter Run) (#6)
+## Part G ✅ — Stats pro Turm: Kills & Schaden (letzte Runde + gesamter Run) (#6)
 
 **Ziel:** Pro Turm anzeigen, wie viele Gegner er gekillt und wie viel Schaden er gemacht hat —
 getrennt nach **letzter Runde** und **gesamtem Run**.
@@ -209,7 +223,7 @@ Runde und die Run-Summe; Runden-Werte resetten beim Start der nächsten Welle, R
 
 ---
 
-## Part H — Items kombinieren/craften, alle paar Runden angeboten (#8)
+## Part H ✅ — Items kombinieren/craften, alle paar Runden angeboten (#8)
 
 **Ziel:** Statt viele Items nur verkaufen zu müssen, kann man Items zu stärkeren kombinieren —
 angeboten in einem Panel alle paar Wellen (bestehendes Cadence-Muster wie bei Perks).
@@ -245,7 +259,7 @@ Uncommon im Inventar; Ausgangs-Items verschwunden; Inventar-UI aktualisiert.
 
 ---
 
-## Part I — Balancing: zu viel Aether (#9)
+## Part I ✅ — Balancing: zu viel Aether (#9)
 
 **Ziel:** Der Aether-Zufluss (persistente Essence) wächst spät nicht mehr so stark; Progression
 bleibt aber angenehm erreichbar.

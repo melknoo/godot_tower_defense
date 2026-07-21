@@ -22,8 +22,18 @@ var selected_item: Dictionary = {}
 var is_dragging := false
 var drag_preview: Control
 
+# Turm für den gerade ausgerüstet wird - steuert die Kompatibilitäts-Hervorhebung
+var filter_tower: Node2D = null
+
 const SLOT_SIZE := 48
 const GRID_COLUMNS := 5
+
+const COLOR_SLOT_BG := Color(0.15, 0.15, 0.18)
+const COLOR_SLOT_BG_HOVER := Color(0.25, 0.25, 0.3)
+const COLOR_SLOT_BG_DIMMED := Color(0.11, 0.11, 0.13)
+const COLOR_SLOT_COMPATIBLE := Color(0.45, 0.95, 0.55)
+const COLOR_SLOT_INCOMPATIBLE := Color(0.28, 0.28, 0.32)
+const SLOT_ALPHA_INCOMPATIBLE := 0.4
 const RARITY_NAMES := {
 	"common": "Gewöhnlich",
 	"uncommon": "Ungewöhnlich", 
@@ -276,11 +286,12 @@ func _setup_detail_panel() -> void:
 	vbox.add_child(detail_allowed)
 
 
-func show_panel() -> void:
+func show_panel(equip_tower: Node2D = null) -> void:
 	Sound.play_click()
+	filter_tower = equip_tower
 	_refresh_inventory()
 	visible = true
-	
+
 	panel.modulate.a = 0
 	panel.scale = Vector2(0.9, 0.9)
 	var tween := panel.create_tween()
@@ -291,6 +302,7 @@ func show_panel() -> void:
 
 func hide_panel() -> void:
 	deselect_item()
+	filter_tower = null
 	var tween := panel.create_tween()
 	tween.tween_property(panel, "modulate:a", 0.0, 0.1)
 	tween.tween_callback(func(): visible = false)
@@ -320,19 +332,35 @@ func _show_sell_feedback(amount: int) -> void:
 
 func _clear_selection_visuals() -> void:
 	for slot in grid_container.get_children():
-		if slot.has_meta("style") and slot.has_meta("item"):
-			var style: StyleBoxFlat = slot.get_meta("style")
-			var item: Dictionary = slot.get_meta("item")
-			
-			# Border zurücksetzen
-			style.border_width_left = 1
-			style.border_width_right = 1
-			style.border_width_top = 1
-			style.border_width_bottom = 1
-			style.border_color = item.get("color", Color.WHITE).darkened(0.3)
-			
-			# Hintergrund zurücksetzen
-			style.bg_color = Color(0.15, 0.15, 0.18)
+		_apply_slot_base_style(slot as PanelContainer)
+
+
+func _apply_slot_base_style(slot: PanelContainer) -> void:
+	# Grundzustand eines Slots: Rarität, bzw. Kompatibilität wenn ein Turm gewählt ist
+	if not slot or not slot.has_meta("style") or not slot.has_meta("item"):
+		return
+
+	var style: StyleBoxFlat = slot.get_meta("style")
+	var item: Dictionary = slot.get_meta("item")
+	var rarity_color: Color = item.get("color", Color.WHITE)
+	var has_filter := _has_filter_tower()
+	var compatible := _is_item_compatible(item)
+
+	# Kompatible Items bekommen einen dickeren Rahmen
+	var border_width := 2 if (has_filter and compatible) else 1
+	style.border_width_left = border_width
+	style.border_width_right = border_width
+	style.border_width_top = border_width
+	style.border_width_bottom = border_width
+
+	if has_filter and not compatible:
+		style.border_color = COLOR_SLOT_INCOMPATIBLE
+		style.bg_color = COLOR_SLOT_BG_DIMMED
+		slot.modulate.a = SLOT_ALPHA_INCOMPATIBLE
+	else:
+		style.border_color = COLOR_SLOT_COMPATIBLE if has_filter else rarity_color.darkened(0.3)
+		style.bg_color = COLOR_SLOT_BG
+		slot.modulate.a = 1.0
 
 
 func _show_item_detail(item: Dictionary) -> void:
@@ -361,7 +389,18 @@ func _show_item_detail(item: Dictionary) -> void:
 		for t in allowed:
 			names.append(t.capitalize())
 		detail_allowed.text = "Nur: " + ", ".join(names)
-	
+
+	# Hinweis auf den aktuell gewählten Turm
+	if _has_filter_tower():
+		if _is_item_compatible(item):
+			detail_allowed.text += "\nPasst auf diesen Turm"
+			detail_allowed.add_theme_color_override("font_color", COLOR_SLOT_COMPATIBLE.darkened(0.35))
+		else:
+			detail_allowed.text += "\nPasst nicht auf diesen Turm"
+			detail_allowed.add_theme_color_override("font_color", Color(0.7, 0.25, 0.25))
+	else:
+		detail_allowed.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+
 	if sell_button:
 		var sell_price: int = SELL_PRICES.get(rarity, 10)
 		sell_button.text = "Verkaufen (%d)" % [sell_price]
@@ -468,11 +507,31 @@ func _on_sell_pressed() -> void:
 	print("[ItemInventoryUI] Item verkauft für %d Gold" % sell_price)
 
 
-func toggle_panel() -> void:
+func toggle_panel(equip_tower: Node2D = null) -> void:
 	if visible:
 		hide_panel()
 	else:
-		show_panel()
+		show_panel(equip_tower)
+
+
+func set_filter_tower(tower: Node2D) -> void:
+	# Wechselt den Equip-Kontext und färbt die Slots neu ein
+	if filter_tower == tower:
+		return
+	filter_tower = tower
+	if visible:
+		_refresh_inventory()
+
+
+func _is_item_compatible(item: Dictionary) -> bool:
+	# Ohne Equip-Kontext gilt jedes Item als kompatibel
+	if not filter_tower or not is_instance_valid(filter_tower) or not ItemSystem:
+		return true
+	return ItemSystem.can_equip_on_tower(item, filter_tower)
+
+
+func _has_filter_tower() -> bool:
+	return filter_tower != null and is_instance_valid(filter_tower)
 
 
 func _refresh_inventory() -> void:
@@ -484,7 +543,22 @@ func _refresh_inventory() -> void:
 	
 	var inventory := ItemSystem.get_inventory()
 	count_label.text = "%d / %d" % [inventory.size(), ItemSystem.MAX_INVENTORY]
-	
+
+	# Auswahl aufräumen wenn das Item nicht mehr im Inventar liegt (z.B. nach Equip).
+	# Sonst blockiert das tote selected_item die Hover-Details.
+	if not selected_item.is_empty():
+		var selected_uid: String = selected_item.get("uid", "")
+		var still_in_inventory := false
+		for it in inventory:
+			if it.get("uid", "") == selected_uid:
+				still_in_inventory = true
+				break
+		if not still_in_inventory:
+			selected_item = {}
+			detail_panel.visible = false
+			if sell_button:
+				sell_button.visible = false
+
 	for i in range(ItemSystem.MAX_INVENTORY):
 		var slot := _create_item_slot(i)
 		grid_container.add_child(slot)
@@ -499,7 +573,7 @@ func _create_item_slot(index: int) -> PanelContainer:
 	slot.name = "Slot_%d" % index
 	
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.15, 0.15, 0.18)
+	style.bg_color = COLOR_SLOT_BG
 	style.border_color = Color(0.3, 0.3, 0.35)
 	style.border_width_left = 1
 	style.border_width_right = 1
@@ -519,11 +593,10 @@ func _create_item_slot(index: int) -> PanelContainer:
 
 func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
 	slot.set_meta("item", item)
-	
-	var style: StyleBoxFlat = slot.get_meta("style")
+
 	var rarity_color: Color = item.get("color", Color.WHITE)
-	style.border_color = rarity_color.darkened(0.3)
-	
+	_apply_slot_base_style(slot)
+
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -586,7 +659,7 @@ func _on_slot_hover(slot: PanelContainer, entered: bool) -> void:
 	if entered:
 		# Nur Hover-Farbe wenn nicht ausgewählt
 		if not is_selected:
-			style.bg_color = Color(0.25, 0.25, 0.3)
+			style.bg_color = COLOR_SLOT_BG_HOVER
 		# Nur Detail anzeigen wenn nichts ausgewählt ist
 		if selected_item.is_empty():
 			_show_item_detail(item)
@@ -594,7 +667,7 @@ func _on_slot_hover(slot: PanelContainer, entered: bool) -> void:
 	else:
 		# Nur Farbe zurücksetzen wenn nicht ausgewählt
 		if not is_selected:
-			style.bg_color = Color(0.15, 0.15, 0.18)
+			_apply_slot_base_style(slot)
 		# Detail-Panel nur schließen wenn kein Item ausgewählt ist
 		if selected_item.is_empty():
 			detail_panel.visible = false
@@ -619,10 +692,12 @@ func _select_item(item: Dictionary, slot: PanelContainer) -> void:
 	style.border_width_top = 3
 	style.border_width_bottom = 3
 	style.border_color = rarity_color.lightened(0.3)
-	
+
 	# Hellerer Hintergrund
-	style.bg_color = Color(0.25, 0.25, 0.3)
-	
+	style.bg_color = COLOR_SLOT_BG_HOVER
+	# Ausgewähltes Item nie ausgegraut darstellen
+	slot.modulate.a = 1.0
+
 	_show_item_detail(item)
 	
 	# Position Detail-Panel neben dem Slot

@@ -5,6 +5,8 @@ const GRID_SIZE := 64
 const RangeGridHelper = preload("res://autoload/range_grid.gd")
 const MAP_WIDTH := 30
 const MAP_HEIGHT := 15
+# Rhythmus für das Item-Kombinieren-Panel (alle N Wellen)
+const ITEM_COMBINE_INTERVAL := 5
 
 const ARCHER_FRAME_SIZE := Vector2(192, 192)
 const ARCHER_COLUMNS := 8
@@ -31,6 +33,7 @@ var path_line: Line2D
 var current_seed: int = 0
 
 var pending_element_core := false
+var pending_item_combine := false
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
@@ -48,6 +51,7 @@ var ability_bar: AbilityBar
 var ability_target_preview: Node2D
 var ability_range_circle: Line2D
 var item_inventory_ui: ItemInventoryUI
+var item_combine_ui: ItemCombineUI
 var ability_upgrade_ui: CanvasLayer
 var meta_progression_ui: MetaProgressionUI
 var pause_menu: PauseMenu
@@ -67,6 +71,7 @@ func _ready() -> void:
 	_setup_upgrade_overview_ui()
 	_setup_synergy_panel()
 	_setup_item_inventory_ui()
+	_setup_item_combine_ui()
 	_setup_element_unlock_ui()
 	_setup_ability_upgrade_ui()
 	_setup_ability_bar()
@@ -98,12 +103,8 @@ func _on_ability_upgrade_selected(choice: Dictionary) -> void:
 
 func _on_ability_upgrade_closed() -> void:
 	print("[Main] Ability Upgrade Panel geschlossen")
-	if pending_element_core:
-		pending_element_core = false
-		await get_tree().create_timer(0.3).timeout
-		if element_unlock_ui and GameState.has_element_cores():
-			element_unlock_ui.show_panel()
-			return
+	if await _show_pending_post_wave_panels():
+		return
 	_maybe_queue_auto_wave()
 
 
@@ -112,7 +113,23 @@ func _setup_item_inventory_ui() -> void:
 	item_inventory_ui.name = "ItemInventoryUI"
 	add_child(item_inventory_ui)
 	item_inventory_ui.item_selected.connect(_on_inventory_item_selected)
+	# Wegklicken des Inventars muss den pending Equip-Slot in TowerInfo zurücksetzen
+	if tower_info and tower_info.has_method("_on_inventory_panel_closed"):
+		item_inventory_ui.panel_closed.connect(tower_info._on_inventory_panel_closed)
 	print("[Main] ItemInventoryUI erstellt")
+
+
+func _setup_item_combine_ui() -> void:
+	item_combine_ui = ItemCombineUI.new()
+	item_combine_ui.name = "ItemCombineUI"
+	add_child(item_combine_ui)
+	item_combine_ui.panel_closed.connect(_on_item_combine_closed)
+	print("[Main] ItemCombineUI erstellt")
+
+
+func _on_item_combine_closed() -> void:
+	await get_tree().create_timer(0.3).timeout
+	_maybe_queue_auto_wave()
 
 # Neue Callback-Funktion:
 func _on_inventory_item_selected(item: Dictionary) -> void:
@@ -347,9 +364,18 @@ func _connect_signals() -> void:
 		ProgressionSystem.research_changed.connect(_on_meta_research_changed)
 		ProgressionSystem.auto_wave_changed.connect(_on_auto_wave_changed)
 
+func _get_equip_context_tower() -> Node2D:
+	# Turm, auf den gerade ausgerüstet werden kann - steuert die Inventar-Hervorhebung
+	if tower_info and tower_info.visible and tower_info.current_tower:
+		return tower_info.current_tower
+	if tower_manager and tower_manager.has_selection():
+		return tower_manager.get_selected_tower()
+	return null
+
+
 func _on_open_inventory() -> void:
 	if item_inventory_ui:
-		item_inventory_ui.toggle_panel()
+		item_inventory_ui.toggle_panel(_get_equip_context_tower())
 
 
 
@@ -366,7 +392,7 @@ func _input(event: InputEvent) -> void:
 		
 	if event is InputEventKey and event.pressed and event.keycode == KEY_I:
 		if item_inventory_ui:
-			item_inventory_ui.toggle_panel()
+			item_inventory_ui.toggle_panel(_get_equip_context_tower())
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_M:
 		if meta_progression_ui:
@@ -425,6 +451,18 @@ func should_show_upgrades(wave: int) -> bool:
 	if wave < 3:
 		return false
 	return wave % 3 == 0
+
+# Item-Kombination: Nach Runde 5, dann alle 5 Runden (5, 10, 15, 20...)
+func should_show_item_combine(wave: int) -> bool:
+	if wave < ITEM_COMBINE_INTERVAL:
+		return false
+	return wave % ITEM_COMBINE_INTERVAL == 0
+
+# Nächste Runde mit Item-Kombination
+func get_next_item_combine_wave(current_wave: int) -> int:
+	if current_wave < ITEM_COMBINE_INTERVAL:
+		return ITEM_COMBINE_INTERVAL
+	return ((current_wave / ITEM_COMBINE_INTERVAL) + 1) * ITEM_COMBINE_INTERVAL
 
 # Nächste Runde mit Pfad-Regenerierung
 func get_next_path_regen_wave(current_wave: int) -> int:
@@ -528,8 +566,14 @@ func _on_left_mouse_released(pos: Vector2) -> void:
 	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
 	
 	if is_dragging:
+		var drop_from := tower_manager.picked_up_from_pos
 		if pos.y <= game_area_height and tower_manager.can_relocate_to(grid_pos):
 			tower_manager.relocate_tower(grid_pos)
+			_end_pickup_preview()
+			tower_manager.deselect_tower()
+		elif pos.y <= game_area_height and tower_manager.can_swap_with(grid_pos):
+			# Drop auf einen anderen Turm -> beide tauschen die Plätze
+			tower_manager.swap_towers(drop_from, grid_pos)
 			_end_pickup_preview()
 			tower_manager.deselect_tower()
 		else:
@@ -575,8 +619,13 @@ func _check_drag_start(current_pos: Vector2) -> void:
 
 
 func _handle_relocate_click(grid_pos: Vector2i) -> void:
+	var pickup_from := tower_manager.picked_up_from_pos
 	if tower_manager.can_relocate_to(grid_pos):
 		tower_manager.relocate_tower(grid_pos)
+		_end_pickup_preview()
+	elif tower_manager.can_swap_with(grid_pos):
+		# Klick auf einen anderen Turm -> beide tauschen die Plätze
+		tower_manager.swap_towers(pickup_from, grid_pos)
 		_end_pickup_preview()
 	else:
 		Sound.play_error()
@@ -631,6 +680,8 @@ func _is_over_ui(pos: Vector2) -> bool:
 	
 	# wave_upgrade_ui blockiert auch, aber das ist ein modales Panel
 	if wave_upgrade_ui and wave_upgrade_ui.visible:
+		return true
+	if item_combine_ui and item_combine_ui.visible:
 		return true
 	
 	# Untere UI-Leiste (Shop, HUD)
@@ -731,6 +782,9 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 	if upgrade_overview_ui and upgrade_overview_ui.visible:
 		hover_preview.visible = false
 		return
+	if item_combine_ui and item_combine_ui.visible:
+		hover_preview.visible = false
+		return
 	
 	var game_area_height := MAP_HEIGHT * GRID_SIZE
 	if mouse_pos.y > game_area_height:
@@ -773,7 +827,8 @@ func _update_pickup_hover_preview(mouse_pos: Vector2) -> void:
 	hover_preview.visible = true
 	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
 	
-	var can_relocate := tower_manager.can_relocate_to(grid_pos)
+	# Leere Zelle = umplatzieren, belegte Zelle = Plätze tauschen -> beides gültig
+	var can_relocate := tower_manager.can_relocate_to(grid_pos) or tower_manager.can_swap_with(grid_pos)
 	if can_relocate:
 		RangeGridHelper.tint_visual(hover_range_visual, Color(0.25, 1.0, 0.55, 0.4))
 		hover_sprite.modulate = Color(1, 1, 1, 0.7)
@@ -935,26 +990,27 @@ func _on_wave_completed(wave: int) -> void:
 		if hud:
 			hud.update_wave_preview_after_regen()
 	
-	# 2. Ability-Upgrades (Runde 4, 7, 10, 13...)
+	# 2. Item-Kombination (Runde 5, 10, 15...) nur vormerken - das Panel kommt
+	#    zum Schluss, damit es Ability-/Perk-Panel nicht verschluckt (und umgekehrt)
+	if should_show_item_combine(wave):
+		pending_item_combine = true
+
+	# 3. Ability-Upgrades (Runde 4, 7, 10, 13...)
 	if AbilitySystem.should_show_ability_upgrades(wave):
 		print("[Main] Zeige Ability-Upgrade-Panel nach Welle %d..." % wave)
 		ability_upgrade_ui.show_panel()
 		return  # Wichtig: Nicht auch noch Perks zeigen!
-	
-	# 3. Perk-Auswahl (Runde 3, 6, 9, 12...)
+
+	# 4. Perk-Auswahl (Runde 3, 6, 9, 12...)
 	if should_show_upgrades(wave):
 		print("[Main] Zeige Perk-Panel nach Welle %d..." % wave)
 		if wave_upgrade_ui:
 			wave_upgrade_ui.show_upgrades(wave)
 		return
-	
-	# 4. Element-Core Dialog wenn nichts anderes angezeigt wird
-	if pending_element_core:
-		pending_element_core = false
-		await get_tree().create_timer(0.3).timeout
-		if element_unlock_ui and GameState.has_element_cores():
-			element_unlock_ui.show_panel()
-	
+
+	# 5. Vorgemerkte Panels (Element-Core, Item-Kombination) wenn nichts anderes läuft
+	await _show_pending_post_wave_panels()
+
 	# HUD über Wellen-Events informieren
 	if hud:
 		hud.update_wave_events_preview(wave + 1)
@@ -977,13 +1033,9 @@ func _on_upgrade_chosen(upgrade_id: String) -> void:
 			hud._on_supply_changed(GameState.supply_used, GameState.supply_max)
 			
 	tower_shop._create_tower_buttons()
-	
-	if pending_element_core:
-		pending_element_core = false
-		await get_tree().create_timer(0.3).timeout
-		if element_unlock_ui and GameState.has_element_cores():
-			element_unlock_ui.show_panel()
-			return
+
+	if await _show_pending_post_wave_panels():
+		return
 	_maybe_queue_auto_wave()
 
 
@@ -1072,7 +1124,32 @@ func _on_meta_research_changed(_research_id: String, _level: int) -> void:
 
 func _on_interstitial_panel_closed() -> void:
 	await get_tree().create_timer(0.3).timeout
+	if await _show_pending_post_wave_panels():
+		return
 	_maybe_queue_auto_wave()
+
+
+# Zeigt die vorgemerkten Post-Wave-Panels nacheinander: erst Element-Kern, dann
+# Item-Kombination. Wird nach jedem geschlossenen Panel erneut aufgerufen, damit
+# sich die Angebote nicht gegenseitig verschlucken.
+# Rückgabe: true, wenn ein Panel geöffnet wurde.
+func _show_pending_post_wave_panels() -> bool:
+	if pending_element_core:
+		pending_element_core = false
+		await get_tree().create_timer(0.3).timeout
+		if element_unlock_ui and GameState.has_element_cores():
+			element_unlock_ui.show_panel()
+			return true
+
+	if pending_item_combine:
+		pending_item_combine = false
+		# Ohne kombinierbares Paar gar nicht erst öffnen
+		if item_combine_ui and ItemSystem and ItemSystem.has_combinable_pair():
+			await get_tree().create_timer(0.3).timeout
+			item_combine_ui.show_panel(GameState.current_wave)
+			return true
+
+	return false
 
 
 func _on_auto_wave_changed(enabled: bool) -> void:
@@ -1088,7 +1165,7 @@ func _maybe_queue_auto_wave() -> void:
 		return
 	if tower_manager.has_blocked_towers():
 		return
-	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui]:
+	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui, item_combine_ui]:
 		if overlay and overlay.visible:
 			return
 
@@ -1104,7 +1181,7 @@ func _maybe_queue_auto_wave() -> void:
 		return
 	if tower_manager.has_blocked_towers():
 		return
-	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui]:
+	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui, item_combine_ui]:
 		if overlay and overlay.visible:
 			return
 	if GameState.is_game_over():

@@ -40,6 +40,10 @@ const COLOR_MUTED := Color("9aa8c2")
 const COLOR_ACCENT := Color("f4cf6a")
 const COLOR_DARK_BUTTON_TEXT := Color("181512")
 
+# Kampfstatistik live nachziehen, solange das Panel offen ist
+const STATS_REFRESH_INTERVAL := 0.5
+var _stats_refresh_timer := 0.0
+
 
 func _ready() -> void:
 	visible = false
@@ -353,6 +357,11 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 	if ItemSystem.equip_item(current_tower, uid, _pending_equip_slot):
 		Sound.play_place()
 
+		# Auswahl im Inventar aufheben, sonst blockiert das tote Item die Hover-Details
+		var inventory_ui := _get_inventory_ui()
+		if inventory_ui:
+			inventory_ui.deselect_item()
+
 		var equipped_now: Array = ItemSystem.get_tower_equipped_items(current_tower)
 		_pending_equip_slot = _get_next_equip_slot(_pending_equip_slot, equipped_now)
 
@@ -388,6 +397,13 @@ func _on_inventory_panel_closed() -> void:
 
 
 
+func _get_inventory_ui() -> ItemInventoryUI:
+	var main := get_node_or_null("/root/Main")
+	if not main:
+		return null
+	return main.get_node_or_null("ItemInventoryUI") as ItemInventoryUI
+
+
 func _try_equip_from_inventory(slot_index: int) -> void:
 	if not ItemSystem:
 		return
@@ -411,12 +427,16 @@ func _try_equip_from_inventory(slot_index: int) -> void:
 	if not inventory_ui.item_selected.is_connected(_on_inventory_item_selected):
 		inventory_ui.item_selected.connect(_on_inventory_item_selected)
 
-	if not inventory_ui.has_selection():
-		if not inventory_ui.visible:
-			inventory_ui.show_panel()
+	if inventory_ui.has_selection():
+		inventory_ui.set_filter_tower(current_tower)
+		_on_inventory_item_selected(inventory_ui.get_selected_item())
 		return
 
-	_on_inventory_item_selected(inventory_ui.get_selected_item())
+	# Equip-Kontext setzen, damit passende Items im Inventar hervorgehoben werden
+	if not inventory_ui.visible:
+		inventory_ui.show_panel(current_tower)
+	else:
+		inventory_ui.set_filter_tower(current_tower)
 
 
 func _unequip_item(slot_index: int) -> void:
@@ -436,6 +456,11 @@ func set_tower_manager(tm: TowerManager) -> void:
 func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	current_tower = tower
 	current_grid_pos = grid_pos
+
+	# Inventar über den Equip-Kontext informieren (Hervorhebung passender Items)
+	var inventory_ui := _get_inventory_ui()
+	if inventory_ui:
+		inventory_ui.set_filter_tower(tower)
 
 	_update_display()
 	visible = true
@@ -467,6 +492,22 @@ func hide_panel() -> void:
 	current_tower = null
 	current_grid_pos = Vector2i(-1, -1)
 	_pending_equip_slot = -1
+
+	# Equip-Kontext im Inventar wieder aufheben
+	var inventory_ui := _get_inventory_ui()
+	if inventory_ui:
+		inventory_ui.set_filter_tower(null)
+
+
+func _process(delta: float) -> void:
+	# Kills/Schaden ändern sich während der Welle - Stats regelmäßig neu zeichnen
+	if not visible or not tower_manager or not is_instance_valid(current_tower):
+		return
+	_stats_refresh_timer -= delta
+	if _stats_refresh_timer > 0.0:
+		return
+	_stats_refresh_timer = STATS_REFRESH_INTERVAL
+	_update_stats_with_upgrades(current_tower.tower_type, tower_manager.get_tower_level(current_grid_pos))
 
 
 func _update_display() -> void:
@@ -603,6 +644,25 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		var crit_text := "%s Crit: [b]%d%%[/b] (x%.1f)" % [crit_icon, crit_percent, crit_mult]
 		stats_lines.append(crit_text)
 
+	# NEU: Kampfstatistik (Kills & Schaden) – aktuelle Runde / gesamter Run
+	var has_combat_stats: bool = "kills_run" in current_tower
+	var kills_round: int = 0
+	var kills_total: int = 0
+	var dmg_round: int = 0
+	var dmg_total: int = 0
+	if has_combat_stats:
+		kills_round = int(current_tower.kills_round)
+		kills_total = int(current_tower.kills_run)
+		dmg_round = int(current_tower.damage_round)
+		dmg_total = int(current_tower.damage_run)
+		var kills_icon := IconSystem.bb("star_full", 14) if IconSystem else ""
+		stats_lines.append("%s Kills: [b]%d[/b] [color=#9aa8c2]Runde[/color] / [b]%d[/b] [color=#9aa8c2]Run[/color]" % [
+			kills_icon, kills_round, kills_total
+		])
+		stats_lines.append("%s Schaden ges.: [b]%s[/b] [color=#9aa8c2]Runde[/color] / [b]%s[/b] [color=#9aa8c2]Run[/color]" % [
+			damage_icon, _format_number(dmg_round), _format_number(dmg_total)
+		])
+
 	stats_label.text = "\n".join(stats_lines)
 
 	# Tooltip erweitern
@@ -644,7 +704,20 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		
 		tooltip_lines.append(crit_tooltip)
 
+	# NEU: Kampfstatistik im Tooltip mit exakten Zahlen
+	if has_combat_stats:
+		tooltip_lines.append("Kills: %d in dieser Runde, %d im gesamten Run" % [kills_round, kills_total])
+		tooltip_lines.append("Schaden: %d in dieser Runde, %d im gesamten Run" % [dmg_round, dmg_total])
+
 	stats_label.tooltip_text = "Aktuelle Tower-Stats:\n" + "\n".join(tooltip_lines)
+
+
+func _format_number(value: int) -> String:
+	if value >= 1_000_000:
+		return "%.2fM" % (float(value) / 1_000_000.0)
+	if value >= 10_000:
+		return "%.1fK" % (float(value) / 1_000.0)
+	return str(value)
 
 
 func _has_prop(obj: Object, prop: StringName) -> bool:

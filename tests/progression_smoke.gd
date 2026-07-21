@@ -43,7 +43,8 @@ func _run() -> void:
 	_assert_equal(game_state.lives, 10, "Harter Start: Leben")
 	_assert_equal(game_state.supply_max, 3, "Harter Start: Supply")
 	_assert_equal(1 in game_state._get_core_reward_waves(), false, "Kein Element-Kern in Welle 1")
-	_assert_equal(5 in game_state._get_core_reward_waves(), true, "Erster Element-Kern in Welle 5")
+	_assert_equal(3 in game_state._get_core_reward_waves(), true, "Erster Element-Kern in Welle 3")
+	_assert_equal(10 in game_state._get_core_reward_waves(), true, "Element-Kern in Welle 10")
 
 	progression.research_levels["starting_funds"] = 2
 	progression.research_levels["fortification"] = 1

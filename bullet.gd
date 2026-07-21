@@ -206,6 +206,14 @@ func _hit_target() -> void:
 	_explode()
 
 
+# Schreibt real ausgeteilten Schaden dem abfeuernden Turm gut (falls bekannt)
+func _credit_damage(amount: int) -> void:
+	if amount <= 0:
+		return
+	if is_instance_valid(source_tower) and source_tower.has_method("register_damage_dealt"):
+		source_tower.register_damage_dealt(amount)
+
+
 func _hit_single(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy) or enemy in already_hit:
 		return
@@ -218,7 +226,8 @@ func _hit_single(enemy: Node2D) -> void:
 		bonus_mult = ItemSystem.get_tower_conditional_mult(source_tower, enemy)
 
 	if enemy.has_method("take_damage"):
-		enemy.take_damage(damage, true, bullet_type, is_crit, source_tower_type, bonus_mult)
+		var dealt: int = enemy.take_damage(damage, true, bullet_type, is_crit, source_tower_type, bonus_mult, source_tower)
+		_credit_damage(dealt)
 
 	# Treffer-basierte Procs (chance_on_hit / execute)
 	if ItemSystem and source_tower:
@@ -303,8 +312,9 @@ func _do_chain_attack() -> void:
 			_draw_chain_lightning(current.position, next.position)
 			already_hit.append(next)
 			if next.has_method("take_damage"):
-				# Chain-Hits sind keine Crits
-				next.take_damage(chain_dmg, true, "air", false)
+				# Chain-Hits sind keine Crits (kein Tower-Typ-Multiplikator wie bisher)
+				var dealt: int = next.take_damage(chain_dmg, true, "air", false, "", 1.0, source_tower)
+				_credit_damage(dealt)
 			_apply_special_effects(next)
 			current = next
 			remaining -= 1
@@ -357,12 +367,16 @@ func _spawn_lava_pool() -> void:
 	pool.add_child(tmr)
 	
 	var pool_dmg := burn_damage if burn_damage > 0 else 5
+	# Turm-Referenz lokal kopieren: das Bullet ist bereits weg, wenn der Pool tickt
+	var pool_tower := source_tower
 	tmr.timeout.connect(func():
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if pool.position.distance_to(e.position) <= splash_radius:
 				if e.has_method("take_damage"):
 					# Lava Pool Damage ist kein Crit
-					e.take_damage(pool_dmg, false, "lava", false)
+					var dealt: int = e.take_damage(pool_dmg, false, "lava", false, "", 1.0, pool_tower)
+					if dealt > 0 and is_instance_valid(pool_tower) and pool_tower.has_method("register_damage_dealt"):
+						pool_tower.register_damage_dealt(dealt)
 		if VFX and randf() > 0.5:
 			VFX.spawn_pixels(pool.position + Vector2(randf_range(-20, 20), randf_range(-20, 20)), "lava", 2, 10.0)
 	)

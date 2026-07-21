@@ -15,6 +15,29 @@ const SAVE_PATH := "user://incremental_progression_v1.json"
 const SAVE_VERSION := 2
 const STREAK_WINDOW := 3.0
 const MILESTONE_WAVES: Array[int] = [3, 5, 10, 15, 25, 40, 60, 100]
+
+# --- Aether-Balancing ---------------------------------------------------------
+# Alle Aether-Quellen liegen hier gebuendelt, damit Nachtunen ohne Formelsuche geht.
+# Leitidee: Der fruehe Verlauf bleibt spuerbar belohnend, der spaete Zufluss waechst
+# deutlich flacher. Deshalb sind die wellenabhaengigen Anteile gedeckelt und die
+# Exponenten liegen nahe an linear.
+const ESSENCE_STREAK_STEP := 10          # Jeder n-te Kill einer Serie zahlt Aether aus.
+const ESSENCE_STREAK_REWARD := 1         # Feste Auszahlung pro Serien-Meilenstein.
+const ESSENCE_BOSS_KILL := 4             # Aether pro erlegtem Boss.
+const ESSENCE_WAVE_BASE := 2             # Sockel pro abgeschlossener Welle.
+const ESSENCE_WAVE_STEP := 2             # Sockel waechst alle n Wellen um 1 ...
+const ESSENCE_WAVE_STEP_CAP := 3         # ... maximal aber um diesen Betrag.
+const ESSENCE_WAVE_CYCLE := 5            # Jede n-te Welle zahlt zusaetzlich aus.
+const ESSENCE_WAVE_CYCLE_BONUS := 10     # Sockel dieses Zyklusbonus.
+const ESSENCE_WAVE_CYCLE_STEP := 5       # Zyklusbonus waechst alle n Wellen um 1 ...
+const ESSENCE_WAVE_CYCLE_CAP := 2        # ... maximal aber um diesen Betrag.
+const ESSENCE_LEVEL_BASE := 4            # Sockel pro Account-Levelaufstieg.
+const ESSENCE_LEVEL_CAP := 6             # Deckel des levelabhaengigen Anteils.
+const ESSENCE_MILESTONE_BASE := 8        # Sockel je Wellen-Meilenstein.
+const ESSENCE_MILESTONE_EXP := 1.0       # Wellen-Exponent des Meilensteins.
+const ESSENCE_RUN_SCALE := 1.8           # Faktor der Run-Abschlusspraemie.
+const ESSENCE_RUN_EXP := 1.05            # Wellen-Exponent der Run-Abschlusspraemie.
+
 const TOWER_RESEARCH := {
 	"archer": "unlock_archer",
 	"wizard": "unlock_wizard",
@@ -207,10 +230,12 @@ func register_kill(enemy_type: String, base_gold: int) -> Dictionary:
 	var multiplier := get_streak_multiplier()
 	var bonus_gold := maxi(0, int(round(float(base_gold) * (multiplier - 1.0))))
 	var essence_gain := 0
-	if current_streak % 8 == 0:
-		essence_gain = 1 + current_streak / 32
+	# Feste Auszahlung pro Serien-Meilenstein: Lange Wellen sollen den Zufluss
+	# nicht zusaetzlich ueber die Seriellaenge hochskalieren.
+	if current_streak % ESSENCE_STREAK_STEP == 0:
+		essence_gain = ESSENCE_STREAK_REWARD
 	if enemy_type == "boss":
-		essence_gain += 6
+		essence_gain += ESSENCE_BOSS_KILL
 	if essence_gain > 0:
 		_award_essence(essence_gain)
 
@@ -222,9 +247,9 @@ func register_kill(enemy_type: String, base_gold: int) -> Dictionary:
 
 
 func register_wave_completed(wave: int) -> Dictionary:
-	var base_essence := 2 + wave / 2
-	if wave % 5 == 0:
-		base_essence += 10 + wave / 5
+	var base_essence := ESSENCE_WAVE_BASE + mini(wave / ESSENCE_WAVE_STEP, ESSENCE_WAVE_STEP_CAP)
+	if wave % ESSENCE_WAVE_CYCLE == 0:
+		base_essence += ESSENCE_WAVE_CYCLE_BONUS + mini(wave / ESSENCE_WAVE_CYCLE_STEP, ESSENCE_WAVE_CYCLE_CAP)
 	var gained_essence := _award_essence(base_essence)
 	var gained_xp := 10 + wave * 3
 	_add_account_xp(gained_xp)
@@ -249,7 +274,7 @@ func finish_run(wave: int) -> Dictionary:
 	total_runs += 1
 	best_wave = maxi(best_wave, wave)
 
-	var completion_base := int(round(pow(float(maxi(1, wave)), 1.35) * 1.5))
+	var completion_base := int(round(pow(float(maxi(1, wave)), ESSENCE_RUN_EXP) * ESSENCE_RUN_SCALE))
 	var completion_essence := _award_essence(completion_base)
 	var completion_xp := 25 + wave * 5
 	_add_account_xp(completion_xp)
@@ -304,7 +329,9 @@ func _add_account_xp(amount: int) -> void:
 		account_level += 1
 		leveled_up = true
 		# Jeder Levelaufstieg ist selbst eine kleine Incremental-Auszahlung.
-		var level_reward := 4 + account_level
+		# Der levelabhaengige Anteil ist gedeckelt, damit hohe Accounts nicht dauerhaft
+		# immer groessere Brocken ausschuetten.
+		var level_reward := ESSENCE_LEVEL_BASE + mini(account_level, ESSENCE_LEVEL_CAP)
 		essence += level_reward
 		lifetime_essence += level_reward
 		run_essence += level_reward
@@ -323,15 +350,18 @@ func _check_milestones() -> void:
 		var key := str(wave)
 		if best_wave >= wave and not claimed_milestones.get(key, false):
 			claimed_milestones[key] = true
-			var reward := 8 + int(pow(float(wave), 1.15))
-			var actual_reward := _award_essence(reward)
+			var actual_reward := _award_essence(get_milestone_reward(wave))
 			milestone_reached.emit(wave, actual_reward)
+
+
+func get_milestone_reward(wave: int) -> int:
+	return ESSENCE_MILESTONE_BASE + int(pow(float(wave), ESSENCE_MILESTONE_EXP))
 
 
 func get_next_milestone() -> Dictionary:
 	for wave in MILESTONE_WAVES:
 		if best_wave < wave:
-			return {"wave": wave, "reward": 8 + int(pow(float(wave), 1.15))}
+			return {"wave": wave, "reward": get_milestone_reward(wave)}
 	return {"wave": 0, "reward": 0}
 
 

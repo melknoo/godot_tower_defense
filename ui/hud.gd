@@ -1092,6 +1092,7 @@ func update_wave_events_preview(next_wave: int) -> void:
 
 	if next_wave > 0 and next_wave % 5 == 0:
 		events.append("+1 %s" % IconSystem.bb("core", 14))
+		events.append("%s Schmiede" % IconSystem.bb("inventory", 14))
 
 	if events.is_empty():
 		wave_events_label.text = ""

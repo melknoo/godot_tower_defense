@@ -14,6 +14,9 @@ var enemy_type := "normal"
 var tower_type_multipliers: Dictionary = {}
 var element := "neutral"
 var _resolved := false
+# Letzter Turm, der Schaden verursacht hat (für Kill-Zuordnung, Part G).
+# null = nicht zuordenbare Quelle (Ability, Item, Burn-DoT, ...)
+var _last_damage_source: Node2D = null
 
 # Status-Effekte
 var slow_amount := 0.0
@@ -484,10 +487,17 @@ func _update_status_effects(delta: float) -> void:
 			cc_dr_stacks = 0
 
 
+# Gibt den tatsächlich zugefügten Schaden zurück (nach Multiplikatoren, gekappt auf
+# die verbleibenden HP). Bestehende Aufrufer, die den Rückgabewert ignorieren, bleiben gültig.
 func take_damage(amount: int, apply_elemental: bool = false, attacker_element: String = "",
-		is_crit: bool = false, attacker_tower_type: String = "", bonus_mult: float = 1.0) -> void:
+		is_crit: bool = false, attacker_tower_type: String = "", bonus_mult: float = 1.0,
+		source_tower: Node2D = null) -> int:
 	if health <= 0:
-		return
+		return 0
+
+	# Letzten Verursacher merken - auch bewusst auf null, damit ein Ability-/Item-Kill
+	# nicht fälschlich dem zuletzt treffenden Turm gutgeschrieben wird.
+	_last_damage_source = source_tower if is_instance_valid(source_tower) else null
 
 	var final_damage := amount
 	var elemental_mult := 1.0
@@ -525,8 +535,13 @@ func take_damage(amount: int, apply_elemental: bool = false, attacker_element: S
 
 	final_damage = int(amount * combined_mult * bonus_mult)
 
+	# Real ausgeteilter Schaden: nie negativ und nie mehr als die verbleibenden HP
+	var dealt := clampi(final_damage, 0, health)
+
 	health -= final_damage
 	_update_health_bar()
+
+	GameState.record_damage(dealt)
 
 	if flash_timer <= 0:
 		_do_hit_flash()
@@ -550,6 +565,8 @@ func take_damage(amount: int, apply_elemental: bool = false, attacker_element: S
 		_die()
 	else:
 		Sound.play_hit()
+
+	return dealt
 
 
 func damage_threshold_for_crit() -> int:
@@ -593,7 +610,11 @@ func _die() -> void:
 	if _resolved:
 		return
 	_resolved = true
-	
+
+	# Kill dem letzten Verursacher-Turm gutschreiben (durch _resolved genau einmal)
+	if is_instance_valid(_last_damage_source) and _last_damage_source.has_method("register_kill"):
+		_last_damage_source.register_kill()
+
 	# Gold-Bonus durch Upgrades
 	var bonus_gold := 0
 	if UpgradeSystem:

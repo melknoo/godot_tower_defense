@@ -58,7 +58,8 @@ func _setup_frame() -> void:
 	custom_minimum_size = Vector2(content_width, content_height)
 	
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	
+	gui_input.connect(_on_shop_gui_input)
+
 	var style_panel := Panel.new()
 	style_panel.name = "FramePanel"
 	style_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -113,6 +114,8 @@ func _setup_frame() -> void:
 	clip_container.custom_minimum_size = Vector2(VISIBLE_TOWERS * (BUTTON_WIDTH + H_SPACING), 85)
 	clip_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	clip_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	clip_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	clip_container.gui_input.connect(_on_shop_gui_input)
 	hbox.add_child(clip_container)
 	
 	grid_container = HBoxContainer.new()
@@ -280,6 +283,23 @@ func _on_scroll_right() -> void:
 		scroll_offset += 1
 		_apply_scroll()
 		Sound.play_click()
+
+
+# Mausrad scrollt die Turmliste horizontal (Rad hoch = nach links).
+func _on_shop_gui_input(event: InputEvent) -> void:
+	if max_scroll <= 0:
+		return
+
+	var mb := event as InputEventMouseButton
+	if mb == null or not mb.pressed:
+		return
+
+	if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_on_scroll_left()
+		accept_event()
+	elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		_on_scroll_right()
+		accept_event()
 
 
 func _on_element_unlocked(_element: String) -> void:
