@@ -23,6 +23,19 @@ var burn_timer := 0.0
 var stun_timer := 0.0
 var is_frozen := false
 var freeze_timer := 0.0
+var confuse_timer := 0.0
+
+# Dampf-Effekt: konfuse Gegner nehmen mehr Schaden
+const CONFUSE_DAMAGE_MULT := 1.25
+
+# Hard-CC Diminishing Returns (geteilt zwischen Freeze & Stun/Root)
+var cc_dr_stacks := 0
+var cc_dr_reset_timer := 0.0
+const CC_DR_FALLOFF := 0.55            # jede weitere Hard-CC-Anwendung ~55% der vorigen Dauer
+const CC_DR_RESET := 3.5               # Sekunden ohne neue Hard-CC bis DR zurücksetzt
+const CC_MIN_DURATION := 0.25          # darunter: kein Hard-CC, stattdessen Slow-Fallback
+const CC_FALLBACK_SLOW := 0.5          # Slow-Stärke des Fallbacks (50%)
+const CC_FALLBACK_SLOW_DURATION := 1.5
 
 # Hit-Flash
 var flash_timer := 0.0
@@ -458,9 +471,21 @@ func _update_status_effects(delta: float) -> void:
 		burn_timer -= delta
 		take_damage(int(burn_damage * delta), false, "fire")
 
+	if confuse_timer > 0:
+		confuse_timer -= delta
+		if confuse_timer <= 0 and sprite and slow_timer <= 0 and not is_frozen:
+			sprite.modulate = original_modulate
+
+	# Hard-CC Diminishing Returns zurücksetzen, wenn der Gegner lange genug CC-frei war.
+	# Läuft nur außerhalb von Freeze/Stun (die returnen in _process vorher).
+	if cc_dr_reset_timer > 0.0:
+		cc_dr_reset_timer -= delta
+		if cc_dr_reset_timer <= 0.0:
+			cc_dr_stacks = 0
+
 
 func take_damage(amount: int, apply_elemental: bool = false, attacker_element: String = "",
-		is_crit: bool = false, attacker_tower_type: String = "") -> void:
+		is_crit: bool = false, attacker_tower_type: String = "", bonus_mult: float = 1.0) -> void:
 	if health <= 0:
 		return
 
@@ -490,7 +515,15 @@ func take_damage(amount: int, apply_elemental: bool = false, attacker_element: S
 	if attacker_tower_type != "" and (slow_timer > 0.0 or is_frozen) and AbilitySystem:
 		combined_mult *= AbilitySystem.get_passive_modifier("slowed_tower_damage_mult", 1.0)
 
-	final_damage = int(amount * combined_mult)
+	# Meisterschaft: zustandsabhängige Verwundbarkeit (control/fire/earth-Schwellen) für Turmschaden
+	if attacker_tower_type != "" and SynergySystem:
+		combined_mult *= SynergySystem.get_state_damage_mult(self)
+
+	# Konfuse Gegner (Dampf) sind verwundbarer
+	if confuse_timer > 0.0:
+		combined_mult *= CONFUSE_DAMAGE_MULT
+
+	final_damage = int(amount * combined_mult * bonus_mult)
 
 	health -= final_damage
 	_update_health_bar()
@@ -616,8 +649,22 @@ func apply_burn(damage_per_second: int, duration: float) -> void:
 		VFX.spawn_pixels(position, "fire", 4, 15.0)
 
 
+# Reduziert eine Hard-CC-Dauer nach DR-Stacks und aktualisiert den State.
+func _diminished_cc_duration(duration: float) -> float:
+	var factor: float = pow(CC_DR_FALLOFF, cc_dr_stacks)
+	cc_dr_reset_timer = CC_DR_RESET
+	cc_dr_stacks += 1
+	return duration * factor
+
+
 func apply_stun(duration: float) -> void:
-	stun_timer = maxf(stun_timer, duration)
+	var eff := _diminished_cc_duration(duration)
+	if eff < CC_MIN_DURATION:
+		# Zu stark reduziert -> Slow-Fallback statt Stun
+		apply_slow(CC_FALLBACK_SLOW, CC_FALLBACK_SLOW_DURATION)
+		return
+
+	stun_timer = maxf(stun_timer, eff)
 	wobble_time = 0.0
 
 	if sprite:
@@ -627,9 +674,26 @@ func apply_stun(duration: float) -> void:
 		VFX.spawn_pixels(position, "air", 6, 20.0)
 
 
+func apply_confuse(duration: float) -> void:
+	confuse_timer = maxf(confuse_timer, duration)
+
+	if sprite:
+		sprite.modulate = original_modulate.lerp(Color(0.9, 0.7, 1.0), 0.5)
+
+	if VFX:
+		VFX.spawn_pixels(position, "steam", 5, 18.0)
+
+
 func apply_freeze(duration: float) -> void:
+	var eff := _diminished_cc_duration(duration)
+	if eff < CC_MIN_DURATION:
+		# Zu stark reduziert -> Slow-Fallback statt Freeze (Eis bleibt nützlich)
+		apply_slow(CC_FALLBACK_SLOW, CC_FALLBACK_SLOW_DURATION)
+		return
+
 	is_frozen = true
-	freeze_timer = duration
+	# maxf: ein kurzer DR-Freeze darf einen noch laufenden längeren nicht abschneiden
+	freeze_timer = maxf(freeze_timer, eff)
 
 	if sprite:
 		sprite.modulate = Color(0.7, 0.9, 1.0)

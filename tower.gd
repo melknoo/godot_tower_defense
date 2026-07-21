@@ -37,6 +37,7 @@ var burn_damage := 0
 var stun_chance := 0.0
 var chain_targets := 0
 var base_crit_chance := 0.0
+var shots_fired := 0   # für Proc-Items (jeder N-te Schuss)
 
 var bullet_scene: PackedScene
 var fire_timer := 0.0
@@ -168,7 +169,11 @@ func _apply_upgrade_bonuses() -> void:
 		damage_mult *= (1.0 + aura_buffs["damage_mult"])
 	
 	damage = int(float(base_damage) * damage_mult)
-	
+
+	# Meisterschaft: Element-Schaden (T2) + Combo-Capstone (skaliert mit beiden Elternelementen)
+	if elem != "" and SynergySystem:
+		damage = int(float(damage) * (1.0 + SynergySystem.get_element_damage_bonus(elem)))
+
 	# Range Multiplikator
 	var range_mult := UpgradeSystem.get_range_multiplier(tower_type)
 	if isolated:
@@ -190,17 +195,34 @@ func _apply_upgrade_bonuses() -> void:
 	# Splash
 	if base_splash > 0:
 		var splash_mult := UpgradeSystem.get_splash_multiplier()
+		if SynergySystem:
+			splash_mult += SynergySystem.get_splash_radius_bonus()  # Meisterschaft: splash T1
 		splash_radius = base_splash * splash_mult
-	
+
 	# Element-spezifische Boni
 	if elem != "":
 		slow_amount += UpgradeSystem.get_slow_bonus(elem)
 		stun_chance += UpgradeSystem.get_stun_bonus(elem)
 		chain_targets += UpgradeSystem.get_chain_bonus(elem)
-	
+
+	# Meisterschaft: Status-Stärken (nur wenn der Turm den Effekt überhaupt hat)
+	if SynergySystem:
+		if slow_amount > 0.0:
+			slow_amount += SynergySystem.get_slow_strength_bonus()   # water T1
+		if stun_chance > 0.0:
+			stun_chance += SynergySystem.get_stun_chance_bonus()     # earth T1
+		if chain_targets > 0:
+			chain_targets += SynergySystem.get_chain_bonus()         # air T1
+		if burn_damage > 0:
+			burn_damage = int(float(burn_damage) * (1.0 + SynergySystem.get_burn_damage_bonus()))  # fire T1
+
 	# NEU: Crit von Aura
 	if aura_buffs.has("crit_chance"):
 		base_crit_chance += aura_buffs["crit_chance"]
+
+	# Meisterschaft: crit T1 (+Crit-Chance)
+	if SynergySystem:
+		base_crit_chance += SynergySystem.get_crit_chance_bonus()
 
 
 func _collect_aura_buffs() -> Dictionary:
@@ -499,11 +521,14 @@ func engrave(element: String) -> bool:
 	GameState.gold -= TowerData.get_engraving_cost()
 	engraved_element = element
 	_load_engraving_effects()
-	
+
+	if SynergySystem:
+		SynergySystem.on_tower_engraved(element)
+
 	if is_inside_tree():
 		_update_visuals()
 		_show_engraving_effect()
-	
+
 	Sound.play_element_select()
 	return true
 
@@ -1258,11 +1283,19 @@ func _execute_melee_damage() -> void:
 
 	if is_crit:
 		var crit_mult: float = UpgradeSystem.get_crit_multiplier() if UpgradeSystem and UpgradeSystem.has_method("get_crit_multiplier") else 1.5
+		if SynergySystem:
+			crit_mult += SynergySystem.get_crit_damage_bonus()
 		melee_damage = int(float(damage) * crit_mult)
 		if VFX:
 			VFX.spawn_pixels(position, "crit", 6, 20.0)
 
 	var kills := 0
+
+	# Proc-Items (jeder N-te Schwung / bei Crit)
+	shots_fired += 1
+	if ItemSystem:
+		var proc_target: Node2D = hit_enemies[0] if not hit_enemies.is_empty() else null
+		ItemSystem.on_tower_shot(self, proc_target, is_crit, shots_fired)
 
 	for enemy in hit_enemies:
 		var was_alive: bool = true
@@ -1270,10 +1303,19 @@ func _execute_melee_damage() -> void:
 		if typeof(h) == TYPE_INT or typeof(h) == TYPE_FLOAT:
 			was_alive = h > 0
 
+		# Situative Items: Schadensbonus nur bei passendem Gegner-Zustand
+		var bonus_mult := 1.0
+		if ItemSystem:
+			bonus_mult = ItemSystem.get_tower_conditional_mult(self, enemy)
+
 		if enemy.has_method("take_damage"):
-			# NEU: tower_type als 5. Parameter
-			enemy.take_damage(melee_damage, true, elem, is_crit, tower_type)
+			# NEU: tower_type als 5. Parameter, bonus_mult als 6.
+			enemy.take_damage(melee_damage, true, elem, is_crit, tower_type, bonus_mult)
 		_apply_melee_effects(enemy)
+
+		# Treffer-basierte Procs (chance_on_hit / execute)
+		if ItemSystem:
+			ItemSystem.on_tower_hit(self, enemy)
 
 		if was_alive and (not is_instance_valid(enemy) or enemy.health <= 0):
 			kills += 1
@@ -1320,16 +1362,23 @@ func has_empty_equipment_slot() -> bool:
 	return false
 
 
+# Meisterschafts-Multiplikator für Status-Dauern (control T1, water T3 für Freeze)
+func _status_duration_mult(status: String) -> float:
+	if SynergySystem:
+		return SynergySystem.get_status_duration_mult(status)
+	return 1.0
+
+
 func _apply_melee_effects(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy):
 		return
 	match special_type:
 		"stun":
 			if randf() < stun_chance and enemy.has_method("apply_stun"):
-				enemy.apply_stun(0.5)
+				enemy.apply_stun(0.5 * _status_duration_mult("stun"))
 		"slow":
 			if enemy.has_method("apply_slow"):
-				enemy.apply_slow(slow_amount, 2.0)
+				enemy.apply_slow(slow_amount, 2.0 * _status_duration_mult("slow"))
 
 
 func _shoot() -> void:
@@ -1365,7 +1414,11 @@ func _shoot() -> void:
 		if ItemSystem:
 			var item_crit_dmg := ItemSystem.get_tower_item_bonus_percent(self, "crit_damage")
 			crit_mult += item_crit_dmg
-		
+
+		# Meisterschaft: crit T2 (+Crit-Schaden)
+		if SynergySystem:
+			crit_mult += SynergySystem.get_crit_damage_bonus()
+
 		final_damage = int(float(damage) * crit_mult)
 		
 		if VFX:
@@ -1384,7 +1437,12 @@ func _shoot() -> void:
 		var extra := bullet_scene.instantiate()
 		extra.position = position + Vector2(randf_range(-10, 10), randf_range(-10, 10))
 		_fire_bullet(extra, elem, int(final_damage * 0.7), false)
-	
+
+	# Proc-Items (jeder N-te Schuss / bei Crit)
+	shots_fired += 1
+	if ItemSystem:
+		ItemSystem.on_tower_shot(self, target, is_crit, shots_fired)
+
 	var direction := (target.position - position).normalized()
 	if VFX and tower_type != "archer":
 		VFX.spawn_muzzle_flash(position + direction * 15, direction, elem if elem != "" else tower_type)
@@ -1410,6 +1468,7 @@ func _fire_bullet(bullet: Node2D, elem: String, dmg: int, is_crit: bool) -> void
 		"chain_targets":     chain_targets,
 		"is_crit":           is_crit,
 		"source_tower_type": tower_type,   # NEU
+		"source_tower":      self,          # NEU: Referenz für situative Items & Procs
 	}
 	if bullet.has_method("setup_extended"):
 		bullet.setup_extended(bullet_data)
@@ -1453,10 +1512,12 @@ func _cannon_shoot() -> void:
 		var crit_mult := UpgradeSystem.get_crit_multiplier() if UpgradeSystem else 1.5
 		if ItemSystem:
 			crit_mult += ItemSystem.get_tower_item_bonus_percent(self, "crit_damage")
+		if SynergySystem:
+			crit_mult += SynergySystem.get_crit_damage_bonus()
 		final_damage = int(float(damage) * crit_mult)
 		if VFX:
 			VFX.spawn_pixels(position, "crit", 6, 25.0)
-	
+
 	var bullet_data := {
 		"target": target,
 		"damage": final_damage,
@@ -1466,8 +1527,14 @@ func _cannon_shoot() -> void:
 		"special": "explosive",  # Kanone hat immer Explosion
 		"is_crit": is_crit,
 		"is_cannon": true,  # Marker für größere Explosion-VFX
-		"source_tower_type": "cannon"
+		"source_tower_type": "cannon",
+		"source_tower": self,
 	}
+
+	# Proc-Items (jeder N-te Schuss / bei Crit)
+	shots_fired += 1
+	if ItemSystem:
+		ItemSystem.on_tower_shot(self, target, is_crit, shots_fired)
 	
 	if bullet.has_method("setup_extended"):
 		bullet.setup_extended(bullet_data)

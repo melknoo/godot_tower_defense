@@ -61,8 +61,9 @@ const DEFAULT_LIVES := 10
 
 
 func _get_core_reward_waves() -> Array[int]:
-	var waves: Array[int] = []
-	for i in range(5, 101, 5):
+	# Frühe Kerne (Welle 3 & 6), damit Kombi-Türme ~Welle 6 baubar sind, danach alle 5 Wellen.
+	var waves: Array[int] = [3, 6]
+	for i in range(10, 101, 5):
 		waves.append(i)
 	return waves
 
@@ -332,6 +333,8 @@ func reset() -> void:
 		TowerData.reset_unlocks()
 	if UpgradeSystem:
 		UpgradeSystem.reset()
+	if SynergySystem:
+		SynergySystem.reset()
 	print("[GameState] Zurückgesetzt")
 
 
@@ -345,7 +348,7 @@ func get_save_data() -> Dictionary:
 		"supply_used": supply_used,
 		"supply_max": supply_max,
 		"archive_supply_bonus": archive_supply_bonus,
-		"unlocked_elements": TowerData.unlocked_elements.duplicate() if TowerData else []
+		"element_levels": TowerData.element_levels.duplicate() if TowerData else {}
 	}
 
 
@@ -361,5 +364,5 @@ func load_save_data(data: Dictionary) -> void:
 		"archive_supply_bonus",
 		ProgressionSystem.get_starting_supply_bonus() if ProgressionSystem else 0
 	)
-	if TowerData and data.has("unlocked_elements"):
-		TowerData.unlocked_elements = data.get("unlocked_elements", [])
+	if TowerData and data.has("element_levels"):
+		TowerData.element_levels = data.get("element_levels", {}).duplicate()

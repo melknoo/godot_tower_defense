@@ -8,6 +8,7 @@ signal open_element_panel_pressed
 signal open_upgrades_panel_pressed
 signal open_inventory_pressed
 signal open_research_pressed
+signal open_synergy_panel_pressed
 signal pause_pressed
 
 @export var gold_label: RichTextLabel
@@ -28,6 +29,7 @@ var wave_preview_label: RichTextLabel
 @export var blocked_warning_label: Label
 @export var wave_events_label: RichTextLabel
 @export var inventory_button: Button
+var synergy_button: Button
 
 const ENEMY_TYPE_INFO := {
 	"tank":     {"weak": "archer",  "resist": "sword",   "name": "Tank"},
@@ -215,6 +217,7 @@ func _find_or_create_ui_elements() -> void:
 	cores_button     = _get_or_create_button("CoresButton",      Vector2(440, zero_row_y - 5),              Vector2(48, 48))
 	upgrades_button  = _get_or_create_button("UpgradesButton",   Vector2(520, zero_row_y - 5),              Vector2(48, 48))
 	inventory_button = _get_or_create_button("InventoryButton",  Vector2(380, zero_row_y - 5),              Vector2(48, 48))
+	synergy_button   = _get_or_create_button("SynergyButton",    Vector2(580, zero_row_y - 5),              Vector2(48, 48))
 	start_button     = _get_or_create_button("StartWaveButton",  Vector2(viewport_size.x - 740, first_row_y  - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
 
@@ -777,6 +780,12 @@ func _apply_styles() -> void:
 		upgrades_button.add_theme_constant_override("icon_max_width", 26)
 		upgrades_button.tooltip_text = "Aktive Upgrades anzeigen (U)"
 
+	if synergy_button:
+		# Kein eigenes Icon-Asset vorhanden -> thematisches Glyph
+		synergy_button.text = "✦"
+		synergy_button.add_theme_font_size_override("font_size", 22)
+		synergy_button.tooltip_text = "Meisterschaft & Synergien (Y)"
+
 	if start_button:
 		start_button.text = "Nächste Welle"
 
@@ -848,6 +857,7 @@ func _connect_signals() -> void:
 	if upgrades_button:   upgrades_button.pressed.connect(_on_upgrades_button_pressed)
 	if fast_forward_button: fast_forward_button.pressed.connect(_on_fast_forward_pressed)
 	if inventory_button:  inventory_button.pressed.connect(_on_inventory_button_pressed)
+	if synergy_button:    synergy_button.pressed.connect(_on_synergy_button_pressed)
 	if ItemSystem:
 		ItemSystem.item_collected.connect(_on_item_collected)
 		ItemSystem.inventory_changed.connect(_on_inventory_changed)
@@ -1872,6 +1882,10 @@ func _on_cores_button_pressed() -> void:
 
 func _on_upgrades_button_pressed() -> void:
 	open_upgrades_panel_pressed.emit()
+
+
+func _on_synergy_button_pressed() -> void:
+	open_synergy_panel_pressed.emit()
 
 
 func _on_fast_forward_pressed() -> void:

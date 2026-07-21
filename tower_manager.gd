@@ -312,6 +312,13 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 		if VFX:
 			VFX.spawn_status_text(tower.position, "+%d SUPPLY" % bonus, Color("8fe88b"))
 	
+	# Meisterschafts-Punkte für Element-/Combo-Türme (Build-Path)
+	if SynergySystem:
+		var td := TowerData.get_tower_data(tower_type)
+		var special: String = td.get("special", "")
+		var is_cc: bool = special in ["slow", "freeze", "stun", "root", "confuse"]
+		SynergySystem.on_tower_placed(tower_type, is_cc)
+
 	_recalculate_all_tower_stats()
 	tower_placed.emit(tower, grid_pos)
 	_update_blocked_towers()

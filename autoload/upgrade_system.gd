@@ -94,7 +94,7 @@ const UPGRADES := {
 		"name": "Feuerwelle", "description": "+30% Feuer-Gegner in Wellen",
 		"icon": "🔥", "category": "wave", "stat": "spawn_rate",
 		"element": "fire", "bonus": 0.30, "stackable": true, "max_stacks": 3
-	},
+		},
 	"water_spawn_rate": {
 		"name": "Flut", "description": "+30% Wasser-Gegner in Wellen",
 		"icon": "💧", "category": "wave", "stat": "spawn_rate",
@@ -189,11 +189,39 @@ func get_random_upgrades(count: int = 3) -> Array[String]:
 		var max_s: int = data.get("max_stacks", 1)
 		if current < max_s:
 			available.append(id)
-	available.shuffle()
+
 	var result: Array[String] = []
-	for i in range(mini(count, available.size())):
-		result.append(available[i])
+
+	# Slot 1 bleibt rein zufällig, damit die Auswahl nicht deterministisch wird.
+	available.shuffle()
+	if not available.is_empty():
+		result.append(available.pop_front())
+
+	# Restliche Slots: gewichtet nach Meisterschaft (Build-Path-Bias).
+	while result.size() < count and not available.is_empty():
+		var pick := _weighted_pick(available)
+		result.append(pick)
+		available.erase(pick)
+
 	return result
+
+
+# Wählt eine Perk-ID gewichtet nach SynergySystem-Meisterschaft.
+func _weighted_pick(pool: Array[String]) -> String:
+	if not SynergySystem:
+		return pool[rng.randi() % pool.size()]
+
+	var total := 0.0
+	for id in pool:
+		total += SynergySystem.get_tag_draw_weight(SynergySystem.get_perk_tags(id))
+
+	var roll := rng.randf() * total
+	var cumulative := 0.0
+	for id in pool:
+		cumulative += SynergySystem.get_tag_draw_weight(SynergySystem.get_perk_tags(id))
+		if roll <= cumulative:
+			return id
+	return pool[pool.size() - 1]
 
 func activate_upgrade(upgrade_id: String) -> bool:
 	if not UPGRADES.has(upgrade_id):
@@ -206,6 +234,8 @@ func activate_upgrade(upgrade_id: String) -> bool:
 	active_upgrades[upgrade_id] = current + 1
 	if data.get("category") == "instant":
 		_apply_instant_effect(upgrade_id, data)
+	if SynergySystem:
+		SynergySystem.on_perk_selected(upgrade_id)
 	upgrade_selected.emit(upgrade_id)
 	upgrades_changed.emit()	
 	print("[UpgradeSystem] Aktiviert: %s (Stack %d/%d)" % [data.get("name", upgrade_id), active_upgrades[upgrade_id], max_s])

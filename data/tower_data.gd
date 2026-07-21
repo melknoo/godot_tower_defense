@@ -218,9 +218,9 @@ var combinations := {
 		"requires": ["water", "fire"],
 		#"requires": ["fire"],
 		"description": "Nebel der Gegner verwirrt",
-		"cost": 100, "damage": [60, 90, 130],
-		"range": [130.0, 150.0, 170.0], "fire_rate": [1.0, 0.9, 0.8],
-		"splash": [50.0, 60.0, 70.0], "color": Color(0.8, 0.8, 0.9),
+		"cost": 100, "damage": [75, 115, 165],
+		"range": [140.0, 160.0, 180.0], "fire_rate": [0.95, 0.85, 0.75],
+		"splash": [55.0, 70.0, 85.0], "color": Color(0.8, 0.8, 0.9),
 		"upgrade_costs": [80, 150], "special": "confuse", "attack_type": "projectile"
 	},
 	"ice": {
@@ -228,9 +228,9 @@ var combinations := {
 		"requires": ["water", "air"],
 		#"requires": ["fire"],
 		"description": "Friert Gegner ein",
-		"cost": 100, "damage": [30, 50, 75],
-		"range": [140.0, 160.0, 180.0], "fire_rate": [1.2, 1.0, 0.8],
-		"splash": [0.0, 0.0, 0.0], "color": Color(0.7, 0.9, 1.0),
+		"cost": 100, "damage": [55, 90, 130],
+		"range": [150.0, 175.0, 200.0], "fire_rate": [1.0, 0.85, 0.7],
+		"splash": [30.0, 40.0, 50.0], "color": Color(0.7, 0.9, 1.0),
 		"upgrade_costs": [75, 140], "special": "freeze", "attack_type": "projectile"
 	},
 	"lava": {
@@ -238,9 +238,9 @@ var combinations := {
 		"requires": ["fire", "earth"],
 		#"requires": ["fire"],
 		"description": "Hinterlässt brennende Pfützen",
-		"cost": 120, "damage": [80, 120, 170],
-		"range": [80.0, 90.0, 100.0], "fire_rate": [2.5, 2.2, 1.9],
-		"splash": [60.0, 75.0, 90.0], "color": Color(1.0, 0.3, 0.0),
+		"cost": 120, "damage": [100, 150, 210],
+		"range": [90.0, 105.0, 120.0], "fire_rate": [2.2, 1.9, 1.6],
+		"splash": [70.0, 88.0, 106.0], "color": Color(1.0, 0.3, 0.0),
 		"upgrade_costs": [100, 180], "special": "pool", "attack_type": "projectile"
 	},
 	"nature": {
@@ -248,9 +248,9 @@ var combinations := {
 		"requires": ["earth", "air"],
 		#"requires": ["fire"],
 		"description": "Ranken die Gegner festhalten",
-		"cost": 100, "damage": [25, 40, 60],
-		"range": [120.0, 140.0, 160.0], "fire_rate": [1.5, 1.3, 1.1],
-		"splash": [30.0, 40.0, 50.0], "color": Color(0.3, 0.8, 0.2),
+		"cost": 100, "damage": [55, 90, 135],
+		"range": [130.0, 150.0, 170.0], "fire_rate": [1.3, 1.1, 0.9],
+		"splash": [40.0, 52.0, 66.0], "color": Color(0.3, 0.8, 0.2),
 		"upgrade_costs": [70, 130], "special": "root", "attack_type": "projectile"
 	}
 }
@@ -323,6 +323,8 @@ func invest_core_in_element(element: String) -> bool:
 		return false
 	element_levels[element] = current_level + 1
 	var new_level: int = element_levels[element]
+	if SynergySystem:
+		SynergySystem.on_core_invested(element)
 	if new_level == 1:
 		element_unlocked.emit(element)
 	else:

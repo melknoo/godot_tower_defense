@@ -238,6 +238,84 @@ const ITEMS := {
 		"icon": "berserker_mark",
 		"min_rarity": "epic",
 		"allowed_towers": ["sword", "fire"]
+	},
+
+	# === SITUATIVE ITEMS (Gegner-Zustand) ===
+	# Der Schadensbonus (stat/base_value) wirkt NUR, wenn die condition erfüllt ist.
+	"frost_breaker": {
+		"name": "Frostbrecher", "category": "special",
+		"description": "+{value}% Schaden gegen eingefrorene Gegner",
+		"stat": "damage", "base_value": 50,
+		"condition": {"type": "enemy_frozen"},
+		"icon": "frost_breaker",
+		"min_rarity": "uncommon",
+		"allowed_towers": []
+	},
+	"ember_lance": {
+		"name": "Glutlanze", "category": "special",
+		"description": "+{value}% Schaden gegen brennende Gegner",
+		"stat": "damage", "base_value": 40,
+		"condition": {"type": "enemy_burning"},
+		"icon": "ember_lance",
+		"min_rarity": "uncommon",
+		"allowed_towers": []
+	},
+	"undertow_blade": {
+		"name": "Sog-Klinge", "category": "special",
+		"description": "+{value}% Schaden gegen verlangsamte Gegner",
+		"stat": "damage", "base_value": 30,
+		"condition": {"type": "enemy_slowed"},
+		"icon": "undertow_blade",
+		"min_rarity": "uncommon",
+		"allowed_towers": []
+	},
+	"first_strike": {
+		"name": "Erstschlag", "category": "special",
+		"description": "+{value}% Schaden gegen Gegner mit voller Gesundheit",
+		"stat": "damage", "base_value": 35,
+		"condition": {"type": "enemy_full_hp"},
+		"icon": "first_strike",
+		"min_rarity": "uncommon",
+		"allowed_towers": ["archer", "cannon", "sniper"]
+	},
+
+	# === PROC / TRIGGER ITEMS ===
+	# proc: trigger every_n_shots | on_crit | chance_on_hit | on_hit; effect explosion|burn|freeze|execute
+	"blast_bolt": {
+		"name": "Sprengbolzen", "category": "special",
+		"description": "Jeder 5. Schuss löst eine Explosion aus ({value} Schaden)",
+		"stat": "proc", "base_value": 60,
+		"proc": {"trigger": "every_n_shots", "n": 5, "effect": "explosion", "value": 60, "radius": 70},
+		"icon": "blast_bolt",
+		"min_rarity": "rare",
+		"allowed_towers": ["archer", "cannon", "wizard"]
+	},
+	"ember_core": {
+		"name": "Zunderkern", "category": "special",
+		"description": "Crits entzünden den Gegner ({value} Brennschaden/s)",
+		"stat": "proc", "base_value": 12,
+		"proc": {"trigger": "on_crit", "effect": "burn", "value": 12},
+		"icon": "ember_core",
+		"min_rarity": "uncommon",
+		"allowed_towers": []
+	},
+	"frost_splinter": {
+		"name": "Frostsplitter", "category": "special",
+		"description": "12% Chance pro Treffer, den Gegner einzufrieren",
+		"stat": "proc", "base_value": 1,
+		"proc": {"trigger": "chance_on_hit", "chance": 0.12, "effect": "freeze", "value": 1.0},
+		"icon": "frost_splinter",
+		"min_rarity": "rare",
+		"allowed_towers": ["water", "ice", "archer"]
+	},
+	"executioner": {
+		"name": "Henker", "category": "special",
+		"description": "Tötet Gegner unter 12% Gesundheit sofort",
+		"stat": "proc", "base_value": 12,
+		"proc": {"trigger": "on_hit", "effect": "execute", "value": 0.12},
+		"icon": "executioner",
+		"min_rarity": "epic",
+		"allowed_towers": ["sword", "archer", "cannon"]
 	}
 }
 
@@ -386,7 +464,18 @@ func _create_item_instance(template_id: String, template: Dictionary, rarity: St
 		item["stat2"] = template["stat2"]
 		item["value2"] = value2
 		item["description"] = item["description"].replace("{value2}", str(value2))
-	
+
+	# NEU: Situative Bedingung (Gegner-Zustand) — Bonus wirkt nur bei erfüllter condition
+	if template.has("condition"):
+		item["condition"] = template["condition"].duplicate(true)
+
+	# NEU: Proc/Trigger-Effekt — Wert skaliert mit Rarität
+	if template.has("proc"):
+		var proc: Dictionary = template["proc"].duplicate(true)
+		if proc.has("value"):
+			proc["value"] = proc["value"] * rarity_data["multiplier"]
+		item["proc"] = proc
+
 	return item
 
 
@@ -520,17 +609,140 @@ func _apply_item_effects(tower: Node2D) -> void:
 func get_tower_item_bonus(tower: Node2D, stat: String) -> float:
 	var total := 0.0
 	var equipped := get_tower_equipped_items(tower)
-	
+
 	for item in equipped:
 		if item.is_empty():
+			continue
+		# Situative Items werden nicht statisch verrechnet, sondern pro Treffer
+		# über get_tower_conditional_mult() angewendet.
+		if not item.get("condition", {}).is_empty():
 			continue
 		if item.get("stat") == stat:
 			total += item.get("value", 0)
 		# Penalty abziehen
 		if item.get("penalty_stat") == stat:
 			total -= item.get("penalty_value", 0)
-	
+
 	return total
+
+
+# === SITUATIVE ITEMS (Gegner-Zustand) ===
+
+# Multiplikator aus allen situativen Items, deren Bedingung der Gegner-Zustand erfüllt.
+func get_tower_conditional_mult(tower: Node2D, enemy: Node2D) -> float:
+	var mult := 1.0
+	if not is_instance_valid(tower) or not is_instance_valid(enemy):
+		return mult
+	for item in get_tower_equipped_items(tower):
+		if item.is_empty():
+			continue
+		var cond: Dictionary = item.get("condition", {})
+		if cond.is_empty():
+			continue
+		if _enemy_matches_condition(enemy, cond.get("type", "")):
+			mult *= 1.0 + float(item.get("value", 0)) / 100.0
+	return mult
+
+
+func _enemy_matches_condition(enemy: Node2D, cond_type: String) -> bool:
+	match cond_type:
+		"enemy_frozen":
+			var v = enemy.get("is_frozen")
+			return v != null and bool(v)
+		"enemy_burning":
+			var v = enemy.get("burn_timer")
+			return v != null and float(v) > 0.0
+		"enemy_slowed":
+			var v = enemy.get("slow_timer")
+			var f = enemy.get("is_frozen")
+			return (v != null and float(v) > 0.0) or (f != null and bool(f))
+		"enemy_full_hp":
+			var hp = enemy.get("health")
+			var mhp = enemy.get("max_health")
+			return hp != null and mhp != null and float(hp) >= float(mhp) * 0.99
+		"enemy_low_hp":
+			var hp = enemy.get("health")
+			var mhp = enemy.get("max_health")
+			return hp != null and mhp != null and float(hp) <= float(mhp) * 0.30
+	return false
+
+
+# === PROC / TRIGGER ITEMS ===
+
+# Schuss-basierte Procs (every_n_shots, on_crit). shot_count = laufende Schusszahl des Turms.
+func on_tower_shot(tower: Node2D, target_enemy: Node2D, is_crit: bool, shot_count: int) -> void:
+	if not is_instance_valid(tower):
+		return
+	for item in get_tower_equipped_items(tower):
+		if item.is_empty():
+			continue
+		var proc: Dictionary = item.get("proc", {})
+		if proc.is_empty():
+			continue
+		var trigger: String = proc.get("trigger", "")
+		if trigger == "every_n_shots" and shot_count % int(proc.get("n", 5)) == 0:
+			_fire_proc(tower, target_enemy, proc)
+		elif trigger == "on_crit" and is_crit:
+			_fire_proc(tower, target_enemy, proc)
+
+
+# Treffer-basierte Procs (chance_on_hit, on_hit/execute). Pro getroffenem Gegner aufrufen.
+func on_tower_hit(tower: Node2D, enemy: Node2D) -> void:
+	if not is_instance_valid(tower) or not is_instance_valid(enemy):
+		return
+	for item in get_tower_equipped_items(tower):
+		if item.is_empty():
+			continue
+		var proc: Dictionary = item.get("proc", {})
+		if proc.is_empty():
+			continue
+		var trigger: String = proc.get("trigger", "")
+		if trigger == "chance_on_hit" and randf() < float(proc.get("chance", 0.0)):
+			_fire_proc(tower, enemy, proc)
+		elif trigger == "on_hit":
+			_fire_proc(tower, enemy, proc)
+
+
+func _fire_proc(tower: Node2D, enemy: Node2D, proc: Dictionary) -> void:
+	if not is_instance_valid(enemy):
+		return
+	var effect: String = proc.get("effect", "")
+	var value: float = float(proc.get("value", 0))
+	match effect:
+		"freeze":
+			if enemy.has_method("apply_freeze"):
+				enemy.apply_freeze(value)
+		"burn":
+			if enemy.has_method("apply_burn"):
+				enemy.apply_burn(int(value), 3.0)
+		"explosion":
+			_proc_explosion(tower, enemy.position, value, float(proc.get("radius", 70.0)))
+		"execute":
+			_try_execute(enemy, value)
+
+
+func _try_execute(enemy: Node2D, hp_fraction: float) -> void:
+	var hp = enemy.get("health")
+	var mhp = enemy.get("max_health")
+	if hp == null or mhp == null:
+		return
+	if float(hp) > 0.0 and float(hp) <= float(mhp) * hp_fraction:
+		if enemy.has_method("take_damage"):
+			enemy.take_damage(int(mhp) * 10, false, "")
+		if VFX:
+			VFX.spawn_pixel_burst(enemy.position, "crit", 12)
+
+
+func _proc_explosion(tower: Node2D, pos: Vector2, dmg: float, radius: float) -> void:
+	if not is_instance_valid(tower) or not tower.is_inside_tree():
+		return
+	for e in tower.get_tree().get_nodes_in_group("enemies"):
+		if pos.distance_to(e.position) <= radius:
+			if e.has_method("take_damage"):
+				e.take_damage(int(dmg), false, "")
+	if VFX:
+		VFX.spawn_pixel_ring(pos, "fire", radius)
+		VFX.screen_shake(2.0, 0.08)
 
 
 func get_tower_item_bonus_percent(tower: Node2D, stat: String) -> float:

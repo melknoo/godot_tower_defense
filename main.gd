@@ -22,6 +22,7 @@ const SWORD_COLUMNS := 6
 var element_unlock_ui: ElementUnlockUI
 var wave_upgrade_ui: WaveUpgradeUI
 var upgrade_overview_ui: UpgradeOverviewUI
+var synergy_panel: SynergyPanel
 var path_generator: PathGenerator
 
 var path_points: Array[Vector2] = []
@@ -64,6 +65,7 @@ func _ready() -> void:
 	_setup_managers()
 	_setup_wave_upgrade_ui()
 	_setup_upgrade_overview_ui()
+	_setup_synergy_panel()
 	_setup_item_inventory_ui()
 	_setup_element_unlock_ui()
 	_setup_ability_upgrade_ui()
@@ -255,6 +257,29 @@ func _setup_upgrade_overview_ui() -> void:
 	print("[Main] UpgradeOverviewUI erstellt")
 
 
+func _setup_synergy_panel() -> void:
+	synergy_panel = SynergyPanel.new()
+	synergy_panel.name = "SynergyPanel"
+	add_child(synergy_panel)
+	if SynergySystem:
+		SynergySystem.tier_unlocked.connect(_on_synergy_tier_unlocked)
+	print("[Main] SynergyPanel erstellt")
+
+
+func _on_synergy_tier_unlocked(tag: String, tier: int) -> void:
+	var info: Dictionary = SynergySystem.TRACK_INFO.get(tag, {}) if SynergySystem else {}
+	var label: String = info.get("name", tag)
+	var icon: String = info.get("icon", "")
+	if VFX and hud:
+		VFX.spawn_status_text(
+			Vector2(GRID_SIZE * MAP_WIDTH * 0.5, GRID_SIZE * 2),
+			"%s %s – Stufe %d!" % [icon, label, tier],
+			Color(1.0, 0.85, 0.35)
+		)
+	if Sound:
+		Sound.play_element_select()
+
+
 func _setup_ability_bar() -> void:
 	ability_bar = AbilityBar.new()
 	ability_bar.name = "AbilityBar"
@@ -300,6 +325,7 @@ func _connect_signals() -> void:
 	hud.open_upgrades_panel_pressed.connect(_on_open_upgrades_panel)
 	hud.open_inventory_pressed.connect(_on_open_inventory)
 	hud.open_research_pressed.connect(_on_open_research)
+	hud.open_synergy_panel_pressed.connect(_on_open_synergy_panel)
 	hud.pause_pressed.connect(_on_pause_requested)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
@@ -346,6 +372,10 @@ func _input(event: InputEvent) -> void:
 		if meta_progression_ui:
 			meta_progression_ui.toggle_panel()
 		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_Y:
+		if synergy_panel:
+			synergy_panel.toggle_panel()
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if meta_progression_ui and meta_progression_ui.visible:
 			meta_progression_ui.hide_panel()
@@ -358,6 +388,9 @@ func _input(event: InputEvent) -> void:
 			return
 		if upgrade_overview_ui and upgrade_overview_ui.visible:
 			upgrade_overview_ui.hide_panel()
+			return
+		if synergy_panel and synergy_panel.visible:
+			synergy_panel.hide_panel()
 			return
 		if AbilitySystem and AbilitySystem.is_targeting:
 			AbilitySystem.cancel_targeting()
@@ -987,6 +1020,11 @@ func _on_open_element_panel() -> void:
 func _on_open_upgrades_panel() -> void:
 	if upgrade_overview_ui:
 		upgrade_overview_ui.show_panel()
+
+
+func _on_open_synergy_panel() -> void:
+	if synergy_panel:
+		synergy_panel.show_panel()
 
 
 func _on_open_research() -> void:

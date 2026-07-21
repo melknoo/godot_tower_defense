@@ -1068,9 +1068,9 @@ func generate_ability_upgrade_choices(count: int = 3) -> Array[Dictionary]:
 					"upgrade_info": UPGRADE_VALUES.get(stat, {})
 				})
 	
-	# Mischen und begrenzen
+	# Gewichtete Auswahl nach Element-Meisterschaft (Build-Path-Bias) statt reinem Shuffle
 	choices.shuffle()
-	return choices.slice(0, count) as Array[Dictionary]
+	return _weighted_choice_slice(choices, count)
 
 
 # Angebote neuer Abilities werden zur Element-Affinität des gewählten Charakters
@@ -1085,16 +1085,54 @@ func _pick_weighted_new_abilities(available: Array[String], count: int) -> Array
 	while picked.size() < count and not pool.is_empty():
 		var total_weight := 0.0
 		for ability_id in pool:
-			total_weight += AFFINITY_WEIGHT if ABILITIES[ability_id].get("element", "") == char_element else 1.0
+			total_weight += _new_ability_weight(ability_id, char_element)
 		var roll := randf() * total_weight
 		for ability_id in pool:
-			roll -= AFFINITY_WEIGHT if ABILITIES[ability_id].get("element", "") == char_element else 1.0
+			roll -= _new_ability_weight(ability_id, char_element)
 			if roll <= 0.0:
 				picked.append(ability_id)
 				pool.erase(ability_id)
 				break
 
 	return picked
+
+
+# Gewicht: Charakter-Affinität × Element-Meisterschaft des Spielers
+func _new_ability_weight(ability_id: String, char_element: String) -> float:
+	var elem: String = ABILITIES[ability_id].get("element", "")
+	var w := AFFINITY_WEIGHT if elem == char_element else 1.0
+	return w * _element_mastery_weight(elem)
+
+
+# Meisterschafts-Gewicht eines Elements (fürs Ability-Auswahl-Bias)
+func _element_mastery_weight(elem: String) -> float:
+	var w := 1.0
+	if SynergySystem and elem != "":
+		w += SynergySystem.get_points(elem) * 0.4
+		# Wasser/Erde speisen auch Kontroll-Builds
+		if elem == "water" or elem == "earth":
+			w += SynergySystem.get_points("control") * 0.3
+	return w
+
+
+# Wählt `count` Auswahlmöglichkeiten gewichtet nach Element-Meisterschaft (ohne Zurücklegen)
+func _weighted_choice_slice(choices: Array[Dictionary], count: int) -> Array[Dictionary]:
+	var pool := choices.duplicate()
+	var result: Array[Dictionary] = []
+	while result.size() < count and not pool.is_empty():
+		var total := 0.0
+		for c in pool:
+			total += _element_mastery_weight(ABILITIES.get(c.get("ability_id", ""), {}).get("element", ""))
+		var roll := randf() * total
+		var chosen_index := pool.size() - 1
+		for i in range(pool.size()):
+			roll -= _element_mastery_weight(ABILITIES.get(pool[i].get("ability_id", ""), {}).get("element", ""))
+			if roll <= 0.0:
+				chosen_index = i
+				break
+		result.append(pool[chosen_index])
+		pool.remove_at(chosen_index)
+	return result
 
 
 # === SAVE/LOAD ===

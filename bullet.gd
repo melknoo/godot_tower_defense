@@ -26,6 +26,7 @@ var stun_duration := 0.5
 var chain_targets := 0
 var chain_range := 100.0
 var source_tower_type := ""   # z.B. "archer", "sword", "wizard" ...
+var source_tower: Node2D = null   # Referenz auf den abfeuernden Turm (situative Items / Procs)
 var already_hit: Array[Node2D] = []
 
 # Visuals
@@ -61,8 +62,9 @@ func setup_extended(data: Dictionary) -> void:
 	burn_damage = data.get("burn_damage", 0)
 	stun_chance = data.get("stun_chance", 0.0)
 	chain_targets = data.get("chain_targets", 0)
-	is_crit = data.get("is_crit", false) 
+	is_crit = data.get("is_crit", false)
 	source_tower_type = data.get("source_tower_type", "")
+	source_tower = data.get("source_tower", null)
 	_set_speed_for_type(bullet_type)
 
 
@@ -209,10 +211,19 @@ func _hit_single(enemy: Node2D) -> void:
 		return
 	
 	already_hit.append(enemy)
-	
+
+	# Situative Items: Schadensbonus nur bei passendem Gegner-Zustand
+	var bonus_mult := 1.0
+	if ItemSystem and source_tower:
+		bonus_mult = ItemSystem.get_tower_conditional_mult(source_tower, enemy)
+
 	if enemy.has_method("take_damage"):
-		enemy.take_damage(damage, true, bullet_type, is_crit, source_tower_type)
-	
+		enemy.take_damage(damage, true, bullet_type, is_crit, source_tower_type, bonus_mult)
+
+	# Treffer-basierte Procs (chance_on_hit / execute)
+	if ItemSystem and source_tower:
+		ItemSystem.on_tower_hit(source_tower, enemy)
+
 	_apply_special_effects(enemy)
 
 
@@ -229,6 +240,13 @@ func _hit_splash() -> void:
 			VFX.screen_shake(3.0, 0.1)
 
 
+# Meisterschafts-Multiplikator für Status-Dauern (control T1, water T3 für Freeze)
+func _status_dur(status: String) -> float:
+	if SynergySystem:
+		return SynergySystem.get_status_duration_mult(status)
+	return 1.0
+
+
 func _apply_special_effects(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy):
 		return
@@ -236,21 +254,32 @@ func _apply_special_effects(enemy: Node2D) -> void:
 	match special_type:
 		"slow":
 			if enemy.has_method("apply_slow"):
-				enemy.apply_slow(slow_amount, slow_duration)
+				enemy.apply_slow(slow_amount, slow_duration * _status_dur("slow"))
 		"burn":
 			if enemy.has_method("apply_burn"):
 				enemy.apply_burn(burn_damage, burn_duration)
 		"stun":
 			if randf() < stun_chance and enemy.has_method("apply_stun"):
-				enemy.apply_stun(stun_duration)
+				enemy.apply_stun(stun_duration * _status_dur("stun"))
 		"freeze":
 			if enemy.has_method("apply_freeze"):
-				enemy.apply_freeze(2.0)
+				enemy.apply_freeze(2.0 * _status_dur("freeze"))
 		"root":
 			if enemy.has_method("apply_stun"):
-				enemy.apply_stun(1.5)
+				enemy.apply_stun(1.5 * _status_dur("stun"))
+		"confuse":
+			if enemy.has_method("apply_confuse"):
+				enemy.apply_confuse(3.0 * _status_dur("slow"))
 		"pool":
 			_spawn_lava_pool()
+
+	# Meisterschaft control T3: Freeze-Chance beim Treffer auf einen verlangsamten Gegner
+	if SynergySystem and enemy.has_method("apply_freeze"):
+		var st = enemy.get("slow_timer")
+		var frozen = enemy.get("is_frozen")
+		if st != null and float(st) > 0.0 and not bool(frozen):
+			if randf() < SynergySystem.get_freeze_on_slowed_chance():
+				enemy.apply_freeze(1.0 * _status_dur("freeze"))
 
 
 func _do_chain_attack() -> void:
