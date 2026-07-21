@@ -31,6 +31,7 @@ var already_hit: Array[Node2D] = []
 # Visuals
 var sprite: Sprite2D
 var trail_timer: Timer
+var _rotation_offset := 0.0   # gleicht die native Ausrichtung des Sprites auf +X (rechts) aus
 
 const ARROW_FRAME_SIZE := Vector2(64, 64)
 
@@ -89,6 +90,7 @@ func _create_visuals() -> void:
 
 
 func _create_arrow_sprite() -> void:
+	_rotation_offset = 0.0   # arrow.png (und Polygon-Fallback) zeigen nach rechts (+X)
 	var arrow_path := "res://assets/elemental_bullets/arrow.png"
 	if ResourceLoader.exists(arrow_path):
 		sprite = Sprite2D.new()
@@ -119,6 +121,7 @@ func _create_standard_bullet() -> void:
 		texture_path = "res://assets/elemental_bullets/bullet_%s.png" % bullet_type
 	
 	if ResourceLoader.exists(texture_path):
+		_rotation_offset = _texture_orientation_offset(bullet_type)
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
 		if sprite.texture.get_width() > sprite.texture.get_height():
@@ -133,12 +136,22 @@ func _create_standard_bullet() -> void:
 		sprite.scale = Vector2(2, 2)
 		add_child(sprite)
 	else:
+		_rotation_offset = 0.0   # Fallback-Polygon zeigt nach rechts (+X)
 		var poly := Polygon2D.new()
 		poly.polygon = PackedVector2Array([
 			Vector2(-6, -3), Vector2(6, -3), Vector2(8, 0), Vector2(6, 3), Vector2(-6, 3)
 		])
 		poly.color = _get_bullet_color()
 		add_child(poly)
+
+
+func _texture_orientation_offset(type: String) -> float:
+	# Dreht die native Sprite-Ausrichtung so, dass die "Spitze" mit +X (rechts) zusammenfällt.
+	match type:
+		"water": return 0.0                              # zeigt rechts
+		"air": return PI                                 # zeigt links
+		"fire", "sniper", "ice", "steam": return PI / 2  # zeigen oben
+		_: return 0.0                                    # symmetrisch / unbekannt
 
 
 func _get_bullet_texture_path() -> String:
@@ -173,7 +186,7 @@ func _process(delta: float) -> void:
 	
 	var direction := (target.position - position).normalized()
 	position += direction * speed * delta
-	rotation = direction.angle() + PI
+	rotation = direction.angle() + _rotation_offset
 	
 	if position.distance_to(target.position) < 15:
 		_hit_target()
