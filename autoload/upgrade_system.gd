@@ -161,11 +161,6 @@ const UPGRADES := {
 		"icon": "🔮", "category": "tower_type", "stat": "damage",
 		"tower_type": "wizard", "bonus": 0.20, "stackable": true, "max_stacks": 3
 	},
-	"catapult_damage": {
-		"name": "Belagerung", "description": "+20% Schaden für Katapulte",
-		"icon": "🎪", "category": "tower_type", "stat": "damage",
-		"tower_type": "catapult", "bonus": 0.20, "stackable": true, "max_stacks": 3
-	},
 	"sword_damage": {
 		"name": "Klingentanz", "description": "+20% Schaden für Schwertkämpfer",
 		"icon": "⚔️", "category": "tower_type", "stat": "damage",

@@ -17,6 +17,10 @@ const ABILITY_INTERVAL := 3
 const ITEM_COMBINE_INTERVAL := 5   # Schmiede:          5, 10, 15 ...
 const BOSS_INTERVAL := 5           # Bosswellen:        5, 10, 15 ...
 
+# Regulaeres Ende eines Runs. Danach entscheidet der Spieler zwischen
+# Endlos-Modus und Abschluss mit Sieg-Auswertung.
+const FINAL_WAVE := 30
+
 # Element-Kerne: frueh zwei feste Wellen, danach im festen Intervall.
 const CORE_EARLY_WAVES: Array[int] = [3, 6]
 const CORE_INTERVAL := 5
@@ -29,6 +33,7 @@ const COLOR_ABILITY := Color(0.7, 0.8, 1.0)
 const COLOR_CORE := Color(0.55, 0.9, 1.0)
 const COLOR_FORGE := Color(1.0, 0.85, 0.5)
 const COLOR_BOSS := Color(1.0, 0.45, 0.4)
+const COLOR_FINAL := Color(1.0, 0.85, 0.35)
 
 
 # --- Einzelpruefungen -------------------------------------------------------
@@ -53,6 +58,10 @@ static func has_item_combine(wave: int) -> bool:
 
 static func has_boss(wave: int) -> bool:
 	return wave > 0 and wave % BOSS_INTERVAL == 0
+
+
+static func is_final_wave(wave: int) -> bool:
+	return wave == FINAL_WAVE
 
 
 static func has_element_core(wave: int) -> bool:
@@ -105,6 +114,11 @@ static func _next_multiple(current_wave: int, interval: int) -> int:
 static func get_events(wave: int) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 
+	if is_final_wave(wave):
+		events.append({
+			"id": "final", "label": "Finale",
+			"icon": "star_full", "color": COLOR_FINAL
+		})
 	if has_boss(wave):
 		events.append({
 			"id": "boss", "label": "Boss",

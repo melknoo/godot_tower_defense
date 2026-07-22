@@ -483,8 +483,6 @@ func _get_icon_for_upgrade(upgrade_id: String, data: Dictionary) -> String:
 			return ""  # Kein Archer-Icon verfügbar
 		"wizard_damage":
 			return ""  # Kein Wizard-Icon verfügbar
-		"catapult_damage":
-			return ""  # Kein Catapult-Icon verfügbar
 		"sword_damage":
 			return ""  # Kein Sword-Icon verfügbar
 		# Wellen-Spawn

@@ -22,7 +22,9 @@ var blocked_info_label: RichTextLabel
 var sell_button: Button
 var upgrade_button: Button
 var pickup_button: Button
+var absorb_button: Button
 var engrave_container: HBoxContainer
+var engrave_header_label: Label
 var close_button: Button
 var vbox: VBoxContainer
 
@@ -39,10 +41,6 @@ const COLOR_TEXT := Color("edf3ff")
 const COLOR_MUTED := Color("9aa8c2")
 const COLOR_ACCENT := Color("f4cf6a")
 const COLOR_DARK_BUTTON_TEXT := Color("181512")
-
-# Kampfstatistik live nachziehen, solange das Panel offen ist
-const STATS_REFRESH_INTERVAL := 0.5
-var _stats_refresh_timer := 0.0
 
 
 func _ready() -> void:
@@ -126,11 +124,12 @@ func _setup_ui() -> void:
 	engrave_container.visible = false
 	vbox.add_child(engrave_container)
 
-	var engrave_label := Label.new()
-	engrave_label.text = "Gravieren:"
-	engrave_label.add_theme_font_size_override("font_size", 10)
-	engrave_label.add_theme_color_override("font_color", COLOR_MUTED)
-	engrave_container.add_child(engrave_label)
+	engrave_header_label = Label.new()
+	engrave_header_label.name = "EngraveHeaderLabel"
+	engrave_header_label.text = "Gravieren:"
+	engrave_header_label.add_theme_font_size_override("font_size", 10)
+	engrave_header_label.add_theme_color_override("font_color", COLOR_MUTED)
+	engrave_container.add_child(engrave_header_label)
 
 	var equip_sep := HSeparator.new()
 	vbox.add_child(equip_sep)
@@ -158,6 +157,13 @@ func _setup_ui() -> void:
 	equip_hint_label.visible = false
 	vbox.add_child(equip_hint_label)
 
+	absorb_button = Button.new()
+	absorb_button.name = "AbsorbButton"
+	absorb_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
+	absorb_button.pressed.connect(_on_absorb_pressed)
+	absorb_button.visible = false
+	vbox.add_child(absorb_button)
+
 	pickup_button = Button.new()
 	pickup_button.name = "PickupButton"
 	pickup_button.text = "Aufnehmen"
@@ -184,6 +190,7 @@ func _setup_ui() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 
+	UITheme.style_button(absorb_button)
 	UITheme.style_button(pickup_button)
 	UITheme.style_button(upgrade_button)
 	UITheme.style_button(sell_button)
@@ -465,6 +472,18 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	_update_display()
 	visible = true
 
+	_refit_and_position()
+
+	call_deferred("_bring_to_front")
+
+
+# Groesse an den aktuellen Inhalt anpassen und neben dem Turm platzieren.
+# Muss nach jeder Inhaltsaenderung laufen, die die Hoehe/Breite veraendert -
+# sonst behaelt das Panel die Masse vom Oeffnen.
+func _refit_and_position() -> void:
+	if current_grid_pos.x < 0:
+		return
+
 	size = get_combined_minimum_size()
 
 	var screen_size := get_viewport_rect().size
@@ -472,19 +491,17 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	var top_safe_margin := 72.0
 	var tile := 64.0
 
-	var tower_y := float(grid_pos.y) * tile + tile * 0.5
+	var tower_y := float(current_grid_pos.y) * tile + tile * 0.5
 	var open_up := tower_y > screen_size.y * 0.5
 
-	position.x = float(grid_pos.x) * tile + tile + margin
+	position.x = float(current_grid_pos.x) * tile + tile + margin
 	position.y = (tower_y - size.y - margin) if open_up else (tower_y + margin)
 
 	if position.x + size.x > screen_size.x - margin:
-		position.x = float(grid_pos.x) * tile - size.x - margin
+		position.x = float(current_grid_pos.x) * tile - size.x - margin
 
 	position.x = clamp(position.x, margin, screen_size.x - size.x - margin)
 	position.y = clamp(position.y, top_safe_margin, screen_size.y - size.y - margin)
-
-	call_deferred("_bring_to_front")
 
 
 func hide_panel() -> void:
@@ -499,17 +516,6 @@ func hide_panel() -> void:
 		inventory_ui.set_filter_tower(null)
 
 
-func _process(delta: float) -> void:
-	# Kills/Schaden ändern sich während der Welle - Stats regelmäßig neu zeichnen
-	if not visible or not tower_manager or not is_instance_valid(current_tower):
-		return
-	_stats_refresh_timer -= delta
-	if _stats_refresh_timer > 0.0:
-		return
-	_stats_refresh_timer = STATS_REFRESH_INTERVAL
-	_update_stats_with_upgrades(current_tower.tower_type, tower_manager.get_tower_level(current_grid_pos))
-
-
 func _update_display() -> void:
 	if not current_tower or not tower_manager:
 		return
@@ -520,7 +526,14 @@ func _update_display() -> void:
 	var is_blocked := tower_manager.is_tower_blocked(current_grid_pos)
 	var display_name: String = data.get("name", tower_type.capitalize())
 
-	if current_tower.has_method("is_engraved") and current_tower.is_engraved():
+	if tower_type == "aura" and String(current_tower.aura_buff_type) != "":
+		# Aura-Tuerme gravieren einen Buff statt eines Elements - er gehoert genauso
+		# sichtbar in den Titel wie das Elementsymbol bei den uebrigen Tuermen.
+		var buff_type: String = current_tower.aura_buff_type
+		tower_name_label.text = "%s %s %s" % [
+			display_name, _get_aura_buff_icon_bb(buff_type), _get_aura_buff_name(buff_type)
+		]
+	elif current_tower.has_method("is_engraved") and current_tower.is_engraved():
 		var elem_icon := IconSystem.bb(current_tower.engraved_element, 16) if IconSystem else ""
 		tower_name_label.text = "%s %s" % [display_name, elem_icon]
 	else:
@@ -545,6 +558,7 @@ func _update_display() -> void:
 	tower_level_label.add_theme_color_override("font_color", COLOR_MUTED)
 	stats_label.add_theme_color_override("default_color", COLOR_TEXT)
 
+	_update_absorb_button(tower_type)
 	_update_pickup_button(is_blocked)
 	_update_upgrade_button(tower_type, level)
 	_update_sell_button(level)
@@ -552,6 +566,14 @@ func _update_display() -> void:
 
 
 func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
+	if tower_type == "city":
+		var stored: int = int(current_tower.stored_farms)
+		stats_label.text = "Gespeicherte Farmen: %d/%d\nSupply Bonus: +%d" % [
+			stored, TowerData.CITY_CAPACITY, int(current_tower.get_supply_bonus())
+		]
+		stats_label.tooltip_text = "Jede aufgenommene Farm liefert weiterhin ihr Supply,\nbelegt aber kein Feld mehr."
+		return
+
 	if TowerData.is_supply_building(tower_type):
 		var bonus: int = TowerData.get_supply_bonus(tower_type)
 		var farm_upgrade_bonus: int = 0
@@ -563,6 +585,10 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		else:
 			stats_label.text = "Supply Bonus: +%d" % bonus
 			stats_label.tooltip_text = ""
+		return
+
+	if tower_type == "aura":
+		_update_aura_stats()
 		return
 
 	var base_damage: int = int(TowerData.get_stat(tower_type, "damage", level))
@@ -644,25 +670,6 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		var crit_text := "%s Crit: [b]%d%%[/b] (x%.1f)" % [crit_icon, crit_percent, crit_mult]
 		stats_lines.append(crit_text)
 
-	# NEU: Kampfstatistik (Kills & Schaden) – aktuelle Runde / gesamter Run
-	var has_combat_stats: bool = "kills_run" in current_tower
-	var kills_round: int = 0
-	var kills_total: int = 0
-	var dmg_round: int = 0
-	var dmg_total: int = 0
-	if has_combat_stats:
-		kills_round = int(current_tower.kills_round)
-		kills_total = int(current_tower.kills_run)
-		dmg_round = int(current_tower.damage_round)
-		dmg_total = int(current_tower.damage_run)
-		var kills_icon := IconSystem.bb("star_full", 14) if IconSystem else ""
-		stats_lines.append("%s Kills: [b]%d[/b] [color=#9aa8c2]Runde[/color] / [b]%d[/b] [color=#9aa8c2]Run[/color]" % [
-			kills_icon, kills_round, kills_total
-		])
-		stats_lines.append("%s Schaden ges.: [b]%s[/b] [color=#9aa8c2]Runde[/color] / [b]%s[/b] [color=#9aa8c2]Run[/color]" % [
-			damage_icon, _format_number(dmg_round), _format_number(dmg_total)
-		])
-
 	stats_label.text = "\n".join(stats_lines)
 
 	# Tooltip erweitern
@@ -704,27 +711,34 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		
 		tooltip_lines.append(crit_tooltip)
 
-	# NEU: Kampfstatistik im Tooltip mit exakten Zahlen
-	if has_combat_stats:
-		tooltip_lines.append("Kills: %d in dieser Runde, %d im gesamten Run" % [kills_round, kills_total])
-		tooltip_lines.append("Schaden: %d in dieser Runde, %d im gesamten Run" % [dmg_round, dmg_total])
-
 	stats_label.tooltip_text = "Aktuelle Tower-Stats:\n" + "\n".join(tooltip_lines)
 
 
-func _format_number(value: int) -> String:
-	if value >= 1_000_000:
-		return "%.2fM" % (float(value) / 1_000_000.0)
-	if value >= 10_000:
-		return "%.1fK" % (float(value) / 1_000.0)
-	return str(value)
+# Aura-Tuerme haben weder Schaden noch Feuerrate - fuer sie zaehlt nur, welcher
+# Buff graviert ist, wie stark er wirkt und wie weit er reicht.
+func _update_aura_stats() -> void:
+	var buff_type: String = current_tower.aura_buff_type
+	var range_cells := RangeGridHelper.get_cell_radius(current_tower.aura_range)
+	var range_icon := IconSystem.bb("range", 14) if IconSystem else ""
+	var lines: Array[String] = []
 
+	if buff_type == "":
+		lines.append("[color=#c98d6b]Noch kein Buff graviert[/color]")
+	else:
+		var percent := int(current_tower.buff_strength * 100)
+		lines.append("%s Aura: [b]%s +%d%%[/b]" % [
+			_get_aura_buff_icon_bb(buff_type, 14), _get_aura_buff_name(buff_type), percent
+		])
 
-func _has_prop(obj: Object, prop: StringName) -> bool:
-	for p in obj.get_property_list():
-		if p is Dictionary and p.get("name", "") == prop:
-			return true
-	return false
+	lines.append("%s Reichweite: [b]%d Felder[/b]" % [range_icon, range_cells])
+	stats_label.text = "\n".join(lines)
+
+	if buff_type == "":
+		stats_label.tooltip_text = "Waehle einen Buff - die Gravur ist dauerhaft.\nWirkt auf alle Tuerme im Raster."
+	else:
+		stats_label.tooltip_text = "Verstaerkt %s aller Tuerme im Umkreis von %d Feldern um %d%%." % [
+			_get_aura_buff_name(buff_type), range_cells, int(current_tower.buff_strength * 100)
+		]
 
 
 func _update_blocked_info(is_blocked: bool) -> void:
@@ -732,6 +746,48 @@ func _update_blocked_info(is_blocked: bool) -> void:
 	if is_blocked:
 		var warning_icon := IconSystem.bb("warning", 14) if IconSystem else "⚠"
 		blocked_info_label.text = "%s Steht auf dem Pfad!\nKlicke 'Aufnehmen' zum Umplatzieren" % warning_icon
+
+
+func _update_absorb_button(tower_type: String) -> void:
+	if not absorb_button:
+		return
+
+	if tower_type != "city":
+		absorb_button.visible = false
+		return
+
+	absorb_button.visible = true
+
+	var free_slots: int = int(current_tower.get_free_farm_slots())
+	var free_farms: int = tower_manager.count_free_farms()
+	var absorbable: int = mini(free_slots, free_farms)
+
+	absorb_button.text = "Farmen aufnehmen (%d)" % absorbable
+
+	if GameState.wave_active:
+		absorb_button.disabled = true
+		absorb_button.tooltip_text = "Nicht während einer Welle"
+	elif free_slots <= 0:
+		absorb_button.disabled = true
+		absorb_button.tooltip_text = "Stadt ist voll (%d/%d)" % [
+			int(current_tower.stored_farms), TowerData.CITY_CAPACITY
+		]
+	elif free_farms <= 0:
+		absorb_button.disabled = true
+		absorb_button.tooltip_text = "Keine Farm auf dem Spielfeld"
+	else:
+		absorb_button.disabled = false
+		absorb_button.tooltip_text = "Nimmt %d Farm(en) auf.\nDas Supply bleibt erhalten, die Felder werden frei." % absorbable
+
+
+func _on_absorb_pressed() -> void:
+	if not current_tower or not tower_manager:
+		return
+	if tower_manager.absorb_farms(current_grid_pos) <= 0:
+		Sound.play_error()
+		return
+	_update_display()
+	call_deferred("_refit_and_position")
 
 
 func _update_pickup_button(is_blocked: bool) -> void:
@@ -796,18 +852,18 @@ func _update_element_display() -> void:
 
 
 func _update_engrave_buttons() -> void:
-	for child in engrave_container.get_children():
-		if child is Button:
-			child.queue_free()
+	_clear_engrave_container()
 
 	if not current_tower:
 		engrave_container.visible = false
 		return
-	
+
 	# ✅ NEU: Spezielle Behandlung für Aura-Türme
 	if current_tower.tower_type == "aura":
 		_update_aura_buff_buttons()
 		return
+
+	engrave_header_label.text = "Gravieren:"
 
 	if not current_tower.has_method("can_be_engraved") or not current_tower.can_be_engraved():
 		engrave_container.visible = false
@@ -841,69 +897,50 @@ func _update_engrave_buttons() -> void:
 		engrave_container.add_child(btn)
 
 
+# Entfernt alles ausser dem Header, damit sich Auswahlbuttons und Statuszeile
+# nicht ueberlagern. Der Header bleibt erhalten - er wird nur umbenannt.
+func _clear_engrave_container() -> void:
+	for child in engrave_container.get_children():
+		if child == engrave_header_label:
+			continue
+		engrave_container.remove_child(child)
+		child.queue_free()
+
+
 func _update_aura_buff_buttons() -> void:
 	"""Zeigt Buff-Auswahl für Aura-Türme"""
 	if not current_tower.has_method("can_select_aura_buff"):
 		engrave_container.visible = false
 		return
-	
+
+	# Die Gravur ist gesetzt und dauerhaft - der Auswahlbereich verschwindet dann,
+	# genau wie bei elementar gravierten Tuermen. Was graviert wurde, steht im Titel
+	# und in der Statszeile.
 	if not current_tower.can_select_aura_buff():
-	# Buff bereits gewählt - zeige aktuellen Status
-		var buff_type: String = current_tower.aura_buff_type
-		if buff_type != "":
-			engrave_container.visible = true
-			var label := engrave_container.get_node_or_null("SelectedLabel")
-			if not label:
-				for child in engrave_container.get_children():
-					if not child is Label or child.text != "Gravieren:":
-						child.queue_free()
-				
-				# ✅ RichTextLabel statt Label verwenden!
-				label = RichTextLabel.new()
-				label.name = "SelectedLabel"
-				label.bbcode_enabled = true
-				label.fit_content = true
-				label.scroll_active = false
-				label.add_theme_font_size_override("normal_font_size", 11)
-				label.add_theme_color_override("default_color", COLOR_TEXT)
-				engrave_container.add_child(label)
-			
-			var buff_name := _get_aura_buff_name(buff_type)
-			var buff_icon := _get_aura_buff_icon_bb(buff_type)
-			var buff_percent := int(current_tower.buff_strength * 100)
-			print("buff_name %s" % buff_name )
-			print("buff_icon %s" % buff_icon )
-			print("buff_percent %d%%" % buff_percent)
-			label.text = "%s %s +%d%%" % [buff_icon, buff_name, buff_percent]
-		else:
-			engrave_container.visible = false
+		engrave_container.visible = false
 		return
-	
+
 	# Buff noch nicht gewählt - zeige Auswahlbuttons
 	engrave_container.visible = true
-	
-	# Label anpassen
-	var header_label := engrave_container.get_child(0)
-	if header_label is Label:
-		header_label.text = "Buff wählen:"
-	
+	engrave_header_label.text = "Buff wählen:"
+
 	# ✅ Aktuellen buff_strength Wert holen
 	var buff_percent := int(current_tower.buff_strength * 100)
 	
 	var buff_options := [
-		{"type": "damage", "name": "Schaden", "icon": "damage", "desc": "Erhöht Schaden naher Türme um %d%%" % buff_percent},
-		{"type": "range", "name": "Reichweite", "icon": "range", "desc": "Erhöht Reichweite naher Türme um %d%%" % buff_percent},
-		{"type": "fire_rate", "name": "Tempo", "icon": "fire_rate", "desc": "Erhöht Feuerrate naher Türme um %d%%" % buff_percent}
+		{"type": "damage", "desc": "Erhöht Schaden naher Türme um %d%%" % buff_percent},
+		{"type": "range", "desc": "Erhöht Reichweite naher Türme um %d%%" % buff_percent},
+		{"type": "fire_rate", "desc": "Erhöht Feuerrate naher Türme um %d%%" % buff_percent}
 	]
-	
+
 	for option in buff_options:
 		var btn := Button.new()
 		btn.text = ""
-		
+
 		# ✅ Icon über IconSystem laden
 		if IconSystem:
-			btn.icon = IconSystem.get_texture(option["icon"])
-		
+			btn.icon = IconSystem.get_texture(_get_aura_buff_icon_name(option["type"]))
+
 		# Fallback wenn kein Icon
 		if not btn.icon:
 			btn.text = _get_aura_buff_fallback_icon(option["type"])
@@ -914,7 +951,7 @@ func _update_aura_buff_buttons() -> void:
 		
 		# ✅ Detaillierter Tooltip mit Prozent-Wert
 		btn.tooltip_text = "%s\n%s\n(Reichweite: %d Felder)" % [
-			option["name"],
+			_get_aura_buff_name(option["type"]),
 			option["desc"],
 			RangeGridHelper.get_cell_radius(current_tower.aura_range)
 		]
@@ -934,16 +971,20 @@ func _update_aura_buff_buttons() -> void:
 		engrave_container.add_child(btn)
 
 
-func _get_aura_buff_icon_bb(buff_type: String) -> String:
+func _get_aura_buff_icon_name(buff_type: String) -> String:
+	"""IconSystem-Schluessel je Buff-Typ"""
+	match buff_type:
+		"damage": return "damage"
+		"range": return "range"
+		"fire_rate": return "fire_rate"
+		_: return "star_full"
+
+
+func _get_aura_buff_icon_bb(buff_type: String, size: int = 16) -> String:
 	"""Gibt BBCode-Icon zurück wenn IconSystem verfügbar"""
 	if not IconSystem:
 		return _get_aura_buff_fallback_icon(buff_type)
-	
-	match buff_type:
-		"damage": return IconSystem.bb("damage", 20)
-		"range": return IconSystem.bb("range", 20)
-		"fire_rate": return IconSystem.bb("fire_rate", 20)
-		_: return "?"
+	return IconSystem.bb(_get_aura_buff_icon_name(buff_type), size)
 
 
 func _get_aura_buff_fallback_icon(buff_type: String) -> String:
@@ -972,18 +1013,12 @@ func _get_aura_buff_name(buff_type: String) -> String:
 		_: return "Unbekannt"
 
 
-func _get_aura_buff_icon(buff_type: String) -> String:
-	match buff_type:
-		"damage": return "⚔"
-		"range": return "🎯"
-		"fire_rate": return "⚡"
-		_: return "?"
-
-
 func _on_aura_buff_button_pressed(buff_type: String) -> void:
 	if current_tower and current_tower.select_aura_buff(buff_type):
 		aura_buff_selected.emit(buff_type)
 		_update_display()
+		# Aus drei Buttons wird eine Statuszeile - das Panel muss schrumpfen duerfen.
+		call_deferred("_refit_and_position")
 		if VFX:
 			VFX.spawn_pixel_burst(current_tower.position, "air", 12)
 

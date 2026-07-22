@@ -39,6 +39,11 @@ var corner_pieces: Array[Texture2D] = []
 
 # === FONT ===
 var game_font: FontFile
+# Es gibt nur eine Schriftdatei. Damit Schadenszahlen und Gold auf dem Spielfeld
+# trotzdem klar auseinanderfallen, werden zwei Varianten daraus abgeleitet:
+# Schaden schwer und aufrecht, Gold leicht und kursiv.
+var font_damage: FontVariation
+var font_gold: FontVariation
 
 # === MARGINS ===
 const BUTTON_9SLICE_MARGIN := 20  # Randbreite der 192x192 Button-Texturen
@@ -115,6 +120,20 @@ func _load_corner_pieces() -> void:
 
 func _load_font() -> void:
 	game_font = load("res://assets/fonts/Clarity.ttf")
+	if not game_font:
+		return
+
+	font_damage = FontVariation.new()
+	font_damage.base_font = game_font
+	font_damage.variation_embolden = 0.65
+	font_damage.spacing_glyph = -1
+
+	font_gold = FontVariation.new()
+	font_gold.base_font = game_font
+	font_gold.variation_embolden = 0.15
+	# Schraegstellung ohne echte Kursiv-Schnitte: x-Scherung auf der Grundlinie.
+	font_gold.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(0.28, 1.0), Vector2.ZERO)
+	font_gold.spacing_glyph = 1
 
 
 func _load_tex(path: String) -> Texture2D:

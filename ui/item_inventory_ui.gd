@@ -346,20 +346,27 @@ func _apply_slot_base_style(slot: PanelContainer) -> void:
 	var has_filter := _has_filter_tower()
 	var compatible := _is_item_compatible(item)
 
-	# Kompatible Items bekommen einen dickeren Rahmen
-	var border_width := 2 if (has_filter and compatible) else 1
+	# Der Rahmen zeigt immer die Raritaet - sie ist die wichtigere Information.
+	# Kompatibilitaet laeuft ueber Rahmenbreite und einen gruenen Schein.
+	var border_width := 3 if (has_filter and compatible) else 1
 	style.border_width_left = border_width
 	style.border_width_right = border_width
 	style.border_width_top = border_width
 	style.border_width_bottom = border_width
 
 	if has_filter and not compatible:
-		style.border_color = COLOR_SLOT_INCOMPATIBLE
+		style.border_color = rarity_color.darkened(0.6)
 		style.bg_color = COLOR_SLOT_BG_DIMMED
+		style.shadow_size = 0
 		slot.modulate.a = SLOT_ALPHA_INCOMPATIBLE
 	else:
-		style.border_color = COLOR_SLOT_COMPATIBLE if has_filter else rarity_color.darkened(0.3)
+		style.border_color = rarity_color.darkened(0.3)
 		style.bg_color = COLOR_SLOT_BG
+		if has_filter:
+			style.shadow_color = Color(COLOR_SLOT_COMPATIBLE, 0.55)
+			style.shadow_size = 3
+		else:
+			style.shadow_size = 0
 		slot.modulate.a = 1.0
 
 
@@ -692,6 +699,7 @@ func _select_item(item: Dictionary, slot: PanelContainer) -> void:
 	style.border_width_top = 3
 	style.border_width_bottom = 3
 	style.border_color = rarity_color.lightened(0.3)
+	style.shadow_size = 0
 
 	# Hellerer Hintergrund
 	style.bg_color = COLOR_SLOT_BG_HOVER

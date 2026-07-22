@@ -356,6 +356,7 @@ func _apply_slot_base_style(slot: PanelContainer) -> void:
 		style.border_width_bottom = 3
 		style.border_color = rarity_color.lightened(0.3)
 		style.bg_color = COLOR_SLOT_BG_HOVER
+		style.shadow_size = 0
 		slot.modulate.a = 1.0
 		return
 
@@ -370,9 +371,17 @@ func _apply_slot_base_style(slot: PanelContainer) -> void:
 		style.border_color = rarity_color.darkened(0.3)
 		style.bg_color = COLOR_SLOT_BG
 		slot.modulate.a = 1.0
+		# Partner derselben Vorlage heben sich ab: sie liefern ein vorhersagbares Ergebnis.
+		if ItemSystem and ItemSystem.is_guaranteed_combine(selected_a, item):
+			style.border_color = rarity_color.lightened(0.15)
+			style.shadow_color = Color(rarity_color, 0.5)
+			style.shadow_size = 3
+		else:
+			style.shadow_size = 0
 	else:
 		style.border_color = COLOR_SLOT_DISABLED
 		style.bg_color = COLOR_SLOT_BG_DIMMED
+		style.shadow_size = 0
 		slot.modulate.a = SLOT_ALPHA_DISABLED
 
 
@@ -462,16 +471,21 @@ func _update_preview() -> void:
 	_fill_preview_slot(preview_slot_a, selected_a)
 	_fill_preview_slot(preview_slot_b, selected_b)
 
-	var ready_to_combine := not selected_a.is_empty() and not selected_b.is_empty() \
-		and ItemSystem and ItemSystem.can_combine(selected_a, selected_b)
+	var result: Dictionary = ItemSystem.preview_combine(selected_a, selected_b) if ItemSystem else {}
+	var ready_to_combine := not result.is_empty()
 
 	combine_button.disabled = not ready_to_combine
 
 	if ready_to_combine:
-		var next_rarity: String = ItemSystem.get_next_rarity(selected_a.get("rarity", "common"))
-		result_label.text = "1x %s Item" % RARITY_NAMES.get(next_rarity, next_rarity)
-		var rarity_data: Dictionary = ItemSystem.RARITIES.get(next_rarity, {})
-		result_label.add_theme_color_override("font_color", rarity_data.get("color", Color("9aa8c2")))
+		# Das Ergebnis steht vor dem Klick fest - also auch mit Namen zeigen,
+		# statt nur die Rarität anzukündigen.
+		var rarity: String = result.get("rarity", "common")
+		result_label.text = "%s\n(%s)" % [
+			result.get("name", "Item"), RARITY_NAMES.get(rarity, rarity)
+		]
+		if ItemSystem.is_guaranteed_combine(selected_a, selected_b):
+			result_label.text += "\ngarantiert"
+		result_label.add_theme_color_override("font_color", result.get("color", Color("9aa8c2")))
 	elif not selected_a.is_empty():
 		result_label.text = "Zweites Item derselben Seltenheit wählen"
 		result_label.add_theme_color_override("font_color", Color("9aa8c2"))
@@ -527,7 +541,7 @@ func _update_subtitle() -> void:
 		subtitle_label.text = "Keine kombinierbaren Items mehr - es braucht zwei gleicher Seltenheit"
 		subtitle_label.add_theme_color_override("font_color", Color("c98d6b"))
 	else:
-		subtitle_label.text = "Zwei Items gleicher Seltenheit ergeben ein besseres Item"
+		subtitle_label.text = "Zwei Items gleicher Seltenheit ergeben ein besseres Item\nZwei identische Items ergeben garantiert dieselbe Ausrüstung eine Stufe höher"
 		subtitle_label.add_theme_color_override("font_color", Color("9aa8c2"))
 
 

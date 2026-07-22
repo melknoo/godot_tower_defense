@@ -9,8 +9,13 @@ var element_levels: Dictionary = {}
 
 const UNLOCKABLE_ELEMENTS: Array[String] = ["water", "fire", "earth", "air"]
 const ENGRAVABLE_TOWERS: Array[String] = ["archer", "sword", "wizard", "cannon", "trapper"]
-const SUPPLY_BUILDINGS: Array[String] = ["farm"]  # Gebäude die max_supply erhöhen
+const SUPPLY_BUILDINGS: Array[String] = ["farm", "city"]  # Gebäude die max_supply erhöhen
 const DEBUG_EXTRA_TOWERS := false
+
+# Stadt: Sammelgebäude für Farmen. Ab diesem Supply-Maximum stehen genug Farmen
+# auf dem Feld, dass ihr Platzbedarf zum Problem wird - dann wird sie freigeschaltet.
+const CITY_UNLOCK_SUPPLY := 12
+const CITY_CAPACITY := 6
 
 # Supply-Kosten
 const SUPPLY_COST_PLACE := 1      # Supply pro Tower-Platzierung
@@ -66,6 +71,25 @@ var towers := {
 		"is_base": true,
 		"is_supply_building": true,
 		"supply_bonus": 3,
+		"engravable": false,
+		"combinations": [],
+		"animated": false,
+		"attack_type": "none"
+	},
+	"city": {
+		"name": "Stadt",
+		"description": "Nimmt Farmen auf und behält deren Supply\nMacht Platz auf dem Spielfeld",
+		"cost": 150,
+		"damage": [0],
+		"range": [0.0],
+		"fire_rate": [0.0],
+		"splash": [0.0],
+		"color": Color(0.75, 0.7, 0.55),
+		"upgrade_costs": [],
+		"special": "",
+		"is_base": true,
+		"is_supply_building": true,
+		"supply_bonus": 0,   # entsteht erst durch aufgenommene Farmen
 		"engravable": false,
 		"combinations": [],
 		"animated": false,
@@ -398,6 +422,8 @@ func is_tower_available(tower_type: String) -> bool:
 		return ProgressionSystem.is_tower_unlocked(tower_type) if ProgressionSystem else false
 	if tower_type == "aura":
 		return ProgressionSystem.is_tower_unlocked(tower_type) if ProgressionSystem else false
+	if tower_type == "city":
+		return GameState.get_effective_supply_max() >= CITY_UNLOCK_SUPPLY
 	if towers.has(tower_type):
 		return is_element_unlocked(tower_type)
 	if combinations.has(tower_type):
@@ -411,7 +437,7 @@ func is_tower_available(tower_type: String) -> bool:
 
 func get_available_tower_types() -> Array[String]:
 	var available: Array[String] = []
-	for tower_type in ["sword", "farm", "archer", "wizard", "trapper", "cannon", "aura"]:
+	for tower_type in ["sword", "farm", "city", "archer", "wizard", "trapper", "cannon", "aura"]:
 		if is_tower_available(tower_type):
 			available.append(tower_type)
 	for element in UNLOCKABLE_ELEMENTS:
@@ -492,6 +518,43 @@ func has_tower(tower_type: String) -> bool:
 
 func is_combination(tower_type: String) -> bool:
 	return combinations.has(tower_type)
+
+
+# Icon eines Turmtyps fuer UI-Listen. Liegt hier statt im Shop, damit Shop und
+# Turm-Statistik dieselben Bilder benutzen.
+func get_tower_icon_texture(tower_type: String) -> Texture2D:
+	# Archer/Sword: ersten Frame aus dem Spritesheet ausschneiden
+	if tower_type == "archer" or tower_type == "sword":
+		var spritesheet_path := "res://assets/elemental_tower/%s_spritesheet.png" % tower_type
+		if ResourceLoader.exists(spritesheet_path):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = load(spritesheet_path)
+			var margin := 66.0
+			atlas.region = Rect2(margin, margin + 10, 60, 60)
+			return atlas
+
+	# Farm: 32x48 Asset - oberen Bereich als Icon
+	if tower_type == "farm":
+		var farm_path := "res://assets/elemental_tower/farm.png"
+		if ResourceLoader.exists(farm_path):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = load(farm_path)
+			atlas.region = Rect2(0, 0, 32, 48)
+			return atlas
+		return null
+
+	# Standard Tower Textur
+	var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
+	if ResourceLoader.exists(texture_path):
+		var full_tex: Texture2D = load(texture_path)
+		if get_tower_data(tower_type).get("animated", true):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = full_tex
+			atlas.region = Rect2(0, 0, 16, 16)
+			return atlas
+		return full_tex
+
+	return null
 
 
 func is_melee_tower(tower_type: String) -> bool:

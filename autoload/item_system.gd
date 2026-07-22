@@ -19,6 +19,11 @@ const CATEGORY_FALLBACK_ICONS := {
 	"special": "special",
 }
 
+# Die Sammelicons sind dicht gepackte Raster ohne Trennlinien - alle vier
+# Sheets liegen auf 16x16 (weapons 8x9, accessories 9x19, gems 14x12,
+# special 6x4). Deshalb wird nach fester Zellgroesse geschnitten.
+const SHEET_CELL_SIZE := 16
+
 
 # Inventar für gesammelte Items
 var inventory: Array[Dictionary] = []
@@ -337,26 +342,17 @@ const ITEMS := {
 }
 
 var _icon_cache: Dictionary = {}
+var _sheet_images: Dictionary = {}       # sheet_name -> entpacktes Image
+var _sheet_cells: Dictionary = {}        # sheet_name -> Array[Rect2i] nicht-leerer Zellen
+var _category_item_ids: Dictionary = {}  # category  -> sortierte Item-IDs
 
 
-# Sprite-Sheets Cache
-var sprite_sheets: Dictionary = {}
 var rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
 	rng.randomize()
-	# _load_sprite_sheets() nicht mehr nötig
 	print("[ItemSystem] Initialisiert mit %d Item-Templates" % ITEMS.size())
-
-
-func _load_sprite_sheets() -> void:
-	var sheets := ["weapons", "accessories", "gems", "special"]
-	for sheet_name in sheets:
-		var path := "res://assets/items/%s.png" % sheet_name
-		if ResourceLoader.exists(path):
-			sprite_sheets[sheet_name] = load(path)
-			print("[ItemSystem] Sheet geladen: %s" % sheet_name)
 
 
 # === DROP SYSTEM ===
@@ -595,6 +591,27 @@ func combine_items(uid_a: String, uid_b: String) -> Dictionary:
 
 	var item_a := get_item_by_uid(uid_a)
 	var item_b := get_item_by_uid(uid_b)
+
+	var result := preview_combine(item_a, item_b)
+	if result.is_empty():
+		return {}
+	result["uid"] = _generate_uid()
+
+	_remove_item_silent(uid_a)
+	_remove_item_silent(uid_b)
+	inventory.append(result)
+	inventory_changed.emit()
+
+	print("[ItemSystem] Kombiniert: %s + %s -> %s (%s)" % [
+		item_a.get("name", "?"), item_b.get("name", "?"), result["name"], result["rarity"]
+	])
+	return result
+
+
+# Berechnet das Ergebnis einer Kombination, ohne das Inventar anzufassen.
+# combine_items() nutzt denselben Pfad - Vorschau und Ergebnis können damit
+# nicht auseinanderlaufen. Rückgabe ohne "uid": das vergibt erst combine_items().
+func preview_combine(item_a: Dictionary, item_b: Dictionary) -> Dictionary:
 	if not can_combine(item_a, item_b):
 		return {}
 
@@ -610,18 +627,15 @@ func combine_items(uid_a: String, uid_b: String) -> Dictionary:
 	# Ergebnis wird komplett neu aus dem Template gerollt, damit alle abgeleiteten
 	# Werte (Beschreibung, value/value2, Penalty, Proc) zur neuen Rarität passen.
 	# Stats der Ausgangs-Items werden bewusst NICHT addiert.
-	var result := _create_item_instance(template_id, ITEMS[template_id], new_rarity)
-	result["uid"] = _generate_uid()
+	return _create_item_instance(template_id, ITEMS[template_id], new_rarity)
 
-	_remove_item_silent(uid_a)
-	_remove_item_silent(uid_b)
-	inventory.append(result)
-	inventory_changed.emit()
 
-	print("[ItemSystem] Kombiniert: %s + %s -> %s (%s)" % [
-		item_a.get("name", "?"), item_b.get("name", "?"), result["name"], new_rarity
-	])
-	return result
+# Zwei Items derselben Vorlage ergeben garantiert wieder dieselbe Vorlage - das ist
+# der verlässliche Weg, ein bestimmtes Item hochzuziehen.
+func is_guaranteed_combine(item_a: Dictionary, item_b: Dictionary) -> bool:
+	if not can_combine(item_a, item_b):
+		return false
+	return item_a.get("id", "") == item_b.get("id", "")
 
 
 # Das "bessere" der beiden Items liefert das Template fürs Ergebnis.
@@ -910,45 +924,118 @@ func get_item_texture(item: Dictionary) -> Texture2D:
 		_icon_cache[cache_key] = tex
 		return tex
 
-	# 3. Fallback: Kategorie-Icon in Raritaetsfarbe. Ohne diese Stufe blieben Slots
-	#    fuer Items ohne gezeichnetes Icon komplett leer (siehe ASSETS_TODO.md).
+	# 3. Fallback: eine einzelne Zelle aus dem Kategorie-Sammelicon, in Raritaetsfarbe.
+	#    Ohne diese Stufe blieben Slots fuer Items ohne gezeichnetes Icon komplett
+	#    leer (siehe ASSETS_TODO.md).
+	var item_id: String = item.get("id", "")
 	var category: String = item.get("category", "")
 	if category.is_empty():
-		var template: Dictionary = ITEMS.get(item.get("id", ""), {})
+		var template: Dictionary = ITEMS.get(item_id, {})
 		category = template.get("category", "")
-	var tex := _create_category_fallback_texture(category, rarity)
+	var tex := _create_category_fallback_texture(category, rarity, item_id)
 	_icon_cache[cache_key] = tex
 	return tex
 
 
-# Faerbt das Kategorie-Sammelicon in der Raritaetsfarbe ein, damit Platzhalter
-# trotzdem Kategorie und Wertigkeit eines Items kommunizieren.
-func _create_category_fallback_texture(category: String, rarity: String) -> Texture2D:
-	var path: String = ITEM_ICON_PATH + CATEGORY_FALLBACK_ICONS.get(category, "special") + ".png"
-	if not ResourceLoader.exists(path):
+# Schneidet eine einzelne Zelle aus dem Kategorie-Sammelicon und faerbt sie in der
+# Raritaetsfarbe. Frueher wurde das komplette Sheet zurueckgegeben - im Slot war
+# dann das ganze Muster statt eines Icons zu sehen.
+func _create_category_fallback_texture(category: String, rarity: String, item_id: String) -> Texture2D:
+	var sheet_name: String = CATEGORY_FALLBACK_ICONS.get(category, "special")
+	var image := _get_sheet_image(sheet_name)
+	var cells: Array = _get_sheet_cells(sheet_name)
+	if image == null or cells.is_empty():
 		return null
 
-	var source: Texture2D = load(path)
-	var image := source.get_image()
-	if image == null:
-		return source
-	image = image.duplicate()
-	if image.is_compressed():
-		image.decompress()
+	var cell: Image = image.get_region(cells[_get_fallback_cell_index(category, item_id, cells.size())])
 
 	var tint: Color = RARITIES.get(rarity, RARITIES["common"])["color"]
-	for y in range(image.get_height()):
-		for x in range(image.get_width()):
-			var pixel := image.get_pixel(x, y)
+	for y in range(cell.get_height()):
+		for x in range(cell.get_width()):
+			var pixel := cell.get_pixel(x, y)
 			if pixel.a <= 0.0:
 				continue
 			# Helligkeit des Originals erhalten, Farbton aus der Raritaet nehmen.
 			var value := maxf(pixel.r, maxf(pixel.g, pixel.b))
-			image.set_pixel(x, y, Color(
+			cell.set_pixel(x, y, Color(
 				tint.r * value, tint.g * value, tint.b * value, pixel.a
 			))
 
-	return ImageTexture.create_from_image(image)
+	return ImageTexture.create_from_image(cell)
+
+
+# Feste Zelle je Item: die Items einer Kategorie werden alphabetisch durchnummeriert,
+# damit jedes Item dauerhaft dasselbe Platzhalter-Icon behaelt und zwei Items sich
+# nur dann eines teilen, wenn das Sheet zu wenige Zellen hat.
+func _get_fallback_cell_index(category: String, item_id: String, cell_count: int) -> int:
+	if cell_count <= 0:
+		return 0
+
+	if not _category_item_ids.has(category):
+		var ids: Array = []
+		for id in ITEMS:
+			if ITEMS[id].get("category", "") == category:
+				ids.append(id)
+		ids.sort()
+		_category_item_ids[category] = ids
+
+	var position: int = (_category_item_ids[category] as Array).find(item_id)
+	if position < 0:
+		position = absi(item_id.hash())
+	return position % cell_count
+
+
+# Laedt ein Sammelicon einmalig als entpacktes Image (get_region/get_pixel
+# funktionieren nicht auf komprimierten Texturen).
+func _get_sheet_image(sheet_name: String) -> Image:
+	if _sheet_images.has(sheet_name):
+		return _sheet_images[sheet_name]
+
+	var image: Image = null
+	var path := ITEM_ICON_PATH + sheet_name + ".png"
+	if ResourceLoader.exists(path):
+		var source: Texture2D = load(path)
+		if source:
+			image = source.get_image()
+	if image != null:
+		image = image.duplicate()
+		if image.is_compressed():
+			image.decompress()
+
+	_sheet_images[sheet_name] = image
+	return image
+
+
+# Alle nicht-leeren Zellen eines Sheets. Leere Zellen entstehen durch Randpolster
+# (special.png ist 99 px breit) und unbelegte Rasterplaetze.
+func _get_sheet_cells(sheet_name: String) -> Array:
+	if _sheet_cells.has(sheet_name):
+		return _sheet_cells[sheet_name]
+
+	var cells: Array = []
+	var image := _get_sheet_image(sheet_name)
+	if image != null:
+		var columns := image.get_width() / SHEET_CELL_SIZE
+		var rows := image.get_height() / SHEET_CELL_SIZE
+		for row in range(rows):
+			for column in range(columns):
+				var rect := Rect2i(
+					column * SHEET_CELL_SIZE, row * SHEET_CELL_SIZE,
+					SHEET_CELL_SIZE, SHEET_CELL_SIZE
+				)
+				if not _is_region_empty(image, rect):
+					cells.append(rect)
+
+	_sheet_cells[sheet_name] = cells
+	return cells
+
+
+func _is_region_empty(image: Image, rect: Rect2i) -> bool:
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			if image.get_pixel(x, y).a > 0.0:
+				return false
+	return true
 
 
 

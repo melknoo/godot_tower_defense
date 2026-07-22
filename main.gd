@@ -34,6 +34,8 @@ var current_seed: int = 0
 
 var pending_element_core := false
 var pending_item_combine := false
+# Ab Welle 30 entscheidet der Spieler: abschliessen oder endlos weiterspielen.
+var endless_mode := false
 
 var hover_preview: Node2D
 var hover_range_circle: Line2D
@@ -52,6 +54,7 @@ var ability_target_preview: Node2D
 var ability_range_circle: Line2D
 var item_inventory_ui: ItemInventoryUI
 var item_combine_ui: ItemCombineUI
+var tower_stats_ui: TowerStatsUI
 var ability_upgrade_ui: CanvasLayer
 var meta_progression_ui: MetaProgressionUI
 var pause_menu: PauseMenu
@@ -71,6 +74,7 @@ func _ready() -> void:
 	_setup_upgrade_overview_ui()
 	_setup_synergy_panel()
 	_setup_run_schedule_ui()
+	_setup_tower_stats_ui()
 	_setup_item_inventory_ui()
 	_setup_item_combine_ui()
 	_setup_element_unlock_ui()
@@ -275,6 +279,13 @@ func _setup_run_schedule_ui() -> void:
 	add_child(run_schedule_ui)
 
 
+func _setup_tower_stats_ui() -> void:
+	tower_stats_ui = TowerStatsUI.new()
+	tower_stats_ui.name = "TowerStatsUI"
+	add_child(tower_stats_ui)
+	tower_stats_ui.set_tower_manager(tower_manager)
+
+
 func _setup_synergy_panel() -> void:
 	synergy_panel = SynergyPanel.new()
 	synergy_panel.name = "SynergyPanel"
@@ -343,6 +354,8 @@ func _connect_signals() -> void:
 	hud.open_research_pressed.connect(_on_open_research)
 	hud.open_synergy_panel_pressed.connect(_on_open_synergy_panel)
 	hud.open_schedule_pressed.connect(_on_open_schedule)
+	hud.open_forge_pressed.connect(_on_open_forge)
+	hud.open_tower_stats_pressed.connect(_on_open_tower_stats)
 	hud.pause_pressed.connect(_on_pause_requested)
 	tower_shop.tower_selected.connect(_on_shop_tower_selected)
 	tower_shop.tower_deselected.connect(_on_shop_tower_deselected)
@@ -406,6 +419,10 @@ func _input(event: InputEvent) -> void:
 		if run_schedule_ui:
 			run_schedule_ui.toggle_panel()
 		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_T:
+		if tower_stats_ui:
+			tower_stats_ui.toggle_panel()
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if meta_progression_ui and meta_progression_ui.visible:
 			meta_progression_ui.hide_panel()
@@ -424,6 +441,9 @@ func _input(event: InputEvent) -> void:
 			return
 		if run_schedule_ui and run_schedule_ui.visible:
 			run_schedule_ui.hide_panel()
+			return
+		if tower_stats_ui and tower_stats_ui.visible:
+			tower_stats_ui.hide_panel()
 			return
 		if AbilitySystem and AbilitySystem.is_targeting:
 			AbilitySystem.cancel_targeting()
@@ -646,7 +666,9 @@ func _is_over_ui(pos: Vector2) -> bool:
 		return true
 	if item_combine_ui and item_combine_ui.visible:
 		return true
-	
+	if tower_stats_ui and tower_stats_ui.visible:
+		return true
+
 	# Untere UI-Leiste (Shop, HUD)
 	var viewport_size := get_viewport_rect().size
 	if pos.y > viewport_size.y - 105:
@@ -948,7 +970,34 @@ func _on_wave_completed(wave: int) -> void:
 		Music.play_state("build")
 	if VFX:
 		VFX.spawn_wave_complete_effect(Vector2(MAP_WIDTH * GRID_SIZE * 0.5, MAP_HEIGHT * GRID_SIZE * 0.5))
-	
+
+	# 0. Letzte regulaere Welle: erst die Grundsatzentscheidung, dann alles andere.
+	#    Sie steht vorn, damit kein Perk-Panel sie verschluckt.
+	if RunSchedule.is_final_wave(wave) and not endless_mode:
+		_show_final_wave_choice(wave)
+		return
+
+	_continue_post_wave(wave)
+
+
+# Welle 30 ist das regulaere Ende. Wer weiterspielt, laesst den Run offen; wer
+# beendet, bekommt die Sieg-Auswertung mit Aether/XP-Auszahlung.
+func _show_final_wave_choice(wave: int) -> void:
+	_auto_wave_generation += 1
+	if VFX:
+		VFX.screen_flash(Color(1.0, 0.85, 0.4, 0.4), 0.2)
+		VFX.spawn_status_text(_map_center(), "FINALE GESCHAFFT", Color("f4cf6a"))
+	hud.show_final_wave_choice(
+		func() -> void:
+			endless_mode = true
+			_continue_post_wave(wave),
+		_finish_run_as_victory
+	)
+
+
+# Nachbereitung einer abgeschlossenen Welle. Steht als eigene Funktion da, weil
+# die Endlos-Entscheidung nach Welle 30 sie verzoegert.
+func _continue_post_wave(wave: int) -> void:
 	# 1. Item-Kombination (Runde 5, 10, 15...) nur vormerken - das Panel kommt
 	#    zum Schluss, damit es Ability-/Perk-Panel nicht verschluckt (und umgekehrt)
 	if should_show_item_combine(wave):
@@ -972,6 +1021,17 @@ func _on_wave_completed(wave: int) -> void:
 	if hud:
 		hud.update_wave_events_preview(wave + 1)
 	_maybe_queue_auto_wave()
+
+
+func _finish_run_as_victory() -> void:
+	_auto_wave_generation += 1
+	if Music:
+		Music.play_state("build")
+	var run_summary := {}
+	if ProgressionSystem:
+		run_summary = ProgressionSystem.finish_run(GameState.current_wave)
+	get_tree().paused = true
+	hud.show_run_summary(run_summary, true)
 
 
 func _on_element_core_earned() -> void:
@@ -1045,6 +1105,24 @@ func _on_open_schedule() -> void:
 func _on_open_research() -> void:
 	if meta_progression_ui:
 		meta_progression_ui.show_panel()
+
+
+# Schmiede von Hand oeffnen. Die automatische Oeffnung nach Welle 5/10/15 bleibt -
+# der Button macht sie nur waehrend der gesamten Bauphase erreichbar.
+func _on_open_forge() -> void:
+	if not item_combine_ui or item_combine_ui.visible:
+		return
+	if GameState.wave_active:
+		return
+	if not ItemSystem or not ItemSystem.has_combinable_pair():
+		Sound.play_error()
+		return
+	item_combine_ui.show_panel(GameState.current_wave)
+
+
+func _on_open_tower_stats() -> void:
+	if tower_stats_ui:
+		tower_stats_ui.show_panel()
 
 
 func _on_pause_requested() -> void:
@@ -1128,7 +1206,7 @@ func _maybe_queue_auto_wave() -> void:
 		return
 	if tower_manager.has_blocked_towers():
 		return
-	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui, item_combine_ui]:
+	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui, item_combine_ui, tower_stats_ui]:
 		if overlay and overlay.visible:
 			return
 
@@ -1144,7 +1222,7 @@ func _maybe_queue_auto_wave() -> void:
 		return
 	if tower_manager.has_blocked_towers():
 		return
-	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui, item_combine_ui]:
+	for overlay in [wave_upgrade_ui, element_unlock_ui, ability_upgrade_ui, meta_progression_ui, item_combine_ui, tower_stats_ui]:
 		if overlay and overlay.visible:
 			return
 	if GameState.is_game_over():

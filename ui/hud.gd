@@ -12,6 +12,8 @@ signal open_inventory_pressed
 signal open_research_pressed
 signal open_synergy_panel_pressed
 signal open_schedule_pressed
+signal open_forge_pressed
+signal open_tower_stats_pressed
 signal pause_pressed
 
 @export var gold_label: RichTextLabel
@@ -34,6 +36,8 @@ var wave_preview_label: RichTextLabel
 @export var inventory_button: Button
 var synergy_button: Button
 var schedule_button: Button
+var forge_button: Button
+var tower_stats_button: Button
 
 const ENEMY_TYPE_INFO := {
 	"tank":     {"weak": "archer",  "resist": "sword",   "name": "Tank"},
@@ -104,6 +108,14 @@ var pause_button: Button
 var streak_panel: PanelContainer
 var streak_label: Label
 var streak_bar: ProgressBar
+
+# Zeile der Panel-Buttons (Inventar, Kerne, Upgrades, Synergien, Fahrplan,
+# Schmiede, Statistik). Liegt HUD-lokal ueber der Leiste, rechts neben der
+# Ability-Bar und oberhalb des Tower-Shops.
+const ICON_BUTTON_SIZE := Vector2(48, 48)
+const ICON_ROW_START_X := 300.0
+const ICON_ROW_PITCH := 60.0
+const ICON_ROW_Y := -64.0
 
 const BOSS_BAR_WIDTH := 620.0
 const BOSS_BAR_TOP_MARGIN := 14.0
@@ -232,13 +244,22 @@ func _find_or_create_ui_elements() -> void:
 	wave_element_icon  = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon",  Vector2(8, 5),  Vector2(24, 24))
 	wave_element_label = _get_or_create_label_child(wave_element_area,        "WaveElementLabel", Vector2(40, 8))
 
-	cores_button     = _get_or_create_button("CoresButton",      Vector2(440, zero_row_y - 5),              Vector2(48, 48))
-	upgrades_button  = _get_or_create_button("UpgradesButton",   Vector2(520, zero_row_y - 5),              Vector2(48, 48))
-	inventory_button = _get_or_create_button("InventoryButton",  Vector2(380, zero_row_y - 5),              Vector2(48, 48))
-	synergy_button   = _get_or_create_button("SynergyButton",    Vector2(580, zero_row_y - 5),              Vector2(48, 48))
-	schedule_button  = _get_or_create_button("ScheduleButton",   Vector2(640, zero_row_y - 5),              Vector2(48, 48))
+	# Panel-Buttons in einer eigenen Zeile ueber der HUD-Leiste. Auf Hoehe der
+	# Leiste selbst waeren sie ab dem vierten Button vom Tower-Shop verdeckt,
+	# der von unten mittig heraufreicht und mit jedem Turm breiter wird.
+	inventory_button   = _get_or_create_button("InventoryButton",   _icon_row_pos(0), ICON_BUTTON_SIZE)
+	cores_button       = _get_or_create_button("CoresButton",       _icon_row_pos(1), ICON_BUTTON_SIZE)
+	upgrades_button    = _get_or_create_button("UpgradesButton",    _icon_row_pos(2), ICON_BUTTON_SIZE)
+	synergy_button     = _get_or_create_button("SynergyButton",     _icon_row_pos(3), ICON_BUTTON_SIZE)
+	schedule_button    = _get_or_create_button("ScheduleButton",    _icon_row_pos(4), ICON_BUTTON_SIZE)
+	forge_button       = _get_or_create_button("ForgeButton",       _icon_row_pos(5), ICON_BUTTON_SIZE)
+	tower_stats_button = _get_or_create_button("TowerStatsButton",  _icon_row_pos(6), ICON_BUTTON_SIZE)
 	start_button     = _get_or_create_button("StartWaveButton",  Vector2(viewport_size.x - 740, first_row_y  - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
+
+
+func _icon_row_pos(index: int) -> Vector2:
+	return Vector2(ICON_ROW_START_X + ICON_ROW_PITCH * index, ICON_ROW_Y)
 
 
 func _create_wave_status_ui() -> void:
@@ -903,6 +924,20 @@ func _apply_styles() -> void:
 		schedule_button.add_theme_constant_override("icon_max_width", 26)
 		schedule_button.tooltip_text = "Fahrplan der kommenden Wellen (F)"
 
+	if forge_button:
+		# Kein eigenes Schmiede-Asset vorhanden -> thematisches Glyph
+		forge_button.text = "⚒"
+		forge_button.add_theme_font_size_override("font_size", 22)
+		forge_button.tooltip_text = "Schmiede: zwei Items kombinieren"
+
+	if tower_stats_button:
+		tower_stats_button.icon = IconSystem.get_texture("damage")
+		tower_stats_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tower_stats_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+		tower_stats_button.expand_icon = true
+		tower_stats_button.add_theme_constant_override("icon_max_width", 26)
+		tower_stats_button.tooltip_text = "Turm-Statistik: Kills & Schaden aller Türme (T)"
+
 	if start_button:
 		start_button.text = "Nächste Welle"
 
@@ -925,6 +960,16 @@ func _apply_styles() -> void:
 			UITheme.style_icon_button(upgrades_button)
 		if schedule_button:
 			UITheme.style_icon_button(schedule_button)
+		# Synergie und Schmiede tragen ein Textglyph statt eines Icons - sie brauchen
+		# zusaetzlich die dunkle Schriftfarbe, damit sie auf dem hellen Button lesbar sind.
+		if synergy_button:
+			UITheme.style_icon_button(synergy_button)
+			_apply_button_font_color(synergy_button)
+		if forge_button:
+			UITheme.style_icon_button(forge_button)
+			_apply_button_font_color(forge_button)
+		if tower_stats_button:
+			UITheme.style_icon_button(tower_stats_button)
 
 
 
@@ -978,6 +1023,8 @@ func _connect_signals() -> void:
 	if inventory_button:  inventory_button.pressed.connect(_on_inventory_button_pressed)
 	if synergy_button:    synergy_button.pressed.connect(_on_synergy_button_pressed)
 	if schedule_button:   schedule_button.pressed.connect(_on_schedule_button_pressed)
+	if forge_button:      forge_button.pressed.connect(_on_forge_button_pressed)
+	if tower_stats_button: tower_stats_button.pressed.connect(_on_tower_stats_button_pressed)
 	if ItemSystem:
 		ItemSystem.item_collected.connect(_on_item_collected)
 		ItemSystem.inventory_changed.connect(_on_inventory_changed)
@@ -1128,6 +1175,17 @@ func _on_element_invested(_element: String) -> void:
 
 func _on_inventory_changed() -> void:
 	_update_inventory_notification()
+	_update_forge_button()
+
+
+# Die Schmiede steht die ganze Bauphase ueber offen - Items, die nach der Welle
+# noch am Boden lagen, lassen sich so nachtraeglich einschmelzen.
+func _update_forge_button() -> void:
+	if not forge_button:
+		return
+	var has_pair: bool = ItemSystem.has_combinable_pair() if ItemSystem else false
+	forge_button.visible = not GameState.wave_active and has_pair
+	forge_button.disabled = not has_pair
 
 
 func _update_inventory_notification() -> void:
@@ -1156,6 +1214,7 @@ func update_all() -> void:
 	_update_wave_preview(1)
 	update_wave_events_preview(1)
 	_update_progression_display()
+	_update_forge_button()
 
 
 func update_blocked_towers_warning(count: int) -> void:
@@ -1393,6 +1452,7 @@ func _on_wave_started(wave: int) -> void:
 	if fast_forward_button:
 		fast_forward_button.visible = true
 	_set_fast_forward(false)
+	_update_forge_button()
 
 	call_deferred("_refresh_wave_panels_after_wave_started", wave)
 
@@ -1431,6 +1491,7 @@ func _on_wave_completed(wave: int) -> void:
 
 	_update_bonus_preview()
 	update_wave_events_preview(wave + 1)
+	_update_forge_button()
 
 	if fast_forward_button:
 		fast_forward_button.visible = false
@@ -1859,6 +1920,106 @@ func _hide_wave_tooltip() -> void:
 # ===================================================================
 
 func show_game_over(summary: Dictionary = {}) -> void:
+	show_run_summary(summary, false)
+
+
+# Nach der letzten regulaeren Welle: weiterspielen oder sauber abschliessen.
+# Pausiert das Spiel, bis eine der beiden Optionen gewaehlt wurde.
+func show_final_wave_choice(on_endless: Callable, on_finish: Callable) -> void:
+	_set_fast_forward(false)
+	_hide_wave_tooltip()
+
+	var overlay_layer := CanvasLayer.new()
+	overlay_layer.name = "FinalWaveChoiceLayer"
+	overlay_layer.layer = 235
+	overlay_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(overlay_layer)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.025, 0.035, 0.07, 0.85)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay_layer.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay_layer.add_child(center)
+
+	var choice_panel := PanelContainer.new()
+	choice_panel.custom_minimum_size = Vector2(600, 340)
+	if UITheme:
+		UITheme.style_panel(choice_panel, "carved")
+	center.add_child(choice_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 34)
+	margin.add_theme_constant_override("margin_right", 34)
+	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_bottom", 28)
+	choice_panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 18)
+	margin.add_child(box)
+
+	var title := UITheme.create_ribbon_title("WELLE %d GESCHAFFT" % RunSchedule.FINAL_WAVE, "blue", 480, 20)
+	title.custom_minimum_size.y = 58
+	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(title)
+
+	var text := Label.new()
+	text.text = "Der reguläre Run ist damit gewonnen.\nWeiterspielen oder jetzt abschließen und auszahlen lassen?"
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text.add_theme_font_size_override("font_size", 15)
+	text.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
+	text.add_theme_constant_override("line_spacing", 6)
+	if UITheme and UITheme.game_font:
+		text.add_theme_font_override("font", UITheme.game_font)
+	box.add_child(text)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 14)
+	box.add_child(buttons)
+
+	var endless_btn := Button.new()
+	endless_btn.text = "ENDLOS WEITER"
+	endless_btn.custom_minimum_size = Vector2(210, 50)
+	endless_btn.tooltip_text = "Die Wellen laufen weiter. Der Run endet erst, wenn die Bastion fällt."
+	buttons.add_child(endless_btn)
+
+	var finish_btn := Button.new()
+	finish_btn.text = "RUN BEENDEN"
+	finish_btn.custom_minimum_size = Vector2(210, 50)
+	finish_btn.tooltip_text = "Schließt den Run als Sieg ab und zahlt Aether und Archiv-XP aus."
+	buttons.add_child(finish_btn)
+
+	for button in [endless_btn, finish_btn]:
+		UITheme.style_button(button)
+		button.add_theme_font_size_override("font_size", 11)
+
+	var close_and_call := func(callback: Callable) -> void:
+		Sound.play_click()
+		overlay_layer.queue_free()
+		get_tree().paused = false
+		callback.call()
+
+	endless_btn.pressed.connect(close_and_call.bind(on_endless))
+	finish_btn.pressed.connect(close_and_call.bind(on_finish))
+
+	get_tree().paused = true
+
+	choice_panel.modulate.a = 0.0
+	choice_panel.scale = Vector2(0.9, 0.9)
+	var tween := choice_panel.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.set_parallel(true)
+	tween.tween_property(choice_panel, "modulate:a", 1.0, 0.22)
+	tween.tween_property(choice_panel, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+# Abschluss-Bildschirm eines Runs. Niederlage und Sieg teilen sich denselben
+# Aufbau - nur Titel und Rahmenfarbe unterscheiden sich.
+func show_run_summary(summary: Dictionary = {}, is_victory: bool = false) -> void:
 	_set_fast_forward(false)
 	_hide_wave_tooltip()
 	if streak_panel: streak_panel.visible = false
@@ -1891,7 +2052,10 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	box.add_theme_constant_override("separation", 16)
 	margin.add_child(box)
 
-	var title := UITheme.create_ribbon_title("DIE BASTION IST GEFALLEN", "red", 520, 22)
+	var title := UITheme.create_ribbon_title(
+		"BASTION GEHALTEN" if is_victory else "DIE BASTION IST GEFALLEN",
+		"blue" if is_victory else "red", 520, 22
+	)
 	title.custom_minimum_size.y = 58
 	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(title)
@@ -1933,7 +2097,8 @@ func show_game_over(summary: Dictionary = {}) -> void:
 	box.add_child(detail)
 
 	var hint := Label.new()
-	hint.text = "Investiere Aether im Archiv und starte dauerhaft stärker."
+	hint.text = "Welle %d überstanden. Investiere Aether im Archiv und starte dauerhaft stärker." % RunSchedule.FINAL_WAVE \
+		if is_victory else "Investiere Aether im Archiv und starte dauerhaft stärker."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", Color("554731"))
@@ -1993,6 +2158,14 @@ func _on_synergy_button_pressed() -> void:
 
 func _on_schedule_button_pressed() -> void:
 	open_schedule_pressed.emit()
+
+
+func _on_forge_button_pressed() -> void:
+	open_forge_pressed.emit()
+
+
+func _on_tower_stats_button_pressed() -> void:
+	open_tower_stats_pressed.emit()
 
 
 func _on_fast_forward_pressed() -> void:

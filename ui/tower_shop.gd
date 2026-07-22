@@ -43,6 +43,8 @@ func _ready() -> void:
 	call_deferred("_move_to_front")
 	
 	GameState.gold_changed.connect(_on_gold_changed)
+	# Die Stadt schaltet sich ueber das Supply-Maximum frei - der Shop muss das mitbekommen.
+	GameState.supply_changed.connect(_on_supply_changed)
 	TowerData.element_unlocked.connect(_on_element_unlocked)
 
 
@@ -306,56 +308,20 @@ func _on_element_unlocked(_element: String) -> void:
 	_create_tower_buttons()
 
 
-# In tower_shop.gd, ersetze die _get_tower_icon_texture Funktion:
+var _city_was_available := false
+
+func _on_supply_changed(_used: int, _max_supply: int) -> void:
+	# Nur neu aufbauen, wenn sich die Verfuegbarkeit wirklich geaendert hat -
+	# supply_changed feuert bei jeder Platzierung.
+	var available := TowerData.is_tower_available("city")
+	if available == _city_was_available:
+		return
+	_city_was_available = available
+	_create_tower_buttons()
+
 
 func _get_tower_icon_texture(type: String) -> Texture2D:
-	# Archer: Ersten Frame aus Spritesheet extrahieren
-	if type == "archer":
-		var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
-		if ResourceLoader.exists(spritesheet_path):
-			var atlas := AtlasTexture.new()
-			atlas.atlas = load(spritesheet_path)
-			var margin := 66.0
-			atlas.region = Rect2(margin, margin + 10, 60, 60)
-			return atlas
-	
-	# Sword: Ersten Frame aus Spritesheet extrahieren
-	if type == "sword":
-		var spritesheet_path := "res://assets/elemental_tower/sword_spritesheet.png"
-		if ResourceLoader.exists(spritesheet_path):
-			var atlas := AtlasTexture.new()
-			atlas.atlas = load(spritesheet_path)
-			var margin := 66.0
-			atlas.region = Rect2(margin, margin + 10, 60, 60)
-			return atlas
-	
-	# Farm: 32x48 Asset - oberen Bereich als quadratisches Icon
-	if type == "farm":
-		var farm_path := "res://assets/elemental_tower/farm.png"
-		if ResourceLoader.exists(farm_path):
-			var atlas := AtlasTexture.new()
-			atlas.atlas = load(farm_path)
-			# Quadratischer Ausschnitt 32x32 vom oberen Teil
-			atlas.region = Rect2(0, 0, 32, 48)
-			return atlas
-		return null
-	
-	# Standard Tower Textur
-	var texture_path := "res://assets/elemental_tower/tower_%s.png" % type
-	if ResourceLoader.exists(texture_path):
-		var full_tex: Texture2D = load(texture_path)
-		var data := TowerData.get_tower_data(type)
-		var is_animated: bool = data.get("animated", true)
-		
-		if is_animated:
-			var atlas := AtlasTexture.new()
-			atlas.atlas = full_tex
-			atlas.region = Rect2(0, 0, 16, 16)
-			return atlas
-		else:
-			return full_tex
-	
-	return null
+	return TowerData.get_tower_icon_texture(type)
 
 
 func _create_button(type: String) -> Control:

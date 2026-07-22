@@ -109,6 +109,15 @@ werden.
 - `GameState.supply_max` enthaelt Basis-, Archiv- und Farm-Supply;
   `get_effective_supply_max()` addiert temporaere Run-Upgrades. UI und
   Platzierungspruefungen beziehen den effektiven Wert zentral aus `GameState`.
+- Die Stadt (`city`) ist ein Sammelgebaeude ohne eigenen Supply-Wert: ihr Beitrag
+  ist `stored_farms * Farm-Bonus`. Deshalb fragt `TowerManager` das Supply eines
+  Gebaeudes ueber `tower.get_supply_bonus()` ab, nicht ueber
+  `TowerData.get_supply_bonus(typ)`. Das Aufnehmen von Farmen aendert das
+  Supply-Maximum nicht — es macht nur Felder frei.
+- Welle `RunSchedule.FINAL_WAVE` (30) ist das regulaere Run-Ende. Danach waehlt
+  der Spieler zwischen Endlos-Modus (`Main.endless_mode`) und Abschluss mit
+  Sieg-Auswertung. Beide Abschluss-Bildschirme teilen sich
+  `HUD.show_run_summary(summary, is_victory)`.
 
 ## Persistenz
 
@@ -151,10 +160,21 @@ werden.
   aktuellen Reichweite der Aura-Tuerme gesammelt und gelten, solange die
   raeumlichen Bedingungen erfuellt sind.
 - Die Eiswand besitzt noch keine implementierte Wand-Entitaet.
-- Fehlende Assets duerfen nie zu leeren Feldern fuehren: `ItemSystem` faellt auf
-  das Kategorie-Sammelicon in Raritaetsfarbe zurueck, `IconSystem` auf die
-  `FALLBACKS`-Tabelle, Tuerme ohne Sprite auf einen einheitlichen Platzhalter.
-  Was wirklich fehlt, steht in `ASSETS_TODO.md`.
+- Fehlende Assets duerfen nie zu leeren Feldern fuehren: `ItemSystem` schneidet
+  eine einzelne 16x16-Zelle aus dem Kategorie-Sammelicon und faerbt sie in der
+  Raritaetsfarbe, `IconSystem` faellt auf die `FALLBACKS`-Tabelle zurueck, Tuerme
+  ohne Sprite auf einen einheitlichen Platzhalter. Was wirklich fehlt, steht in
+  `ASSETS_TODO.md`.
+- Die Item-Sammelicons (`weapons`, `accessories`, `gems`, `special`) sind dicht
+  gepackte 16x16-Raster ohne Trennlinien. Nie das ganze Sheet als Textur
+  zurueckgeben — die Zelle je Item kommt aus `_get_fallback_cell_index()` und
+  bleibt fuer ein Item dauerhaft dieselbe.
+- Die Panel-Buttons der HUD liegen bewusst ueber der HUD-Leiste
+  (`HUD.ICON_ROW_Y`). Auf Leistenhoehe verdeckt sie der Tower-Shop, sobald genug
+  Tuerme freigeschaltet sind — er waechst aus der Mitte nach links.
+- `chain_targets > 0` allein loest den Kettensprung in `bullet.gd` aus. Ein
+  `special_type == "chain"` zusaetzlich zu verlangen wuerde das Kettenglied-Item
+  auf Tuermen ohne Ketten-Spezialisierung wirkungslos machen.
 - Musik ist optional: fehlt eine Datei in `assets/music/`, ist der Zustands-
   wechsel ein No-Op. Tracks lassen sich ohne Codeaenderung nachreichen.
 - `ProgressionSystem.begin_run()` erstellt einen Snapshot der permanenten
@@ -167,7 +187,8 @@ werden.
 
 - Logischer Smoke-Test: `tests/progression_smoke.gd`.
 - Funktionaler Smoke-Test in einer echten `main.tscn`: `tests/feature_smoke.gd`
-  (Icon-Fallbacks, Turm-Platzhalter, Boss-Leiste, Fahrplan, Inventar-Reset).
+  (Icon-Fallbacks, Turm-Platzhalter, Boss-Leiste, Fahrplan, Inventar-Reset,
+  Kettenglied, Stadt/Farm-Aufnahme).
 - Visuelle Regression der Spiel-UI: `tests/ui_capture.tscn`.
 - Visuelle Regression des Hauptmenues: `tests/main_menu_capture.tscn`.
 - Visuelle Regression des Charakter-Rosters: `tests/character_roster_capture.tscn`.

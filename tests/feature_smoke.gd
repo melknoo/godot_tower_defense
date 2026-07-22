@@ -26,7 +26,22 @@ func _run() -> void:
 	var item: Dictionary = item_system._create_item_instance(
 		"ember_lance", item_system.ITEMS["ember_lance"], "epic"
 	)
-	_check(item_system.get_item_texture(item) != null, "Item ohne Icon bekommt Kategorie-Fallback")
+	var fallback_tex: Texture2D = item_system.get_item_texture(item)
+	_check(fallback_tex != null, "Item ohne Icon bekommt Kategorie-Fallback")
+	# Der Fallback muss eine einzelne Zelle sein - frueher kam das ganze Sammelicon.
+	_check(
+		fallback_tex != null and fallback_tex.get_size() == Vector2(
+			item_system.SHEET_CELL_SIZE, item_system.SHEET_CELL_SIZE
+		),
+		"Kategorie-Fallback ist eine einzelne 16x16-Zelle"
+	)
+	var other: Dictionary = item_system._create_item_instance(
+		"first_strike", item_system.ITEMS["first_strike"], "epic"
+	)
+	_check(
+		item_system.get_item_texture(other) != fallback_tex,
+		"Zwei Items derselben Kategorie teilen sich nicht dasselbe Fallback-Icon"
+	)
 	var sharp: Dictionary = item_system._create_item_instance(
 		"sharp_blade", item_system.ITEMS["sharp_blade"], "rare"
 	)
@@ -81,6 +96,56 @@ func _run() -> void:
 	_check(schedule_ui.rows_container.get_child_count() == schedule_ui.PREVIEW_WAVES,
 		"Fahrplan zeigt %d Wellen" % schedule_ui.PREVIEW_WAVES)
 	schedule_ui.hide_panel()
+
+	# --- Kettenglied verteilt Spruenge ---
+	# Der Bogen hat von Haus aus keine Ketten-Spezialisierung; das Item allein
+	# muss chain_targets erhoehen.
+	var chain_tower: Node2D = tower_scene.instantiate()
+	main.add_child(chain_tower)
+	chain_tower.setup(root.get_node("TowerData").get_legacy_data("archer", 0), "archer")
+	await process_frame
+	_check(chain_tower.chain_targets == 0, "Bogen startet ohne Kettenspruenge")
+	var chain_item: Dictionary = item_system._create_item_instance(
+		"chain_link", item_system.ITEMS["chain_link"], "rare"
+	)
+	chain_item["uid"] = "test_chain"
+	item_system.collect_item(chain_item)
+	item_system.equip_item(chain_tower, "test_chain", 0)
+	await process_frame
+	_check(chain_tower.chain_targets > 0, "Kettenglied erhoeht die Sprungzahl")
+	chain_tower.queue_free()
+
+	# --- Stadt nimmt Farmen auf, ohne Supply zu verlieren ---
+	var game_state := root.get_node("GameState")
+	var tower_data := root.get_node("TowerData")
+	var tower_manager = main.tower_manager
+	game_state.reset()
+	game_state.gold = 9999
+	var farm_positions: Array[Vector2i] = []
+	for cell in [Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2)]:
+		if tower_manager.place_tower(cell, "farm") != null:
+			farm_positions.append(cell)
+	await process_frame
+	_check(farm_positions.size() == 3, "Drei Farmen platziert")
+
+	var supply_before: int = game_state.supply_max
+	_check(tower_data.is_tower_available("city"), "Stadt ab Supply-Schwelle verfuegbar")
+	var city_pos := Vector2i(6, 2)
+	var city: Node2D = tower_manager.place_tower(city_pos, "city")
+	await process_frame
+	_check(city != null, "Stadt platziert")
+	_check(game_state.supply_max == supply_before, "Leere Stadt aendert das Supply nicht")
+
+	var absorbed: int = tower_manager.absorb_farms(city_pos)
+	await process_frame
+	_check(absorbed == 3, "Stadt nimmt alle drei Farmen auf")
+	_check(tower_manager.count_free_farms() == 0, "Keine Farm mehr auf dem Feld")
+	_check(game_state.supply_max == supply_before, "Supply bleibt nach dem Aufnehmen gleich")
+
+	tower_manager.sell_tower(city_pos)
+	await process_frame
+	_check(game_state.supply_max == game_state.STARTING_MAX_SUPPLY + game_state.archive_supply_bonus,
+		"Verkauf der Stadt nimmt das gespeicherte Supply mit")
 
 	# --- Items ueberleben den Run nicht ---
 	item_system.collect_item(sharp)

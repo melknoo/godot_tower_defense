@@ -32,6 +32,24 @@ func _run() -> void:
 	_assert_ui(main.hud.cores_button.get_theme_constant("icon_max_width") == 30, "Element-Icon ist begrenzt")
 	_assert_ui(main.hud.upgrades_button.get_theme_constant("icon_max_width") == 26, "Upgrade-Icon ist begrenzt")
 	_assert_ui(main.hud.research_button.custom_minimum_size.y >= 38, "Archiv-Button hat genug Asset-Hoehe")
+	# Die Panel-Buttons liegen ueber der HUD-Leiste. Auf Leistenhoehe verdeckt sie
+	# der Tower-Shop, sobald genug Tuerme freigeschaltet sind.
+	for button_entry in [
+		["Inventar", main.hud.inventory_button], ["Kerne", main.hud.cores_button],
+		["Upgrades", main.hud.upgrades_button], ["Synergien", main.hud.synergy_button],
+		["Fahrplan", main.hud.schedule_button], ["Schmiede", main.hud.forge_button],
+		["Statistik", main.hud.tower_stats_button],
+	]:
+		var button_rect: Rect2 = (button_entry[1] as Button).get_global_rect()
+		_assert_ui(
+			not button_rect.intersects(main.tower_shop.get_global_rect()),
+			"%s-Button wird nicht vom Tower-Shop verdeckt" % button_entry[0]
+		)
+		_assert_ui(
+			not button_rect.intersects(main.ability_bar.get_global_rect()),
+			"%s-Button ueberlagert die Ability-Bar nicht" % button_entry[0]
+		)
+
 	_assert_ui(main.hud.wave_status_panel != null, "Wellenstatus besitzt ein gemeinsames Panel")
 	_assert_ui(
 		main.hud.wave_status_panel.get_global_rect().encloses(main.hud.start_button.get_global_rect()),
@@ -120,6 +138,59 @@ func _run() -> void:
 		push_warning("[UI Capture] Kein freies Feld fuer Tower-Info gefunden")
 
 	main.tower_info.hide_panel()
+
+	# Aura-Turm: Buff-Auswahl und Statuszeile danach. Die Statuszeile hat das Panel
+	# frueher in die Breite gezogen, deshalb bleibt sie als Regressionsfall drin.
+	ProgressionSystem.run_tower_unlocks["aura"] = true
+	main.tower_shop._create_tower_buttons()
+	var aura_pos := _find_free_cell(main.tower_manager, "aura")
+	if aura_pos.x >= 0:
+		var aura_tower: Node2D = main.tower_manager.place_tower(aura_pos, "aura")
+		if aura_tower:
+			main.tower_info.show_tower(aura_tower, aura_pos)
+			await get_tree().process_frame
+			var width_before_choice: float = main.tower_info.size.x
+			_assert_ui(main.tower_info.engrave_container.visible, "Aura-Turm bietet die Buff-Auswahl an")
+			await _capture("02c_aura_choice")
+
+			main.tower_info._on_aura_buff_button_pressed("fire_rate")
+			await get_tree().process_frame
+			await get_tree().process_frame
+			_assert_ui(aura_tower.aura_buff_type == "fire_rate", "Aura-Buff ist gesetzt")
+			_assert_ui(
+				"Tempo" in main.tower_info.tower_name_label.text,
+				"Aura-Turm zeigt den gravierten Buff im Titel"
+			)
+			_assert_ui(
+				"Tempo" in main.tower_info.stats_label.text,
+				"Aura-Turm zeigt den Buff in den Stats"
+			)
+			_assert_ui(
+				main.tower_info.size.x <= width_before_choice + 8.0,
+				"Statuszeile zieht das Aura-Panel nicht in die Breite (%.0f -> %.0f)" % [
+					width_before_choice, main.tower_info.size.x
+				]
+			)
+			await _capture("02d_aura_engraved")
+			main.tower_info.hide_panel()
+			main.tower_manager.sell_tower(aura_pos)
+
+	# Glueh-Aura: macht die Upgrade-Stufe auf dem Spielfeld ablesbar.
+	var glow_pos := _find_free_cell(main.tower_manager, "archer")
+	if glow_pos.x >= 0:
+		var glow_tower: Node2D = main.tower_manager.place_tower(glow_pos, "archer")
+		if glow_tower:
+			_assert_ui(not glow_tower.level_glow.visible, "Stufe 1 leuchtet noch nicht")
+			while main.tower_manager.upgrade_tower(glow_pos):
+				pass
+			await get_tree().process_frame
+			_assert_ui(glow_tower.level == TowerData.MAX_LEVEL, "Turm auf Maximalstufe gebracht")
+			_assert_ui(glow_tower.level_glow.visible and glow_tower.level_glow.get_child_count() > 0,
+				"Maximalstufe zeigt eine Glueh-Aura")
+			await get_tree().create_timer(0.3, true).timeout
+			await _capture("02e_level_glow")
+			main.tower_manager.sell_tower(glow_pos)
+
 	main.meta_progression_ui.show_panel()
 	await get_tree().create_timer(0.25, true).timeout
 	await _capture("03_archive")
@@ -152,7 +223,63 @@ func _run() -> void:
 	main.item_inventory_ui._position_detail_panel_at_slot(first_slot)
 	await get_tree().create_timer(0.55, true).timeout
 	await _capture("06_inventory")
+
+	# Equip-Kontext: kompatible Items behalten ihren Raritaetsrahmen, sie werden
+	# nur dicker umrandet. Frueher wurden sie pauschal gruen eingefaerbt.
+	var equip_pos := _find_free_cell(main.tower_manager, "archer")
+	if equip_pos.x >= 0:
+		var equip_tower: Node2D = main.tower_manager.place_tower(equip_pos, "archer")
+		if equip_tower:
+			main.item_inventory_ui.set_filter_tower(equip_tower)
+			await get_tree().process_frame
+			var equip_slot: PanelContainer = main.item_inventory_ui.grid_container.get_child(0)
+			var slot_style: StyleBoxFlat = equip_slot.get_meta("style")
+			var slot_item: Dictionary = equip_slot.get_meta("item")
+			var slot_rarity: Color = slot_item.get("color", Color.WHITE)
+			_assert_ui(
+				slot_style.border_color.is_equal_approx(slot_rarity.darkened(0.3)),
+				"Kompatibles Item behaelt im Equip-Kontext seinen Raritaetsrahmen"
+			)
+			_assert_ui(slot_style.border_width_left == 3, "Kompatibles Item ist dicker umrandet")
+			await _capture("06d_inventory_equip_context")
+			main.item_inventory_ui.set_filter_tower(null)
+			main.tower_manager.sell_tower(equip_pos)
+
 	main.item_inventory_ui.visible = false
+
+	# Schmiede: zwei Items derselben Vorlage ergeben ein garantiertes Ergebnis.
+	var forge_a: Dictionary = ItemSystem._create_item_instance(
+		"swift_boots", ItemSystem.ITEMS["swift_boots"], "uncommon"
+	)
+	forge_a["uid"] = "capture_forge_a"
+	var forge_b: Dictionary = ItemSystem._create_item_instance(
+		"swift_boots", ItemSystem.ITEMS["swift_boots"], "uncommon"
+	)
+	forge_b["uid"] = "capture_forge_b"
+	ItemSystem.collect_item(forge_a)
+	ItemSystem.collect_item(forge_b)
+	main.hud._update_forge_button()
+	await get_tree().process_frame
+	_assert_ui(main.hud.forge_button.visible, "Schmiede-Button erscheint mit kombinierbarem Paar")
+	main.item_combine_ui.show_panel(5)
+	main.item_combine_ui._toggle_selection(forge_a)
+	main.item_combine_ui._toggle_selection(forge_b)
+	await get_tree().create_timer(0.35, true).timeout
+	_assert_ui(not main.item_combine_ui.combine_button.disabled, "Identisches Paar ist kombinierbar")
+	_assert_ui("Flinke Stiefel" in main.item_combine_ui.result_label.text,
+		"Vorschau nennt das konkrete Ergebnis-Item")
+	_assert_ui("garantiert" in main.item_combine_ui.result_label.text,
+		"Identisches Paar wird als garantiert ausgewiesen")
+	await _capture("06b_forge")
+	main.item_combine_ui.visible = false
+	get_tree().paused = false
+
+	# Turm-Statistik: gebuendelte Kampfwerte statt Einzelanzeige pro Turm.
+	main.tower_stats_ui.show_panel()
+	await get_tree().create_timer(0.25, true).timeout
+	_assert_ui(main.tower_stats_ui.visible, "Turm-Statistik oeffnet sich")
+	await _capture("06c_tower_stats")
+	main.tower_stats_ui.visible = false
 
 	UpgradeSystem.activate_upgrade("global_damage")
 	main.upgrade_overview_ui.show_panel()
@@ -195,14 +322,32 @@ func _run() -> void:
 	_assert_ui(not main.pause_menu.visible, "Esc setzt das Spiel fort")
 	_assert_ui(not get_tree().paused, "Fortsetzen hebt die Pause auf")
 
-	main.hud.show_game_over({
+	# Entscheidung nach der letzten regulaeren Welle
+	main.hud.show_final_wave_choice(func(): pass, func(): pass)
+	await get_tree().create_timer(0.35, true).timeout
+	_assert_ui(get_tree().paused, "Finale-Entscheidung haelt den Run pausiert")
+	await _capture("12b_final_wave_choice")
+	var choice_layer: Node = main.hud.get_node_or_null("FinalWaveChoiceLayer")
+	if choice_layer:
+		choice_layer.free()
+	get_tree().paused = false
+
+	var summary := {
 		"run_essence": 18,
 		"run_xp": 42,
 		"kills": 86,
 		"max_streak": 17,
 		"account_level": 2,
 		"essence_total": 31
-	})
+	}
+	main.hud.show_run_summary(summary, true)
+	await get_tree().create_timer(0.35, true).timeout
+	await _capture("12c_victory_summary")
+	var victory_layer: Node = main.hud.get_node_or_null("RunSummaryLayer")
+	if victory_layer:
+		victory_layer.free()
+
+	main.hud.show_game_over(summary)
 	await get_tree().create_timer(0.35, true).timeout
 	await _capture("13_run_summary")
 

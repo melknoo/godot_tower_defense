@@ -200,7 +200,9 @@ func _hit_target() -> void:
 	else:
 		_hit_single(target)
 	
-	if chain_targets > 0 and special_type == "chain":
+	# Allein die Sprungzahl entscheidet - so kettet auch ein Turm, der seine Spruenge
+	# ueber das Kettenglied statt ueber special_type == "chain" bekommt.
+	if chain_targets > 0:
 		_do_chain_attack()
 	
 	_explode()

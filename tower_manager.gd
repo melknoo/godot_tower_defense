@@ -80,8 +80,9 @@ func refresh_farm_supply_bonuses() -> void:
 	for grid_pos in placed_towers:
 		var tower: Node2D = placed_towers[grid_pos]
 		if TowerData.is_supply_building(tower.tower_type):
-			var bonus := TowerData.get_supply_bonus(tower.tower_type)
-			total_farm_bonus += bonus
+			# Ueber den Turm statt ueber TowerData: die Stadt kennt nur so ihre
+			# aufgenommenen Farmen.
+			total_farm_bonus += int(tower.get_supply_bonus())
 	
 	# Setze supply_max neu basierend auf allen Farmen
 	# Archiv-Bonus live aus ProgressionSystem beziehen, damit auch mitten im Run
@@ -97,6 +98,62 @@ func refresh_farm_supply_bonuses() -> void:
 	print("[TowerManager] Supply neu: %d Basis + %d Archiv + %d Farmen" % [
 		GameState.STARTING_MAX_SUPPLY, archive_bonus, total_farm_bonus
 	])
+
+
+# Nimmt Farmen in die Stadt auf: die Farm verschwindet vom Spielfeld, ihr Supply
+# wandert in die Stadt. supply_max bleibt dadurch unveraendert - es wird nur
+# Platz frei. Rueckgabe: Anzahl aufgenommener Farmen.
+func absorb_farms(city_grid_pos: Vector2i) -> int:
+	if not placed_towers.has(city_grid_pos) or GameState.wave_active:
+		return 0
+
+	var city: Node2D = placed_towers[city_grid_pos]
+	if city.tower_type != "city":
+		return 0
+
+	var absorbed := 0
+	for grid_pos in placed_towers.keys():
+		if int(city.get_free_farm_slots()) <= 0:
+			break
+		var tower: Node2D = placed_towers[grid_pos]
+		if tower.tower_type != "farm":
+			continue
+		if not city.store_farm():
+			break
+
+		if VFX:
+			VFX.spawn_pixel_burst(tower.position, "gold", 8)
+		tower.queue_free()
+		placed_towers.erase(grid_pos)
+		tower_placed_wave.erase(grid_pos)
+		tower_levels.erase(grid_pos)
+		if selected_grid_pos == grid_pos:
+			deselect_tower()
+		absorbed += 1
+
+	if absorbed <= 0:
+		return 0
+
+	# supply_max wird bewusst neu berechnet statt angepasst: die Stadt traegt den
+	# Bonus der Farmen jetzt selbst, die Summe bleibt gleich.
+	refresh_farm_supply_bonuses()
+	_recalculate_all_tower_stats()
+	_update_blocked_towers()
+	if VFX:
+		VFX.spawn_status_text(city.position, "%d FARMEN AUFGENOMMEN" % absorbed, Color("8fe88b"))
+	Sound.play_place()
+	print("[TowerManager] Stadt hat %d Farmen aufgenommen (Supply: %d/%d)" % [
+		absorbed, GameState.supply_used, GameState.supply_max
+	])
+	return absorbed
+
+
+func count_free_farms() -> int:
+	var count := 0
+	for grid_pos in placed_towers:
+		if placed_towers[grid_pos].tower_type == "farm":
+			count += 1
+	return count
 
 
 func get_farm_count() -> int:
@@ -406,10 +463,11 @@ func place_tower(grid_pos: Vector2i, tower_type: String) -> Node2D:
 		GameState.use_supply(TowerData.get_supply_cost_place())
 	
 	if TowerData.is_supply_building(tower_type):
-		var bonus := TowerData.get_supply_bonus(tower_type)
-		GameState.add_max_supply(bonus)
-		if VFX:
-			VFX.spawn_status_text(tower.position, "+%d SUPPLY" % bonus, Color("8fe88b"))
+		var bonus := int(tower.get_supply_bonus())
+		if bonus > 0:
+			GameState.add_max_supply(bonus)
+			if VFX:
+				VFX.spawn_status_text(tower.position, "+%d SUPPLY" % bonus, Color("8fe88b"))
 	
 	# Meisterschafts-Punkte für Element-/Combo-Türme (Build-Path)
 	if SynergySystem:
@@ -440,9 +498,9 @@ func sell_tower(grid_pos: Vector2i) -> int:
 	var placed_wave: int = tower_placed_wave.get(grid_pos, -1)
 	var placed_this_wave := placed_wave == GameState.current_wave
 	
-	var sell_value := TowerData.get_sell_value(tower_type, level, placed_this_wave)
-	
-	
+	var sell_value := TowerData.get_sell_value(tower_type, level, placed_this_wave) \
+		+ _stored_farm_sell_value(tower, placed_this_wave)
+
 	if VFX:
 		VFX.spawn_sell_effect(tower_pos)
 		VFX.spawn_gold_number(tower_pos, sell_value)
@@ -452,7 +510,8 @@ func sell_tower(grid_pos: Vector2i) -> int:
 		GameState.free_supply(supply_to_free)
 	
 	if TowerData.is_supply_building(tower_type):
-		var bonus := TowerData.get_supply_bonus(tower_type)
+		# Bei der Stadt faellt hier das Supply aller aufgenommenen Farmen mit weg.
+		var bonus := int(tower.get_supply_bonus())
 		var minimum_supply := GameState.STARTING_MAX_SUPPLY + GameState.archive_supply_bonus
 		GameState.supply_max = max(minimum_supply, GameState.supply_max - bonus)
 		GameState.supply_changed.emit(GameState.supply_used, GameState.supply_max)
@@ -488,7 +547,17 @@ func get_sell_value(grid_pos: Vector2i) -> int:
 	var placed_wave: int = tower_placed_wave.get(grid_pos, -1)
 	var placed_this_wave := placed_wave == GameState.current_wave
 	
-	return TowerData.get_sell_value(tower.tower_type, level, placed_this_wave)
+	return TowerData.get_sell_value(tower.tower_type, level, placed_this_wave) \
+		+ _stored_farm_sell_value(tower, placed_this_wave)
+
+
+# Aufgenommene Farmen stecken im Gegenwert der Stadt - beim Verkauf muessen sie
+# mit ausgezahlt werden, sonst wird das Einlagern zur Geldvernichtung.
+func _stored_farm_sell_value(tower: Node2D, placed_this_wave: bool) -> int:
+	if tower.tower_type != "city" or int(tower.stored_farms) <= 0:
+		return 0
+	var per_farm: int = TowerData.get_sell_value("farm", 0, placed_this_wave)
+	return per_farm * int(tower.stored_farms)
 
 
 func get_sell_percent(grid_pos: Vector2i) -> int:

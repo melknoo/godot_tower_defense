@@ -20,6 +20,15 @@ Platzhalter-Sockel mit Typ-Glyphe gezeichnet
 | `assets/elemental_tower/tower_trapper.png` | Falle |
 | `assets/elemental_tower/tower_aura.png` | Aura-Turm |
 
+Zusaetzlich fehlt das Sprite fuer das Sammelgebaeude Stadt:
+
+| Datei | Gebaeude |
+| --- | --- |
+| `assets/elemental_tower/city.png` | Stadt (nimmt Farmen auf) |
+
+**Format Stadt:** wie `farm.png` (32x48, im Spiel Faktor 2, `offset.y = -8`).
+Ersatz ist derzeit ein Polygon-Platzhalter in `tower.gd` → `_setup_city_sprite`.
+
 **Format:** 16x64 px = 4 Frames a 16x16 untereinander (vertikale Animation), wie
 `tower_fire.png`. Im Spiel mit Faktor 3 skaliert. Nicht animierte Tuerme koennen auch
 16x16 liefern — dann in `data/tower_data.gd` `"animated": false` setzen (ist fuer diese

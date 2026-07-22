@@ -209,6 +209,11 @@ func _check_run_schedule(ability_system: Node) -> void:
 	_assert_equal(RunSchedule.get_events(1).is_empty(), true, "Welle 1 ohne Ereignis")
 	_assert_equal(RunSchedule.get_upcoming(8, 3).size(), 3, "Fahrplan liefert angeforderte Laenge")
 
+	# Welle 30 ist das regulaere Run-Ende und wird als Finale angekuendigt.
+	_assert_equal(RunSchedule.is_final_wave(RunSchedule.FINAL_WAVE), true, "Welle 30 ist Finale")
+	_assert_equal(RunSchedule.is_final_wave(29), false, "Welle 29 ist kein Finale")
+	_assert_equal(RunSchedule.get_events(30)[0]["id"], "final", "Finale steht in Welle 30 vorn")
+
 
 func _assert_equal(actual: Variant, expected: Variant, label: String) -> void:
 	if actual != expected:

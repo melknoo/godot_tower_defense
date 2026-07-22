@@ -64,6 +64,11 @@ var level_indicator: Node2D
 var selection_corners: Node2D
 var selection_tween: Tween
 var engraving_indicator: RichTextLabel
+# Glueh-Aura, die mit dem Upgrade-Level staerker wird (rein visuell).
+var level_glow: Node2D
+var level_glow_tween: Tween
+# Hervorhebung aus der Turm-Statistik heraus (Hover ueber eine Zeile).
+var highlight_tween: Tween
 # Reichweiten-Raster wird nur beim ausgewaehlten Turm eingeblendet.
 var is_selected := false
 
@@ -107,6 +112,13 @@ const PLACEHOLDER_GLYPHS := {
 	"trapper": "path",
 	"aura": "star_full",
 }
+
+# Glueh-Aura je Upgrade-Stufe: ineinander liegende, additiv gemischte Kreise.
+const GLOW_RING_COUNT := 4
+const GLOW_CIRCLE_SEGMENTS := 24
+
+# Stadt: aufgenommene Farmen. Ihr Supply bleibt erhalten, ihr Feld wird frei.
+var stored_farms := 0
 
 # Equipment
 var equipped_items: Array = [{}, {}]  # 2 Slots
@@ -423,7 +435,10 @@ func _apply_item_bonuses() -> void:
 	var stun_bonus := ItemSystem.get_tower_item_bonus_percent(self, "stun_bonus")
 	stun_chance += stun_bonus
 	
+	# "chain_bonus" liefert die Windessenz, "chain" das Kettenglied - beide erhoehen
+	# dieselbe Sprungzahl.
 	var chain_bonus := ItemSystem.get_tower_item_bonus(self, "chain_bonus")
+	chain_bonus += ItemSystem.get_tower_item_bonus(self, "chain")
 	chain_targets += int(chain_bonus)
 	if special_type == "aura":
 		aura_range = tower_range
@@ -738,6 +753,10 @@ func _update_archer_anim_speed() -> void:
 
 
 func _create_visuals() -> void:
+	level_glow = Node2D.new()
+	level_glow.name = "LevelGlow"
+	level_glow.z_index = -2
+	add_child(level_glow)
 	turret = Node2D.new()
 	add_child(turret)
 	range_visual = Node2D.new()
@@ -773,11 +792,14 @@ func _update_visuals() -> void:
 		_setup_sword_sprite()
 	elif tower_type == "farm":
 		_setup_farm_sprite()
+	elif tower_type == "city":
+		_setup_city_sprite()
 	else:
 		_setup_standard_sprite()
 
 	_refresh_range_visuals()
 
+	_update_level_glow()
 	_update_level_indicator()
 	_update_isolation_visual()
 	_update_engraving_indicator()
@@ -846,6 +868,68 @@ func _refresh_range_visuals() -> void:
 			aura_visual.visible = false
 
 
+# Glueh-Aura, deren Staerke das Upgrade-Level ablesbar macht: ab Level 1 sichtbar,
+# auf Maximalstufe hell und pulsierend. Die Farbe folgt der Gravur, damit ein
+# Blick aufs Feld Stufe und Element gleichzeitig verraet. Rein visuell.
+func _update_level_glow() -> void:
+	if not level_glow:
+		return
+
+	if level_glow_tween:
+		level_glow_tween.kill()
+		level_glow_tween = null
+	for child in level_glow.get_children():
+		level_glow.remove_child(child)
+		child.queue_free()
+
+	level_glow.modulate.a = 1.0
+
+	if level <= 0:
+		level_glow.visible = false
+		return
+
+	level_glow.visible = true
+
+	var is_max_level: bool = level >= TowerData.MAX_LEVEL
+	var color := _get_level_glow_color()
+	var progress := float(level) / float(maxi(1, TowerData.MAX_LEVEL))
+	var base_radius := 20.0 + 16.0 * progress
+	var base_alpha := 0.10 + 0.20 * progress
+
+	# Additiv uebereinander gelegte Kreise ergeben einen weichen Verlauf, ohne dass
+	# ein eigenes Glow-Sprite noetig waere.
+	for i in range(GLOW_RING_COUNT):
+		var t := float(i) / float(GLOW_RING_COUNT - 1)
+		var ring := Polygon2D.new()
+		ring.polygon = _make_circle_polygon(base_radius * (1.0 - t * 0.55))
+		ring.color = Color(color.r, color.g, color.b, base_alpha * (0.35 + t * 0.65))
+		var material := CanvasItemMaterial.new()
+		material.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		ring.material = material
+		level_glow.add_child(ring)
+
+	if is_max_level:
+		level_glow_tween = create_tween().set_loops()
+		level_glow_tween.tween_property(level_glow, "modulate:a", 0.55, 0.9)
+		level_glow_tween.tween_property(level_glow, "modulate:a", 1.0, 0.9)
+
+
+func _get_level_glow_color() -> Color:
+	if tower_type == "aura" and aura_buff_type != "":
+		return _get_aura_buff_color()
+	if engraved_element != "" and ElementalSystem:
+		return ElementalSystem.get_element_color(engraved_element)
+	return Color(1.0, 0.92, 0.62)
+
+
+func _make_circle_polygon(radius: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for i in range(GLOW_CIRCLE_SEGMENTS):
+		var angle := TAU * float(i) / float(GLOW_CIRCLE_SEGMENTS)
+		points.append(Vector2(cos(angle), sin(angle) * 0.75) * radius)
+	return points
+
+
 func _setup_farm_sprite() -> void:
 	var texture_path := "res://assets/elemental_tower/farm.png"
 	
@@ -873,11 +957,60 @@ func _setup_farm_sprite() -> void:
 		turret.add_child(door)
 
 
+# Stadt: eigenes Asset fehlt noch (siehe ASSETS_TODO.md), deshalb ein Platzhalter
+# aus der Farm-Formsprache - breiter Sockel mit mehreren Daechern.
+func _setup_city_sprite() -> void:
+	var texture_path := "res://assets/elemental_tower/city.png"
+	if ResourceLoader.exists(texture_path):
+		sprite = Sprite2D.new()
+		sprite.texture = load(texture_path)
+		sprite.scale = Vector2(2.0, 2.0)
+		sprite.offset.y = -8
+		turret.add_child(sprite)
+	else:
+		var base := Polygon2D.new()
+		base.polygon = PackedVector2Array([
+			Vector2(-26, 22), Vector2(26, 22), Vector2(26, 2), Vector2(-26, 2)
+		])
+		base.color = Color(0.55, 0.5, 0.4)
+		turret.add_child(base)
+
+		for roof_data in [[-16.0, 14.0], [0.0, 22.0], [16.0, 16.0]]:
+			var roof := Polygon2D.new()
+			var x: float = roof_data[0]
+			var height: float = roof_data[1]
+			roof.polygon = PackedVector2Array([
+				Vector2(x - 10, 2), Vector2(x, 2 - height), Vector2(x + 10, 2)
+			])
+			roof.color = Color(0.68, 0.42, 0.3)
+			turret.add_child(roof)
+
+
+# Zeigt "N/6" ueber der Stadt, damit die Restkapazitaet ohne Klick lesbar ist.
+func _update_city_counter() -> void:
+	if tower_type != "city":
+		return
+	engraving_indicator.visible = true
+	engraving_indicator.text = "[b]%d/%d[/b]" % [stored_farms, TowerData.CITY_CAPACITY]
+	engraving_indicator.add_theme_color_override("font_color", Color(0.65, 0.9, 0.55))
+
+
 func _update_engraving_indicator() -> void:
+	# Aura-Tuerme gravieren einen Buff statt eines Elements - der bekommt dieselbe
+	# Kennzeichnung ueber dem Turm, damit man Schaden/Tempo/Reichweite auf dem
+	# Spielfeld unterscheiden kann.
+	if tower_type == "aura":
+		_update_aura_buff_indicator()
+		return
+
+	if tower_type == "city":
+		_update_city_counter()
+		return
+
 	if engraved_element == "":
 		engraving_indicator.visible = false
 		return
-	
+
 	engraving_indicator.visible = true
 	engraving_indicator.text = ElementalSystem.get_element_bb(engraved_element) if ElementalSystem else engraved_element.substr(0, 1).to_upper()
 	
@@ -887,6 +1020,29 @@ func _update_engraving_indicator() -> void:
 	var current_sprite: Sprite2D = archer_sprite if archer_sprite else (sword_sprite if sword_sprite else sprite)
 	if current_sprite:
 		current_sprite.modulate = Color.WHITE.lerp(elem_color, 0.25)
+
+
+func _update_aura_buff_indicator() -> void:
+	if aura_buff_type == "":
+		engraving_indicator.visible = false
+		return
+
+	engraving_indicator.visible = true
+	engraving_indicator.text = IconSystem.bb(_get_aura_buff_icon_name(), 16) if IconSystem else "+"
+
+	var buff_color := _get_aura_buff_color()
+	engraving_indicator.add_theme_color_override("font_color", buff_color)
+
+	if sprite:
+		sprite.modulate = Color.WHITE.lerp(buff_color, 0.25)
+
+
+func _get_aura_buff_icon_name() -> String:
+	match aura_buff_type:
+		"damage": return "damage"
+		"range": return "range"
+		"fire_rate": return "fire_rate"
+		_: return "star_full"
 
 
 func _setup_archer_sprite() -> void:
@@ -1754,6 +1910,51 @@ func deselect() -> void:
 		selection_tween = null
 	# Reichweiten-Raster wieder ausblenden.
 	_refresh_range_visuals()
+
+
+# Hebt den Turm auf dem Spielfeld hervor, ohne ihn auszuwaehlen - fuer das
+# Hovern einer Zeile in der Turm-Statistik. Beisst sich bewusst nicht mit
+# select()/deselect(), damit eine offene Auswahl erhalten bleibt.
+func set_highlight(enabled: bool) -> void:
+	if highlight_tween:
+		highlight_tween.kill()
+		highlight_tween = null
+
+	if not enabled:
+		modulate = Color.WHITE
+		if range_visual:
+			range_visual.visible = is_selected
+		return
+
+	if range_visual and attack_type != "none":
+		range_visual.visible = true
+
+	highlight_tween = create_tween().set_loops()
+	highlight_tween.tween_property(self, "modulate", Color(1.7, 1.7, 1.3), 0.3)
+	highlight_tween.tween_property(self, "modulate", Color.WHITE, 0.3)
+
+
+# Supply, das dieses Gebaeude beisteuert. Die Stadt hat keinen eigenen Wert -
+# ihr Beitrag ist die Summe der aufgenommenen Farmen.
+func get_supply_bonus() -> int:
+	if tower_type == "city":
+		return stored_farms * TowerData.get_supply_bonus("farm")
+	return TowerData.get_supply_bonus(tower_type)
+
+
+# Nimmt eine Farm auf. Deren Supply zaehlt danach ueber die Stadt weiter.
+func store_farm() -> bool:
+	if tower_type != "city" or stored_farms >= TowerData.CITY_CAPACITY:
+		return false
+	stored_farms += 1
+	_update_city_counter()
+	return true
+
+
+func get_free_farm_slots() -> int:
+	if tower_type != "city":
+		return 0
+	return maxi(0, TowerData.CITY_CAPACITY - stored_farms)
 
 
 func get_range_cells() -> int:

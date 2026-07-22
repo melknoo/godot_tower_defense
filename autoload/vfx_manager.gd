@@ -488,9 +488,12 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 	label.text = str(amount)
 	label.position = pos + Vector2(randf_range(-12, 12), -25)
 	label.z_index = 100
-	if UITheme and UITheme.game_font:
-		label.add_theme_font_override("font", UITheme.game_font)
-	var size := 18 if is_crit else 13
+	if UITheme:
+		# Schwer und aufrecht - der Gegenpol zur kursiven Goldschrift.
+		var font: Font = UITheme.font_damage if UITheme.font_damage else UITheme.game_font
+		if font:
+			label.add_theme_font_override("font", font)
+	var size := 21 if is_crit else 15
 	label.add_theme_font_size_override("font_size", size)
 	var color := Color(1.0, 1.0, 1.0)
 	if is_crit:
@@ -498,8 +501,8 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 	elif element != "" and PALETTES.has(element):
 		color = PALETTES[element][2]
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	label.add_theme_constant_override("outline_size", 2)
+	label.add_theme_color_override("font_outline_color", Color(0.24, 0.03, 0.03))
+	label.add_theme_constant_override("outline_size", 3)
 	parent.add_child(label)
 	var start_y := label.position.y
 	var peak_y := start_y - (35 if is_crit else 22)
@@ -525,14 +528,17 @@ func spawn_gold_number(pos: Vector2, amount: int, is_spend: bool = false) -> voi
 	label.fit_content = true
 	label.scroll_active = false
 	label.custom_minimum_size = Vector2(60, 20)
-	#var label := Label.new()
 	label.text = "%s%d%s"  % ["-" if is_spend else "+", amount, IconSystem.bb("coin", 16)]
 	label.position = pos + Vector2(-15, -30)
 	label.z_index = 100
-	if UITheme and UITheme.game_font:
-		label.add_theme_font_override("font", UITheme.game_font)
-	label.add_theme_font_size_override("font_size", 16)
-	label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.4) if is_spend else Color(1.0, 0.85, 0.1))
+	if UITheme:
+		# Leicht und kursiv - klar unterscheidbar von den Schadenszahlen.
+		var font: Font = UITheme.font_gold if UITheme.font_gold else UITheme.game_font
+		if font:
+			label.add_theme_font_override("normal_font", font)
+	label.add_theme_font_size_override("normal_font_size", 16)
+	# RichTextLabel faerbt ueber default_color - "font_color" blieb hier wirkungslos.
+	label.add_theme_color_override("default_color", Color(0.9, 0.5, 0.4) if is_spend else Color(1.0, 0.85, 0.1))
 	label.add_theme_color_override("font_outline_color", Color(0.3, 0.1, 0.05) if is_spend else Color(0.4, 0.25, 0.0))
 	label.add_theme_constant_override("outline_size", 3)
 	parent.add_child(label)
