@@ -128,6 +128,10 @@ var boss_bar_label: Label
 var boss_bar: ProgressBar
 var tracked_boss: Node2D
 
+var bottom_strip: Control
+var top_bar: PanelContainer
+var top_bar_row: HBoxContainer
+
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -151,7 +155,7 @@ func _process(_delta: float) -> void:
 
 
 func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_width: float = 120.0) -> RichTextLabel:
-	var label: RichTextLabel = get_node_or_null(node_name) as RichTextLabel
+	var label: RichTextLabel = bottom_strip.get_node_or_null(node_name) as RichTextLabel
 	if not label:
 		label = RichTextLabel.new()
 		label.name = node_name
@@ -160,7 +164,7 @@ func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_widt
 		label.fit_content = true
 		label.scroll_active = false
 		label.custom_minimum_size = Vector2(min_width, 20)
-		add_child(label)
+		bottom_strip.add_child(label)
 	return label
 
 
@@ -182,16 +186,25 @@ func _load_fast_forward_textures() -> void:
 
 func _setup_hud_size() -> void:
 	var hud_height := 105
-	anchor_left = 0.0
-	anchor_right = 1.0
-	anchor_top = 1.0
-	anchor_bottom = 1.0
-	offset_left = 0
-	offset_right = 0
-	offset_top = -hud_height
-	offset_bottom = 0
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	if not has_node("HUDBackground"):
+	if not is_instance_valid(bottom_strip):
+		bottom_strip = Control.new()
+		bottom_strip.name = "BottomStrip"
+		bottom_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(bottom_strip)
+
+	bottom_strip.anchor_left = 0.0
+	bottom_strip.anchor_right = 1.0
+	bottom_strip.anchor_top = 1.0
+	bottom_strip.anchor_bottom = 1.0
+	bottom_strip.offset_left = 0
+	bottom_strip.offset_right = 0
+	bottom_strip.offset_top = -hud_height
+	bottom_strip.offset_bottom = 0
+
+	if not bottom_strip.has_node("HUDBackground"):
 		var bg := Panel.new()
 		bg.name = "HUDBackground"
 		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -202,8 +215,41 @@ func _setup_hud_size() -> void:
 		style.border_color = Color(0.15, 0.38, 0.58, 0.8)
 		style.border_width_top = 2
 		bg.add_theme_stylebox_override("panel", style)
-		add_child(bg)
-		move_child(bg, 0)
+		bottom_strip.add_child(bg)
+		bottom_strip.move_child(bg, 0)
+
+	_setup_top_bar()
+
+
+func _setup_top_bar() -> void:
+	if is_instance_valid(top_bar):
+		return
+
+	top_bar = PanelContainer.new()
+	top_bar.name = "TopBar"
+	top_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_bar.custom_minimum_size.y = UI.TOPBAR_H
+	top_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	var top_bar_style := UI.panel()
+	top_bar_style.content_margin_top = 0
+	top_bar_style.content_margin_bottom = 0
+	top_bar.add_theme_stylebox_override("panel", top_bar_style)
+	add_child(top_bar)
+
+	top_bar_row = HBoxContainer.new()
+	top_bar_row.name = "TopBarRow"
+	top_bar_row.add_theme_constant_override("separation", UI.SP_4)
+	top_bar.add_child(top_bar_row)
+
+
+func _topbar_separator() -> VSeparator:
+	var separator := VSeparator.new()
+	separator.custom_minimum_size.x = 1
+	var line := StyleBoxFlat.new()
+	line.bg_color = UI.BORDER_SOFT
+	line.content_margin_left = 1
+	separator.add_theme_stylebox_override("separator", line)
+	return separator
 
 
 func _find_or_create_ui_elements() -> void:
@@ -404,7 +450,7 @@ func _create_progression_ui() -> void:
 	# HUD-Origin liegt 105 px über dem unteren Rand; +123 ergibt global y=18.
 	progression_strip.position = Vector2(14, -viewport_size.y + 123)
 	progression_strip.custom_minimum_size = Vector2(690, 54)
-	add_child(progression_strip)
+	bottom_strip.add_child(progression_strip)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
@@ -464,13 +510,13 @@ func _create_progression_ui() -> void:
 	pause_button.tooltip_text = "Pause & Optionen (Esc)"
 	pause_button.pressed.connect(func(): pause_pressed.emit())
 	pause_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	add_child(pause_button)
+	bottom_strip.add_child(pause_button)
 
 	streak_panel = PanelContainer.new()
 	streak_panel.position = Vector2(viewport_size.x * 0.5 - 145, -viewport_size.y + 135)
 	streak_panel.custom_minimum_size = Vector2(290, 58)
 	streak_panel.visible = false
-	add_child(streak_panel)
+	bottom_strip.add_child(streak_panel)
 	var streak_margin := MarginContainer.new()
 	streak_margin.add_theme_constant_override("margin_left", 12)
 	streak_margin.add_theme_constant_override("margin_right", 12)
@@ -507,7 +553,7 @@ func _create_item_toast_layer() -> void:
 	item_toast_container.alignment = BoxContainer.ALIGNMENT_END
 	item_toast_container.add_theme_constant_override("separation", 7)
 	item_toast_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(item_toast_container)
+	bottom_strip.add_child(item_toast_container)
 
 
 func _show_item_toast(item: Dictionary) -> void:
@@ -706,12 +752,12 @@ func _style_progression_button(button: Button) -> void:
 
 
 func _get_or_create_label(node_name: String, default_pos: Vector2) -> Label:
-	var label: Label = get_node_or_null(node_name) as Label
+	var label: Label = bottom_strip.get_node_or_null(node_name) as Label
 	if not label:
 		label = Label.new()
 		label.name = node_name
 		label.position = default_pos
-		add_child(label)
+		bottom_strip.add_child(label)
 	return label
 
 
@@ -726,25 +772,25 @@ func _get_or_create_label_child(parent: Node, node_name: String, local_pos: Vect
 
 
 func _get_or_create_button(node_name: String, default_pos: Vector2, default_size: Vector2) -> Button:
-	var btn: Button = get_node_or_null(node_name) as Button
+	var btn: Button = bottom_strip.get_node_or_null(node_name) as Button
 	if not btn:
 		btn = Button.new()
 		btn.name = node_name
 		btn.position = default_pos
 		btn.custom_minimum_size = default_size
-		add_child(btn)
+		bottom_strip.add_child(btn)
 	return btn
 
 
 func _get_or_create_control(node_name: String, default_pos: Vector2, default_size: Vector2) -> Control:
-	var c: Control = get_node_or_null(node_name) as Control
+	var c: Control = bottom_strip.get_node_or_null(node_name) as Control
 	if not c:
 		c = Control.new()
 		c.name = node_name
 		c.position = default_pos
 		c.custom_minimum_size = default_size
 		c.size = default_size
-		add_child(c)
+		bottom_strip.add_child(c)
 	return c
 
 
