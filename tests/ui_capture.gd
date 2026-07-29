@@ -184,7 +184,8 @@ func _run() -> void:
 			while main.tower_manager.upgrade_tower(glow_pos):
 				pass
 			await get_tree().process_frame
-			_assert_ui(glow_tower.level == TowerData.MAX_LEVEL, "Turm auf Maximalstufe gebracht")
+			# Robust gegen Gold-/Supply-Limits, an denen die Upgrade-Schleife vorher stoppen kann.
+			_assert_ui(not TowerData.can_upgrade("archer", glow_tower.level), "Turm auf maximal erreichbare Stufe gebracht")
 			_assert_ui(glow_tower.level_glow.visible and glow_tower.level_glow.get_child_count() > 0,
 				"Maximalstufe zeigt eine Glueh-Aura")
 			await get_tree().create_timer(0.3, true).timeout
@@ -266,8 +267,10 @@ func _run() -> void:
 	main.item_combine_ui._toggle_selection(forge_b)
 	await get_tree().create_timer(0.35, true).timeout
 	_assert_ui(not main.item_combine_ui.combine_button.disabled, "Identisches Paar ist kombinierbar")
-	_assert_ui("Flinke Stiefel" in main.item_combine_ui.result_label.text,
-		"Vorschau nennt das konkrete Ergebnis-Item")
+	# Die Vorschau nennt die Ziel-Raritaet, aber bewusst NICHT das konkrete Item:
+	# das Ergebnis vorab zu kennen nahm dem Schmieden die Spannung.
+	_assert_ui(not ("Flinke Stiefel" in main.item_combine_ui.result_label.text),
+		"Vorschau verraet das Ergebnis-Item nicht")
 	_assert_ui("garantiert" in main.item_combine_ui.result_label.text,
 		"Identisches Paar wird als garantiert ausgewiesen")
 	await _capture("06b_forge")

@@ -167,27 +167,20 @@ func show_upgrades(wave: int) -> void:
 		reroll_button.visible = true
 	
 	visible = true
-	
-	# Animation
-	panel.modulate.a = 0
-	panel.scale = Vector2(0.8, 0.8)
-	var tween := panel.create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)  # WICHTIG: Während Pause animieren
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.2)
-	tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	
+
+	# Animation (Panel-Tween läuft weiter, obwohl der Baum pausiert ist)
+	if UITheme:
+		UITheme.animate_panel_open(panel)
+
 	print("[WaveUpgradeUI] Panel angezeigt mit %d Optionen" % current_options.size())
 
 
 func hide_panel() -> void:
-	var tween := panel.create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)  # WICHTIG
-	tween.tween_property(panel, "modulate:a", 0.0, 0.15)
-	tween.tween_callback(func(): 
-		visible = false
-		get_tree().paused = false
-	)
+	if UITheme:
+		UITheme.animate_panel_close(panel, func():
+			visible = false
+			get_tree().paused = false
+		)
 	panel_closed.emit()
 
 

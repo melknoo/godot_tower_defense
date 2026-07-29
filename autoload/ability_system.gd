@@ -29,7 +29,11 @@ const CHARACTERS := {
 		"element": "fire",
 		"starting_ability": "meteor",
 		"color": Color(1.0, 0.4, 0.2),
-		"base": true
+		"base": true,
+		"passive": {
+			"description": "Brenneffekte richten 20% mehr Schaden an.",
+			"modifiers": {"burn_damage_mult": 1.2}
+		}
 	},
 	"cryomancer": {
 		"name": "Kryomant",
@@ -39,7 +43,11 @@ const CHARACTERS := {
 		"element": "water",
 		"starting_ability": "frost_nova",
 		"color": Color(0.3, 0.6, 1.0),
-		"base": true
+		"base": true,
+		"passive": {
+			"description": "Verlangsamung wirkt 15% staerker.",
+			"modifiers": {"slow_strength_mult": 1.15}
+		}
 	},
 	"geomancer": {
 		"name": "Geomant",
@@ -49,7 +57,11 @@ const CHARACTERS := {
 		"element": "earth",
 		"starting_ability": "earthquake",
 		"color": Color(0.6, 0.4, 0.2),
-		"base": true
+		"base": true,
+		"passive": {
+			"description": "+3 Prozentpunkte Stun-Chance fuer alle Tuerme.",
+			"modifiers": {"stun_chance_add": 0.03}
+		}
 	},
 	"aeromancer": {
 		"name": "Aeromant",
@@ -59,7 +71,11 @@ const CHARACTERS := {
 		"element": "air",
 		"starting_ability": "lightning",
 		"color": Color(0.8, 0.9, 1.0),
-		"base": true
+		"base": true,
+		"passive": {
+			"description": "Alle Tuerme feuern 6% schneller.",
+			"modifiers": {"tower_fire_rate_mult": 1.06}
+		}
 	},
 	"ashweaver": {
 		"name": "Aschenweberin",
@@ -817,9 +833,11 @@ func _execute_tsunami(pos: Vector2, power_mult: float) -> void:
 	var slow_amt := get_effective_stat("tsunami", "slow_amount")
 	var slow_dur := get_effective_stat("tsunami", "slow_duration")
 	var width: float = ABILITIES["tsunami"].get("width", 200.0)
-	
+
 	if VFX:
 		VFX.spawn_tsunami_wave(pos, width)
+		# Anschlag-Akzent am Ursprung - die Welle selbst hat sonst keinen Ring-Akzent
+		VFX.spawn_impact_ring(pos, "water", width * 0.4)
 	
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if abs(enemy.position.y - pos.y) <= width / 2:
@@ -885,6 +903,8 @@ func _execute_ice_wall(pos: Vector2) -> void:
 	# Ice Wall Entity spawnen (muss implementiert werden)
 	if VFX:
 		VFX.spawn_ice_wall(pos, duration, health)
+		# Anschlag-Akzent beim Aufbau - Wand selbst hat sonst keinen Ring-Akzent
+		VFX.spawn_impact_ring(pos, "ice", 30.0)
 	
 	print("[AbilitySystem] Ice Wall spawned at %s, Duration: %.1f, HP: %d" % [pos, duration, health])
 

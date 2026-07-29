@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  body { margin:0; background:#0A0D13; }
+  ::selection { background:#E0B44E; color:#10141B; }
+  a { color:#E0B44E; text-decoration:none; border-bottom:1px solid #6B5522; }
+  a:hover { color:#F2CB6E; border-bottom-color:#E0B44E; }
+</style>
+</helmet>
+
+<div style="background:#0A0D13; color:#EDE6D6; font-family:Helvetica,'Helvetica Neue',Arial,sans-serif; font-size:15px; line-height:1.6; padding:56px 40px 120px; display:flex; flex-direction:column; align-items:center; text-wrap:pretty;">
+
+<div style="width:100%; max-width:1120px; display:flex; flex-direction:column; gap:72px;">
+
+  <!-- ============ HEADER ============ -->
+  <header style="display:flex; flex-direction:column; gap:20px; border-bottom:2px solid #C79A3C; padding-bottom:28px;">
+    <div style="font-family:Silkscreen,monospace; font-size:12px; letter-spacing:2px; color:#9EAAB9;">ARCANE BASTION · UI-SYSTEM v1</div>
+    <h1 style="margin:0; font-family:Silkscreen,monospace; font-size:38px; line-height:1.2; color:#E0B44E; letter-spacing:1px;">OBSIDIAN &amp; MESSING</h1>
+    <p style="margin:0; max-width:760px; font-size:17px; color:#EDE6D6;">Ein Designsystem für Godot 4 — Tokens, Komponenten, HUD-Layout und eine Umsetzungsreihenfolge, die nach jeder Phase spielbar bleibt.</p>
+    <p style="margin:0; max-width:760px; color:#9EAAB9;">Kernentscheidung vorab: <strong style="color:#EDE6D6;">Pergament raus, dunkler Stein rein.</strong> Dein stärkstes Element existiert schon — der goldene Titel auf Schwarz im Hauptmenü. Alles andere leitet sich davon ab.</p>
+  </header>
+
+  <!-- ============ 1 DIAGNOSE ============ -->
+  <sc-if value="{{ showDiagnose }}" hint-placeholder-val="{{ true }}">
+  <section style="display:flex; flex-direction:column; gap:28px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">01</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">VISUELLE DIAGNOSE</h2>
+      <p style="margin:0; color:#9EAAB9; max-width:800px;">Die drei Systemfehler zuerst — sie erklären ~80 % des „zusammengestückelt“-Eindrucks. Danach pro Screen. P1 = größte Wirkung pro Aufwand.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
+      <div style="background:#141A24; border:2px solid #E0524B; padding:20px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:Silkscreen,monospace; font-size:11px; color:#E0524B; letter-spacing:1px;">SYSTEMFEHLER 1 · P1</div>
+        <div style="font-family:Silkscreen,monospace; font-size:14px; line-height:1.5;">Zwei Materialien</div>
+        <p style="margin:0; color:#9EAAB9; font-size:14px;">Beiges, ausgefranstes Pergament (Menüs, Inventar, Fahrplan, Synergien) und reines <code style="color:#EDE6D6;">#000000</code>-Panel (Turm-Info). Das sieht aus wie zwei Spiele in einem Build. Ein Panel-Material, überall.</p>
+      </div>
+      <div style="background:#141A24; border:2px solid #E0524B; padding:20px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:Silkscreen,monospace; font-size:11px; color:#E0524B; letter-spacing:1px;">SYSTEMFEHLER 2 · P1</div>
+        <div style="font-family:Silkscreen,monospace; font-size:14px; line-height:1.5;">Mint-Button ohne Herkunft</div>
+        <p style="margin:0; color:#9EAAB9; font-size:14px;">Das Türkis der Buttons kommt in keiner anderen Ebene vor — nicht im Gold, nicht in den Tiles, nicht in den Sprites. Mit hellem Außenrand + dunklem Innenrand + Schlagschatten wirkt es wie ein Engine-Default. Buttons sind dein häufigstes Element; sie definieren die Wahrnehmung.</p>
+      </div>
+      <div style="background:#141A24; border:2px solid #E0524B; padding:20px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:Silkscreen,monospace; font-size:11px; color:#E0524B; letter-spacing:1px;">SYSTEMFEHLER 3 · P1</div>
+        <div style="font-family:Silkscreen,monospace; font-size:14px; line-height:1.5;">Elemente sind unsichtbar</div>
+        <p style="margin:0; color:#9EAAB9; font-size:14px;">Elementmagie ist die Kernmechanik, aber im Shop, im HUD und auf Turmkarten trägt kein Pixel Elementfarbe. Gleichzeitig streuen Charakterkarten sechs beliebige Titelfarben. Farbe ist verschenkt, wo sie Bedeutung hätte, und verstreut, wo sie keine hat.</p>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:2px; border:2px solid #3A4658; background:#141A24;">
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:12px 20px; background:#1E2632; font-family:Silkscreen,monospace; font-size:10px; letter-spacing:1px; color:#9EAAB9;">
+        <div>SCREEN</div><div>BEFUND</div><div style="text-align:right;">PRIO</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:16px 20px; align-items:start;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">In-Game-HUD<br /><span style="color:#5A6675;">spielfeld.png</span></div>
+        <div style="color:#9EAAB9; font-size:14px;">Ressourcen (Gold, HP, Kerne, Wellen-Ende) stehen <em style="color:#EDE6D6;">ohne Panel direkt auf dem Gras</em> — hellgelber Text auf hellgrünen Tiles, praktisch unlesbar. Vier Icongrößen in einer Spalte. Information sitzt in allen vier Ecken plus zwei Bottom-Leisten; das Auge hat keinen Anker. Der Aether-Streifen oben ist zu 85 % leer und deckt trotzdem Spielfeld ab. Der XP-Balken ist ein rohes blaues Rechteck ohne Rahmen und ohne Label.</div>
+        <div style="text-align:right;"><span style="font-family:Silkscreen,monospace; font-size:10px; background:#E0524B; color:#10141B; padding:3px 6px;">P1</span></div>
+      </div>
+
+      <div style="height:1px; background:#232C38;"></div>
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:16px 20px; align-items:start;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">Turm-Info + Inventar<br /><span style="color:#5A6675;">tower_info.png</span></div>
+        <div style="color:#9EAAB9; font-size:14px;">Reines Schwarz statt Panelfarbe, kein Rahmen zum Spielfeld. Sieben Statzeilen in identischer Größe, Werte nicht rechts ausgerichtet → keine Lesekante. Vier Buttons gestapelt, alle gleich schwer: „Aufnehmen“, „Verkaufen“ und „Schließen“ konkurrieren, obwohl nur einer die Hauptaktion ist. Daneben das Inventar in Pergament — beide Panels berühren sich fast und widersprechen sich.</div>
+        <div style="text-align:right;"><span style="font-family:Silkscreen,monospace; font-size:10px; background:#E0524B; color:#10141B; padding:3px 6px;">P1</span></div>
+      </div>
+
+      <div style="height:1px; background:#232C38;"></div>
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:16px 20px; align-items:start;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">Tower-Shop + Ability-Bar<br /><span style="color:#5A6675;">spielfeld.png · hud.png</span></div>
+        <div style="color:#9EAAB9; font-size:14px;">Shop-Karten haben keinen Rahmen — Sprite, Preis und Name schwimmen frei, der Preis überlappt das Sprite. Kein Elementbezug, kein „kann ich mir das leisten“-Feedback. Die Ability-Bar mischt einen mint-gerahmten Slot 1 mit drei flachen schwarzen Slots und trägt ein Pergament-Fähnchen, das über die Panelkante ragt. Cooldown wird gar nicht dargestellt.</div>
+        <div style="text-align:right;"><span style="font-family:Silkscreen,monospace; font-size:10px; background:#E0524B; color:#10141B; padding:3px 6px;">P1</span></div>
+      </div>
+
+      <div style="height:1px; background:#232C38;"></div>
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:16px 20px; align-items:start;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">Charakterauswahl<br /><span style="color:#5A6675;">char auswahl.png</span></div>
+        <div style="color:#9EAAB9; font-size:14px;">Hierarchie invertiert: „ZURÜCK“ ist rot umrandet und zieht den Blick, die eigentliche Hauptaktion „STARTEN“ ist blass und wirkt deaktiviert. Sechs verschiedene Titelfarben auf Beige, alle zu niedrig im Kontrast (Aeromant-Lavendel ~2:1). Gesperrte Karten sind graue Flächen in einem anderen Material. Gestrichelte Rahmen + Pergament + Bandtitel = drei Rahmensprachen auf einem Screen. Beschreibungstext ist zentriert und dadurch ohne Lesekante.</div>
+        <div style="text-align:right;"><span style="font-family:Silkscreen,monospace; font-size:10px; background:#E8963C; color:#10141B; padding:3px 6px;">P2</span></div>
+      </div>
+
+      <div style="height:1px; background:#232C38;"></div>
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:16px 20px; align-items:start;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">Synergien &amp; Fahrplan<br /><span style="color:#5A6675;">synergien.png · roadmap.png</span></div>
+        <div style="color:#9EAAB9; font-size:14px;">Härtester Lesbarkeitsfehler im Spiel: T1/T2/T3-Zeilen in mittelbraun auf mittelbeige (~1.8:1) — die eigentliche Information verschwindet. Die Zebra-Zeile im Fahrplan ist dunkler als ihr eigener Text und verschluckt „Welle 2“. Default-Godot-Scrollbar in Grau. Trennlinien in vier verschiedenen Stärken. Elementzeilen tragen Farbe im Titel, aber die Werte rechts („T0 · 0 PKT → 4“) sind zusammengeklebt ohne Ausrichtung.</div>
+        <div style="text-align:right;"><span style="font-family:Silkscreen,monospace; font-size:10px; background:#E0524B; color:#10141B; padding:3px 6px;">P1</span></div>
+      </div>
+
+      <div style="height:1px; background:#232C38;"></div>
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:16px 20px; align-items:start;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">Pause-Menü<br /><span style="color:#5A6675;">pause_menü.png</span></div>
+        <div style="color:#9EAAB9; font-size:14px;">Die Button-Icons liegen <em style="color:#EDE6D6;">hinter</em> der Beschriftung — „FORT⬤SETZEN“ sieht wie ein Rendering-Bug aus. Ausgefranster Pergamentrahmen + Bandtitel + Mint-Buttons: drittes Rahmenvokabular. Kein Scrim über dem Spielfeld, das Panel liegt hart auf. Rot ist nur beim Beenden Füllfarbe, sonst nirgends — inkonsistente Semantik.</div>
+        <div style="text-align:right;"><span style="font-family:Silkscreen,monospace; font-size:10px; background:#E8963C; color:#10141B; padding:3px 6px;">P2</span></div>
+      </div>
+
+      <div style="height:1px; background:#232C38;"></div>
+      <div style="display:grid; grid-template-columns:200px 1fr 64px; gap:16px; padding:16px 20px; align-items:start;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">Hauptmenü<br /><span style="color:#5A6675;">hauptmenü.jpg</span></div>
+        <div style="color:#9EAAB9; font-size:14px;">Der beste Screen — Gold auf Fast-Schwarz, klare Mitte. Fehler: das türkise Bandtitel-Sprite und die Mint-Buttons brechen die Palette, die Icons sind Fremdkörper in fünf Stilen, und die Fläche ist leer statt atmosphärisch. Hier den Zielzustand definieren, nicht reparieren.</div>
+        <div style="text-align:right;"><span style="font-family:Silkscreen,monospace; font-size:10px; background:#5A6675; color:#EDE6D6; padding:3px 6px;">P3</span></div>
+      </div>
+    </div>
+  </section>
+  </sc-if>
+
+  <!-- ============ 2 ART DIRECTION ============ -->
+  <section style="display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">02</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">ART DIRECTION</h2>
+    </div>
+    <blockquote style="margin:0; border-left:4px solid #E0B44E; padding:20px 28px; background:#141A24; font-size:21px; line-height:1.5; color:#EDE6D6;">Kalter Obsidianstein mit Messingbeschlag als neutrale Fassung — alle Farbe gehört den acht Elementen.</blockquote>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
+      <div style="background:#141A24; border:2px solid #3A4658; padding:20px; display:flex; flex-direction:column; gap:8px;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#E0B44E;">VIBE 1</div>
+        <div style="font-weight:bold;">Arkanes Observatorium</div>
+        <p style="margin:0; color:#9EAAB9; font-size:14px;">Dunkler Stein, Messinginstrumente, Kristalle in Halterungen. Präzise, gebaut, kühl — die UI ist ein Apparat, kein Buch.</p>
+      </div>
+      <div style="background:#141A24; border:2px solid #3A4658; padding:20px; display:flex; flex-direction:column; gap:8px;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#E0B44E;">VIBE 2</div>
+        <div style="font-weight:bold;">Emailliertes Metallschild</div>
+        <p style="margin:0; color:#9EAAB9; font-size:14px;">Harte 2-px-Kanten, flache Farbflächen, kein Gradient, kein Blur. Wie eine gestanzte Tafel — passt exakt zur Pixelkante deiner Sprites.</p>
+      </div>
+      <div style="background:#141A24; border:2px solid #3A4658; padding:20px; display:flex; flex-direction:column; gap:8px;">
+        <div style="font-family:Silkscreen,monospace; font-size:12px; color:#E0B44E;">VIBE 3</div>
+        <div style="font-weight:bold;">Elementglas auf Schiefer</div>
+        <p style="margin:0; color:#9EAAB9; font-size:14px;">Referenzen im Geiste von <em>Into the Breach</em> (Klarheit, harte Panels), <em>Slay the Spire</em> (Rarity-/Farbcodierung), <em>Hades</em>-Menüs (Gold als Prestige, nicht als Chrom).</p>
+      </div>
+    </div>
+    <div style="border:2px solid #C79A3C; background:#141A24; padding:24px; display:flex; flex-direction:column; gap:12px;">
+      <div style="font-family:Silkscreen,monospace; font-size:12px; color:#E0B44E; letter-spacing:1px;">DIE DREI REGELN</div>
+      <ol style="margin:0; padding-left:22px; color:#EDE6D6; display:flex; flex-direction:column; gap:8px;">
+        <li><strong>Ein Material.</strong> Jedes Panel im Spiel ist derselbe dunkle Stein mit 2 px Messingrahmen. Kein Pergament, kein Türkis, keine ausgefransten Kanten, keine Bandtitel-Sprites.</li>
+        <li><strong>Gold ist knapp.</strong> Messing markiert nur: Fokus/Hover, Währung, Legendary, den einen Panel-Rahmen. Nie Flächenfüllung, nie Buttontext auf Gold ohne Grund. Wird Gold Standard-Chrom, ist es keine Auszeichnung mehr.</li>
+        <li><strong>Farbe = Bedeutung.</strong> Ein Farbton darf nur auftreten, wenn er Element, Rarity oder Status (Erfolg/Warnung/Gefahr) bedeutet. Dekorfarbe existiert nicht.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ 3 TOKENS ============ -->
+  <section style="display:flex; flex-direction:column; gap:32px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">03</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">DESIGN-TOKENS</h2>
+      <p style="margin:0; color:#9EAAB9; max-width:800px;">1:1 übernehmbar. Alle Kontraste gegen <code style="color:#EDE6D6;">BG_1 #141A24</code> geprüft: Primärtext 13.4:1, Sekundärtext 6.8:1, Akzent 8.9:1, jede Elementfarbe ≥ 5.5:1.</p>
+    </div>
+
+    <!-- Ebenen -->
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">HINTERGRUND-EBENEN (3 TIEFEN + SCRIM)</h3>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+        <div style="border:2px solid #3A4658; overflow:hidden;">
+          <div style="height:76px; background:#0A0D13;"></div>
+          <div style="padding:12px; background:#141A24; display:flex; flex-direction:column; gap:4px;"><div style="font-family:Silkscreen,monospace; font-size:11px;">BG_0 · #0A0D13</div><div style="color:#9EAAB9; font-size:13px;">Screen-Backdrop, Menühintergrund, Scrim-Basis</div></div>
+        </div>
+        <div style="border:2px solid #3A4658; overflow:hidden;">
+          <div style="height:76px; background:#141A24;"></div>
+          <div style="padding:12px; background:#141A24; display:flex; flex-direction:column; gap:4px;"><div style="font-family:Silkscreen,monospace; font-size:11px;">BG_1 · #141A24</div><div style="color:#9EAAB9; font-size:13px;">Panel-/Overlay-Grundfläche. Der Standard.</div></div>
+        </div>
+        <div style="border:2px solid #3A4658; overflow:hidden;">
+          <div style="height:76px; background:#1E2632;"></div>
+          <div style="padding:12px; background:#141A24; display:flex; flex-direction:column; gap:4px;"><div style="font-family:Silkscreen,monospace; font-size:11px;">BG_2 · #1E2632</div><div style="color:#9EAAB9; font-size:13px;">Sektion, Listenzeile, Panel-Header, Button-Fläche</div></div>
+        </div>
+        <div style="border:2px solid #3A4658; overflow:hidden;">
+          <div style="height:76px; background:#2A3442;"></div>
+          <div style="padding:12px; background:#141A24; display:flex; flex-direction:column; gap:4px;"><div style="font-family:Silkscreen,monospace; font-size:11px;">BG_3 · #2A3442</div><div style="color:#9EAAB9; font-size:13px;">Vertiefung: Item-Slot, Balken-Track, Eingabefeld</div></div>
+        </div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px;">Scrim über dem Spielfeld: <code style="color:#EDE6D6;">#060810</code> bei <strong style="color:#EDE6D6;">72 %</strong> — Pflicht bei jedem modalen Overlay (Pause, Synergien, Fahrplan, Wave-Upgrade). Nicht-modale Panels (Turm-Info) haben keinen Scrim.</div>
+    </div>
+
+    <!-- Rahmen + Text -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">RAHMEN</h3>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:14px;"><div style="width:44px; height:32px; background:#141A24; border:2px solid #C79A3C; flex:none;"></div><div style="font-family:Silkscreen,monospace; font-size:11px;">BORDER_BRASS #C79A3C</div><div style="color:#9EAAB9; font-size:13px;">Panel-Außenrahmen</div></div>
+          <div style="display:flex; align-items:center; gap:14px;"><div style="width:44px; height:32px; background:#141A24; border:2px solid #3A4658; flex:none;"></div><div style="font-family:Silkscreen,monospace; font-size:11px;">BORDER_SOFT #3A4658</div><div style="color:#9EAAB9; font-size:13px;">Karten, Slots, Trennlinien</div></div>
+          <div style="display:flex; align-items:center; gap:14px;"><div style="width:44px; height:32px; background:#141A24; border:2px solid #0A0D13; flex:none;"></div><div style="font-family:Silkscreen,monospace; font-size:11px;">BORDER_SHADE #0A0D13</div><div style="color:#9EAAB9; font-size:13px;">1 px innen unten/rechts = Tiefe ohne Blur</div></div>
+          <div style="display:flex; align-items:center; gap:14px;"><div style="width:44px; height:32px; background:#141A24; border:2px solid #E0B44E; flex:none;"></div><div style="font-family:Silkscreen,monospace; font-size:11px;">BORDER_FOCUS #E0B44E</div><div style="color:#9EAAB9; font-size:13px;">Hover/Fokus/Selektion</div></div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">TEXT &amp; STATUS</h3>
+        <div style="display:flex; flex-direction:column; gap:8px; background:#141A24; border:2px solid #3A4658; padding:14px;">
+          <div style="display:flex; justify-content:space-between;"><span style="color:#EDE6D6; font-family:Silkscreen,monospace; font-size:12px;">TEXT_PRIMARY</span><span style="color:#9EAAB9; font-size:13px;">#EDE6D6</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#9EAAB9; font-family:Silkscreen,monospace; font-size:12px;">TEXT_SECOND</span><span style="color:#9EAAB9; font-size:13px;">#9EAAB9</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#5A6675; font-family:Silkscreen,monospace; font-size:12px;">TEXT_DISABLED</span><span style="color:#9EAAB9; font-size:13px;">#5A6675</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#10141B; background:#E0B44E; padding:0 4px; font-family:Silkscreen,monospace; font-size:12px;">TEXT_ON_ACCENT</span><span style="color:#9EAAB9; font-size:13px;">#10141B</span></div>
+          <div style="height:1px; background:#232C38; margin:4px 0;"></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#E0B44E; font-family:Silkscreen,monospace; font-size:12px;">ACCENT (Messing)</span><span style="color:#9EAAB9; font-size:13px;">#E0B44E · hover #F2CB6E · press #B98E33</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#5FBF7A; font-family:Silkscreen,monospace; font-size:12px;">SUCCESS</span><span style="color:#9EAAB9; font-size:13px;">#5FBF7A</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#E8963C; font-family:Silkscreen,monospace; font-size:12px;">WARNING</span><span style="color:#9EAAB9; font-size:13px;">#E8963C</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:#E0524B; font-family:Silkscreen,monospace; font-size:12px;">DANGER</span><span style="color:#9EAAB9; font-size:13px;">#E0524B</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Elemente -->
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">ELEMENTFARBEN · 8 STÜCK</h3>
+      <p style="margin:0; color:#9EAAB9; max-width:820px; font-size:14px;">Konstruiert als Set bei gleicher Helligkeit/Sättigung (oklch L≈0.74, C≈0.15), nur der Hue variiert — dadurch harmonisch und alle gleich stark auf Dunkel. Erde und Dampf sind absichtlich <em>entsättigt</em>, damit sie nicht mit Messing bzw. Eis kollidieren. Regel: Elementfarbe erscheint als <strong style="color:#EDE6D6;">Textfarbe, 3-px-Kantenstreifen und 18 %-Flächenfüllung</strong> — nie als volle Panelfläche.</p>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #FF7A45;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#FF7A45;">FEUER</div><div style="font-size:13px; color:#9EAAB9;">#FF7A45</div><div style="height:22px; background:rgba(255,122,69,0.18); border:1px solid #FF7A45;"></div></div></div>
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #3E9BE8;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#3E9BE8;">WASSER</div><div style="font-size:13px; color:#9EAAB9;">#3E9BE8</div><div style="height:22px; background:rgba(62,155,232,0.18); border:1px solid #3E9BE8;"></div></div></div>
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #B5854F;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#B5854F;">ERDE</div><div style="font-size:13px; color:#9EAAB9;">#B5854F</div><div style="height:22px; background:rgba(181,133,79,0.18); border:1px solid #B5854F;"></div></div></div>
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #B9B6EE;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#B9B6EE;">LUFT</div><div style="font-size:13px; color:#9EAAB9;">#B9B6EE</div><div style="height:22px; background:rgba(185,182,238,0.18); border:1px solid #B9B6EE;"></div></div></div>
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #79E1E6;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#79E1E6;">EIS</div><div style="font-size:13px; color:#9EAAB9;">#79E1E6</div><div style="height:22px; background:rgba(121,225,230,0.18); border:1px solid #79E1E6;"></div></div></div>
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #E24545;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#E24545;">LAVA</div><div style="font-size:13px; color:#9EAAB9;">#E24545</div><div style="height:22px; background:rgba(226,69,69,0.18); border:1px solid #E24545;"></div></div></div>
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #67CC63;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#67CC63;">NATUR</div><div style="font-size:13px; color:#9EAAB9;">#67CC63</div><div style="height:22px; background:rgba(103,204,99,0.18); border:1px solid #67CC63;"></div></div></div>
+        <div style="border:2px solid #3A4658; background:#141A24; border-left:6px solid #9BB6C2;"><div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><div style="font-family:Silkscreen,monospace; font-size:13px; color:#9BB6C2;">DAMPF</div><div style="font-size:13px; color:#9EAAB9;">#9BB6C2</div><div style="height:22px; background:rgba(155,182,194,0.18); border:1px solid #9BB6C2;"></div></div></div>
+      </div>
+      <div style="background:#1E2632; border-left:4px solid #E8963C; padding:14px 18px; color:#9EAAB9; font-size:14px;"><strong style="color:#EDE6D6;">Kollisionsschutz:</strong> Lava (#E24545) und Danger (#E0524B) liegen nah beieinander — Danger erscheint nie als Elementchip, Lava nie als Buttonfläche, deshalb treffen sie sich nicht. Erde (#B5854F) ist um 0.12 L dunkler und um 30° röter als Messing (#E0B44E) und trägt zusätzlich immer ihr Sprite-Icon.</div>
+    </div>
+
+    <!-- Rarity -->
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">RARITY · COMMON → LEGENDARY</h3>
+      <p style="margin:0; color:#9EAAB9; font-size:14px; max-width:820px;">Bewusst aus dem Elementset abgeleitet, damit nichts fremd wirkt: Grau = Sekundärtext, Grün = Natur, Blau = Wasser, Violett ist der einzige Hue, den kein Element belegt, und Legendary ist das Messing selbst — so bleibt Gold Prestige.</p>
+      <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px;">
+        <div style="background:#141A24; border:2px solid #9EAAB9; padding:14px; display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:12px; color:#9EAAB9;">COMMON</div><div style="color:#9EAAB9; font-size:13px;">#9EAAB9</div></div>
+        <div style="background:#141A24; border:2px solid #67CC63; padding:14px; display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:12px; color:#67CC63;">UNCOMMON</div><div style="color:#9EAAB9; font-size:13px;">#67CC63</div></div>
+        <div style="background:#141A24; border:2px solid #3E9BE8; padding:14px; display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:12px; color:#3E9BE8;">RARE</div><div style="color:#9EAAB9; font-size:13px;">#3E9BE8</div></div>
+        <div style="background:#141A24; border:2px solid #B36BE8; padding:14px; display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:12px; color:#B36BE8;">EPIC</div><div style="color:#9EAAB9; font-size:13px;">#B36BE8</div></div>
+        <div style="background:#141A24; border:2px solid #E0B44E; padding:14px; display:flex; flex-direction:column; gap:6px; box-shadow:0 0 0 1px #6B5522 inset;"><div style="font-family:Silkscreen,monospace; font-size:12px; color:#E0B44E;">LEGENDARY</div><div style="color:#9EAAB9; font-size:13px;">#E0B44E</div></div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px;">Rarity zeigt sich als <strong style="color:#EDE6D6;">Slot-Rahmenfarbe (2 px) + Namensfarbe im Tooltip</strong>. Legendary zusätzlich: 1-px-Innenlinie <code style="color:#EDE6D6;">#6B5522</code> und ein 4-px-Ecken-L in <code style="color:#EDE6D6;">#F2CB6E</code>. Kein Partikel, kein Pulsieren unter Legendary.</div>
+    </div>
+
+    <!-- Typo -->
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">TYPO-SKALA · 5 STUFEN @1920×1080</h3>
+      <p style="margin:0; color:#9EAAB9; font-size:14px; max-width:820px;">Schriften (alle frei, keine Lizenzfragen): <strong style="color:#EDE6D6;">Pixel Operator</strong> + <strong style="color:#EDE6D6;">Pixel Operator Bold</strong> (CC0, native 16 px) für alles Textliche, <strong style="color:#EDE6D6;">Silkscreen</strong> (OFL, native 8 px) oder <strong style="color:#EDE6D6;">m6x11</strong> für Displaytitel. Nur ganzzahlige Vielfache der Nativgröße verwenden, sonst matscht das Raster.</p>
+      <div style="border:2px solid #3A4658; background:#141A24;">
+        <div style="display:grid; grid-template-columns:150px 90px 1fr 200px; gap:16px; padding:10px 18px; background:#1E2632; font-family:Silkscreen,monospace; font-size:10px; letter-spacing:1px; color:#9EAAB9;"><div>STUFE</div><div>GRÖSSE</div><div>BEISPIEL</div><div>EINSATZ</div></div>
+        <div style="display:grid; grid-template-columns:150px 90px 1fr 200px; gap:16px; padding:14px 18px; align-items:center; border-top:1px solid #232C38;"><div style="font-family:Silkscreen,monospace; font-size:11px;">DISPLAY</div><div style="color:#9EAAB9; font-size:13px;">48 / 1.1</div><div style="font-family:Silkscreen,monospace; font-size:32px; color:#E0B44E; letter-spacing:1px;">ARCANE</div><div style="color:#9EAAB9; font-size:13px;">Spieltitel, Sieg/Niederlage</div></div>
+        <div style="display:grid; grid-template-columns:150px 90px 1fr 200px; gap:16px; padding:14px 18px; align-items:center; border-top:1px solid #232C38;"><div style="font-family:Silkscreen,monospace; font-size:11px;">TITLE</div><div style="color:#9EAAB9; font-size:13px;">32 / 1.2</div><div style="font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">FAHRPLAN</div><div style="color:#9EAAB9; font-size:13px;">Panel-Header (1× pro Panel)</div></div>
+        <div style="display:grid; grid-template-columns:150px 90px 1fr 200px; gap:16px; padding:14px 18px; align-items:center; border-top:1px solid #232C38;"><div style="font-family:Silkscreen,monospace; font-size:11px;">SECTION</div><div style="color:#9EAAB9; font-size:13px;">24 / 1.3</div><div style="font-family:Silkscreen,monospace; font-size:18px; color:#EDE6D6; letter-spacing:1px;">AUSRÜSTUNG</div><div style="color:#9EAAB9; font-size:13px;">Sektionstitel, Buttonlabel, Werte</div></div>
+        <div style="display:grid; grid-template-columns:150px 90px 1fr 200px; gap:16px; padding:14px 18px; align-items:center; border-top:1px solid #232C38;"><div style="font-family:Silkscreen,monospace; font-size:11px;">BODY</div><div style="color:#9EAAB9; font-size:13px;">20 / 1.45</div><div style="font-family:Silkscreen,monospace; font-size:15px; color:#EDE6D6;">Schaden 32 (+2)</div><div style="color:#9EAAB9; font-size:13px;">Stats, Beschreibungen, Listen</div></div>
+        <div style="display:grid; grid-template-columns:150px 90px 1fr 200px; gap:16px; padding:14px 18px; align-items:center; border-top:1px solid #232C38;"><div style="font-family:Silkscreen,monospace; font-size:11px;">MICRO</div><div style="color:#9EAAB9; font-size:13px;">16 / 1.4</div><div style="font-family:Silkscreen,monospace; font-size:12px; color:#9EAAB9; letter-spacing:2px;">ESC · FORTSETZEN</div><div style="color:#9EAAB9; font-size:13px;">Labels, Hotkeys, Fußnoten</div></div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px;"><strong style="color:#EDE6D6;">Regeln:</strong> nur MICRO und SECTION dürfen ALL CAPS + <code style="color:#EDE6D6;">letter_spacing 2</code>; BODY nie gesperrt und nie zentriert (immer linksbündig, Werte rechtsbündig). Untergrenze 16 px — bei 1280×720 (Faktor 0.667) landet das bei ~11 px und bleibt gerade lesbar. <code style="color:#EDE6D6;">content_scale_mode = canvas_items</code>, <code style="color:#EDE6D6;">aspect = keep</code>, Basis 1920×1080; Font-Mipmaps aus, Filter aus.</div>
+    </div>
+
+    <!-- Spacing / Radius / Elevation -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">SPACING · 4ER-RASTER</h3>
+        <div style="display:flex; flex-direction:column; gap:8px; background:#141A24; border:2px solid #3A4658; padding:16px;">
+          <div style="display:flex; align-items:center; gap:12px;"><div style="width:4px; height:14px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:11px; width:64px;">SP_1 4</span><span style="color:#9EAAB9; font-size:13px;">Icon↔Text, Innenabstand Chip</span></div>
+          <div style="display:flex; align-items:center; gap:12px;"><div style="width:8px; height:14px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:11px; width:64px;">SP_2 8</span><span style="color:#9EAAB9; font-size:13px;">Zeilenabstand in Listen, Gap in Slot-Grid</span></div>
+          <div style="display:flex; align-items:center; gap:12px;"><div style="width:12px; height:14px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:11px; width:64px;">SP_3 12</span><span style="color:#9EAAB9; font-size:13px;">Button-Innenabstand vertikal</span></div>
+          <div style="display:flex; align-items:center; gap:12px;"><div style="width:16px; height:14px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:11px; width:64px;">SP_4 16</span><span style="color:#9EAAB9; font-size:13px;">Sektionsabstand, Karten-Padding</span></div>
+          <div style="display:flex; align-items:center; gap:12px;"><div style="width:24px; height:14px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:11px; width:64px;">SP_5 24</span><span style="color:#9EAAB9; font-size:13px;">Panel-Padding (Standard)</span></div>
+          <div style="display:flex; align-items:center; gap:12px;"><div style="width:32px; height:14px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:11px; width:64px;">SP_6 32</span><span style="color:#9EAAB9; font-size:13px;">Blockabstand großer Overlays</span></div>
+          <div style="display:flex; align-items:center; gap:12px;"><div style="width:48px; height:14px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:11px; width:64px;">SP_7 48</span><span style="color:#9EAAB9; font-size:13px;">Screenrand, Menü-Rhythmus</span></div>
+        </div>
+        <div style="color:#9EAAB9; font-size:14px;">Kein Wert außerhalb der Skala. Panel-Padding ist <em style="color:#EDE6D6;">immer</em> 24 — das allein räumt Inventar, Turm-Info und Fahrplan auf eine Linie.</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E; letter-spacing:1px;">KANTEN, TIEFE, GLOW</h3>
+        <div style="background:#141A24; border:2px solid #3A4658; padding:16px; display:flex; flex-direction:column; gap:10px; color:#9EAAB9; font-size:14px;">
+          <div><strong style="color:#EDE6D6;">Radius: 0 px. Überall.</strong> Pixel-Art und abgerundete Ecken schließen sich aus; Rundungen sind der Hauptgrund für den „billig“-Eindruck. Ausnahme: keine.</div>
+          <div><strong style="color:#EDE6D6;">Border-Breiten:</strong> 2 px Panel/Button/Karte · 1 px Trennlinie und Innenschattenlinie · 3 px Elementkante links · 4 px Fokusrahmen bei Selektion.</div>
+          <div><strong style="color:#EDE6D6;">Schatten:</strong> nur hart, nie weich. <code style="color:#EDE6D6;">shadow_size 0</code>, stattdessen 4-px-Offset-Rechteck in <code style="color:#EDE6D6;">#060810</code> @ 55 % hinter Overlays. Godot: <code style="color:#EDE6D6;">shadow_color = Color("#06081080"); shadow_offset = Vector2(4,4)</code>.</div>
+          <div><strong style="color:#EDE6D6;">Glow:</strong> kein Blur-Glow in der UI. „Leuchten“ = 2-px-Rahmen in Element-/Akzentfarbe + 18 %-Flächenfüllung. Echter Bloom bleibt dem WorldEnvironment für Projektile vorbehalten.</div>
+          <div><strong style="color:#EDE6D6;">Panel-Kantenprofil</strong> (der Messingbeschlag, ein StyleBox für alles): 2 px <code style="color:#EDE6D6;">#C79A3C</code> außen, 1 px <code style="color:#EDE6D6;">#6B5522</code> innen, Fläche <code style="color:#EDE6D6;">#141A24</code>.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4 GDSCRIPT ============ -->
+  <sc-if value="{{ showGdscript }}" hint-placeholder-val="{{ true }}">
+  <section style="display:flex; flex-direction:column; gap:20px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">04</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">ui_theme.gd</h2>
+      <p style="margin:0; color:#9EAAB9; max-width:800px;">Autoload. Alle Farben als Konstanten, StyleBoxen als Factory-Funktionen — damit du nie wieder eine Farbe im Editor per Hand setzt.</p>
+    </div>
+    <pre style="margin:0; background:#0A0D13; border:2px solid #3A4658; border-left:4px solid #E0B44E; padding:22px; overflow-x:auto; font-family:'SFMono-Regular',Consolas,monospace; font-size:12.5px; line-height:1.65; color:#C6D0DC;">extends Node
+# ═══ ui_theme.gd · Autoload "UI" ═══════════════════════════════
+
+# ── Ebenen ────────────────────────────────────────────────────
+const BG_0        := Color("0A0D13")   # Screen-Backdrop
+const BG_1        := Color("141A24")   # Panel
+const BG_2        := Color("1E2632")   # Sektion / Row / Button
+const BG_3        := Color("2A3442")   # Slot / Track / Well
+const SCRIM       := Color("060810B8") # 72 % über Spielfeld
+
+# ── Rahmen ────────────────────────────────────────────────────
+const BORDER_BRASS  := Color("C79A3C")
+const BORDER_SOFT   := Color("3A4658")
+const BORDER_SHADE  := Color("0A0D13")
+const BORDER_FOCUS  := Color("E0B44E")
+const BRASS_INNER   := Color("6B5522")
+
+# ── Text ──────────────────────────────────────────────────────
+const TEXT_PRIMARY   := Color("EDE6D6")
+const TEXT_SECOND    := Color("9EAAB9")
+const TEXT_DISABLED  := Color("5A6675")
+const TEXT_ON_ACCENT := Color("10141B")
+
+# ── Semantik ──────────────────────────────────────────────────
+const ACCENT       := Color("E0B44E")
+const ACCENT_HOVER := Color("F2CB6E")
+const ACCENT_PRESS := Color("B98E33")
+const SUCCESS      := Color("5FBF7A")
+const WARNING      := Color("E8963C")
+const DANGER       := Color("E0524B")
+
+# ── Elemente ──────────────────────────────────────────────────
+const ELEMENT := {
+    "feuer":  Color("FF7A45"),
+    "wasser": Color("3E9BE8"),
+    "erde":   Color("B5854F"),
+    "luft":   Color("B9B6EE"),
+    "eis":    Color("79E1E6"),
+    "lava":   Color("E24545"),
+    "natur":  Color("67CC63"),
+    "dampf":  Color("9BB6C2"),
+    "neutral":Color("9EAAB9"),
+}
+func el(id: String) -> Color:
+    return ELEMENT.get(id, ELEMENT["neutral"])
+func el_fill(id: String) -> Color:   # 18 % Flächenfüllung
+    var c := el(id); c.a = 0.18; return c
+
+# ── Rarity ────────────────────────────────────────────────────
+const RARITY := {
+    0: Color("9EAAB9"), # Common
+    1: Color("67CC63"), # Uncommon
+    2: Color("3E9BE8"), # Rare
+    3: Color("B36BE8"), # Epic
+    4: Color("E0B44E"), # Legendary
+}
+
+# ── Typo (px @1920×1080) ──────────────────────────────────────
+const FS_DISPLAY := 48
+const FS_TITLE   := 32
+const FS_SECTION := 24
+const FS_BODY    := 20
+const FS_MICRO   := 16
+
+# ── Spacing ───────────────────────────────────────────────────
+const SP_1 := 4
+const SP_2 := 8
+const SP_3 := 12
+const SP_4 := 16
+const SP_5 := 24
+const SP_6 := 32
+const SP_7 := 48
+
+# ── StyleBox-Fabrik ───────────────────────────────────────────
+func _box(fill: Color, border: Color, w: int, pad: int) -> StyleBoxFlat:
+    var s := StyleBoxFlat.new()
+    s.bg_color = fill
+    s.set_border_width_all(w)
+    s.border_color = border
+    s.set_corner_radius_all(0)          # nie runden
+    s.content_margin_left = pad
+    s.content_margin_right = pad
+    s.content_margin_top = pad
+    s.content_margin_bottom = pad
+    s.anti_aliasing = false
+    return s
+
+func panel() -> StyleBoxFlat:
+    var s := _box(BG_1, BORDER_BRASS, 2, SP_5)
+    s.shadow_color = Color("06081080")
+    s.shadow_size = 0
+    s.shadow_offset = Vector2(4, 4)
+    return s
+
+func section() -> StyleBoxFlat:    return _box(BG_2, BORDER_SOFT, 1, SP_4)
+func slot() -> StyleBoxFlat:       return _box(BG_3, BORDER_SOFT, 2, SP_1)
+func slot_rarity(r: int) -> StyleBoxFlat: return _box(BG_3, RARITY[r], 2, SP_1)
+
+func btn_primary(state := "normal") -> StyleBoxFlat:
+    var fill := BG_2
+    var border := BORDER_BRASS
+    match state:
+        "hover":    border = ACCENT_HOVER
+        "pressed":  fill = ACCENT_PRESS; border = ACCENT_PRESS
+        "disabled": fill = BG_1; border = BORDER_SOFT
+    var s := _box(fill, border, 2, SP_3)
+    s.content_margin_left = SP_5
+    s.content_margin_right = SP_5
+    return s
+
+func btn_secondary(state := "normal") -> StyleBoxFlat:
+    var border := BORDER_SOFT
+    if state == "hover": border = BORDER_FOCUS
+    var s := _box(Color(0, 0, 0, 0), border, 2, SP_3)
+    s.content_margin_left = SP_5
+    s.content_margin_right = SP_5
+    if state == "pressed": s.bg_color = BG_2
+    return s
+
+func btn_danger(state := "normal") -> StyleBoxFlat:
+    var s := _box(BG_2, DANGER, 2, SP_3)
+    if state == "hover":   s.bg_color = Color("3A1F1F")
+    if state == "pressed": s.bg_color = DANGER
+    s.content_margin_left = SP_5
+    s.content_margin_right = SP_5
+    return s
+
+func element_card(id: String) -> StyleBoxFlat:
+    var s := _box(BG_2, BORDER_SOFT, 2, SP_4)
+    s.border_width_left = 3
+    s.border_color = el(id)     # Godot: pro-Kante-Farbe via zweitem Box-Layer
+    return s
+
+func bar(track: bool, tint: Color) -> StyleBoxFlat:
+    return _box(BG_3, BORDER_SHADE, 1, 0) if track else _box(tint, tint, 0, 0)</pre>
+    <div style="color:#9EAAB9; font-size:14px;">Anwendung: ein <code style="color:#EDE6D6;">Theme</code>-Resource baut du einmal in <code style="color:#EDE6D6;">_ready()</code> aus diesen Boxen (<code style="color:#EDE6D6;">theme.set_stylebox("normal","Button",UI.btn_primary())</code> usw.) und weist es der Root-Control zu — alles darunter erbt. Damit ist Phase 1 ein reiner Autoload-Job ohne Szenenumbau.</div>
+  </section>
+  </sc-if>
+
+  <!-- ============ 5 KOMPONENTEN ============ -->
+  <section style="display:flex; flex-direction:column; gap:32px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">05</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">KOMPONENTEN</h2>
+      <p style="margin:0; color:#9EAAB9; max-width:800px;">Alle Beispiele unten sind maßstäblich in Tokens gebaut (hier bei ~75 % der 1920er-Größe abgebildet).</p>
+    </div>
+
+    <!-- Panel -->
+    <div style="display:grid; grid-template-columns:1.1fr 1fr; gap:28px; align-items:start;">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E;">PANEL / OVERLAY</h3>
+        <div style="background:#141A24; border:2px solid #C79A3C; box-shadow:4px 4px 0 rgba(6,8,16,0.55);">
+          <div style="background:#1E2632; border-bottom:1px solid #6B5522; padding:12px 18px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-family:Silkscreen,monospace; font-size:16px; color:#EDE6D6;">FAHRPLAN</div>
+            <div style="font-family:Silkscreen,monospace; font-size:11px; color:#9EAAB9; letter-spacing:1px;">WELLE 1–12</div>
+          </div>
+          <div style="padding:18px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#1E2632; padding:8px 12px; border-left:3px solid #FF7A45;"><span style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">WELLE 5</span><span style="font-family:Silkscreen,monospace; font-size:11px; color:#E0524B;">BOSS</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-left:3px solid #3A4658;"><span style="font-family:Silkscreen,monospace; font-size:12px; color:#9EAAB9;">WELLE 6</span><span style="font-family:Silkscreen,monospace; font-size:11px; color:#9EAAB9;">UPGRADE</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#1E2632; padding:8px 12px; border-left:3px solid #3A4658;"><span style="font-family:Silkscreen,monospace; font-size:12px; color:#9EAAB9;">WELLE 7</span><span style="font-family:Silkscreen,monospace; font-size:11px; color:#9EAAB9;">ABILITY</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px; display:flex; flex-direction:column; gap:10px;">
+        <div><strong style="color:#EDE6D6;">Aufbau:</strong> Header-Leiste (BG_2, 1 px <code>#6B5522</code> unten, Höhe 56, Padding 24/16) mit TITLE links und MICRO-Kontext rechts → Content (Padding 24, Gaps 16) → optionale Footer-Leiste mit Buttons rechtsbündig.</div>
+        <div><strong style="color:#EDE6D6;">Tokens:</strong> BG_1 Fläche, 2 px BORDER_BRASS, harter Schatten 4/4, Radius 0. Modal zusätzlich SCRIM.</div>
+        <div><strong style="color:#EDE6D6;">Breiten (fix, nicht ad hoc):</strong> S 480 · M 720 · L 1040 · XL 1440. Höhe max 78 % der Viewporthöhe, dann scrollen.</div>
+        <div><strong style="color:#EDE6D6;">Zebra-Fix:</strong> Zeilenhinterlegung ist BG_2 (heller als Panel), niemals dunkler als der Text. Ausgewählte Zeile: BG_2 + 3 px Elementkante links.</div>
+        <div><strong style="color:#EDE6D6;">Scrollbar:</strong> 8 px breit, Track BG_1, Griff BORDER_SOFT, Hover ACCENT, Radius 0.</div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E;">BUTTONS</h3>
+      <div style="background:#141A24; border:2px solid #3A4658; padding:24px; display:grid; grid-template-columns:repeat(4,1fr); gap:20px;">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">NORMAL</div>
+          <div style="background:#1E2632; border:2px solid #C79A3C; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">STARTEN</div>
+          <div style="border:2px solid #3A4658; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#9EAAB9;">ZURÜCK</div>
+          <div style="background:#1E2632; border:2px solid #E0524B; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#E0524B;">VERKAUFEN</div>
+          <div style="width:44px; height:44px; background:#1E2632; border:2px solid #3A4658; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:14px; color:#9EAAB9;">i</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="font-family:Silkscreen,monospace; font-size:10px; color:#E0B44E; letter-spacing:1px;">HOVER</div>
+          <div style="background:#1E2632; border:2px solid #F2CB6E; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#F2CB6E;">STARTEN</div>
+          <div style="border:2px solid #E0B44E; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">ZURÜCK</div>
+          <div style="background:#3A1F1F; border:2px solid #E0524B; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">VERKAUFEN</div>
+          <div style="width:44px; height:44px; background:#1E2632; border:2px solid #E0B44E; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E;">i</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">PRESSED</div>
+          <div style="background:#B98E33; border:2px solid #B98E33; padding:13px 18px 9px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#10141B;">STARTEN</div>
+          <div style="background:#1E2632; border:2px solid #E0B44E; padding:13px 18px 9px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">ZURÜCK</div>
+          <div style="background:#E0524B; border:2px solid #E0524B; padding:13px 18px 9px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#10141B;">VERKAUFEN</div>
+          <div style="width:44px; height:44px; background:#E0B44E; border:2px solid #E0B44E; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:14px; color:#10141B;">i</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="font-family:Silkscreen,monospace; font-size:10px; color:#5A6675; letter-spacing:1px;">DISABLED</div>
+          <div style="background:#141A24; border:2px solid #3A4658; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#5A6675;">STARTEN</div>
+          <div style="border:2px dashed #2A3442; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#5A6675;">ZURÜCK</div>
+          <div style="background:#141A24; border:2px solid #3A4658; padding:11px 18px; text-align:center; font-family:Silkscreen,monospace; font-size:13px; color:#5A6675;">VERKAUFEN</div>
+          <div style="width:44px; height:44px; background:#141A24; border:2px solid #2A3442; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:14px; color:#5A6675;">i</div>
+        </div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px; display:flex; flex-direction:column; gap:8px;">
+        <div><strong style="color:#EDE6D6;">Geometrie:</strong> Höhe 56 (Icon-Button 56×56), Padding 24 horizontal / 12 vertikal, Label SECTION 24 ALL CAPS, letter_spacing 1. Mindest-Trefferfläche 44 px auch bei 1280.</div>
+        <div><strong style="color:#EDE6D6;">Hierarchie-Regel:</strong> <em style="color:#EDE6D6;">Ein</em> Primär-Button pro Panel — der mit Messingrahmen. Alles andere ist Sekundär (nur Umriss). Destruktives (Beenden, Verkaufen) ist Danger-Umriss, nie gefüllt im Ruhezustand. Das repariert sofort Charakterauswahl und Turm-Info.</div>
+        <div><strong style="color:#EDE6D6;">Pressed</strong> verschiebt den Text 2 px nach unten statt einen Schatten zu animieren — billiger und pixelgenau. Kein Bandtitel-Sprite, keine Doppel-Umrandung.</div>
+        <div><strong style="color:#EDE6D6;">Icon &amp; Label</strong> liegen nie übereinander: HBox mit Gap 8, Icon 24×24 links, Label zentriert im Rest. (Behebt den Pause-Menü-Bug.)</div>
+      </div>
+    </div>
+
+    <!-- Karten -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E;">KARTEN · TURM / CHARAKTER / ITEM-SLOT</h3>
+      <div style="display:grid; grid-template-columns:220px 260px 1fr; gap:20px; align-items:start;">
+        <!-- Turmkarte -->
+        <div style="background:#1E2632; border:2px solid #3A4658; border-left:3px solid #FF7A45;">
+          <div style="padding:12px; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">SCHWERT</span><span style="font-family:Silkscreen,monospace; font-size:11px; color:#E0B44E;">45</span></div>
+            <div style="height:64px; background:#2A3442; border:1px solid #0A0D13; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:9px; color:#5A6675; letter-spacing:1px;">SPRITE 64²</div>
+            <div style="display:flex; gap:6px;"><span style="font-family:Silkscreen,monospace; font-size:9px; color:#FF7A45; background:rgba(255,122,69,0.18); border:1px solid #FF7A45; padding:2px 5px;">FEUER</span><span style="font-family:Silkscreen,monospace; font-size:9px; color:#9EAAB9; border:1px solid #3A4658; padding:2px 5px;">NAHKAMPF</span></div>
+          </div>
+        </div>
+        <!-- Charakterkarte -->
+        <div style="background:#1E2632; border:2px solid #E0B44E;">
+          <div style="padding:14px; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px;"><div style="width:40px; height:40px; background:rgba(255,122,69,0.18); border:2px solid #FF7A45;"></div><div style="display:flex; flex-direction:column;"><span style="font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">PYROMANT</span><span style="font-family:Silkscreen,monospace; font-size:10px; color:#FF7A45; letter-spacing:1px;">FEUER</span></div></div>
+            <div style="height:1px; background:#3A4658;"></div>
+            <div style="display:flex; flex-direction:column; gap:4px;"><span style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">FÄHIGKEIT</span><span style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">Meteor</span></div>
+            <div style="display:flex; flex-direction:column; gap:4px;"><span style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">PASSIV</span><span style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6; line-height:1.5;">Brenneffekte +20 % Schaden</span></div>
+          </div>
+        </div>
+        <!-- Item slots -->
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="display:grid; grid-template-columns:repeat(5,64px); gap:8px;">
+            <div style="width:64px; height:64px; background:#2A3442; border:2px solid #3A4658;"></div>
+            <div style="width:64px; height:64px; background:#2A3442; border:2px solid #67CC63;"></div>
+            <div style="width:64px; height:64px; background:#2A3442; border:2px solid #3E9BE8;"></div>
+            <div style="width:64px; height:64px; background:#2A3442; border:2px solid #B36BE8;"></div>
+            <div style="width:64px; height:64px; background:#2A3442; border:2px solid #E0B44E; box-shadow:inset 0 0 0 1px #6B5522;"></div>
+          </div>
+          <div style="color:#9EAAB9; font-size:14px;">Slot 64×64, Gap 8, Fläche BG_3, Rahmen = Rarity. Leer = BORDER_SOFT. Ausgewählt = 4 px ACCENT. Nicht ausrüstbar = 40 % Deckkraft + kein Rahmen. Menge unten rechts in MICRO, Cooldown-Overlay als vertikale BG_0-Maske @ 60 %.</div>
+        </div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px; display:flex; flex-direction:column; gap:8px;">
+        <div><strong style="color:#EDE6D6;">Turmkarte (Shop):</strong> 160×200, Padding 16, 3 px Elementkante links, Preis rechts oben in ACCENT — <em style="color:#EDE6D6;">nicht bezahlbar</em> = Preis DANGER, Karte 55 % Deckkraft, kein Hover. Hover: Rahmen ACCENT + Karte 2 px nach oben. Ausgewählt: 4 px ACCENT + Elementfüllung 18 %.</div>
+        <div><strong style="color:#EDE6D6;">Charakterkarte:</strong> 320×300, Padding 24; gesperrt = dasselbe Panel-Material, Inhalt TEXT_DISABLED, Rahmen BORDER_SOFT gestrichelt, <em style="color:#EDE6D6;">nie</em> eine graue Fläche in fremdem Stil. Ausgewählt = 2 px ACCENT (wie abgebildet). Beschreibung linksbündig.</div>
+      </div>
+    </div>
+
+    <!-- Bars, Tooltip, Ressourcen -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:start;">
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E;">FORTSCHRITTSBALKEN</h3>
+        <div style="background:#141A24; border:2px solid #3A4658; padding:18px; display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;"><span>HP · BASTION</span><span style="color:#EDE6D6;">14 / 20</span></div>
+            <div style="height:12px; background:#2A3442; border:1px solid #0A0D13;"><div style="width:70%; height:100%; background:#5FBF7A;"></div></div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;"><span>WELLE 3 / 12</span><span style="color:#EDE6D6;">8 GEGNER</span></div>
+            <div style="height:12px; background:#2A3442; border:1px solid #0A0D13;"><div style="width:34%; height:100%; background:#E0B44E;"></div></div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;"><span>METEOR · COOLDOWN</span><span style="color:#79E1E6;">4.2 S</span></div>
+            <div style="height:8px; background:#2A3442; border:1px solid #0A0D13;"><div style="width:55%; height:100%; background:#79E1E6;"></div></div>
+          </div>
+        </div>
+        <div style="color:#9EAAB9; font-size:14px; display:flex; flex-direction:column; gap:8px;">
+          <div><strong style="color:#EDE6D6;">Aufbau:</strong> Label-Zeile (MICRO, links Name / rechts Wert) über dem Balken. Track BG_3 mit 1 px BORDER_SHADE, Füllung flach ohne Gradient, Radius 0, kein Rahmen auf der Füllung.</div>
+          <div><strong style="color:#EDE6D6;">Höhen:</strong> HP 12 · Wave 12 · Cooldown 8 · XP/Aether 8. <strong style="color:#EDE6D6;">Farben:</strong> HP SUCCESS → &lt;50 % WARNING → &lt;25 % DANGER (harter Wechsel, kein Verlauf). Wave ACCENT. Cooldown Elementfarbe der Ability. Schaden-Vorschau als DANGER @ 40 % hinter der HP-Füllung.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <h3 style="margin:0; font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E;">TOOLTIP &amp; RESSOURCEN-ANZEIGE</h3>
+        <div style="background:#141A24; border:2px solid #C79A3C; box-shadow:4px 4px 0 rgba(6,8,16,0.55); max-width:340px;">
+          <div style="padding:12px 16px; border-bottom:1px solid #3A4658; display:flex; justify-content:space-between; align-items:baseline;"><span style="font-family:Silkscreen,monospace; font-size:13px; color:#B36BE8;">FROSTSIEGEL</span><span style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">EPIC</span></div>
+          <div style="padding:12px 16px; display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:12px;"><span style="color:#9EAAB9;">Verlangsamung</span><span style="color:#5FBF7A;">+15 %</span></div>
+            <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:12px;"><span style="color:#9EAAB9;">Angriffe/s</span><span style="color:#E0524B;">−0.2</span></div>
+            <div style="height:1px; background:#232C38;"></div>
+            <div style="font-family:Silkscreen,monospace; font-size:11px; color:#79E1E6; line-height:1.6;">Synergie: Eis + Wasser → Einfrieren</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; background:#141A24; border:2px solid #C79A3C; padding:8px 12px; align-items:center; width:max-content;">
+          <div style="display:flex; align-items:center; gap:6px; padding-right:10px; border-right:1px solid #3A4658;"><div style="width:16px; height:16px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">210</span></div>
+          <div style="display:flex; align-items:center; gap:6px; padding-right:10px; border-right:1px solid #3A4658;"><div style="width:16px; height:16px; background:#5FBF7A;"></div><span style="font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">14</span></div>
+          <div style="display:flex; align-items:center; gap:6px;"><div style="width:16px; height:16px; background:#B36BE8;"></div><span style="font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">0<span style="color:#5A6675;">/12</span></span></div>
+        </div>
+        <div style="color:#9EAAB9; font-size:14px; display:flex; flex-direction:column; gap:8px;">
+          <div><strong style="color:#EDE6D6;">Tooltip:</strong> max. 420 breit, Padding 16, Header mit Rarity-farbigem Namen + Rarity-Label rechts. Werte immer rechtsbündig, Vorzeichen farbig (SUCCESS/DANGER). Synergiehinweis unten in Elementfarbe. Erscheint 120 ms verzögert, ohne Animation, mit 12 px Cursorabstand, klemmt an den Bildschirmrand.</div>
+          <div><strong style="color:#EDE6D6;">Ressourcen-Pod:</strong> eine einzige Zeile, Icons alle 16×16 auf gemeinsamer Baseline, Zahlen BODY tabellarisch, 1-px-Trenner zwischen den Posten. Änderung: 200 ms Aufblitzen der Zahl in ACCENT (Gewinn) bzw. DANGER (Verlust) — <em style="color:#EDE6D6;">niemals</em> Text ohne Panel auf dem Spielfeld.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6 HUD LAYOUT ============ -->
+  <section style="display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">06</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">HUD-LAYOUT</h2>
+      <p style="margin:0; color:#9EAAB9; max-width:820px;">Prinzip: <strong style="color:#EDE6D6;">zwei Anker, keine Ecken.</strong> Alles Dauerhafte sitzt in einer 64-px-Topbar und einer 168-px-Bottombar; die Mitte gehört dem Spielfeld. Nichts schwebt frei im Feld, nichts liegt in der linken oder rechten Ecke.</p>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+      <div style="background:#141A24; border-left:4px solid #E0524B; padding:16px;"><div style="font-family:Silkscreen,monospace; font-size:11px; color:#E0524B; letter-spacing:1px;">SOFORT LESBAR</div><div style="color:#9EAAB9; font-size:14px; margin-top:8px;">Bastion-HP, aktuelle Welle + Fortschritt, Gold. Diese drei dürfen nie kleiner als BODY 20 sein und nie hinter einem Overlay verschwinden.</div></div>
+      <div style="background:#141A24; border-left:4px solid #E0B44E; padding:16px;"><div style="font-family:Silkscreen,monospace; font-size:11px; color:#E0B44E; letter-spacing:1px;">AUF ABRUF</div><div style="color:#9EAAB9; font-size:14px; margin-top:8px;">Shop, Abilities, Nächste-Welle-Steuerung, Turm-Tipp. Immer sichtbar, aber in BG_2 mit Sekundärtext — sie warten, statt zu rufen.</div></div>
+      <div style="background:#141A24; border-left:4px solid #5A6675; padding:16px;"><div style="font-family:Silkscreen,monospace; font-size:11px; color:#9EAAB9; letter-spacing:1px;">ZURÜCKTRETEN</div><div style="color:#9EAAB9; font-size:14px; margin-top:8px;">Aether/Meta-Level, Kerne, Archiv, aktive Upgrades. Als Icon-Reihe mit Hotkey, Details nur im Overlay. Kein Dauerplatz für Meta-Progression im Kampf-HUD.</div></div>
+    </div>
+    <pre style="margin:0; background:#0A0D13; border:2px solid #3A4658; padding:22px; overflow-x:auto; font-family:'SFMono-Regular',Consolas,monospace; font-size:12px; line-height:1.5; color:#C6D0DC;">1920 × 1080 · Safe-Margin 48 · Topbar 64 · Bottombar 168
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ♥ 14/20 ▰▰▰▰▰▱▱  │ WELLE 3/12 ▰▰▱▱▱▱ 8 GEGNER │ ⛃ 210        [U] [≡] [⏸] │ 64
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│                                                                              │
+│                        S P I E L F E L D   ·   f r e i                       │
+│                                                                              │
+│              (Turm-Info-Panel erscheint kontextuell rechts,                  │
+│               440 breit, rechts angedockt, kein Scrim)                       │
+│                                                                              │
+│                                                                              │
+├───────────────────────┬──────────────────────────────┬───────────────────────┤
+│ FÄHIGKEITEN           │ TÜRME                        │ WELLENSTEUERUNG       │
+│ ┌───┐┌───┐┌───┐┌───┐  │ ┌────┐┌────┐┌────┐┌────┐┌──┐ │ ELEMENT   NEUTRAL     │ 168
+│ │ 1 ││ 2 ││ 3 ││ 4 │  │ │ 45 ││ 75 ││ 65 ││ 80 ││…│ │ TIPP      —           │
+│ └───┘└───┘└───┘└───┘  │ └────┘└────┘└────┘└────┘└──┘ │ ┌───────────────────┐ │
+│ Cooldown je Slot      │ ◂ scroll ▸  Elementkante      │ │ NÄCHSTE WELLE ⏎ │ │
+└───────────────────────┴──────────────────────────────┴───────────────────────┘
+  320 fix                 flexibel (zentriert)            440 fix
+
+Regeln
+· Topbar: 3 Gruppen mit 1-px-Trennern, links HP, mitte Welle, rechts Gold + Icon-Buttons.
+· Bottombar: 3 Spalten in EINEM Panel — keine drei separaten Leisten mehr.
+· Der Primär-Button "NÄCHSTE WELLE" ist der einzige Messing-Button im HUD.
+· Aether/Kerne wandern in das [U]-Overlay; im HUD nur als Icon+Zahl in der Topbar-Ecke,
+  wenn du sie wirklich brauchst.
+· Turm-Info dockt RECHTS an und überlappt die Bottombar nicht (Höhe max 1080-64-168-96).
+· Bei 1280×720: Topbar 64, Bottombar 168 bleiben (canvas_items skaliert 0.667 → 43/112 px real),
+  Turm-Info-Panel schrumpft auf 360, Shop scrollt statt zu umbrechen.</pre>
+  </section>
+
+  <!-- ============ 7 REDESIGN ============ -->
+  <section style="display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">07</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">REDESIGN · 2 SCREENS</h2>
+      <p style="margin:0; color:#9EAAB9; max-width:820px;">Empfehlung: <strong style="color:#EDE6D6;">In-Game-HUD</strong> (der Spieler sieht es 95 % der Spielzeit — jede Verbesserung multipliziert sich) und <strong style="color:#EDE6D6;">Turm-Info-Panel</strong> (dichtester Screen, härtester Stilbruch; wenn Dichte hier funktioniert, funktioniert sie in Synergien und Fahrplan auch). Beide Mockups unten, ~62 % Maßstab.</p>
+    </div>
+
+    <!-- HUD mockup -->
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="font-family:Silkscreen,monospace; font-size:12px; color:#E0B44E; letter-spacing:1px;">A · IN-GAME-HUD</div>
+      <div style="background:#0A0D13; border:2px solid #3A4658; padding:14px; display:flex; flex-direction:column; gap:10px;">
+        <!-- topbar -->
+        <div style="background:#141A24; border:2px solid #C79A3C; display:flex; align-items:stretch; height:44px;">
+          <div style="display:flex; align-items:center; gap:10px; padding:0 16px; border-right:1px solid #3A4658;">
+            <div style="width:12px; height:12px; background:#5FBF7A;"></div>
+            <span style="font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">14<span style="color:#5A6675;">/20</span></span>
+            <div style="width:64px; height:8px; background:#2A3442; border:1px solid #0A0D13;"><div style="width:70%; height:100%; background:#5FBF7A;"></div></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:0 16px; border-right:1px solid #3A4658;">
+            <span style="font-family:Silkscreen,monospace; font-size:11px; color:#9EAAB9; letter-spacing:1px;">WELLE</span>
+            <span style="font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">3<span style="color:#5A6675;">/12</span></span>
+            <div style="width:96px; height:8px; background:#2A3442; border:1px solid #0A0D13;"><div style="width:34%; height:100%; background:#E0B44E;"></div></div>
+            <span style="font-family:Silkscreen,monospace; font-size:11px; color:#9EAAB9;">8 GEGNER</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:0 16px;">
+            <div style="width:12px; height:12px; background:#E0B44E;"></div><span style="font-family:Silkscreen,monospace; font-size:13px; color:#EDE6D6;">210</span>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="display:flex; align-items:center; gap:6px; padding:0 10px;">
+            <div style="width:28px; height:28px; border:2px solid #3A4658; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9;">U</div>
+            <div style="width:28px; height:28px; border:2px solid #3A4658; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9;">A</div>
+            <div style="width:28px; height:28px; border:2px solid #3A4658; display:flex; align-items:center; justify-content:center; font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9;">II</div>
+          </div>
+        </div>
+        <!-- field -->
+        <div style="height:230px; background:repeating-linear-gradient(135deg,#20301F 0 8px,#243522 8px 16px); border:1px solid #0A0D13; display:flex; align-items:center; justify-content:center; position:relative;">
+          <span style="font-family:Silkscreen,monospace; font-size:10px; color:#5A6675; letter-spacing:2px;">SPIELFELD · TILES &amp; SPRITES BLEIBEN UNVERÄNDERT</span>
+        </div>
+        <!-- bottombar -->
+        <div style="background:#141A24; border:2px solid #C79A3C; display:flex; align-items:stretch;">
+          <div style="width:210px; padding:12px 14px; border-right:1px solid #3A4658; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-family:Silkscreen,monospace; font-size:9px; color:#9EAAB9; letter-spacing:2px;">FÄHIGKEITEN</div>
+            <div style="display:flex; gap:6px;">
+              <div style="width:40px; display:flex; flex-direction:column; gap:3px;"><div style="height:40px; background:#2A3442; border:2px solid #79E1E6;"></div><div style="height:4px; background:#2A3442;"><div style="width:55%; height:100%; background:#79E1E6;"></div></div></div>
+              <div style="width:40px; display:flex; flex-direction:column; gap:3px;"><div style="height:40px; background:#2A3442; border:2px solid #3A4658;"></div><div style="height:4px; background:#2A3442;"></div></div>
+              <div style="width:40px; display:flex; flex-direction:column; gap:3px;"><div style="height:40px; background:#2A3442; border:2px solid #3A4658;"></div><div style="height:4px; background:#2A3442;"></div></div>
+              <div style="width:40px; display:flex; flex-direction:column; gap:3px;"><div style="height:40px; background:#141A24; border:2px solid #2A3442;"></div><div style="height:4px; background:#2A3442;"></div></div>
+            </div>
+          </div>
+          <div style="flex:1; padding:12px 14px; border-right:1px solid #3A4658; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-family:Silkscreen,monospace; font-size:9px; color:#9EAAB9; letter-spacing:2px;">TÜRME</div>
+            <div style="display:flex; gap:8px; align-items:stretch;">
+              <div style="width:16px; background:#1E2632; border:1px solid #3A4658; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9EAAB9;">‹</div>
+              <div style="flex:1; background:#1E2632; border:2px solid #3A4658; border-left:3px solid #FF7A45; padding:6px 8px; display:flex; flex-direction:column; gap:4px;"><div style="display:flex; justify-content:space-between; gap:6px; white-space:nowrap;"><span style="font-family:Silkscreen,monospace; font-size:9px; color:#EDE6D6;">SCHWERT</span><span style="font-family:Silkscreen,monospace; font-size:9px; color:#E0B44E;">45</span></div><div style="height:30px; background:#2A3442;"></div></div>
+              <div style="flex:1; background:#1E2632; border:2px solid #3A4658; border-left:3px solid #67CC63; padding:6px 8px; display:flex; flex-direction:column; gap:4px;"><div style="display:flex; justify-content:space-between; gap:6px; white-space:nowrap;"><span style="font-family:Silkscreen,monospace; font-size:9px; color:#EDE6D6;">FARM</span><span style="font-family:Silkscreen,monospace; font-size:9px; color:#E0B44E;">75</span></div><div style="height:30px; background:#2A3442;"></div></div>
+              <div style="flex:1; background:#1E2632; border:2px solid #3A4658; border-left:3px solid #B9B6EE; padding:6px 8px; display:flex; flex-direction:column; gap:4px;"><div style="display:flex; justify-content:space-between; gap:6px; white-space:nowrap;"><span style="font-family:Silkscreen,monospace; font-size:9px; color:#EDE6D6;">BOGEN</span><span style="font-family:Silkscreen,monospace; font-size:9px; color:#E0B44E;">65</span></div><div style="height:30px; background:#2A3442;"></div></div>
+              <div style="flex:1; background:#1E2632; border:2px solid #3A4658; border-left:3px solid #3E9BE8; padding:6px 8px; display:flex; flex-direction:column; gap:4px; opacity:0.55;"><div style="display:flex; justify-content:space-between; gap:6px; white-space:nowrap;"><span style="font-family:Silkscreen,monospace; font-size:9px; color:#EDE6D6;">ZAUBERER</span><span style="font-family:Silkscreen,monospace; font-size:9px; color:#E0524B;">80</span></div><div style="height:30px; background:#2A3442;"></div></div>
+              <div style="flex:1; background:#1E2632; border:2px solid #3A4658; border-left:3px solid #B5854F; padding:6px 8px; display:flex; flex-direction:column; gap:4px;"><div style="display:flex; justify-content:space-between; gap:6px; white-space:nowrap;"><span style="font-family:Silkscreen,monospace; font-size:9px; color:#EDE6D6;">FALLE</span><span style="font-family:Silkscreen,monospace; font-size:9px; color:#E0B44E;">60</span></div><div style="height:30px; background:#2A3442;"></div></div>
+              <div style="width:16px; background:#1E2632; border:1px solid #3A4658; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9EAAB9;">›</div>
+            </div>
+          </div>
+          <div style="width:250px; padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-family:Silkscreen,monospace; font-size:9px; color:#9EAAB9; letter-spacing:2px;">WELLENSTEUERUNG</div>
+            <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:10px;"><span style="color:#9EAAB9;">ELEMENT</span><span style="color:#EDE6D6;">NEUTRAL</span></div>
+            <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:10px;"><span style="color:#9EAAB9;">TIPP</span><span style="color:#5A6675;">—</span></div>
+            <div style="background:#1E2632; border:2px solid #C79A3C; padding:8px; text-align:center; font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">NÄCHSTE WELLE</div>
+          </div>
+        </div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px;">Was passiert ist: freistehender Text auf Gras → ein Panel; drei Bottom-Leisten → eine mit drei Spalten; Shop-Karten bekommen Rahmen, Elementkante und ein sichtbares „zu teuer“; Cooldowns existieren jetzt; der einzige Messing-Button ist die Hauptaktion; Meta-Kram wandert hinter [U]/[A].</div>
+    </div>
+
+    <!-- Tower info mockup -->
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="font-family:Silkscreen,monospace; font-size:12px; color:#E0B44E; letter-spacing:1px;">B · TURM-INFO + AUSRÜSTUNG</div>
+      <div style="background:repeating-linear-gradient(135deg,#20301F 0 8px,#243522 8px 16px); border:2px solid #3A4658; padding:24px; display:flex; justify-content:flex-end;">
+        <div style="width:400px; background:#141A24; border:2px solid #C79A3C; box-shadow:4px 4px 0 rgba(6,8,16,0.55);">
+          <div style="background:#1E2632; border-bottom:1px solid #6B5522; border-left:3px solid #FF7A45; padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; flex-direction:column; gap:3px;">
+              <span style="font-family:Silkscreen,monospace; font-size:15px; color:#EDE6D6;">SCHWERT</span>
+              <span style="font-family:Silkscreen,monospace; font-size:9px; color:#FF7A45; letter-spacing:2px;">FEUER · NAHKAMPF</span>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+              <span style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9;">LV 2<span style="color:#5A6675;">/6</span></span>
+              <div style="display:flex; gap:2px;"><div style="width:10px; height:5px; background:#E0B44E;"></div><div style="width:10px; height:5px; background:#E0B44E;"></div><div style="width:10px; height:5px; background:#2A3442;"></div><div style="width:10px; height:5px; background:#2A3442;"></div><div style="width:10px; height:5px; background:#2A3442;"></div><div style="width:10px; height:5px; background:#2A3442;"></div></div>
+            </div>
+          </div>
+          <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:11px;"><span style="color:#9EAAB9;">SCHADEN</span><span style="color:#EDE6D6;">32 <span style="color:#5FBF7A;">+2</span></span></div>
+              <div style="height:1px; background:#232C38;"></div>
+              <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:11px;"><span style="color:#9EAAB9;">REICHWEITE</span><span style="color:#EDE6D6;">1 FELD</span></div>
+              <div style="height:1px; background:#232C38;"></div>
+              <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:11px;"><span style="color:#9EAAB9;">ANGRIFFE/S</span><span style="color:#EDE6D6;">1.3</span></div>
+              <div style="height:1px; background:#232C38;"></div>
+              <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:11px;"><span style="color:#9EAAB9;">CRIT</span><span style="color:#EDE6D6;">15 % <span style="color:#5A6675;">×1.5</span></span></div>
+              <div style="height:1px; background:#232C38;"></div>
+              <div style="display:flex; justify-content:space-between; font-family:Silkscreen,monospace; font-size:11px;"><span style="color:#9EAAB9;">SUPPLY</span><span style="color:#EDE6D6;">2</span></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="font-family:Silkscreen,monospace; font-size:9px; color:#9EAAB9; letter-spacing:2px;">AUSRÜSTUNG</div>
+              <div style="display:flex; gap:8px;">
+                <div style="width:44px; height:44px; background:#2A3442; border:2px solid #B36BE8;"></div>
+                <div style="width:44px; height:44px; background:#2A3442; border:2px solid #3A4658; display:flex; align-items:center; justify-content:center; color:#5A6675; font-family:Silkscreen,monospace; font-size:14px;">+</div>
+              </div>
+            </div>
+            <div style="background:#1E2632; border-left:3px solid #FF7A45; padding:8px 10px; font-family:Silkscreen,monospace; font-size:10px; color:#FF7A45; line-height:1.6;">SYNERGIE AKTIV · FEUER + LAVA</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="background:#1E2632; border:2px solid #C79A3C; padding:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-family:Silkscreen,monospace; font-size:12px; color:#EDE6D6;">UPGRADE</span><span style="font-family:Silkscreen,monospace; font-size:11px; color:#E0B44E;">115 ⛃</span></div>
+              <div style="display:flex; gap:8px;">
+                <div style="flex:1; border:2px solid #3A4658; padding:10px; text-align:center; font-family:Silkscreen,monospace; font-size:11px; color:#9EAAB9;">AUFNEHMEN</div>
+                <div style="flex:1; border:2px solid #E0524B; padding:10px; text-align:center; font-family:Silkscreen,monospace; font-size:11px; color:#E0524B;">VERKAUFEN 100</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="color:#9EAAB9; font-size:14px;">Was passiert ist: Elementidentität sitzt jetzt im Header (3-px-Kante + Label), Level als Pip-Reihe statt Text, Stats als Label/Wert-Paare mit rechter Lesekante und 1-px-Trennern (Dichte bleibt, Unruhe verschwindet), Synergie wird sichtbar, und die Buttons haben endlich Rang: <em style="color:#EDE6D6;">ein</em> Primär (Upgrade mit Preis), sekundär + destruktiv nebeneinander, „Schließen“ entfällt — ESC bzw. Klick ins Leere schließt.</div>
+    </div>
+  </section>
+
+  <!-- ============ 8 ROADMAP ============ -->
+  <sc-if value="{{ showRoadmap }}" hint-placeholder-val="{{ true }}">
+  <section style="display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="font-family:Silkscreen,monospace; font-size:11px; letter-spacing:2px; color:#E0B44E;">08</div>
+      <h2 style="margin:0; font-family:Silkscreen,monospace; font-size:24px; color:#EDE6D6;">UMSETZUNGSREIHENFOLGE</h2>
+      <p style="margin:0; color:#9EAAB9; max-width:820px;">Jede Phase ist ein abgeschlossener Commit; nach jeder Phase ist das Spiel spielbar und sichtbar besser. Keine Phase braucht neue Assets.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="background:#141A24; border:2px solid #C79A3C; padding:20px; display:grid; grid-template-columns:130px 1fr 130px; gap:20px;">
+        <div style="display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:14px; color:#E0B44E;">PHASE 1</div><div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">TOKENS</div></div>
+        <div style="color:#9EAAB9; font-size:14px;"><code style="color:#EDE6D6;">ui_theme.gd</code> als Autoload anlegen, ein globales <code style="color:#EDE6D6;">Theme</code> daraus bauen und der Root-Control zuweisen. Pixel Operator einbinden, alle Font-Overrides in Szenen löschen, alle <code style="color:#EDE6D6;">corner_radius</code> auf 0, Pergament-Texturen und Mint-StyleBoxen entfernen. Noch kein Layout anfassen.<div style="margin-top:8px; color:#EDE6D6;">Ergebnis: alles ist dunkel, konsistent und lesbar — mit den alten Positionen.</div></div>
+        <div style="font-family:Silkscreen,monospace; font-size:10px; color:#5FBF7A; text-align:right;">~1 TAG<br />GRÖSSTER SPRUNG</div>
+      </div>
+      <div style="background:#141A24; border:2px solid #3A4658; padding:20px; display:grid; grid-template-columns:130px 1fr 130px; gap:20px;">
+        <div style="display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:14px; color:#EDE6D6;">PHASE 2</div><div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">KONTRAST + HIERARCHIE</div></div>
+        <div style="color:#9EAAB9; font-size:14px;">Typo-Skala durchsetzen (nur 5 Größen), jede Panel-Padding auf 24, Button-Rollen vergeben (genau ein Primär pro Panel, Danger nur als Umriss), Zebra-Zeilen auf BG_2 drehen, Sekundärtext auf <code style="color:#EDE6D6;">#9EAAB9</code>. Icons in HBox neben das Label (Pause-Bug).<div style="margin-top:8px; color:#EDE6D6;">Ergebnis: Synergien und Fahrplan sind erstmals vollständig lesbar.</div></div>
+        <div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; text-align:right;">~1–2 TAGE</div>
+      </div>
+      <div style="background:#141A24; border:2px solid #3A4658; padding:20px; display:grid; grid-template-columns:130px 1fr 130px; gap:20px;">
+        <div style="display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:14px; color:#EDE6D6;">PHASE 3</div><div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">ELEMENT- &amp; RARITY-CODIERUNG</div></div>
+        <div style="color:#9EAAB9; font-size:14px;"><code style="color:#EDE6D6;">UI.el()</code> überall anschließen: Turmkarten, Turm-Info-Header, Ability-Cooldowns, Synergiezeilen, Wave-Element. Item-Slots bekommen Rarity-Rahmen, Tooltip-Header Rarity-Farbe.<div style="margin-top:8px; color:#EDE6D6;">Ergebnis: das Spiel erklärt sich selbst — Farbe trägt Mechanik.</div></div>
+        <div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; text-align:right;">~2 TAGE</div>
+      </div>
+      <div style="background:#141A24; border:2px solid #3A4658; padding:20px; display:grid; grid-template-columns:130px 1fr 130px; gap:20px;">
+        <div style="display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:14px; color:#EDE6D6;">PHASE 4</div><div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">HUD-UMBAU</div></div>
+        <div style="color:#9EAAB9; font-size:14px;">Topbar + Bottombar nach Wireframe, freistehende Labels auflösen, Ressourcen-Pod, Turm-Info rechts andocken, Meta-Anzeigen ins [U]-Overlay verschieben. Danach 1280×720 prüfen.<div style="margin-top:8px; color:#EDE6D6;">Ergebnis: freies Spielfeld, ruhige Ränder.</div></div>
+        <div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; text-align:right;">~2–3 TAGE</div>
+      </div>
+      <div style="background:#141A24; border:2px solid #3A4658; padding:20px; display:grid; grid-template-columns:130px 1fr 130px; gap:20px;">
+        <div style="display:flex; flex-direction:column; gap:6px;"><div style="font-family:Silkscreen,monospace; font-size:14px; color:#EDE6D6;">PHASE 5</div><div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; letter-spacing:1px;">POLISH</div></div>
+        <div style="color:#9EAAB9; font-size:14px;">Scrim + 4-px-Hartschatten für Overlays, 120-ms-Tooltip-Delay, Zahlen-Flash bei Ressourcenänderung, Pressed-2-px-Offset, Panel-Einblendung 80 ms ohne Skalierung, Hauptmenü-Atmosphäre (Elementpartikel im Hintergrund, Titel bleibt).<div style="margin-top:8px; color:#EDE6D6;">Ergebnis: fühlt sich fertig an.</div></div>
+        <div style="font-family:Silkscreen,monospace; font-size:10px; color:#9EAAB9; text-align:right;">laufend</div>
+      </div>
+    </div>
+    <div style="border:2px solid #E0524B; background:#141A24; padding:20px; color:#9EAAB9; font-size:14px;"><strong style="color:#EDE6D6;">Wenn du nur einen Tag hast:</strong> Phase 1 plus zwei Dinge aus Phase 2 — Panel-Padding auf 24 und genau ein Primär-Button pro Panel. Das ist der Unterschied zwischen „Hobbyprojekt“ und „sieht gekauft aus“.</div>
+  </section>
+  </sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showDiagnose&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Abschnitte&quot;},&quot;showGdscript&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Abschnitte&quot;},&quot;showRoadmap&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Abschnitte&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showDiagnose: this.props.showDiagnose ?? true,
+      showGdscript: this.props.showGdscript ?? true,
+      showRoadmap: this.props.showRoadmap ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>

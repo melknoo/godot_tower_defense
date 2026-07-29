@@ -81,6 +81,16 @@ const FALLBACKS := {
 	"core_nature": "core",
 }
 
+# --- Prozedurale Charakter-Portraits ------------------------------------------
+# Alle `char_*`-Icons ohne Asset werden aus der Charakter-ID heraus gezeichnet:
+# gleiche Bildsprache, aber auf einen Blick unterscheidbar. Rein deterministisch,
+# damit ein Charakter ueber Sitzungen hinweg dasselbe Portrait behaelt.
+const CHAR_ICON_PREFIX := "char_"
+const PORTRAIT_SIZE := 32
+# Kopfbedeckungen; die Auswahl haengt an der Charakter-ID, nicht am Element -
+# zwei Feuer-Charaktere sehen dadurch verschieden aus.
+const PORTRAIT_HEADGEAR := ["hood", "helmet", "crown", "horns"]
+
 # Cache für geladene Texturen
 var _texture_cache := {}
 # Cache für aufgeloeste Pfade - bb() laeuft bei jedem HUD-Update durch,
@@ -127,6 +137,15 @@ func _raw_icon_path(icon_name: String) -> String:
 func get_texture(icon_name: String) -> Texture2D:
 	if _texture_cache.has(icon_name):
 		return _texture_cache[icon_name]
+
+	# Charakter-Portraits existieren noch nicht als Assets (siehe ASSETS_TODO.md). Statt
+	# alle Charaktere eines Elements gleich aussehen zu lassen, wird hier ein
+	# unverwechselbares Portrait erzeugt. Eine echte Datei gewinnt immer: sobald
+	# assets/icons/<name>.png existiert und registriert ist, greift der Zweig unten.
+	if icon_name.begins_with(CHAR_ICON_PREFIX) and _raw_icon_path(icon_name).is_empty():
+		var generated := _generate_character_portrait(icon_name)
+		_texture_cache[icon_name] = generated
+		return generated
 
 	var path := get_icon_path(icon_name)
 	if path.is_empty():
@@ -185,3 +204,121 @@ func create_rich_label(min_width: float = 120.0, min_height: float = 20.0) -> Ri
 	label.scroll_active = false
 	label.custom_minimum_size = Vector2(min_width, min_height)
 	return label
+
+
+# === PROZEDURALE CHARAKTER-PORTRAITS =========================================
+
+# Zeichnet ein 32x32-Portrait: Rahmen, Schultern, Kopf und eine von vier
+# Kopfbedeckungen. Farben kommen aus der Charakter-Definition, die Kopfbedeckung aus
+# der ID - dadurch unterscheiden sich auch zwei Charaktere desselben Elements.
+func _generate_character_portrait(icon_name: String) -> Texture2D:
+	var char_id := icon_name.trim_prefix(CHAR_ICON_PREFIX)
+	var base := Color(0.55, 0.55, 0.6)
+	if AbilitySystem and AbilitySystem.CHARACTERS.has(char_id):
+		base = AbilitySystem.CHARACTERS[char_id].get("color", base)
+
+	var accent := base.lightened(0.35)
+	var shadow := base.darkened(0.55)
+	var skin := Color(0.93, 0.82, 0.7)
+	var gear: String = PORTRAIT_HEADGEAR[_headgear_index(char_id)]
+
+	var image := Image.create(PORTRAIT_SIZE, PORTRAIT_SIZE, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+
+	# Wappen-Hintergrund mit abgeschraegten Ecken
+	for y in range(2, 30):
+		for x in range(2, 30):
+			var inset := 0
+			if y < 5:
+				inset = 5 - y
+			elif y > 26:
+				inset = y - 26
+			if x < 2 + inset or x > 29 - inset:
+				continue
+			var edge := x <= 3 + inset or x >= 28 - inset or y <= 3 or y >= 28
+			image.set_pixel(x, y, shadow if edge else base.darkened(0.25))
+
+	# Schultern
+	for y in range(21, 28):
+		var half := 4 + (y - 21)
+		for x in range(16 - half, 16 + half):
+			if x < 4 or x > 27:
+				continue
+			image.set_pixel(x, y, base)
+
+	# Kopf
+	_fill_disc(image, Vector2(15.5, 15.0), 5.6, skin)
+
+	# Kopfbedeckung
+	match gear:
+		"hood":
+			_fill_arc_top(image, Vector2(15.5, 15.0), 7.2, accent)
+		"helmet":
+			for y in range(8, 13):
+				for x in range(9, 23):
+					if Vector2(x, y).distance_to(Vector2(15.5, 15.0)) <= 7.0:
+						image.set_pixel(x, y, accent)
+			for y in range(13, 19):   # Nasenschutz
+				image.set_pixel(15, y, accent)
+				image.set_pixel(16, y, accent)
+		"crown":
+			for spike_x in [11, 15, 20]:
+				for y in range(6, 11):
+					image.set_pixel(spike_x, y, accent)
+					image.set_pixel(spike_x + 1, y, accent)
+			for x in range(10, 22):
+				image.set_pixel(x, 10, accent)
+				image.set_pixel(x, 11, accent)
+		"horns":
+			for i in range(5):
+				image.set_pixel(9 - i / 2, 13 - i, accent)
+				image.set_pixel(10 - i / 2, 13 - i, accent)
+				image.set_pixel(22 + i / 2, 13 - i, accent)
+				image.set_pixel(23 + i / 2, 13 - i, accent)
+			_fill_arc_top(image, Vector2(15.5, 15.0), 6.6, accent)
+
+	# Elementarer Akzentpunkt unten rechts
+	for y in range(24, 28):
+		for x in range(23, 27):
+			image.set_pixel(x, y, accent)
+
+	return ImageTexture.create_from_image(image)
+
+
+# Kopfbedeckung anhand der Position in CHARACTERS, nicht per Hash: ein Hash kollidierte
+# ausgerechnet bei Pyromant und Aschenweberin, also dem Paar, das sich wegen gleicher
+# Elementfarbe am dringendsten unterscheiden muss. Der Versatz `+ index / 4` sorgt dafuer,
+# dass der zweite Viererblock gegenueber dem ersten verschoben ist - die beiden
+# Charaktere eines Elements liegen genau vier Plaetze auseinander.
+func _headgear_index(char_id: String) -> int:
+	var count := PORTRAIT_HEADGEAR.size()
+	if AbilitySystem:
+		var index: int = AbilitySystem.CHARACTERS.keys().find(char_id)
+		if index >= 0:
+			return (index + index / count) % count
+	return _stable_index(char_id, count)
+
+
+# Deterministischer Index aus einer ID - `String.hash()` waere versionsabhaengig.
+func _stable_index(text: String, modulo: int) -> int:
+	var sum := 0
+	for i in range(text.length()):
+		sum += text.unicode_at(i) * (i + 1)
+	return sum % maxi(1, modulo)
+
+
+func _fill_disc(image: Image, center: Vector2, radius: float, color: Color) -> void:
+	for y in range(PORTRAIT_SIZE):
+		for x in range(PORTRAIT_SIZE):
+			if Vector2(x, y).distance_to(center) <= radius:
+				image.set_pixel(x, y, color)
+
+
+# Nur die obere Haelfte eines Kreises - fuer Kapuzen und Helmschalen.
+func _fill_arc_top(image: Image, center: Vector2, radius: float, color: Color) -> void:
+	for y in range(PORTRAIT_SIZE):
+		if float(y) > center.y:
+			continue
+		for x in range(PORTRAIT_SIZE):
+			if Vector2(x, y).distance_to(center) <= radius:
+				image.set_pixel(x, y, color)

@@ -9,6 +9,7 @@ class_name TowerStatsUI
 signal panel_closed
 
 var panel: PanelContainer
+var side_holder: CenterContainer
 var title_label: Label
 var count_label: Label
 var scroll_container: ScrollContainer
@@ -21,6 +22,12 @@ var _highlighted_tower: Node2D = null
 
 const ROW_BG := Color(0.15, 0.15, 0.18, 0.6)
 const ROW_BG_HOVER := Color(0.28, 0.24, 0.18, 0.9)
+
+# Das Panel sitzt am rechten Rand statt in der Bildmitte und faehrt von dort ein:
+# mittig verdeckte es das halbe Spielfeld, waehrend man die Zahlen mit dem Aufbau
+# vergleichen will. Der Hintergrund dimmt nur leicht, damit die Karte lesbar bleibt.
+const PANEL_SIZE := Vector2(560, 460)
+const SIDE_MARGIN := 16.0
 
 # Waehrend einer Welle wachsen Kills und Schaden weiter - regelmaessig nachziehen.
 const REFRESH_INTERVAL := 0.5
@@ -39,20 +46,26 @@ func set_tower_manager(manager: TowerManager) -> void:
 
 func _setup_ui() -> void:
 	var bg := ColorRect.new()
-	bg.color = Color(0, 0, 0, 0.6)
+	bg.color = Color(0, 0, 0, 0.25)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	bg.gui_input.connect(_on_bg_input)
 	add_child(bg)
 
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
+	# Rechter Streifen in Panelbreite; der CenterContainer zentriert das Panel darin
+	# vertikal. Ein- und Ausfahren laeuft ueber die Offsets dieses Halters, nicht ueber
+	# `panel.position` - Container-Kinder bekommen ihre Position sonst jedes Layout
+	# wieder ueberschrieben.
+	side_holder = CenterContainer.new()
+	side_holder.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	side_holder.offset_left = -(PANEL_SIZE.x + SIDE_MARGIN)
+	side_holder.offset_right = -SIDE_MARGIN
+	side_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(side_holder)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(560, 460)
-	center.add_child(panel)
+	panel.custom_minimum_size = PANEL_SIZE
+	side_holder.add_child(panel)
 
 	if UITheme:
 		UITheme.style_panel(panel, "carved")
@@ -154,20 +167,33 @@ func show_panel() -> void:
 	_refresh_rows()
 	visible = true
 
-	panel.modulate.a = 0
-	panel.scale = Vector2(0.9, 0.9)
+	panel.modulate.a = 0.0
+	panel.scale = Vector2.ONE
+	_set_slide_offset(PANEL_SIZE.x + SIDE_MARGIN)
 	var tween := panel.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.15)
-	tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.14)
+	tween.tween_method(_set_slide_offset, PANEL_SIZE.x + SIDE_MARGIN, 0.0, 0.18) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func hide_panel() -> void:
 	_clear_highlight()
 	var tween := panel.create_tween()
-	tween.tween_property(panel, "modulate:a", 0.0, 0.1)
-	tween.tween_callback(func(): visible = false)
+	tween.set_parallel(true)
+	tween.tween_property(panel, "modulate:a", 0.0, 0.12)
+	tween.tween_method(_set_slide_offset, 0.0, PANEL_SIZE.x + SIDE_MARGIN, 0.16) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(func(): visible = false)
 	panel_closed.emit()
+
+
+# 0 = eingefahren (Panel am rechten Rand), PANEL_SIZE.x + SIDE_MARGIN = ganz draussen.
+func _set_slide_offset(slide: float) -> void:
+	if not is_instance_valid(side_holder):
+		return
+	side_holder.offset_left = -(PANEL_SIZE.x + SIDE_MARGIN) + slide
+	side_holder.offset_right = -SIDE_MARGIN + slide
 
 
 func toggle_panel() -> void:

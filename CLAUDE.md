@@ -28,7 +28,7 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
 
 ### Große Dateien (>800 Zeilen — nur gezielt lesen)
 
-`ui/hud.gd` (~2200) · `tower.gd` (~2000) · `autoload/vfx_manager.gd` (~1400) · `main.gd` (~1300) · `autoload/ability_system.gd` (~1200) · `ui/tower_info.gd` (~1100) · `autoload/item_system.gd` (~1050)
+`ui/hud.gd` (~2200) · `tower.gd` (~2050) · `autoload/vfx_manager.gd` (~1450) · `main.gd` (~1400) · `ui/tower_info.gd` (~1250) · `autoload/ability_system.gd` (~1200) · `autoload/item_system.gd` (~1125)
 
 ## Codebase-Map
 
@@ -38,8 +38,10 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
 - `synergy_system.gd` — Synergien/Mastery zwischen Türmen
 - `item_system.gd` — Items, Drops, Kombination
 - `upgrade_system.gd` / `progression_system.gd` — Run- bzw. Meta-Progression
-- `run_schedule.gd` — Wellen-/Run-Fahrplan
+- `run_schedule.gd` — Wellen-/Run-Fahrplan (auch `LEGENDARY_DROP_WAVE`)
 - `vfx_manager.gd`, `sound_manager.gd`, `music_manager.gd`, `icon_system.gd`, `cursor_manager.gd`, `range_grid.gd` — Präsentation/Utility
+  - `icon_system.gd` erzeugt fehlende `char_*`-Portraits prozedural
+  - `cursor_manager.gd` bietet `set_context()` mit eigener Grafik pro Kontext
 
 ### Gameplay (Root)
 - `main.gd`/`main.tscn` — Spielszene, verdrahtet alles
@@ -48,7 +50,9 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
 - `bullet.gd`, `trap.gd`, `item_drop.gd` — Projektile, Fallen, Drops
 - `game_state.gd` — Run-Zustand
 - `path_generator.gd`, `ground_layer.gd`, `decoration_manager.gd`, `tilemap_slicer.gd` — Map-Generierung
-- `main_menu.gd`, `ui_theme.gd` — Menü & Theme
+- `main_menu.gd`, `ui_theme.gd` — Menü & Theme. `ui_theme.gd` hält die zentralen
+  UI-Helper: `animate_panel_open/close()`, `center_button_icon()`, `style_*button()`
+  (setzt auch den Hover-Cursor) — neue Panels/Buttons nutzen die, statt zu kopieren
 
 ### UI (`ui/`)
 - `hud.gd` — In-Game-HUD (größte Datei!)

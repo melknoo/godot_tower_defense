@@ -42,6 +42,26 @@ const COLOR_MUTED := Color("9aa8c2")
 const COLOR_ACCENT := Color("f4cf6a")
 const COLOR_DARK_BUTTON_TEXT := Color("181512")
 
+# Datengetriebene Liste fuer die Upgrade-Vorschau ("jetzt -> nachher").
+# Jeder Turmtyp bekommt automatisch nur die Zeilen, deren Schluessel in seinen
+# data/tower_data.gd-Eintraegen existieren - kein Sonderfall-Block pro Typ noetig
+# (siehe _build_upgrade_preview_lines). "format" steuert die Darstellung:
+# "int" = Ganzzahl, "range_cells" = ueber RangeGridHelper in Rasterfelder
+# umgerechnet (fuer Reichweite UND Splash-Radius, beides Pixel-Radien),
+# "fire_rate" = 1/Wert als Angriffe/Sekunde (kleinerer Wert = schneller),
+# "seconds" = Sekunden mit einer Nachkommastelle, "percent" = Bruchteil * 100.
+const UPGRADE_PREVIEW_STATS := [
+	{"key": "damage", "label": "Schaden", "format": "int"},
+	{"key": "range", "label": "Reichweite", "format": "range_cells"},
+	{"key": "fire_rate", "label": "Angriffe/s", "format": "fire_rate"},
+	{"key": "splash", "label": "Splash-Radius", "format": "range_cells"},
+	{"key": "max_traps", "label": "Max. Fallen", "format": "int"},
+	{"key": "trap_duration", "label": "Fallen-Dauer", "format": "seconds"},
+	{"key": "burn_damage", "label": "Brand-Schaden", "format": "int"},
+	{"key": "chain_targets", "label": "Kettenziele", "format": "int"},
+	{"key": "buff_strength", "label": "Bonus", "format": "percent"},
+]
+
 
 func _ready() -> void:
 	visible = false
@@ -474,6 +494,18 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 
 	_refit_and_position()
 
+	# Kurze Fade+Scale-Animation statt des Standard-Panel-Tweens (UITheme.animate_panel_open):
+	# das Panel öffnet sehr häufig beim Anklicken von Türmen, die Standard-Dauer wirkt hier träge.
+	# _refit_and_position() muss zwingend vorher laufen, sonst wird gegen die falsche
+	# Panelgröße animiert und das Panel springt beim Öffnen.
+	pivot_offset = size * 0.5
+	modulate.a = 0.0
+	scale = Vector2(0.94, 0.94)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(self, "modulate:a", 1.0, 0.08)
+	tween.tween_property(self, "scale", Vector2.ONE, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
 	call_deferred("_bring_to_front")
 
 
@@ -670,6 +702,16 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		var crit_text := "%s Crit: [b]%d%%[/b] (x%.1f)" % [crit_icon, crit_percent, crit_mult]
 		stats_lines.append(crit_text)
 
+	# Element-gebundener Item-Bonus (z. B. Feuerrubin auf einem feuer-gravierten Turm).
+	# Der Wert steckt bereits in `final_damage` - die Zeile macht nur die Quelle sichtbar.
+	var elem_damage_bonus: float = float(current_tower.item_element_damage_bonus)
+	if elem_damage_bonus > 0.0 and elem != "":
+		var elem_icon := ElementalSystem.get_element_bb(elem, 14) if ElementalSystem else ""
+		var elem_color := ElementalSystem.get_element_color(elem) if ElementalSystem else Color.WHITE
+		stats_lines.append("%s Elementarschaden: [color=#%s][b]+%d%%[/b][/color]" % [
+			elem_icon, elem_color.to_html(false), int(round(elem_damage_bonus * 100.0))
+		])
+
 	stats_label.text = "\n".join(stats_lines)
 
 	# Tooltip erweitern
@@ -710,6 +752,9 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		crit_tooltip += "\nCrit-Schaden: +%d%% (x%.1f)" % [crit_damage_percent, crit_mult]
 		
 		tooltip_lines.append(crit_tooltip)
+
+	if elem_damage_bonus > 0.0 and elem != "":
+		tooltip_lines.append("Elementarschaden: +%d%% aus Items - wirkt nur, weil der Turm das passende Element traegt" % int(round(elem_damage_bonus * 100.0)))
 
 	stats_label.tooltip_text = "Aktuelle Tower-Stats:\n" + "\n".join(tooltip_lines)
 
@@ -884,8 +929,8 @@ func _update_engrave_buttons() -> void:
 		btn.text = ""
 		btn.icon = IconSystem.get_texture(element) if IconSystem else null
 		btn.custom_minimum_size = Vector2(40, 36)
-		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		btn.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(btn)
 		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [element.capitalize(), cost]
 
 		if not can_afford or GameState.wave_active:
@@ -946,9 +991,9 @@ func _update_aura_buff_buttons() -> void:
 			btn.text = _get_aura_buff_fallback_icon(option["type"])
 		
 		btn.custom_minimum_size = Vector2(48, 40)
-		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		btn.expand_icon = true
-		
+		if UITheme:
+			UITheme.center_button_icon(btn)
+
 		# ✅ Detaillierter Tooltip mit Prozent-Wert
 		btn.tooltip_text = "%s\n%s\n(Reichweite: %d Felder)" % [
 			_get_aura_buff_name(option["type"]),
@@ -1023,6 +1068,76 @@ func _on_aura_buff_button_pressed(buff_type: String) -> void:
 			VFX.spawn_pixel_burst(current_tower.position, "air", 12)
 
 
+func _format_upgrade_stat_value(format: String, value: Variant) -> String:
+	"""Formatiert einen Roh-Statwert aus tower_data.gd typgerecht fuer die Vorschau."""
+	match format:
+		"range_cells":
+			# Reichweite und Splash sind beides Pixel-Radien - dieselbe Umrechnung
+			# wie in der Stat-Anzeige (RangeGridHelper), damit nichts auseinanderlaeuft.
+			return "%d Felder" % RangeGridHelper.get_cell_radius(float(value))
+		"fire_rate":
+			# fire_rate ist eine Abklingzeit (kleiner = schneller) - wie in der
+			# Stat-Anzeige oben in Angriffe/Sekunde umrechnen (1 / Wert).
+			var shots_per_sec := 1.0 / float(value) if float(value) > 0.0 else 0.0
+			return "%.1f" % shots_per_sec
+		"seconds":
+			return "%.1f s" % float(value)
+		"percent":
+			return "%d%%" % int(round(float(value) * 100.0))
+		_:
+			return str(int(round(float(value))))
+
+
+# Baut die "jetzt -> nachher"-Zeilen der Upgrade-Vorschau aus UPGRADE_PREVIEW_STATS.
+# Datengetrieben statt hart verdrahteter Stats: jeder Schluessel, der im
+# tower_data.gd-Eintrag existiert, wird geprueft - Schluessel, die auf allen
+# Stufen 0 sind (z.B. Schaden/Feuerrate beim Aura-Turm), fallen automatisch weg,
+# genau wie Stats, die sich durchs Upgrade nicht aendern.
+func _build_upgrade_preview_lines(tower_type: String, level: int) -> Array[String]:
+	var data := TowerData.get_tower_data(tower_type)
+	var lines: Array[String] = []
+
+	for entry in UPGRADE_PREVIEW_STATS:
+		var key: String = entry["key"]
+		if not data.has(key):
+			continue
+
+		var raw_values = data[key]
+		if raw_values is Array:
+			var all_zero := true
+			for v in raw_values:
+				if float(v) != 0.0:
+					all_zero = false
+					break
+			if all_zero:
+				continue
+
+		var current_value = TowerData.get_stat(tower_type, key, level)
+		var next_value = TowerData.get_stat(tower_type, key, level + 1)
+		if current_value == null or next_value == null:
+			continue
+
+		var format: String = entry["format"]
+		var label: String = entry["label"]
+
+		# Aura-Bonus: der Buff-Typ (Schaden/Reichweite/Tempo) steckt am Turm, nicht
+		# in tower_data.gd - Label dynamisch daraus ableiten statt Sonderfall pro Typ.
+		if key == "buff_strength":
+			var buff_type: String = ""
+			if is_instance_valid(current_tower):
+				buff_type = current_tower.aura_buff_type
+			label = ("%s-Bonus" % _get_aura_buff_name(buff_type)) if buff_type != "" else "Aura-Bonus"
+
+		var current_text := _format_upgrade_stat_value(format, current_value)
+		var next_text := _format_upgrade_stat_value(format, next_value)
+		if current_text == next_text:
+			continue
+
+		lines.append("%s: %s → %s" % [label, current_text, next_text])
+
+	return lines
+
+
 func _update_upgrade_button(tower_type: String, level: int) -> void:
 	if TowerData.is_supply_building(tower_type):
 		upgrade_button.visible = false
@@ -1063,12 +1178,12 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 
 	if GameState.can_afford(cost) and has_supply and not GameState.wave_active:
 		upgrade_button.disabled = false
-		var new_damage: int = TowerData.get_stat(tower_type, "damage", level + 1)
-		var new_range: float = TowerData.get_stat(tower_type, "range", level + 1)
-		var new_range_cells := RangeGridHelper.get_cell_radius(new_range)
-		upgrade_button.tooltip_text = "→ Schaden: %d, Reichweite: %d Felder\nKostet %d Gold und %d Supply" % [
-			new_damage, new_range_cells, cost, supply_cost
-		]
+		var preview_lines := _build_upgrade_preview_lines(tower_type, level)
+		var tooltip_parts: Array[String] = []
+		for preview_line in preview_lines:
+			tooltip_parts.append("→ %s" % preview_line)
+		tooltip_parts.append("Kostet %d Gold und %d Supply" % [cost, supply_cost])
+		upgrade_button.tooltip_text = "\n".join(tooltip_parts)
 	else:
 		upgrade_button.disabled = true
 		if not has_supply:

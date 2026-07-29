@@ -23,6 +23,10 @@ var slow_amount := 0.0
 var slow_timer := 0.0
 var burn_damage := 0
 var burn_timer := 0.0
+# Brand tickt in festen Intervallen, nicht pro Frame: `int(burn_damage * delta)` waere
+# bei 60 FPS jeden Frame 0 und der Bruchteil ginge verloren (Brand machte nie Schaden).
+const BURN_TICK_INTERVAL := 0.5
+var burn_tick_timer := 0.0
 var stun_timer := 0.0
 var is_frozen := false
 var freeze_timer := 0.0
@@ -491,7 +495,11 @@ func _update_status_effects(delta: float) -> void:
 
 	if burn_timer > 0:
 		burn_timer -= delta
-		take_damage(int(burn_damage * delta), false, "fire")
+		burn_tick_timer -= delta
+		if burn_tick_timer <= 0.0:
+			burn_tick_timer += BURN_TICK_INTERVAL
+			# maxi(1, ...) haelt auch kleine Brandwerte wirksam
+			take_damage(maxi(1, roundi(burn_damage * BURN_TICK_INTERVAL)), false, "fire")
 
 	if confuse_timer > 0:
 		confuse_timer -= delta
@@ -665,6 +673,10 @@ func _die() -> void:
 # === STATUS EFFEKTE ===
 
 func apply_slow(amount: float, duration: float) -> void:
+	# Charakter-Passive (Kryomant): Empfaenger-Hook deckt alle Slow-Quellen ab.
+	# minf(), damit eine Passive den Gegner nie komplett anhaelt.
+	if AbilitySystem:
+		amount = minf(amount * AbilitySystem.get_passive_modifier("slow_strength_mult", 1.0), 0.85)
 	if amount > slow_amount:
 		slow_amount = amount
 	slow_timer = maxf(slow_timer, duration)
@@ -677,9 +689,16 @@ func apply_slow(amount: float, duration: float) -> void:
 
 
 func apply_burn(damage_per_second: int, duration: float) -> void:
-	# Charakter-Passive (Aschenweberin): Empfänger-Hook deckt alle Brand-Quellen ab
+	# Charakter-Passiven (Aschenweberin: Dauer, Pyromant: Schaden) - der Empfaenger-Hook
+	# deckt alle Brand-Quellen ab: Tuerme, Fallen, Abilities und Item-Procs.
 	if AbilitySystem:
 		duration *= AbilitySystem.get_passive_modifier("burn_duration_mult", 1.0)
+		damage_per_second = int(round(
+			damage_per_second * AbilitySystem.get_passive_modifier("burn_damage_mult", 1.0)
+		))
+	# Frischer Brand startet den Tick-Zyklus neu; ein laufender behaelt seinen Rhythmus
+	if burn_timer <= 0.0:
+		burn_tick_timer = BURN_TICK_INTERVAL
 	burn_damage = damage_per_second
 	burn_timer = maxf(burn_timer, duration)
 

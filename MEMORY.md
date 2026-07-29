@@ -109,11 +109,11 @@ werden.
 - `GameState.supply_max` enthaelt Basis-, Archiv- und Farm-Supply;
   `get_effective_supply_max()` addiert temporaere Run-Upgrades. UI und
   Platzierungspruefungen beziehen den effektiven Wert zentral aus `GameState`.
-- Die Stadt (`city`) ist ein Sammelgebaeude ohne eigenen Supply-Wert: ihr Beitrag
-  ist `stored_farms * Farm-Bonus`. Deshalb fragt `TowerManager` das Supply eines
-  Gebaeudes ueber `tower.get_supply_bonus()` ab, nicht ueber
-  `TowerData.get_supply_bonus(typ)`. Das Aufnehmen von Farmen aendert das
-  Supply-Maximum nicht — es macht nur Felder frei.
+- Die Stadt (`city`) hat einen eigenen Basis-Supply (4); zusaetzlich zaehlt
+  `stored_farms * Farm-Bonus` der aufgenommenen Farmen obendrauf. Deshalb fragt
+  `TowerManager` das Supply eines Gebaeudes ueber `tower.get_supply_bonus()` ab,
+  nicht ueber `TowerData.get_supply_bonus(typ)`. Das Aufnehmen von Farmen aendert
+  das Supply-Maximum nicht — es macht nur Felder frei.
 - Welle `RunSchedule.FINAL_WAVE` (30) ist das regulaere Run-Ende. Danach waehlt
   der Spieler zwischen Endlos-Modus (`Main.endless_mode`) und Abschluss mit
   Sieg-Auswertung. Beide Abschluss-Bildschirme teilen sich
@@ -146,7 +146,52 @@ werden.
 - Charakter-Passiven laufen ausschliesslich ueber
   `AbilitySystem.get_passive_modifier(key, default)`. Neue Passiven brauchen
   nur einen Modifier-Key in `CHARACTERS` plus einen Hook an der Wirkstelle;
-  die Hooks duerfen nie Aether oder Account-XP anfassen.
+  die Hooks duerfen nie Aether oder Account-XP anfassen. **Jeder** Charakter hat
+  eine Passive, auch die vier Basis-Charaktere; die Charakterkarte im Hauptmenue
+  und das Roster zeigen sie an.
+- Status-Effekte mit Schaden ueber Zeit ticken in festen Intervallen
+  (`Enemy.BURN_TICK_INTERVAL`), nicht pro Frame. `int(wert * delta)` ist bei
+  60 FPS jeden Frame 0 und der Bruchteil geht verloren — genau daran hat Brennen
+  lange gar keinen Schaden gemacht.
+- Nahkampf-Statuseffekte (`Tower._apply_melee_effects`) werden einzeln geprueft,
+  nicht per `match special_type`. Ein `match` band den Effekt an die Gravur und
+  machte Items wie den Erdkern wirkungslos, weil sie nur den Wert (`stun_chance`)
+  setzen, nicht den Typ. Cleave und Stun koexistieren dadurch.
+- Item-Stats wirken nur, wenn ihr `stat`-Key in `Tower` real ausgelesen wird.
+  Element-gebundene Boni laufen ueber `<element>_damage` und werden gegen
+  `Tower.get_effective_element()` geprueft. Ein Template mit unbekanntem Key ist
+  ein stiller Totalausfall — das Item existiert, tut aber nichts.
+- `TowerData.MAX_LEVEL` (7, also 8 Stufen) gilt nur fuer die sechs upgradebaren
+  Basistuerme. Element- und Kombinationstuerme sind in `can_upgrade()` zusaetzlich
+  ueber die Elementstufe gedeckelt und behalten ihre 3 Stufen. Wer eine Stufe
+  ergaenzt, muss **jedes** Array-Feld des Turms verlaengern:
+  `TowerData.get_stat()` klemmt den Index und friert sonst lautlos auf dem alten
+  Wert ein. `tests/progression_smoke.gd` prueft das inzwischen fuer alle Array-Felder.
+- Die Raritaets-Skala hat fuenf Stufen bis `legendary` und liegt in drei getrennten
+  Tabellen: `ItemSystem.RARITIES`/`RARITY_ORDER`, `ItemInventoryUI.RARITY_NAMES`
+  und `SELL_PRICES`. `_roll_rarity()` enthaelt zusaetzlich eine hartcodierte
+  absteigende Liste; fehlt eine Rarität dort, wird ihr Gewicht mitgezaehlt aber nie
+  gewaehlt und alle anderen Raritaeten werden still verduennt. Der Smoke-Test
+  prueft alle drei Tabellen gegen `RARITY_ORDER`.
+- Legendary droppt nur von Bossen ab `RunSchedule.LEGENDARY_DROP_WAVE`; alle
+  anderen Gegnerzweige in `_roll_rarity()` muessen das Gewicht **explizit** auf 0
+  setzen, weil `RARITIES.duplicate(true)` das Basisgewicht mitbringt.
+- Die Schmiede erlaubt pro Besuch nur einen Raritaetsschritt pro Item
+  (`forged_wave` am Item-Instanz-Dictionary). Das ist der Schutz gegen
+  Raritaets-Waesche und ersetzt eine Gold-Gebuehr bewusst: Gold ist bei den
+  Run-Einkommen kein Gate, Zeit schon.
+- Panel-Oeffnungs- und Schliessanimationen laufen ueber
+  `UITheme.animate_panel_open()` / `animate_panel_close()`. Wer ein neues Overlay
+  baut, ruft die Helper auf statt das Fade+Scale-Tween erneut zu kopieren.
+- Der Cursor wechselt kontextabhaengig ueber `CursorManager.set_context()`.
+  Wichtig: fuer jeden Kontext ist eine **eigene** eingefaerbte Grafik registriert —
+  frueher lag dieselbe Textur auf allen Shapes, ein Wechsel war unsichtbar.
+  UI-Buttons bekommen den Hand-Cursor zentral in `UITheme.style_button()`.
+- Fehlende `char_*`-Portraits erzeugt `IconSystem` prozedural aus der
+  Charakter-ID (Rahmen, Elementfarbe, eine von vier Kopfbedeckungen). Eine echte
+  PNG-Datei gewinnt immer. Die Kopfbedeckung haengt an der Position in
+  `CHARACTERS`, nicht an einem Hash — ein Hash kollidierte ausgerechnet bei den
+  beiden Charakteren desselben Elements.
 - Neue Ability-Angebote werden ueber `_pick_weighted_new_abilities()` zur
   Element-Affinitaet des Charakters gewichtet (`AFFINITY_WEIGHT`);
   Upgrade-Angebote bleiben uniform.
@@ -182,6 +227,20 @@ werden.
 - Tests, die Progressions-Singletons veraendern, muessen ihren Zustand
   wiederherstellen, damit kein lokaler Spielstand versehentlich veraendert
   bleibt.
+- Ein Laufzeitfehler in der `_run()`-Coroutine eines `SceneTree`-Tests bricht die
+  Coroutine ab, ohne den Prozess zu beenden: `quit()` wird nie erreicht und der
+  Headless-Lauf haengt scheinbar grundlos. Auf stdout ist nichts zu sehen, der
+  Fehler steht auf stderr — Testlaeufe daher immer mit `2>&1` aufzeichnen.
+  Haeufigster Auslöser: ein untypisiertes Array-Literal an einen `Array[Vector2]`
+  -Parameter (z. B. `enemy.setup_extended([...], ...)`). Pfade vorher in eine
+  `var path: Array[Vector2] = [...]` schreiben.
+- Zeitbasierte Asserts in Tests brauchen keine echten Timer: Status-Effekte lassen
+  sich deterministisch mit synthetischen Deltas pruefen
+  (`enemy._update_status_effects(1.0 / 60.0)` in einer Schleife). Das reproduziert
+  auch den frame-abhaengigen Rundungsbug, den ein grober Delta verdecken wuerde.
+- Feste Grid-Zellen in Tests sind flaky: der Pfad wird pro Run zufaellig erzeugt und
+  kann jede vorher gewaehlte Zelle blockieren. Zellen ueber
+  `TowerManager.can_place_at()` zur Laufzeit suchen.
 
 ## Test- und Arbeitskonventionen
 

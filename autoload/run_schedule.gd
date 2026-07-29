@@ -16,6 +16,7 @@ const ABILITY_FIRST_WAVE := 4      # Ability-Upgrades:  4, 7, 10, 13 ...
 const ABILITY_INTERVAL := 3
 const ITEM_COMBINE_INTERVAL := 5   # Schmiede:          5, 10, 15 ...
 const BOSS_INTERVAL := 5           # Bosswellen:        5, 10, 15 ...
+const LEGENDARY_DROP_WAVE := 20    # Legendary-Drops:   ab Welle 20 (nur Boss-Zweig)
 
 # Regulaeres Ende eines Runs. Danach entscheidet der Spieler zwischen
 # Endlos-Modus und Abschluss mit Sieg-Auswertung.
@@ -58,6 +59,12 @@ static func has_item_combine(wave: int) -> bool:
 
 static func has_boss(wave: int) -> bool:
 	return wave > 0 and wave % BOSS_INTERVAL == 0
+
+
+# Ein tiefer Run soll am Ende einen Jackpot ausschütten können - Legendarys droppen
+# daher erst ab dieser Welle, und dort auch nur im Boss-Zweig von ItemSystem._roll_rarity.
+static func has_legendary_drops(wave: int) -> bool:
+	return wave >= LEGENDARY_DROP_WAVE
 
 
 static func is_final_wave(wave: int) -> bool:

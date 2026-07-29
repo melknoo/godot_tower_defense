@@ -193,6 +193,8 @@ func style_button(btn: Button, red: bool = false) -> void:
 	btn.add_theme_color_override("font_pressed_color", COLOR_TEXT_DARK)
 	btn.add_theme_color_override("font_disabled_color", COLOR_TEXT_DISABLED)
 
+	_apply_hover_cursor(btn)
+
 
 ## Für Icon-only Buttons (Inventar, Kerne, Upgrades) - minimale Margins
 func style_icon_button(btn: Button, red: bool = false) -> void:
@@ -203,6 +205,23 @@ func style_icon_button(btn: Button, red: bool = false) -> void:
 	btn.add_theme_stylebox_override("hover", _make_9slice(btn_blue_hover, BUTTON_9SLICE_MARGIN, 4))
 	btn.add_theme_stylebox_override("disabled", _make_9slice(btn_blue_disabled, BUTTON_9SLICE_MARGIN, 4))
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	center_button_icon(btn)
+	_apply_hover_cursor(btn)
+
+
+## Zentriert das Icon eines Buttons horizontal UND vertikal (Standard-Konvention
+## im Projekt: sonst hängt das Icon nur horizontal mittig, aber oben statt in der Mitte).
+func center_button_icon(btn: Button) -> void:
+	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	btn.expand_icon = true
+
+
+## Jeder gestylte Button bekommt den Hand-Cursor. Zentral hier, weil es sonst an
+## jedem einzelnen Button haengt und die Haelfte vergessen wird. Die Variante fuer
+## POINTING_HAND registriert `CursorManager` beim Start.
+func _apply_hover_cursor(btn: Button) -> void:
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 ## Für Buttons die helle Schrift brauchen (z.B. "Nächste Welle" auf dunklem Hintergrund)
@@ -244,6 +263,34 @@ func create_hud_panel_style() -> StyleBoxTexture:
 	# Spezieller HUD-Hintergrund mit Carved-Textur
 	var style := _make_9slice(carved_9slice, PANEL_9SLICE_MARGIN, PANEL_9SLICE_MARGIN + 4)
 	return style
+
+
+## Zentrale Öffnungs-Animation für Panels: Fade-in (0.15s) + Scale-up aus der Mitte
+## (0.2s, TRANS_BACK/EASE_OUT). 1:1 wie die Referenz in ui/item_inventory_ui.gd,
+## damit optisch nichts springt, egal welches Panel sie benutzt.
+## Läuft der Tween während einer pausierten SceneTree (z.B. Ability-/Wave-Upgrade-Panels),
+## wird er automatisch auf TWEEN_PAUSE_PROCESS gestellt.
+func animate_panel_open(panel: Control) -> void:
+	panel.pivot_offset = panel.size * 0.5  # Scale muss aus der Panelmitte kommen, nicht der Ecke
+	panel.modulate.a = 0.0
+	panel.scale = Vector2(0.9, 0.9)
+	var tween := panel.create_tween()
+	if panel.get_tree() and panel.get_tree().paused:
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.set_parallel(true)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.15)
+	tween.tween_property(panel, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Zentrale Schließen-Animation: Fade-out (0.1s), danach optional on_done (z.B. visible = false
+## oder Aufräumlogik des Panels).
+func animate_panel_close(panel: Control, on_done: Callable = Callable()) -> void:
+	var tween := panel.create_tween()
+	if panel.get_tree() and panel.get_tree().paused:
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.tween_property(panel, "modulate:a", 0.0, 0.1)
+	if on_done.is_valid():
+		tween.tween_callback(on_done)
 
 
 func style_panel(panel: PanelContainer, panel_type: String = "carved") -> void:

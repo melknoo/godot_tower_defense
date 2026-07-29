@@ -38,6 +38,9 @@ var stun_chance := 0.0
 var chain_targets := 0
 var base_crit_chance := 0.0
 var shots_fired := 0   # für Proc-Items (jeder N-te Schuss)
+# Anteil des Schadens, der aus element-gebundenen Items stammt (z. B. Feuerrubin).
+# Nur für die Anzeige in TowerInfo - der Wert steckt bereits in `damage`.
+var item_element_damage_bonus := 0.0
 
 # Kampfstatistik: Kills & Schaden, getrennt nach aktueller Runde und gesamtem Run.
 # Hängt an der Turm-Node, überlebt also das Verschieben eines Turms.
@@ -241,7 +244,11 @@ func _apply_upgrade_bonuses() -> void:
 	
 	if aura_buffs.has("fire_rate_mult"):
 		fire_rate_mult += aura_buffs["fire_rate_mult"]
-	
+
+	# Charakter-Passive (Aeromant): wirkt auf alle Tuerme des Spielers.
+	if AbilitySystem:
+		fire_rate_mult *= AbilitySystem.get_passive_modifier("tower_fire_rate_mult", 1.0)
+
 	fire_rate = base_fire_rate / (1.0 + fire_rate_mult - 1.0)
 	
 	# Splash
@@ -403,11 +410,21 @@ func _apply_item_bonuses() -> void:
 		return
 	
 	var elem := get_effective_element()
-	
+	item_element_damage_bonus = 0.0
+
 	# Damage
 	var damage_bonus := ItemSystem.get_tower_item_bonus_percent(self, "damage")
 	damage = int(float(damage) * (1.0 + damage_bonus))
-	
+
+	# Element-Schaden (z. B. Feuerrubin = "fire_damage"): wirkt nur, wenn der Turm dieses
+	# Element traegt - Engrave oder nativ. Gleiche Key-Konvention wie SynergySystem und
+	# UpgradeSystem, damit kuenftige Element-Items automatisch greifen.
+	if elem != "":
+		var elem_damage_bonus := ItemSystem.get_tower_item_bonus_percent(self, elem + "_damage")
+		if elem_damage_bonus > 0.0:
+			item_element_damage_bonus = elem_damage_bonus
+			damage = int(float(damage) * (1.0 + elem_damage_bonus))
+
 	# Range
 	var range_bonus := ItemSystem.get_tower_item_bonus_percent(self, "range")
 	tower_range *= (1.0 + range_bonus)
@@ -434,12 +451,24 @@ func _apply_item_bonuses() -> void:
 	
 	var stun_bonus := ItemSystem.get_tower_item_bonus_percent(self, "stun_bonus")
 	stun_chance += stun_bonus
+
+	# Charakter-Passive (Geomant): additiv, damit sie auch auf Tuermen ohne eigene
+	# Stun-Quelle ueberhaupt eine Chance erzeugt.
+	if AbilitySystem:
+		stun_chance += AbilitySystem.get_passive_modifier("stun_chance_add", 0.0)
 	
 	# "chain_bonus" liefert die Windessenz, "chain" das Kettenglied - beide erhoehen
 	# dieselbe Sprungzahl.
 	var chain_bonus := ItemSystem.get_tower_item_bonus(self, "chain_bonus")
 	chain_bonus += ItemSystem.get_tower_item_bonus(self, "chain")
 	chain_targets += int(chain_bonus)
+
+	# "chain_damage" war wie "fire_damage" ein Stat ohne Leser. Zaehlt als Schadensbonus
+	# fuer Tuerme, die tatsaechlich Ketten schlagen.
+	if chain_targets > 0:
+		var chain_damage_bonus := ItemSystem.get_tower_item_bonus_percent(self, "chain_damage")
+		if chain_damage_bonus > 0.0:
+			damage = int(float(damage) * (1.0 + chain_damage_bonus))
 	if special_type == "aura":
 		aura_range = tower_range
 
@@ -569,7 +598,9 @@ func engrave(element: String) -> bool:
 	
 	GameState.gold -= TowerData.get_engraving_cost()
 	engraved_element = element
-	_load_engraving_effects()
+	# Voller Recalc statt nur _load_engraving_effects(): sonst gehen die bereits
+	# angewandten Item-/Upgrade-Boni (z. B. stun_bonus) bis zum naechsten Recalc verloren.
+	recalculate_stats()
 
 	if SynergySystem:
 		SynergySystem.on_tower_engraved(element)
@@ -642,7 +673,8 @@ func _load_engraving_effects() -> void:
 	match engraved_element:
 		"water":
 			special_type = "slow"
-			slow_amount = 0.15 + level * 0.05
+			# Gedeckelt bei 0.45: bei Stufe 7 waeren es sonst 0.50, also praktisch Stillstand.
+			slow_amount = minf(0.15 + level * 0.05, 0.45)
 		"fire":
 			special_type = "burn"
 			burn_damage = 2 + level * 2
@@ -651,7 +683,8 @@ func _load_engraving_effects() -> void:
 			stun_chance = 0.05 + level * 0.03
 		"air":
 			special_type = "chain"
-			chain_targets = level
+			# Gedeckelt bei 5: sonst haette ein Stufe-7-Turm 7 (mit Items sogar 12) Kettensprünge.
+			chain_targets = mini(level, 5)
 
 
 func _show_engraving_effect() -> void:
@@ -1542,16 +1575,22 @@ func _status_duration_mult(status: String) -> float:
 	return 1.0
 
 
+const MELEE_BURN_DURATION := 3.0
+
+
+# Status-Effekte werden unabhaengig voneinander geprueft, nicht per `match special_type`.
+# Gruende: (1) ein Item wie der Erdkern gibt stun_chance, ohne special_type zu setzen —
+# ueber ein match waere der Bonus wirkungslos; (2) ein feuer-graviertes Schwert hatte gar
+# keinen Burn-Zweig und brannte nie an; (3) Cleave und Stun koennen so koexistieren.
 func _apply_melee_effects(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy):
 		return
-	match special_type:
-		"stun":
-			if randf() < stun_chance and enemy.has_method("apply_stun"):
-				enemy.apply_stun(0.5 * _status_duration_mult("stun"))
-		"slow":
-			if enemy.has_method("apply_slow"):
-				enemy.apply_slow(slow_amount, 2.0 * _status_duration_mult("slow"))
+	if stun_chance > 0.0 and randf() < stun_chance and enemy.has_method("apply_stun"):
+		enemy.apply_stun(0.5 * _status_duration_mult("stun"))
+	if slow_amount > 0.0 and enemy.has_method("apply_slow"):
+		enemy.apply_slow(slow_amount, 2.0 * _status_duration_mult("slow"))
+	if burn_damage > 0 and enemy.has_method("apply_burn"):
+		enemy.apply_burn(burn_damage, MELEE_BURN_DURATION * _status_duration_mult("burn"))
 
 
 func _shoot() -> void:
@@ -1934,11 +1973,11 @@ func set_highlight(enabled: bool) -> void:
 	highlight_tween.tween_property(self, "modulate", Color.WHITE, 0.3)
 
 
-# Supply, das dieses Gebaeude beisteuert. Die Stadt hat keinen eigenen Wert -
-# ihr Beitrag ist die Summe der aufgenommenen Farmen.
+# Supply, das dieses Gebaeude beisteuert. Die Stadt hat einen eigenen Basiswert -
+# aufgenommene Farmen kommen obendrauf.
 func get_supply_bonus() -> int:
 	if tower_type == "city":
-		return stored_farms * TowerData.get_supply_bonus("farm")
+		return TowerData.get_supply_bonus("city") + stored_farms * TowerData.get_supply_bonus("farm")
 	return TowerData.get_supply_bonus(tower_type)
 
 

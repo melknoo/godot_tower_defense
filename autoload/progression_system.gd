@@ -14,7 +14,11 @@ signal character_recruited(char_id: String)
 const SAVE_PATH := "user://incremental_progression_v1.json"
 const SAVE_VERSION := 2
 const STREAK_WINDOW := 3.0
-const MILESTONE_WAVES: Array[int] = [3, 5, 10, 15, 25, 40, 60, 100]
+# Zwischen 25 und 40 klaffte eine Luecke, obwohl `RunSchedule.FINAL_WAVE` (30) das
+# regulaere Run-Ende ist: Wer den Run gewann, bekam fuer die neue Bestwelle nichts
+# Sichtbares. 30 und 35 schliessen das. Meilensteine zahlen einmalig pro Account,
+# die Dauer-Aether-Kurve bleibt davon unberuehrt.
+const MILESTONE_WAVES: Array[int] = [3, 5, 10, 15, 25, 30, 35, 40, 60, 100]
 
 # --- Aether-Balancing ---------------------------------------------------------
 # Alle Aether-Quellen liegen hier gebuendelt, damit Nachtunen ohne Formelsuche geht.
@@ -46,23 +50,30 @@ const TOWER_RESEARCH := {
 	"aura": "unlock_aura"
 }
 
+# Die Rangzahlen der skalierenden Forschungen sind bewusst hoeher als das, was ein
+# einzelner Run bezahlen kann: tiefe Runs brauchen ein Ziel, das laenger als drei
+# Anlaeufe haelt. `cost_growth` bleibt jeweils unveraendert, damit die bereits
+# gekauften Raenge exakt so viel kosten wie vorher.
+# Bewusst NICHT erweitert: `metallurgy` und `command` (ihre Wachstumsfaktoren machen
+# den naechsten Rang unbezahlbar teuer fuer +4% bzw. +6 Gold) und `scavenging`
+# (multipliziert jede Aether-Quelle und wuerde die Drosselung oben aushebeln).
 const RESEARCH := {
 	"starting_funds": {
 		"name": "Gefuellte Kriegskasse",
 		"description": "+25 Startgold pro Rang.",
-		"icon": "gold", "max_level": 8, "base_cost": 12, "cost_growth": 1.55,
+		"icon": "gold", "max_level": 12, "base_cost": 12, "cost_growth": 1.55,
 		"tier": 1, "color": Color("e6b85c")
 	},
 	"fortification": {
 		"name": "Runenwall",
 		"description": "+2 Startleben pro Rang.",
-		"icon": "life", "max_level": 6, "base_cost": 14, "cost_growth": 1.62,
+		"icon": "life", "max_level": 10, "base_cost": 14, "cost_growth": 1.62,
 		"tier": 1, "color": Color("e36b62")
 	},
 	"logistics": {
 		"name": "Arkanes Lager",
 		"description": "+1 Start-Supply pro Rang.",
-		"icon": "supply", "max_level": 6, "base_cost": 16, "cost_growth": 1.65,
+		"icon": "supply", "max_level": 10, "base_cost": 16, "cost_growth": 1.65,
 		"tier": 1, "color": Color("75c77b")
 	},
 	"unlock_archer": {
@@ -86,7 +97,7 @@ const RESEARCH := {
 	"compound_interest": {
 		"name": "Ewiger Zins",
 		"description": "+1% Zinsrate und +10 Zinslimit pro Rang.",
-		"icon": "gold", "max_level": 6, "base_cost": 34, "cost_growth": 1.68,
+		"icon": "gold", "max_level": 8, "base_cost": 34, "cost_growth": 1.68,
 		"tier": 2, "requires_invested": 3, "color": Color("f0d36c")
 	},
 	"scavenging": {
@@ -122,7 +133,7 @@ const RESEARCH := {
 	"chrono": {
 		"name": "Chrono-Runen",
 		"description": "+0,5 maximales Spieltempo pro Rang.",
-		"icon": "fire_rate", "max_level": 3, "base_cost": 100, "cost_growth": 2.0,
+		"icon": "fire_rate", "max_level": 4, "base_cost": 100, "cost_growth": 2.0,
 		"tier": 3, "requires_invested": 10, "color": Color("a7a1ff")
 	},
 	"resonance": {

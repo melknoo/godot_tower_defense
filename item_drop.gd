@@ -25,14 +25,26 @@ var glow_tween: Tween
 
 const PICKUP_RANGE := 40.0
 
-const LOOT_MARKER_TEXTURES := {
-	"common": preload("res://assets/items/loot_common.png"),
-	"uncommon": preload("res://assets/items/loot_uncommon.png"),
-	"rare": preload("res://assets/items/loot_rare.png"),
-	"epic": preload("res://assets/items/loot_epic.png"),
+
+# Pfad-Strings statt preload(): ein preload() auf eine fehlende Datei ist ein
+# Parse-Zeit-Fehler und wuerde jede Szene zerreissen, die ItemDrop laedt.
+# "legendary" hat aktuell kein eigenes PNG (siehe ASSETS_TODO.md) - _get_loot_marker_texture()
+# faellt in dem Fall auf "epic" zurueck und tönt das Ergebnis ueber rarity_marker.modulate
+# in der Raritaetsfarbe (amber), damit ein Legendary auf dem Feld trotzdem als solches liest.
+const LOOT_MARKER_PATHS := {
+	"common": "res://assets/items/loot_common.png",
+	"uncommon": "res://assets/items/loot_uncommon.png",
+	"rare": "res://assets/items/loot_rare.png",
+	"epic": "res://assets/items/loot_epic.png",
+	"legendary": "res://assets/items/loot_legendary.png",
 }
 
+var _loot_marker_cache: Dictionary = {}
+
 func _ready() -> void:
+	# Kisten liegen als Geschwister neben Enemy-Nodes unter Main; ohne z_index entscheidet
+	# nur die Einfügereihenfolge, wodurch später gespawnte Gegner liegende Kisten verdecken.
+	z_index = 1
 	add_to_group("item_drops")
 	_create_visuals()
 	_update_visuals()
@@ -109,9 +121,12 @@ func _update_visuals() -> void:
 	sprite.texture = null
 	sprite.visible = false
 
-	# Rarity Marker (PNG)
+	# Rarity Marker (PNG) - fehlt die eigene Textur (aktuell nur "legendary", siehe
+	# ASSETS_TODO.md), faerbt modulate den Epic-Fallback in der Raritaetsfarbe (amber) ein.
 	var rarity: String = item_data.get("rarity", "common")
-	rarity_marker.texture = LOOT_MARKER_TEXTURES.get(rarity, LOOT_MARKER_TEXTURES["common"])
+	var marker_path: String = LOOT_MARKER_PATHS.get(rarity, LOOT_MARKER_PATHS["common"])
+	rarity_marker.texture = _get_loot_marker_texture(rarity)
+	rarity_marker.modulate = Color.WHITE if ResourceLoader.exists(marker_path) else rarity_color
 	rarity_marker.modulate.a = 1.0
 	rarity_marker.visible = true
 
@@ -122,6 +137,20 @@ func _update_visuals() -> void:
 	label.text = item_data.get("name", "Item")
 	label.add_theme_color_override("font_color", rarity_color)
 	label.visible = false
+
+
+func _get_loot_marker_texture(rarity: String) -> Texture2D:
+	if _loot_marker_cache.has(rarity):
+		return _loot_marker_cache[rarity]
+	var path: String = LOOT_MARKER_PATHS.get(rarity, LOOT_MARKER_PATHS["common"])
+	var tex: Texture2D
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	else:
+		# Fallback (aktuell nur "legendary"): loot_epic.png, per modulate umgefaerbt
+		tex = load(LOOT_MARKER_PATHS["epic"])
+	_loot_marker_cache[rarity] = tex
+	return tex
 
 
 func _create_fallback_sprite() -> void:

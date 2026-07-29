@@ -396,15 +396,20 @@ func spawn_muzzle_flash(pos: Vector2, direction: Vector2, element: String) -> vo
 
 # === IMPACT EFFECTS ===
 
-func spawn_hit_effect(pos: Vector2, element: String, is_crit: bool = false) -> void:
+func spawn_hit_effect(pos: Vector2, element: String, is_crit: bool = false, is_heavy: bool = false) -> void:
 	var parent := _get_vfx_parent()
 	if not parent:
 		return
 	if is_crit:
 		spawn_pixel_burst(pos, "crit", 16)
 		spawn_pixel_ring(pos, element, 50.0)
+		spawn_impact_ring(pos, element, 40.0)
 	else:
 		spawn_pixels(pos, element, 6, 20.0)
+		# is_heavy: Splash-/AoE-Treffer bekommen denselben Ring-Akzent wie Crits.
+		# Normale Einzel-Treffer bleiben unverändert (Partikel-Budget bei vielen Türmen).
+		if is_heavy:
+			spawn_impact_ring(pos, element, 32.0)
 	var flash := _create_pixel(Color.WHITE, 8)
 	flash.position = pos
 	flash.modulate.a = 0.9
@@ -463,10 +468,33 @@ func spawn_place_effect(pos: Vector2, element: String) -> void:
 		tween.chain().tween_callback(shimmer.queue_free)
 
 
+func spawn_impact_ring(pos: Vector2, element: String, radius: float = 30.0, count: int = 6) -> void:
+	# Schlanker "Anschlag"-Akzent für Treffer/Einschläge - kein Shimmer-Aufstieg (das bleibt
+	# spawn_place_effect vorbehalten), sondern nur ein knapper, schnell aufgehender und
+	# ausblendender Ring. Bewusst günstig gehalten, da mehrfach pro Sekunde im Kampf möglich.
+	var parent := _get_vfx_parent()
+	if not parent:
+		return
+	var colors: Array = PALETTES.get(element, PALETTES["damage"])
+	for i in range(count):
+		var pixel := _create_pixel(colors[1], 3)
+		pixel.position = pos
+		pixel.modulate.a = 0.75
+		parent.add_child(pixel)
+		var angle := (float(i) / count) * TAU
+		var target := pos + Vector2(cos(angle), sin(angle)) * radius
+		var tween := pixel.create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(pixel, "position", target, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(pixel, "modulate:a", 0.0, 0.18)
+		tween.chain().tween_callback(pixel.queue_free)
+
+
 func spawn_upgrade_effect(pos: Vector2, element: String, new_level: int) -> void:
 	var parent := _get_vfx_parent()
 	if not parent:
 		return
+	spawn_impact_ring(pos, element, 25.0)
 	for i in range(new_level + 1):
 		await parent.get_tree().create_timer(0.1 * i).timeout
 		spawn_pixel_ring(pos, element, 30.0 + i * 15.0)
@@ -868,7 +896,10 @@ func spawn_frost_nova(pos: Vector2, radius: float) -> void:
 	flash_tween.tween_property(flash, "scale", Vector2(radius / 10, radius / 10), 0.2)
 	flash_tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.3)
 	flash_tween.tween_callback(flash.queue_free)
-	
+
+	# Gemeinsamer "Anschlag"-Akzent
+	spawn_impact_ring(pos, "ice", radius * 0.5)
+
 	# Eispartikel
 	for i in range(16):
 		var angle := randf() * TAU
@@ -956,7 +987,10 @@ func spawn_meteor_impact(pos: Vector2, radius: float) -> void:
 	flash_tween.tween_property(flash, "scale", Vector2(radius / 15, radius / 15), 0.1)
 	flash_tween.parallel().tween_property(flash, "modulate:a", 0.0, 0.3)
 	flash_tween.tween_callback(flash.queue_free)
-	
+
+	# Gemeinsamer "Anschlag"-Akzent
+	spawn_impact_ring(pos, "fire", radius * 0.4)
+
 	# Feuer-Explosion
 	spawn_pixel_burst(pos, "fire", 24)
 	spawn_pixel_burst(pos, "lava", 16)
@@ -1366,6 +1400,7 @@ func spawn_fissure(pos: Vector2, length: float, width: float, duration: float) -
 	
 	# Spawn-Effekt
 	spawn_pixel_burst(pos, "earth", 10)
+	spawn_impact_ring(pos, "earth", width * 1.5)
 	screen_shake(5.0, 0.2)
 	
 	# Partikel über Dauer

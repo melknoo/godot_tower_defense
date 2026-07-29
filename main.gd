@@ -52,6 +52,11 @@ const DRAG_THRESHOLD := 8.0
 var ability_bar: AbilityBar
 var ability_target_preview: Node2D
 var ability_range_circle: Line2D
+var ability_range_fill: Polygon2D
+var ability_pulse_tween: Tween = null
+# Gegner, die aktuell als Ziel markiert sind, mit ihrer urspruenglichen Faerbung.
+var _ability_marked_enemies: Array[Node2D] = []
+var _ability_marked_originals: Array[Color] = []
 var item_inventory_ui: ItemInventoryUI
 var item_combine_ui: ItemCombineUI
 var tower_stats_ui: TowerStatsUI
@@ -335,9 +340,15 @@ func _setup_ability_preview() -> void:
 	ability_target_preview = Node2D.new()
 	ability_target_preview.visible = false
 	add_child(ability_target_preview)
-	
+
+	# Gefuellte Flaeche unter der Kontur: eine 2px-Linie allein war auf dem gemusterten
+	# Boden kaum zu erkennen, und der Wirkungsbereich ist die wichtigste Information.
+	ability_range_fill = Polygon2D.new()
+	ability_range_fill.color = Color(1, 1, 1, 0.15)
+	ability_target_preview.add_child(ability_range_fill)
+
 	ability_range_circle = Line2D.new()
-	ability_range_circle.width = 2
+	ability_range_circle.width = 3
 	ability_range_circle.default_color = Color(1, 1, 1, 0.5)
 	ability_target_preview.add_child(ability_range_circle)
 	
@@ -708,21 +719,26 @@ func _setup_hover_preview() -> void:
 
 func _update_ability_preview(mouse_pos: Vector2) -> void:
 	if not AbilitySystem or not AbilitySystem.is_targeting:
-		ability_target_preview.visible = false
+		_end_ability_preview()
 		return
-	
+
 	var ability_id := AbilitySystem.selected_ability
 	var data: Dictionary = AbilitySystem.get_ability_data(ability_id)
 	var radius: float = data.get("radius", 50.0)
-	
-	# Für Earthquake: Kein Kreis, da global
-	if ability_id == "earthquake":
-		ability_target_preview.visible = false
-		return
-	
+
+	# Globale Abilities (Erdbeben) haben kein punktuelles Ziel. Frueher wurde der
+	# Indikator dafuer komplett versteckt - man sah dann gar nicht, dass der Zielmodus
+	# ueberhaupt aktiv ist. Jetzt umschliesst der Kreis das ganze Spielfeld: "wirkt
+	# ueberall, klick irgendwo".
+	var is_global := ability_id == "earthquake"
+	var center := mouse_pos
+	if is_global:
+		center = Vector2(MAP_WIDTH * GRID_SIZE, MAP_HEIGHT * GRID_SIZE) * 0.5
+		radius = center.length()
+
 	ability_target_preview.visible = true
-	ability_target_preview.position = mouse_pos
-	
+	ability_target_preview.position = center
+
 	var element: String = data.get("element", "")
 	var elem_color := Color.WHITE
 	match element:
@@ -730,33 +746,107 @@ func _update_ability_preview(mouse_pos: Vector2) -> void:
 		"water": elem_color = Color(0.4, 0.7, 1.0)
 		"fire": elem_color = Color(1.0, 0.5, 0.2)
 		"earth": elem_color = Color(0.7, 0.5, 0.3)
-	
-	ability_range_circle.clear_points()
-	ability_range_circle.default_color = elem_color
-	ability_range_circle.default_color.a = 0.6
-	
+
+	# Abilities mit Schaden brauchen Gegner, um etwas zu bewirken. Ist keiner im
+	# Wirkungsbereich, wird der Indikator rot - man sieht das vor dem Klick, nicht
+	# nach dem verpufften Cooldown.
+	var targets := _enemies_in_radius(center, radius)
+	var needs_enemies: bool = int(data.get("base_damage", 0)) > 0
+	var wasted := needs_enemies and targets.is_empty()
+	if wasted:
+		elem_color = Color(1.0, 0.4, 0.35)
+
+	var points := PackedVector2Array()
 	for i in range(33):
 		var angle := i * TAU / 32
-		ability_range_circle.add_point(Vector2(cos(angle), sin(angle)) * radius)
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+
+	ability_range_circle.points = points
+	ability_range_circle.default_color = Color(elem_color.r, elem_color.g, elem_color.b, 0.85)
+	# Die Flaeche braucht keinen Schlusspunkt - Polygon2D schliesst selbst.
+	ability_range_fill.polygon = points.slice(0, points.size() - 1)
+	ability_range_fill.color = Color(elem_color.r, elem_color.g, elem_color.b, 0.12 if is_global else 0.16)
+
+	_mark_ability_targets(targets, elem_color)
+	_ensure_ability_pulse()
+	_set_cursor(CursorManager.CTX_INVALID if wasted else CursorManager.CTX_TARGET)
+
+
+func _enemies_in_radius(center: Vector2, radius: float) -> Array[Node2D]:
+	var hits: Array[Node2D] = []
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var enemy := node as Node2D
+		if enemy and enemy.global_position.distance_to(center) <= radius:
+			hits.append(enemy)
+	return hits
+
+
+# Hebt die getroffenen Gegner hervor, damit der Wirkungsbereich vor dem Klick
+# ueberpruefbar ist. Die vorherige Faerbung wird gesichert und exakt wiederhergestellt -
+# ein hartes Zuruecksetzen auf Weiss wuerde Spawn-Fades und Gegnerfarben ueberschreiben.
+func _mark_ability_targets(targets: Array[Node2D], color: Color) -> void:
+	for i in range(_ability_marked_enemies.size()):
+		var previous := _ability_marked_enemies[i]
+		if is_instance_valid(previous):
+			previous.modulate = _ability_marked_originals[i]
+	_ability_marked_enemies.clear()
+	_ability_marked_originals.clear()
+
+	var mark := color.lerp(Color.WHITE, 0.35)
+	for enemy in targets:
+		if not is_instance_valid(enemy):
+			continue
+		_ability_marked_enemies.append(enemy)
+		_ability_marked_originals.append(enemy.modulate)
+		enemy.modulate = mark
+
+
+# Der Indikator pulsiert leicht, damit er sich vom statischen Reichweiten-Raster der
+# Tuerme unterscheidet. Als Tween, weil `_update_hover_preview` nur bei Mausbewegung
+# laeuft - eine Frame-Zaehler-Loesung wuerde bei stillstehender Maus einfrieren.
+func _ensure_ability_pulse() -> void:
+	if ability_pulse_tween and ability_pulse_tween.is_valid():
+		return
+	ability_pulse_tween = ability_target_preview.create_tween().set_loops()
+	ability_pulse_tween.tween_property(ability_target_preview, "modulate:a", 0.55, 0.5) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	ability_pulse_tween.tween_property(ability_target_preview, "modulate:a", 1.0, 0.5) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _end_ability_preview() -> void:
+	ability_target_preview.visible = false
+	if ability_pulse_tween and ability_pulse_tween.is_valid():
+		ability_pulse_tween.kill()
+	ability_pulse_tween = null
+	ability_target_preview.modulate.a = 1.0
+	var none: Array[Node2D] = []
+	_mark_ability_targets(none, Color.WHITE)
 
 
 func _update_hover_preview(mouse_pos: Vector2) -> void:
 	_check_drag_start(mouse_pos)
-	
+
+	# Cursor-Kontext: hier auf Default setzen, die Zweige unten ueberschreiben ihn.
+	# Jeder fruehe `return` laesst damit korrekt den Default stehen.
+	_set_cursor(CursorManager.CTX_DEFAULT)
+
 	# Ability Targeting Preview
 	if AbilitySystem and AbilitySystem.is_targeting:
 		_update_ability_preview(mouse_pos)
 		hover_preview.visible = false
 		return
 	else:
-		ability_target_preview.visible = false
-	
+		_end_ability_preview()
+
 	if tower_manager.has_picked_up_tower() or is_dragging:
 		_update_pickup_hover_preview(mouse_pos)
 		return
-	
+
 	if not tower_shop.has_selection():
 		hover_preview.visible = false
+		# Ohne Bauauswahl zeigt der Cursor an, ob unter ihm ein Turm liegt.
+		_set_cursor(CursorManager.CTX_HOVER_UI if _tower_under_mouse(mouse_pos) else CursorManager.CTX_DEFAULT)
 		return
 	if element_unlock_ui and element_unlock_ui.visible:
 		hover_preview.visible = false
@@ -788,9 +878,11 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 	if can_place:
 		RangeGridHelper.tint_visual(hover_range_visual, Color(0.25, 1.0, 0.55, 0.4))
 		hover_sprite.modulate = Color(1, 1, 1, 0.7)
+		_set_cursor(CursorManager.CTX_PLACE)
 	else:
 		RangeGridHelper.tint_visual(hover_range_visual, Color(1.0, 0.2, 0.2, 0.4))
 		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
+		_set_cursor(CursorManager.CTX_INVALID)
 
 
 
@@ -817,9 +909,28 @@ func _update_pickup_hover_preview(mouse_pos: Vector2) -> void:
 	if can_relocate:
 		RangeGridHelper.tint_visual(hover_range_visual, Color(0.25, 1.0, 0.55, 0.4))
 		hover_sprite.modulate = Color(1, 1, 1, 0.7)
+		_set_cursor(CursorManager.CTX_DRAG)
 	else:
 		RangeGridHelper.tint_visual(hover_range_visual, Color(1.0, 0.2, 0.2, 0.4))
 		hover_sprite.modulate = Color(1, 0.3, 0.3, 0.7)
+		_set_cursor(CursorManager.CTX_INVALID)
+
+
+# Cursor-Kontext setzen, ohne bei fehlendem Autoload zu crashen (Tests laden die
+# Szene teils ohne alle Singletons).
+func _set_cursor(ctx: String) -> void:
+	if CursorManager:
+		CursorManager.set_context(ctx)
+
+
+func _tower_under_mouse(mouse_pos: Vector2) -> bool:
+	var game_area_height := MAP_HEIGHT * GRID_SIZE
+	if mouse_pos.y > game_area_height:
+		return false
+	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
+	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
+		return false
+	return tower_manager.get_tower_at(grid_pos) != null
 
 
 func _start_pickup_preview() -> void:

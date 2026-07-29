@@ -36,16 +36,18 @@ const COLOR_SLOT_INCOMPATIBLE := Color(0.28, 0.28, 0.32)
 const SLOT_ALPHA_INCOMPATIBLE := 0.4
 const RARITY_NAMES := {
 	"common": "Gewöhnlich",
-	"uncommon": "Ungewöhnlich", 
+	"uncommon": "Ungewöhnlich",
 	"rare": "Selten",
-	"epic": "Episch"
+	"epic": "Episch",
+	"legendary": "Legendär"
 }
 
 const SELL_PRICES := {
 	"common": 10,
 	"uncommon": 15,
 	"rare": 25,
-	"epic": 50
+	"epic": 50,
+	"legendary": 110
 }
 
 func _ready() -> void:
@@ -197,6 +199,8 @@ func _setup_detail_panel() -> void:
 	close_btn.custom_minimum_size = Vector2(24, 24)
 	close_btn.pressed.connect(_on_detail_close_pressed)
 	close_btn.flat = true
+	if UITheme:
+		UITheme.center_button_icon(close_btn)
 	header.add_child(close_btn)
 	
 	# Icon-Farbe für Hover-Effekt
@@ -292,20 +296,15 @@ func show_panel(equip_tower: Node2D = null) -> void:
 	_refresh_inventory()
 	visible = true
 
-	panel.modulate.a = 0
-	panel.scale = Vector2(0.9, 0.9)
-	var tween := panel.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.15)
-	tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_BACK)
+	if UITheme:
+		UITheme.animate_panel_open(panel)
 
 
 func hide_panel() -> void:
 	deselect_item()
 	filter_tower = null
-	var tween := panel.create_tween()
-	tween.tween_property(panel, "modulate:a", 0.0, 0.1)
-	tween.tween_callback(func(): visible = false)
+	if UITheme:
+		UITheme.animate_panel_close(panel, func(): visible = false)
 	panel_closed.emit()
 
 
@@ -412,6 +411,8 @@ func _show_item_detail(item: Dictionary) -> void:
 		var sell_price: int = SELL_PRICES.get(rarity, 10)
 		sell_button.text = "Verkaufen (%d)" % [sell_price]
 		sell_button.icon = IconSystem.get_texture("gold")
+		if UITheme:
+			UITheme.center_button_icon(sell_button)
 		sell_button.visible = true
 
 

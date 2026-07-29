@@ -149,9 +149,12 @@ func show_panel() -> void:
 	_update_equipped_display()
 	_update_choices_display()
 	visible = true
-	
+
 	# Spiel pausieren
 	get_tree().paused = true
+
+	if UITheme:
+		UITheme.animate_panel_open(panel)
 
 
 func hide_panel() -> void:

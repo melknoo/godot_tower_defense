@@ -112,10 +112,9 @@ func _build_ui() -> void:
 	close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	close_button.icon = IconSystem.get_texture("close") if IconSystem else null
-	close_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	close_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	if UITheme:
+		UITheme.center_button_icon(close_button)
 	close_button.add_theme_constant_override("icon_max_width", 18)
-	close_button.expand_icon = true
 	close_button.tooltip_text = "Schließen (Esc)"
 	close_button.pressed.connect(hide_panel)
 	if UITheme:
@@ -191,13 +190,8 @@ func show_panel() -> void:
 	get_tree().paused = true
 	_refresh()
 	visible = true
-	panel.modulate.a = 0.0
-	panel.scale = Vector2(0.96, 0.96)
-	panel.pivot_offset = panel.size * 0.5
-	var tween := panel.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.16)
-	tween.tween_property(panel, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if UITheme:
+		UITheme.animate_panel_open(panel)
 
 
 func hide_panel() -> void:

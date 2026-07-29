@@ -16,10 +16,13 @@ func _run() -> void:
 	var tower_data := root.get_node_or_null("TowerData")
 	var upgrade_system := root.get_node_or_null("UpgradeSystem")
 	var ability_system := root.get_node_or_null("AbilitySystem")
-	if not progression or not game_state or not tower_data or not upgrade_system or not ability_system:
+	var item_system := root.get_node_or_null("ItemSystem")
+	if not progression or not game_state or not tower_data or not upgrade_system or not ability_system or not item_system:
 		push_error("Progression smoke test: Autoloads fehlen")
 		quit(1)
 		return
+
+	_check_item_rarities(item_system)
 
 	var snapshot := {
 		"essence": progression.essence,
@@ -102,11 +105,19 @@ func _run() -> void:
 	_assert_equal(sword_level_2_hit < swift_health_wave_2, true, "Schwert Level 2 one-shottet Flinke nicht")
 	_assert_equal(sword_level_3_hit < swift_health_wave_2, true, "Schwert Level 3 one-shottet Flinke nicht")
 	swift_enemy.free()
+	# "combinations" ist keine Pro-Level-Werteliste (nur eine Liste erlaubter Kombi-Tuerme),
+	# daher von der generischen Stufenanzahl-Pruefung ausgenommen.
+	var non_level_array_fields := ["combinations"]
 	for tower_type in ["sword", "archer", "wizard", "cannon", "trapper", "aura"]:
 		var tower_definition: Dictionary = tower_data.get_tower_data(tower_type)
-		_assert_equal(tower_definition.get("damage", []).size(), tower_data.MAX_LEVEL + 1, "%s Schadensstufen" % tower_type)
-		_assert_equal(tower_definition.get("range", []).size(), tower_data.MAX_LEVEL + 1, "%s Reichweitenstufen" % tower_type)
-		_assert_equal(tower_definition.get("upgrade_costs", []).size(), tower_data.MAX_LEVEL, "%s Upgradekosten" % tower_type)
+		for field_name in tower_definition:
+			var field_value = tower_definition[field_name]
+			if not (field_value is Array) or field_name in non_level_array_fields:
+				continue
+			# Jedes Array-Feld muss MAX_LEVEL+1 Eintraege haben (Index 0..MAX_LEVEL),
+			# upgrade_costs nur MAX_LEVEL (kein Kostenaufstieg von der letzten Stufe aus).
+			var expected_size: int = tower_data.MAX_LEVEL if field_name == "upgrade_costs" else tower_data.MAX_LEVEL + 1
+			_assert_equal(field_value.size(), expected_size, "%s Feld '%s' Stufenanzahl" % [tower_type, field_name])
 
 	# === Charakter-Rekrutierung & Passiven ===
 	# Migration v1 -> v2: leeres recruited_characters => Basis-4 frei, Rekrutierbare gesperrt
@@ -213,6 +224,31 @@ func _check_run_schedule(ability_system: Node) -> void:
 	_assert_equal(RunSchedule.is_final_wave(RunSchedule.FINAL_WAVE), true, "Welle 30 ist Finale")
 	_assert_equal(RunSchedule.is_final_wave(29), false, "Welle 29 ist kein Finale")
 	_assert_equal(RunSchedule.get_events(30)[0]["id"], "final", "Finale steht in Welle 30 vorn")
+
+
+# Regressionstest gegen vergessene Raritaets-Tabellen: RARITY_ORDER ist die einzige
+# Quelle der Wahrheit, aber RARITIES (item_system.gd) sowie RARITY_NAMES/SELL_PRICES
+# (item_inventory_ui.gd) sind separate, von Hand gepflegte Tabellen - eine neue Rarität,
+# die dort vergessen wird, faellt sonst nur als stiller Verkaufswert 10 oder ein
+# englisches Label auf.
+func _check_item_rarities(item_system: Node) -> void:
+	# Die Anzeigetabellen liegen in ui/item_inventory_ui.gd. Bewusst per load() plus
+	# get_script_constant_map() statt ueber den Klassennamen `ItemInventoryUI`: eine
+	# direkte Referenz zieht das UI-Skript schon beim Kompilieren dieses Tests mit
+	# herein, und dort sind die Autoloads (ItemSystem) noch nicht registriert - das
+	# Laden des Tests scheitert dann mit "Identifier not found: ItemSystem".
+	var inventory_script: GDScript = load("res://ui/item_inventory_ui.gd")
+	var constants: Dictionary = inventory_script.get_script_constant_map()
+	var rarity_names: Dictionary = constants.get("RARITY_NAMES", {})
+	var sell_prices: Dictionary = constants.get("SELL_PRICES", {})
+	_assert_equal(rarity_names.is_empty(), false, "RARITY_NAMES aus item_inventory_ui.gd gelesen")
+	_assert_equal(sell_prices.is_empty(), false, "SELL_PRICES aus item_inventory_ui.gd gelesen")
+
+	for rarity in item_system.RARITY_ORDER:
+		_assert_equal(item_system.RARITIES.has(rarity), true, "Raritaet '%s' fehlt in RARITIES" % rarity)
+		_assert_equal(rarity_names.has(rarity), true, "Raritaet '%s' fehlt in RARITY_NAMES" % rarity)
+		_assert_equal(sell_prices.has(rarity), true, "Raritaet '%s' fehlt in SELL_PRICES" % rarity)
+	_assert_equal(item_system.is_max_rarity("legendary"), true, "Legendary ist die hoechste Raritaet")
 
 
 func _assert_equal(actual: Variant, expected: Variant, label: String) -> void:

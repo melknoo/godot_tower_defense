@@ -115,32 +115,132 @@ func _run() -> void:
 	_check(chain_tower.chain_targets > 0, "Kettenglied erhoeht die Sprungzahl")
 	chain_tower.queue_free()
 
+	# --- Brand macht ueber Zeit Schaden ---
+	# Frueher: take_damage(int(burn_damage * delta)) pro Frame => int(0.16) = 0, jeden Frame.
+	var burn_enemy: Node2D = load("res://enemy.tscn").instantiate()
+	main.add_child(burn_enemy)
+	var burn_path: Array[Vector2] = [Vector2(100, 300), Vector2(900, 300)]
+	burn_enemy.setup_extended(burn_path, {
+		"type": "tank", "health": 900, "speed": 8.0,
+		"reward": 5, "scale": 1.0, "element": "neutral"
+	})
+	await process_frame
+	burn_enemy.apply_burn(10, 3.0)
+	var burn_hp_before: int = int(burn_enemy.health)
+	# Bewusst mit frame-grossen Deltas gefuettert (60 FPS): genau so entstand der Bug.
+	# Ohne Akkumulation ueber Frames bleibt die Lebensenergie hier unveraendert.
+	for _i in range(40):
+		burn_enemy._update_status_effects(1.0 / 60.0)
+	_check(int(burn_enemy.health) < burn_hp_before,
+		"Brand tickt echten Schaden bei Frame-Deltas (%d -> %d HP)" % [
+			burn_hp_before, int(burn_enemy.health)
+		])
+	burn_enemy.free()
+	await process_frame
+
+	# --- Nahkampf-Effekte haengen nicht mehr an special_type ---
+	var melee_tower: Node2D = tower_scene.instantiate()
+	main.add_child(melee_tower)
+	melee_tower.setup(root.get_node("TowerData").get_legacy_data("sword", 0), "sword")
+	await process_frame
+	_check(melee_tower.special_type == "cleave", "Schwert startet mit Cleave, nicht mit Stun")
+	var core_item: Dictionary = item_system._create_item_instance(
+		"earth_core", item_system.ITEMS["earth_core"], "rare"
+	)
+	core_item["uid"] = "test_core"
+	item_system.collect_item(core_item)
+	item_system.equip_item(melee_tower, "test_core", 0)
+	await process_frame
+	_check(melee_tower.stun_chance > 0.0, "Erdkern gibt Stun-Chance auch ohne Erd-Gravur")
+
+	var melee_enemy: Node2D = load("res://enemy.tscn").instantiate()
+	main.add_child(melee_enemy)
+	var melee_path: Array[Vector2] = [Vector2(100, 400), Vector2(900, 400)]
+	melee_enemy.setup_extended(melee_path, {
+		"type": "tank", "health": 900, "speed": 8.0,
+		"reward": 5, "scale": 1.0, "element": "neutral"
+	})
+	await process_frame
+	melee_tower.stun_chance = 1.0
+	melee_tower._apply_melee_effects(melee_enemy)
+	_check(melee_enemy.stun_timer > 0.0, "Stun wirkt ohne Erd-Gravur (special_type bleibt cleave)")
+	melee_tower.burn_damage = 6
+	melee_tower._apply_melee_effects(melee_enemy)
+	_check(melee_enemy.burn_timer > 0.0, "Nahkampf entzuendet, wenn burn_damage > 0")
+	melee_enemy.free()
+	melee_tower.queue_free()
+	await process_frame
+
+	# --- Element-gebundene Item-Stats wirken (Feuerrubin) ---
+	# Reihenfolge absichtlich: erst equippen, dann gravieren. Das prueft mit, dass die
+	# Gravur die Item-Boni neu anwendet, statt sie zu verwerfen.
+	var gem_tower: Node2D = tower_scene.instantiate()
+	main.add_child(gem_tower)
+	gem_tower.setup(root.get_node("TowerData").get_legacy_data("archer", 0), "archer")
+	await process_frame
+	var gem_damage_before: int = int(gem_tower.damage)
+	var gem_item: Dictionary = item_system._create_item_instance(
+		"fire_gem", item_system.ITEMS["fire_gem"], "rare"
+	)
+	gem_item["uid"] = "test_gem"
+	item_system.collect_item(gem_item)
+	item_system.equip_item(gem_tower, "test_gem", 0)
+	await process_frame
+	_check(is_equal_approx(gem_tower.item_element_damage_bonus, 0.0),
+		"Feuerrubin wirkt nicht auf einem Turm ohne Feuer-Element")
+	gem_tower.engraved_element = "fire"
+	gem_tower.recalculate_stats()
+	await process_frame
+	_check(gem_tower.item_element_damage_bonus > 0.0,
+		"Feuerrubin wirkt auf feuer-graviertem Turm")
+	_check(int(gem_tower.damage) > gem_damage_before,
+		"Feuerrubin erhoeht den Schaden (%d -> %d)" % [gem_damage_before, int(gem_tower.damage)])
+	gem_tower.queue_free()
+	await process_frame
+
 	# --- Stadt nimmt Farmen auf, ohne Supply zu verlieren ---
 	var game_state := root.get_node("GameState")
 	var tower_data := root.get_node("TowerData")
 	var tower_manager = main.tower_manager
 	game_state.reset()
 	game_state.gold = 9999
+
+	# Freie Zellen dynamisch suchen statt sie fest zu verdrahten: der Pfad wird pro Run
+	# zufaellig erzeugt und lag gelegentlich genau auf den Testzellen - der Block war
+	# dadurch flaky (je nach Pfadtyp gruen oder rot).
+	var free_cells: Array[Vector2i] = []
+	for y in range(tower_manager.map_height):
+		for x in range(tower_manager.map_width):
+			if tower_manager.can_place_at(Vector2i(x, y), "farm"):
+				free_cells.append(Vector2i(x, y))
+				if free_cells.size() >= 4:
+					break
+		if free_cells.size() >= 4:
+			break
+	_check(free_cells.size() >= 4, "Vier freie Zellen fuer den Stadt-Test gefunden")
+
 	var farm_positions: Array[Vector2i] = []
-	for cell in [Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2)]:
-		if tower_manager.place_tower(cell, "farm") != null:
-			farm_positions.append(cell)
+	for i in range(3):
+		if tower_manager.place_tower(free_cells[i], "farm") != null:
+			farm_positions.append(free_cells[i])
 	await process_frame
 	_check(farm_positions.size() == 3, "Drei Farmen platziert")
 
 	var supply_before: int = game_state.supply_max
+	var city_base_supply: int = tower_data.get_supply_bonus("city")
 	_check(tower_data.is_tower_available("city"), "Stadt ab Supply-Schwelle verfuegbar")
-	var city_pos := Vector2i(6, 2)
+	var city_pos: Vector2i = free_cells[3]
 	var city: Node2D = tower_manager.place_tower(city_pos, "city")
 	await process_frame
 	_check(city != null, "Stadt platziert")
-	_check(game_state.supply_max == supply_before, "Leere Stadt aendert das Supply nicht")
+	_check(game_state.supply_max == supply_before + city_base_supply, "Leere Stadt gibt eigenes Supply")
 
 	var absorbed: int = tower_manager.absorb_farms(city_pos)
 	await process_frame
 	_check(absorbed == 3, "Stadt nimmt alle drei Farmen auf")
 	_check(tower_manager.count_free_farms() == 0, "Keine Farm mehr auf dem Feld")
-	_check(game_state.supply_max == supply_before, "Supply bleibt nach dem Aufnehmen gleich")
+	_check(game_state.supply_max == supply_before + city_base_supply,
+		"Supply bleibt nach dem Aufnehmen der Farmen gleich")
 
 	tower_manager.sell_tower(city_pos)
 	await process_frame

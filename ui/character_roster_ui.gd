@@ -115,10 +115,9 @@ func _build_ui() -> void:
 	close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	close_button.icon = IconSystem.get_texture("close") if IconSystem else null
-	close_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	close_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	if UITheme:
+		UITheme.center_button_icon(close_button)
 	close_button.add_theme_constant_override("icon_max_width", 18)
-	close_button.expand_icon = true
 	close_button.tooltip_text = "Schließen (Esc)"
 	close_button.pressed.connect(hide_panel)
 	if UITheme:
@@ -151,13 +150,8 @@ func show_panel() -> void:
 	get_tree().paused = true
 	_refresh()
 	visible = true
-	panel.modulate.a = 0.0
-	panel.scale = Vector2(0.96, 0.96)
-	panel.pivot_offset = panel.size * 0.5
-	var tween := panel.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.16)
-	tween.tween_property(panel, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if UITheme:
+		UITheme.animate_panel_open(panel)
 
 
 func hide_panel() -> void:
@@ -332,10 +326,15 @@ func _on_recruit_pressed(char_id: String, card: Control) -> void:
 func _resolve_portrait(data: Dictionary) -> Texture2D:
 	if not IconSystem:
 		return null
-	# Charakter-Portraits existieren noch nicht als Assets — leise aufs Element ausweichen
+	# `IconSystem.get_texture()` liefert fuer `char_*` ein prozedural erzeugtes Portrait,
+	# solange kein Asset existiert. Frueher wurde hier auf die Registry geprueft und
+	# deshalb immer aufs Element ausgewichen - alle Charaktere eines Elements sahen
+	# dadurch identisch aus. Das Element bleibt der letzte Notnagel.
 	var icon_name := String(data.get("icon_name", ""))
-	if IconSystem.icons.has(icon_name) or IconSystem.elemental_icons.has(icon_name):
-		return IconSystem.get_texture(icon_name)
+	if not icon_name.is_empty():
+		var portrait := IconSystem.get_texture(icon_name)
+		if portrait:
+			return portrait
 	return IconSystem.get_texture(String(data.get("element", "")))
 
 

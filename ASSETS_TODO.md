@@ -37,6 +37,20 @@ vier bereits der Fall).
 Optional analog dazu die Stufen-Varianten `tower_<typ>_level_2.png` bis `_level_4.png`
 (Muster: `tower_fire_level_2.png`).
 
+**Update (MAX_LEVEL 5 → 7, 8 Ausbaustufen):** Für die sechs regulären Ausbau-Türme
+(`archer`, `sword`, `wizard`, `cannon`, `trapper`, `aura`) gibt es aktuell **keinerlei**
+level-spezifisches Sprite — auch nicht fuer die bisherigen Stufen. `wizard`/`cannon`/
+`trapper`/`aura` zeigen ohnehin unconditional den Polygon-Platzhalter (siehe oben,
+unabhaengig vom Level). `archer`/`sword` nutzen ein einziges, level-unabhaengiges
+Richtungs-Spritesheet (`archer_spritesheet.png` / `sword_spritesheet.png`,
+`_setup_archer_sprite()` / `_setup_sword_sprite()` in `tower.gd`) - `_get_tower_texture_path()`
+mit dem `tower_<typ>_level_<N>.png`-Muster kommt fuer diese sechs Tuerme nur als Fallback
+zum Zug, wenn das Spritesheet fehlt, und faellt dann (ueber die `ResourceLoader.exists`-Pruefung
+in `_setup_standard_sprite()`) auf das Basis-Sprite `tower_<typ>.png` zurueck. Die neuen Stufen 7
+und 8 sehen also optisch identisch zu den bisherigen Stufen aus - kein neuer Regressionsfall,
+aber weiterhin offen: eigene Sprite-Varianten fuer alle 8 Stufen (mindestens fuer die neuen
+Stufen 7/8) waeren wuenschenswert, sobald ueberhaupt level-spezifische Turm-Grafiken entstehen.
+
 ## 2. Gegner-Sprites pro Typ
 
 Aktuell existieren nur Element-Varianten; **alle sieben Gegnertypen benutzen dasselbe
@@ -83,6 +97,25 @@ Raritaetsfarbe (`ItemSystem._create_category_fallback_texture`).
 Item-Icons. Alternativ reicht ein raritaetsloses `<basis>.png` als Basis-Icon fuer alle
 Stufen.
 
+### 3b. Legendary (neue Rarität, ab Welle `RunSchedule.LEGENDARY_DROP_WAVE`)
+
+`assets/items/loot_legendary.png` fehlt komplett - `item_drop.gd` laedt den Rarity-Marker
+seit dieser Aenderung ueber `ResourceLoader.exists()` (nicht mehr per hartem `preload`,
+das haette bei fehlender Datei jede Szene mit `ItemDrop` beim Parsen zerrissen) und faellt
+ohne die Datei auf `loot_epic.png` zurueck, per `rarity_marker.modulate` amber eingefaerbt.
+Sieht bereits im Spiel korrekt aus, ein eigenes Bild waere aber sauberer.
+
+Ebenfalls komplett neu und ohne eigenes Icon (fallen auf das Kategorie-Sammelicon
+`special.png` bzw. `accessories.png` zurueck, s.o.):
+
+| Icon-Basis | Kategorie |
+| --- | --- |
+| `sunforged_core` | special |
+| `stormcrown` | special |
+| `midas_sigil` | accessory |
+
+**Format:** wie oben, `assets/items/<basis>.png` bzw. `<basis>_legendary.png`.
+
 ## 4. UI-Icons
 
 In `autoload/icon_system.gd` registriert, Datei fehlt. Ersatz laut `FALLBACKS`-Tabelle
@@ -102,3 +135,14 @@ dort.
 Siehe `assets/music/README.md` fuer Musik und die fehlenden Kern-SFX
 (`hit.wav`, `enemy_death.wav`, `error.wav` — aktuell Platzhalter aus vorhandenen
 Dateien, siehe TODO in `autoload/sound_manager.gd`).
+
+## 6. Ungenutzte Assets
+
+Vorhanden, aber von keinem Code mehr referenziert:
+
+| Datei | Grund |
+| --- | --- |
+| `assets/elemental_bullets/bullet_sniper.png` | ungenutzt (kein Sniper-Turm im Spiel) |
+| `assets/elemental_tower/tower_sniper.png` | ungenutzt (kein Sniper-Turm im Spiel) |
+
+Bleiben liegen, koennen aber fuer einen zukuenftigen Turmtyp wiederverwendet werden.

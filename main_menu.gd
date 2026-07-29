@@ -124,11 +124,14 @@ func _create_ui() -> void:
 	character_select_panel.visible = false
 	if UITheme:
 		UITheme.style_panel(character_select_panel, "carved")
-	character_select_panel.custom_minimum_size = Vector2(520, 0)
+	# Breit genug fuer drei Karten (3 x 230 + 2 x 12 Abstand). Bei zwei Spalten wurde
+	# die Auswahl mit der zusaetzlichen Passiv-Zeile so hoch, dass die Buttons darunter
+	# aus dem Bild liefen.
+	character_select_panel.custom_minimum_size = Vector2(760, 0)
 	root_container.add_child(character_select_panel)
 	
 	var char_vbox := VBoxContainer.new()
-	char_vbox.add_theme_constant_override("separation", 16)
+	char_vbox.add_theme_constant_override("separation", 10)
 	character_select_panel.add_child(char_vbox)
 	
 	# Charakter-Titel als Ribbon
@@ -145,9 +148,10 @@ func _create_ui() -> void:
 	
 	# Character Grid
 	character_grid = GridContainer.new()
-	character_grid.columns = 2
+	# Drei Spalten: acht Charaktere passen damit in drei Reihen statt vier.
+	character_grid.columns = 3
 	character_grid.add_theme_constant_override("h_separation", 12)
-	character_grid.add_theme_constant_override("v_separation", 12)
+	character_grid.add_theme_constant_override("v_separation", 8)
 	char_vbox.add_child(character_grid)
 	
 	# Buttons unter Grid
@@ -254,7 +258,10 @@ func _update_character_grid() -> void:
 
 func _create_character_button(char_id: String, data: Dictionary, unlocked: bool) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(230, 170)
+	# Hoeher als frueher (170): die Karte zeigt jetzt zusaetzlich die Passive. Nicht
+	# weiter erhoehen ohne die Gesamthoehe zu pruefen - bei drei Reihen stoesst die
+	# Auswahl sonst unten aus dem Bild (die Buttons darunter verschwinden zuerst).
+	panel.custom_minimum_size = Vector2(230, 196)
 	
 	# Carved-Style Panel für jeden Charakter
 	if UITheme:
@@ -299,8 +306,15 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	if unlocked and not element.is_empty():
 		var icon_texture: Texture2D = null
 		if IconSystem:
-			icon_texture = IconSystem.get_texture(element)
-		
+			# Erst das Charakter-Portrait (IconSystem erzeugt es prozedural, solange kein
+			# Asset existiert), sonst das Element-Icon. Vorher sahen alle Charaktere eines
+			# Elements identisch aus.
+			var portrait_name: String = data.get("icon_name", "")
+			if not portrait_name.is_empty():
+				icon_texture = IconSystem.get_texture(portrait_name)
+			if icon_texture == null:
+				icon_texture = IconSystem.get_texture(element)
+
 		if icon_texture:
 			var icon := TextureRect.new()
 			icon.texture = icon_texture
@@ -335,7 +349,21 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	else:
 		ability_label.add_theme_font_size_override("font_size", 13)
 	vbox.add_child(ability_label)
-	
+
+	# Passive: jeder Charakter hat eine, und sie ist der zweite Teil seiner Identitaet
+	# neben der Start-Ability. Frueher stand sie nur im Roster, nicht in der Auswahl.
+	var passive_label := Label.new()
+	var passive_data: Dictionary = data.get("passive", {})
+	var passive_text: String = passive_data.get("description", "")
+	passive_label.text = ("Passiv: " + passive_text) if (unlocked and not passive_text.is_empty()) else ""
+	passive_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	passive_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	if UITheme:
+		UITheme.style_label(passive_label, 10, UITheme.COLOR_TEXT_DARK if unlocked else UITheme.COLOR_TEXT_DISABLED)
+	else:
+		passive_label.add_theme_font_size_override("font_size", 10)
+	vbox.add_child(passive_label)
+
 	# Beschreibung
 	var desc_label := Label.new()
 	var description: String = data.get("description", "")

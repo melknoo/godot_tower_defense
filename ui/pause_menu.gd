@@ -183,7 +183,10 @@ func _make_menu_button(text: String, icon_name: String, callback: Callable, red:
 		UITheme.style_button(button, red)
 	if IconSystem:
 		button.icon = IconSystem.get_texture(icon_name)
-		button.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(button)
+		else:
+			button.expand_icon = true
 	button.pressed.connect(callback)
 	return button
 
@@ -278,13 +281,8 @@ func handle_escape() -> void:
 
 
 func _animate_open() -> void:
-	panel.modulate.a = 0.0
-	panel.scale = Vector2(0.94, 0.94)
-	panel.pivot_offset = panel.size * 0.5
-	var tween := panel.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.14)
-	tween.tween_property(panel, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if UITheme:
+		UITheme.animate_panel_open(panel)
 
 
 func _show_main_view() -> void:

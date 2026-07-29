@@ -32,7 +32,11 @@ const SOUND_DEFS := {
 }
 
 const TOWER_ELEMENTS := ["base", "water", "fire", "earth", "air", "ice", "steam", "lava", "nature", "sword"]
-const MAX_TOWER_LEVEL := 3
+# Nur eine Preload-Obergrenze fuer shoot_<element>_level_<N>.wav - keine Balance-Kopplung
+# an TowerData.MAX_LEVEL. Fehlende Level-Varianten sind ok: _preload_all_streams() prueft
+# ResourceLoader.exists() pro Datei, und play_shoot() faellt sauber auf niedrigere Level
+# bzw. shoot_base zurueck, wenn ein Pool fuer die Stufe nicht existiert.
+const MAX_TOWER_LEVEL := 8
 const SHOOT_VOLUME := -10.0
 const SHOOT_PITCH_VAR := 0.08
 

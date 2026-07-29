@@ -470,8 +470,8 @@ func _create_progression_ui() -> void:
 	pause_button.position = Vector2(viewport_size.x - 66, -viewport_size.y + 123)
 	pause_button.custom_minimum_size = Vector2(50, 44)
 	pause_button.icon = IconSystem.get_texture("settings") if IconSystem else null
-	pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pause_button.expand_icon = true
+	if UITheme:
+		UITheme.center_button_icon(pause_button)
 	pause_button.tooltip_text = "Pause & Optionen (Esc)"
 	pause_button.pressed.connect(func(): pause_pressed.emit())
 	if UITheme:
@@ -583,7 +583,7 @@ func _show_item_toast(item: Dictionary) -> void:
 	labels.add_child(title)
 	var rarity_names := {
 		"common": "GEWÖHNLICH", "uncommon": "UNGEWÖHNLICH",
-		"rare": "SELTEN", "epic": "EPISCH",
+		"rare": "SELTEN", "epic": "EPISCH", "legendary": "LEGENDÄR",
 	}
 	var rarity := String(item.get("rarity", "common"))
 	var detail := Label.new()
@@ -860,9 +860,8 @@ func _apply_styles() -> void:
 
 	if inventory_button:
 		inventory_button.icon = IconSystem.get_texture("inventory")
-		inventory_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		inventory_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		inventory_button.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(inventory_button)
 		inventory_button.add_theme_constant_override("icon_max_width", 26)
 		inventory_button.tooltip_text = "Inventar öffnen (I)"
 
@@ -894,9 +893,8 @@ func _apply_styles() -> void:
 
 	if cores_button:
 		cores_button.text = ""
-		cores_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cores_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		cores_button.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(cores_button)
 		cores_button.add_theme_constant_override("icon_max_width", 30)
 		var icon_path := "res://assets/elemental_symbols/four_elements.png"
 		if ResourceLoader.exists(icon_path):
@@ -904,9 +902,8 @@ func _apply_styles() -> void:
 
 	if upgrades_button:
 		upgrades_button.icon = IconSystem.get_texture("upgrades")
-		upgrades_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		upgrades_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		upgrades_button.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(upgrades_button)
 		upgrades_button.add_theme_constant_override("icon_max_width", 26)
 		upgrades_button.tooltip_text = "Aktive Upgrades anzeigen (U)"
 
@@ -918,9 +915,8 @@ func _apply_styles() -> void:
 
 	if schedule_button:
 		schedule_button.icon = IconSystem.get_texture("path")
-		schedule_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		schedule_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		schedule_button.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(schedule_button)
 		schedule_button.add_theme_constant_override("icon_max_width", 26)
 		schedule_button.tooltip_text = "Fahrplan der kommenden Wellen (F)"
 
@@ -932,9 +928,8 @@ func _apply_styles() -> void:
 
 	if tower_stats_button:
 		tower_stats_button.icon = IconSystem.get_texture("damage")
-		tower_stats_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tower_stats_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-		tower_stats_button.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(tower_stats_button)
 		tower_stats_button.add_theme_constant_override("icon_max_width", 26)
 		tower_stats_button.tooltip_text = "Turm-Statistik: Kills & Schaden aller Türme (T)"
 
@@ -944,8 +939,8 @@ func _apply_styles() -> void:
 	if fast_forward_button:
 		fast_forward_button.text = ""
 		fast_forward_button.visible = false
-		fast_forward_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		fast_forward_button.expand_icon = true
+		if UITheme:
+			UITheme.center_button_icon(fast_forward_button)
 		fast_forward_button.flat = true
 		_update_fast_forward_icon()
 		_style_fast_forward_button()

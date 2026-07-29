@@ -199,14 +199,9 @@ func show_panel(wave: int = 0) -> void:
 
 	visible = true
 
-	# Animation
-	panel.modulate.a = 0
-	panel.scale = Vector2(0.8, 0.8)
-	var tween := panel.create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)  # WICHTIG: Während Pause animieren
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.2)
-	tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Animation (Panel-Tween läuft weiter, obwohl der Baum pausiert ist)
+	if UITheme:
+		UITheme.animate_panel_open(panel)
 
 	print("[ItemCombineUI] Panel angezeigt nach Welle %d" % wave)
 
@@ -214,13 +209,11 @@ func show_panel(wave: int = 0) -> void:
 func hide_panel() -> void:
 	selected_a = {}
 	selected_b = {}
-	var tween := panel.create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)  # WICHTIG
-	tween.tween_property(panel, "modulate:a", 0.0, 0.15)
-	tween.tween_callback(func():
-		visible = false
-		get_tree().paused = false
-	)
+	if UITheme:
+		UITheme.animate_panel_close(panel, func():
+			visible = false
+			get_tree().paused = false
+		)
 	panel_closed.emit()
 
 
@@ -477,12 +470,10 @@ func _update_preview() -> void:
 	combine_button.disabled = not ready_to_combine
 
 	if ready_to_combine:
-		# Das Ergebnis steht vor dem Klick fest - also auch mit Namen zeigen,
-		# statt nur die Rarität anzukündigen.
+		# Nur die Ziel-Rarität verraten - Name und Icon bleiben bis nach dem Kombinieren
+		# geheim, damit die Überraschung nicht vorweggenommen wird.
 		var rarity: String = result.get("rarity", "common")
-		result_label.text = "%s\n(%s)" % [
-			result.get("name", "Item"), RARITY_NAMES.get(rarity, rarity)
-		]
+		result_label.text = "Ergebnis: %s\n?" % RARITY_NAMES.get(rarity, rarity)
 		if ItemSystem.is_guaranteed_combine(selected_a, selected_b):
 			result_label.text += "\ngarantiert"
 		result_label.add_theme_color_override("font_color", result.get("color", Color("9aa8c2")))
@@ -541,7 +532,7 @@ func _update_subtitle() -> void:
 		subtitle_label.text = "Keine kombinierbaren Items mehr - es braucht zwei gleicher Seltenheit"
 		subtitle_label.add_theme_color_override("font_color", Color("c98d6b"))
 	else:
-		subtitle_label.text = "Zwei Items gleicher Seltenheit ergeben ein besseres Item\nZwei identische Items ergeben garantiert dieselbe Ausrüstung eine Stufe höher"
+		subtitle_label.text = "Zwei Items gleicher Seltenheit ergeben ein besseres Item\nZwei identische Items ergeben garantiert dieselbe Ausrüstung eine Stufe höher\nFrisch geschmiedete Items ruhen bis zur nächsten Schmiede"
 		subtitle_label.add_theme_color_override("font_color", Color("9aa8c2"))
 
 

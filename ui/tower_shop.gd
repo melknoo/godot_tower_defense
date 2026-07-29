@@ -102,8 +102,8 @@ func _setup_frame() -> void:
 	scroll_left_btn.flat = true
 	scroll_left_btn.visible = false
 	scroll_left_btn.focus_mode = Control.FOCUS_NONE
-	scroll_left_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scroll_left_btn.expand_icon = true
+	if UITheme:
+		UITheme.center_button_icon(scroll_left_btn)
 	scroll_left_btn.pressed.connect(_on_scroll_left)
 	scroll_left_btn.button_down.connect(_on_left_btn_down)
 	scroll_left_btn.button_up.connect(_on_left_btn_up)
@@ -131,8 +131,8 @@ func _setup_frame() -> void:
 	scroll_right_btn.flat = true
 	scroll_right_btn.visible = false
 	scroll_right_btn.focus_mode = Control.FOCUS_NONE
-	scroll_right_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scroll_right_btn.expand_icon = true
+	if UITheme:
+		UITheme.center_button_icon(scroll_right_btn)
 	scroll_right_btn.pressed.connect(_on_scroll_right)
 	scroll_right_btn.button_down.connect(_on_right_btn_down)
 	scroll_right_btn.button_up.connect(_on_right_btn_up)

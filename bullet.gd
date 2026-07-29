@@ -75,7 +75,6 @@ func _set_speed_for_type(type: String) -> void:
 		"fire": speed = 350.0
 		"earth": speed = 300.0
 		"air": speed = 700.0
-		"sniper": speed = 600.0
 		"cannon": speed = 250.0
 		"ice": speed = 450.0
 		"steam": speed = 400.0
@@ -152,7 +151,7 @@ func _texture_orientation_offset(type: String) -> float:
 	match type:
 		"water": return 0.0                              # zeigt rechts
 		"air": return PI                                 # zeigt links
-		"fire", "sniper", "ice", "steam": return PI / 2  # zeigen oben
+		"fire", "ice", "steam": return PI / 2             # zeigen oben
 		_: return 0.0                                    # symmetrisch / unbekannt
 
 

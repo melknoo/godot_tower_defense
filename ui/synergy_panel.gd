@@ -111,18 +111,13 @@ func show_panel() -> void:
 	_refresh_tracks()
 	visible = true
 
-	panel.modulate.a = 0
-	panel.scale = Vector2(0.9, 0.9)
-	var tween := panel.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(panel, "modulate:a", 1.0, 0.15)
-	tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if UITheme:
+		UITheme.animate_panel_open(panel)
 
 
 func hide_panel() -> void:
-	var tween := panel.create_tween()
-	tween.tween_property(panel, "modulate:a", 0.0, 0.1)
-	tween.tween_callback(func(): visible = false)
+	if UITheme:
+		UITheme.animate_panel_close(panel, func(): visible = false)
 	panel_closed.emit()
 
 

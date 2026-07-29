@@ -1,6 +1,71 @@
 # Projektfortschritt
 
-Letzte Aktualisierung: 2026-07-21
+Letzte Aktualisierung: 2026-07-28
+
+## Playtest-Notizen Runde 2 (2026-07-28)
+
+Sechzehn Beobachtungen aus einer Spielsession abgearbeitet, in zwei Phasen.
+
+**Phase A — drei kaputte Mechaniken (waren keine Politur, sondern Ausfaelle):**
+- Brennen machte **nie** Schaden: `enemy.gd` rechnete pro Frame
+  `int(burn_damage * delta)`, was bei 60 FPS jeden Frame 0 ergab. Laeuft jetzt
+  ueber einen festen 0,5-s-Tick (`BURN_TICK_INTERVAL`).
+- Ein feuer-graviertes Schwert brannte gar nicht an — `_apply_melee_effects()`
+  hatte keinen Burn-Zweig.
+- Der Erdkern-Stun wirkte nur mit Erd-Gravur, weil der Wurf an
+  `special_type == "stun"` hing. Nahkampf-Effekte werden jetzt einzeln geprueft;
+  Cleave und Stun koexistieren. Entscheidung: Stun wirkt unabhaengig von der Gravur.
+- Der Feuerrubin war komplett wirkungslos: der Stat-Key `fire_damage` wurde in
+  `tower.gd` nirgends gelesen. Jetzt greift generisch `<element>_damage` gegen
+  `get_effective_element()`, und TowerInfo zeigt eine Elementarschaden-Zeile.
+  `chain_damage` (Blitzkristall) war derselbe Blindgaenger.
+- Nebenbefund behoben: `engrave()` verwarf vorhandene Item-Boni bis zum naechsten
+  Recalc.
+
+**Phase B — Politur und Payoff:**
+- Sniper-Tower-Altlasten entfernt (drei `allowed_towers`, zwei tote `match`-Zweige);
+  er tauchte vorher in Item-Tooltips als gueltiger Turm auf.
+- Die Stadt gibt eigenes Supply (4) plus den Beitrag aufgenommener Farmen.
+- `UITheme.center_button_icon()` und `animate_panel_open/close()` als zentrale
+  Helper; zehn kopierte Panel-Tweens abgeloest, `ability_upgrade_ui` und
+  `tower_info` erstmals animiert.
+- Turm-Statistik faehrt von rechts ein statt die Bildmitte zu belegen.
+- Die Schmiede nennt nur noch die Ziel-Raritaet, nicht das Ergebnis-Item.
+- Item-Kisten liegen ueber Gegnern (`ItemDrop.z_index = 1`).
+- `VFX.spawn_impact_ring()` aus den Bausteinen des Platzier-Effekts; ausgeloest bei
+  Crits, schweren Treffern, Upgrades und fuenf Ability-Einschlaegen.
+- Kontextabhaengiger Cursor (`CursorManager.set_context()`) mit eigener Grafik pro
+  Kontext; vorher lag dieselbe Textur auf allen Shapes.
+- Ability-Indikator: gefuellte Flaeche, Puls, markierte Zielgegner, roter Zustand
+  wenn kein Gegner im Radius, und ein Spielfeld-Kreis fuer globale Abilities.
+- Upgrade-Vorschau datengetrieben ueber `UPGRADE_PREVIEW_STATS`: zeigt „jetzt →
+  nachher" fuer jeden Turmtyp, beim Aura-Turm den Buff-Prozentwert statt
+  „Schaden: 0".
+- Alle vier Basis-Charaktere haben jetzt eine Passive (Brennschaden, Slow-Staerke,
+  Stun-Chance, Feuerrate); Anzeige auf der Charakterkarte im Hauptmenue.
+  `IconSystem` erzeugt fehlende `char_*`-Portraits prozedural. Die Auswahl steht
+  dafuer in **drei** Spalten: mit der zusaetzlichen Passiv-Zeile lief sie bei zwei
+  Spalten unten aus dem Bild und der Start-Button war nicht mehr erreichbar.
+  Die Kartenhoehe richtet sich nach dem Textinhalt — wer die Beschreibungen
+  verlaengert, muss die Gesamthoehe erneut pruefen (aktuell 22 px Puffer bei 1080).
+- **Payoff:** `MAX_LEVEL` 5 → 7 (8 Stufen) fuer die sechs upgradebaren Basistuerme,
+  Gravur-Skalierung dafuer gekappt. Neue Raritaet `legendary` (×4,5) aus
+  Boss-Drops ab Welle 20 (7,2 % gemessen) und der Schmiede, mit drei
+  Exklusiv-Items. Forschungsraenge angehoben (logistics/fortification 10,
+  starting_funds 12, compound_interest 8, chrono 4). Meilensteine bei Welle 30
+  und 35 schliessen die Luecke am regulaeren Run-Ende.
+- Drei stille Item-System-Ausfaelle mitgefixt: `stat2`/`value2` wurden nie
+  angewendet, Proc-Werte skalierten mit der Raritaet (Executioner: 36 % statt
+  12 %), und `berserker_mark` hatte einen Stat-Key ohne Leser.
+
+**Verifikation:** `progression_smoke` und `feature_smoke` gruen (41 Checks, um
+Brand-, Stun-, Element-Schaden- und Raritaets-Asserts erweitert), `ui_capture` und
+`character_roster_capture` gruen und visuell geprueft. Legendary-Gating und
+Schmiede-Sperre separat gegengemessen.
+
+**Offen:** `tests/main_menu_capture.tscn` ist rot — der Test findet den
+Optionen-Button nicht. Der Fehler besteht auch auf unveraendertem `HEAD`
+(im Worktree gegengeprueft) und ist ein Testproblem, kein Menuefehler.
 
 Diese Datei beschreibt den veraenderlichen Arbeitsstand. Sie soll am Ende
 jeder groesseren Arbeitssitzung aktualisiert werden. Dauerhafte Architektur-

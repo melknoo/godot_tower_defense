@@ -10,6 +10,10 @@ signal inventory_changed
 
 const ITEM_ICON_PATH := "res://assets/items/"
 
+# Wellen-Kadenzen (u.a. Legendary-Drop-Freischaltung) - einzige Quelle: run_schedule.gd.
+# Muster wie game_state.gd:4.
+const RunSchedule = preload("res://autoload/run_schedule.gd")
+
 # Sammelicons je Kategorie - letzte Fallback-Stufe fuer Items, deren eigenes
 # Icon noch nicht gezeichnet ist (siehe ASSETS_TODO.md).
 const CATEGORY_FALLBACK_ICONS := {
@@ -34,12 +38,13 @@ const RARITIES := {
 	"common": {"color": Color(0.8, 0.8, 0.8), "weight": 60, "multiplier": 1.0},
 	"uncommon": {"color": Color(0.3, 0.9, 0.3), "weight": 25, "multiplier": 1.5},
 	"rare": {"color": Color(0.3, 0.5, 1.0), "weight": 12, "multiplier": 2.0},
-	"epic": {"color": Color(0.7, 0.3, 0.9), "weight": 3, "multiplier": 3.0}
+	"epic": {"color": Color(0.7, 0.3, 0.9), "weight": 3, "multiplier": 3.0},
+	"legendary": {"color": Color(1.0, 0.58, 0.16), "weight": 1, "multiplier": 4.5}
 }
 
 
 # Reihenfolge der Raritäten - Basis für Auf-/Abstieg (z.B. beim Kombinieren)
-const RARITY_ORDER := ["common", "uncommon", "rare", "epic"]
+const RARITY_ORDER := ["common", "uncommon", "rare", "epic", "legendary"]
 
 # === TUNABLES KOMBINIEREN ===
 # Gewicht der min_rarity beim Bestimmen des "besseren" Ausgangs-Items.
@@ -98,7 +103,7 @@ const ITEMS := {
 		"stat": "crit_chance", "base_value": 3,
 		"stat2": "range", "value2": 8,
 		"icon": "hawks_eye",
-		"allowed_towers": ["archer", "sniper", "air"],
+		"allowed_towers": ["archer", "air"],
 		"min_rarity": "uncommon"
 	},
 	"brutal_edge": {
@@ -133,7 +138,7 @@ const ITEMS := {
 		"description": "+{value}% Crit-Chance, aber nur auf große Distanz",
 		"stat": "crit_chance", "base_value": 15,
 		"icon": "longrange_bow",
-		"allowed_towers": ["archer", "sniper"],
+		"allowed_towers": ["archer"],
 		"min_rarity": "rare"
 	},
 	
@@ -253,10 +258,15 @@ const ITEMS := {
 		"min_rarity": "epic",
 		"allowed_towers": ["archer", "water", "fire"]
 	},
+	# HINWEIS: urspruenglich "stat": "berserker" (skalierend mit fehlendem Leben) -
+	# dieser Stat-Key wird in tower.gd nirgends gelesen und war damit wirkungslos.
+	# Da tower.gd fuer diese Aenderung tabu ist, auf den real ausgewerteten Key
+	# "crit_damage" umgestellt (Blutrausch -> haertere Kritische Treffer);
+	# Name/Beschreibung entsprechend angepasst.
 	"berserker_mark": {
 		"name": "Berserker-Mal", "category": "special",
-		"description": "+{value}% Schaden pro fehlendem Leben",
-		"stat": "berserker", "base_value": 2,
+		"description": "Blutrausch: +{value}% Crit-Schaden",
+		"stat": "crit_damage", "base_value": 40,
 		"icon": "berserker_mark",
 		"min_rarity": "epic",
 		"allowed_towers": ["sword", "fire"]
@@ -298,7 +308,7 @@ const ITEMS := {
 		"condition": {"type": "enemy_full_hp"},
 		"icon": "first_strike",
 		"min_rarity": "uncommon",
-		"allowed_towers": ["archer", "cannon", "sniper"]
+		"allowed_towers": ["archer", "cannon"]
 	},
 
 	# === PROC / TRIGGER ITEMS ===
@@ -335,9 +345,40 @@ const ITEMS := {
 		"description": "Tötet Gegner unter 12% Gesundheit sofort",
 		"stat": "proc", "base_value": 12,
 		"proc": {"trigger": "on_hit", "effect": "execute", "value": 0.12},
+		"scale_proc": false,  # Execute-Schwelle bleibt 12% auf jeder Rarität, siehe oben
 		"icon": "executioner",
 		"min_rarity": "epic",
 		"allowed_towers": ["sword", "archer", "cannon"]
+	},
+
+	# === LEGENDARY (nur ab Welle RunSchedule.LEGENDARY_DROP_WAVE, siehe run_schedule.gd) ===
+	"sunforged_core": {
+		"name": "Sonnengeschmiedeter Kern", "category": "special",
+		"description": "+{value}% Schaden, +{value2}% Feuerrate",
+		"stat": "damage", "base_value": 12,
+		"stat2": "fire_rate", "value2": 8,
+		"icon": "sunforged_core",
+		"min_rarity": "legendary",
+		"allowed_towers": []
+	},
+	"stormcrown": {
+		"name": "Sturmkrone", "category": "special",
+		"description": "+{value} zusätzliche Projektile, -{penalty}% Grundschaden",
+		"stat": "multishot", "base_value": 1,
+		"penalty_stat": "damage", "penalty_value": 6,
+		"icon": "stormcrown",
+		"min_rarity": "legendary",
+		# sword/cannon/trapper bewusst ausgeschlossen: Multishot greift nur im normalen
+		# _shoot()-Pfad, den diese Tuerme nicht nutzen.
+		"allowed_towers": ["archer", "wizard", "air", "water", "fire"]
+	},
+	"midas_sigil": {
+		"name": "Midas-Siegel", "category": "accessory",
+		"description": "+{value} Gold pro Kill durch diesen Turm",
+		"stat": "gold_bonus", "base_value": 2,
+		"icon": "midas_sigil",
+		"min_rarity": "legendary",
+		"allowed_towers": []
 	}
 }
 
@@ -394,29 +435,36 @@ func _generate_random_item(enemy_type: String, enemy_element: String) -> Diction
 
 func _roll_rarity(enemy_type: String) -> String:
 	var weights := RARITIES.duplicate(true)
-	
+
 	# Bosse haben bessere Chancen
 	if enemy_type == "boss":
 		weights["common"]["weight"] = 0
 		weights["uncommon"]["weight"] = 30
 		weights["rare"]["weight"] = 50
 		weights["epic"]["weight"] = 20
+		# Jackpot: Legendary nur ab der freigeschalteten Welle, siehe run_schedule.gd
+		weights["legendary"]["weight"] = 8 if RunSchedule.has_legendary_drops(GameState.current_wave) else 0
 	elif enemy_type == "tank":
 		weights["uncommon"]["weight"] = 35
 		weights["rare"]["weight"] = 18
-	
+		# Explizit 0 - RARITIES.duplicate(true) traegt sonst das Basisgewicht 1 mit
+		weights["legendary"]["weight"] = 0
+	else:
+		# Explizit 0 - ohne diese Zeile haette jeder Normalo-Drop 1% Legendary-Chance
+		weights["legendary"]["weight"] = 0
+
 	var total := 0
 	for r in weights:
 		total += weights[r]["weight"]
-	
+
 	var roll := rng.randi() % total
 	var cumulative := 0
-	
-	for r in ["epic", "rare", "uncommon", "common"]:
+
+	for r in ["legendary", "epic", "rare", "uncommon", "common"]:
 		cumulative += weights[r]["weight"]
 		if roll < cumulative:
 			return r
-	
+
 	return "common"
 
 
@@ -432,7 +480,12 @@ func _get_valid_items_for_rarity(rarity: String, enemy_element: String) -> Array
 		var min_index := RARITY_ORDER.find(min_rarity)
 		if rarity_index < min_index:
 			continue
-		
+
+		# Exklusivitaet: Ein Legendary soll sich wie ein Jackpot anfuehlen, nicht wie
+		# eine aufgeblasene Sharp-Blade - nur Templates ab min_rarity "epic" zulassen.
+		if rarity == "legendary" and min_index < RARITY_ORDER.find("epic"):
+			continue
+
 		# Element-Bonus: Höhere Chance für passende Items
 		if enemy_element != "" and enemy_element != "neutral":
 			var item_elem: String = template.get("element", "")
@@ -482,10 +535,12 @@ func _create_item_instance(template_id: String, template: Dictionary, rarity: St
 	if template.has("condition"):
 		item["condition"] = template["condition"].duplicate(true)
 
-	# NEU: Proc/Trigger-Effekt — Wert skaliert mit Rarität
+	# NEU: Proc/Trigger-Effekt — Wert skaliert mit Rarität, außer "scale_proc": false
+	# ist gesetzt (z.B. executioner: eine Execute-Schwelle soll nicht mit der Rarität
+	# explodieren).
 	if template.has("proc"):
 		var proc: Dictionary = template["proc"].duplicate(true)
-		if proc.has("value"):
+		if proc.has("value") and template.get("scale_proc", true):
 			proc["value"] = proc["value"] * rarity_data["multiplier"]
 		item["proc"] = proc
 
@@ -553,6 +608,13 @@ func can_combine(item_a: Dictionary, item_b: Dictionary) -> bool:
 	# Nicht dasselbe Item zweimal
 	if item_a.get("uid", "") == item_b.get("uid", ""):
 		return false
+	# Raritaets-Waesche-Schutz: ein Item darf pro Schmiede-Besuch nur einen
+	# Raritaetsschritt machen - frisch geschmiedete Items sind fuer die laufende
+	# Welle gesperrt. Default -1, damit Drops und Altbestand immer kombinierbar bleiben.
+	if item_a.get("forged_wave", -1) == GameState.current_wave:
+		return false
+	if item_b.get("forged_wave", -1) == GameState.current_wave:
+		return false
 	var rarity: String = item_a.get("rarity", "common")
 	if rarity != item_b.get("rarity", ""):
 		return false
@@ -570,15 +632,14 @@ func is_item_combinable(item: Dictionary) -> bool:
 
 
 # Gibt es überhaupt ein kombinierbares Paar? (Panel sonst gar nicht erst öffnen)
+# Paarweise ueber can_combine() statt nur Raritaeten zu zaehlen - sonst wuerde die
+# Schmiede auch dann aufgehen, wenn alle passenden Items durch den Waesche-Schutz
+# (forged_wave) gerade gesperrt sind. O(n^2) bei MAX_INVENTORY := 20 ist irrelevant.
 func has_combinable_pair() -> bool:
-	var counts := {}
-	for item in inventory:
-		var rarity: String = item.get("rarity", "common")
-		if is_max_rarity(rarity):
-			continue
-		counts[rarity] = int(counts.get(rarity, 0)) + 1
-		if counts[rarity] >= 2:
-			return true
+	for i in range(inventory.size()):
+		for j in range(i + 1, inventory.size()):
+			if can_combine(inventory[i], inventory[j]):
+				return true
 	return false
 
 
@@ -596,6 +657,10 @@ func combine_items(uid_a: String, uid_b: String) -> Dictionary:
 	if result.is_empty():
 		return {}
 	result["uid"] = _generate_uid()
+	# Raritaets-Waesche-Schutz: markiert das Ergebnis als "diese Welle geschmiedet" -
+	# can_combine() sperrt es damit fuer einen weiteren Schritt bis zur naechsten Welle.
+	# Bewusst NICHT in preview_combine() - die Vorschau darf nichts verändern.
+	result["forged_wave"] = GameState.current_wave
 
 	_remove_item_silent(uid_a)
 	_remove_item_silent(uid_b)
@@ -761,6 +826,9 @@ func get_tower_item_bonus(tower: Node2D, stat: String) -> float:
 			continue
 		if item.get("stat") == stat:
 			total += item.get("value", 0)
+		# Zweiter Stat (Dual-Stat Items wie hawks_eye/critical_cape/vorpal_blade)
+		if item.get("stat2") == stat:
+			total += item.get("value2", 0)
 		# Penalty abziehen
 		if item.get("penalty_stat") == stat:
 			total -= item.get("penalty_value", 0)
