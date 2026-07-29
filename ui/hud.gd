@@ -96,11 +96,7 @@ var _next_wave_element: String = "neutral"
 var _current_wave_element: String = "neutral"
 var _next_wave_preview: Dictionary = {}   # gecachte Preview für Tooltip
 var _blocked_tower_count: int = 0
-var progression_strip: PanelContainer
-var essence_label: Label
-var account_level_label: Label
-var account_xp_bar: ProgressBar
-var milestone_progress_label: Label
+var wave_action_row: HBoxContainer
 var research_button: Button
 var auto_wave_button: Button
 var pause_button: Button
@@ -475,6 +471,7 @@ func _create_wave_status_ui() -> void:
 	var action_row := HBoxContainer.new()
 	action_row.add_theme_constant_override("separation", 7)
 	action_column.add_child(action_row)
+	wave_action_row = action_row
 	start_button.reparent(action_row, false)
 	start_button.position = Vector2.ZERO
 	start_button.custom_minimum_size = Vector2(171, 42)
@@ -573,51 +570,15 @@ func _create_wave_separator() -> VSeparator:
 
 func _create_progression_ui() -> void:
 	var viewport_size := get_viewport_rect().size
-	progression_strip = PanelContainer.new()
-	progression_strip.name = "ProgressionStrip"
-	# HUD-Origin liegt 105 px über dem unteren Rand; +123 ergibt global y=18.
-	progression_strip.position = Vector2(14, -viewport_size.y + 123)
-	progression_strip.custom_minimum_size = Vector2(690, 54)
-	bottom_strip.add_child(progression_strip)
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_top", 7)
-	margin.add_theme_constant_override("margin_bottom", 7)
-	progression_strip.add_child(margin)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	margin.add_child(row)
-
-	essence_label = Label.new()
-	essence_label.custom_minimum_size.x = 130
-	essence_label.add_theme_color_override("font_color", UI.ACCENT)
-	essence_label.add_theme_font_size_override("font_size", 16)
-	row.add_child(essence_label)
-
-	account_level_label = Label.new()
-	account_level_label.custom_minimum_size.x = 72
-	account_level_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
-	account_level_label.add_theme_font_size_override("font_size", 16)
-	row.add_child(account_level_label)
-
-	account_xp_bar = ProgressBar.new()
-	account_xp_bar.custom_minimum_size = Vector2(140, 18)
-	account_xp_bar.show_percentage = false
-	_style_arcane_progress_bar(account_xp_bar, Color("6bbde8"))
-	row.add_child(account_xp_bar)
-
-	milestone_progress_label = Label.new()
-	milestone_progress_label.custom_minimum_size.x = 135
-	milestone_progress_label.add_theme_font_size_override("font_size", 16)
-	row.add_child(milestone_progress_label)
-
+	# Aether/Archiv-Stufe/Meilenstein sind kein Dauerplatz mehr im Kampf-HUD (README
+	# "Zurücktreten"-Tier) - meta_progression_ui.gd zeigt dieselben Werte bereits
+	# eigenstaendig im [U]-Overlay, ein zweites permanentes Label waere Duplikat.
 	auto_wave_button = Button.new()
 	auto_wave_button.custom_minimum_size = Vector2(76, 38)
 	auto_wave_button.tooltip_text = "Wellen automatisch starten"
 	auto_wave_button.pressed.connect(_on_auto_wave_pressed)
-	row.add_child(auto_wave_button)
+	wave_action_row.add_child(auto_wave_button)
 
 	_style_progression_button(auto_wave_button)
 
@@ -1166,31 +1127,18 @@ func _connect_signals() -> void:
 		ProgressionSystem.auto_wave_changed.connect(_on_auto_wave_changed)
 
 
-func _on_essence_changed(total: int, delta: int) -> void:
-	if essence_label:
-		essence_label.text = "✦ %s AETHER" % _format_number(total)
-		if delta > 0:
-			var tween := essence_label.create_tween()
-			tween.tween_property(essence_label, "modulate", Color(1.5, 1.7, 2.0), 0.10)
-			tween.tween_property(essence_label, "modulate", Color.WHITE, 0.20)
-			if VFX:
-				var pos: Vector2 = essence_label.get_global_rect().get_center()
-				VFX.spawn_pixel_burst(pos, "water", 6, _vfx_layer())
-				VFX.spawn_status_text(pos, "+%d ✦" % delta, Color("75ddff"), _vfx_layer())
-	_update_progression_milestone()
+func _on_essence_changed(_total: int, delta: int) -> void:
+	if delta > 0 and VFX and gold_label:
+		var pos: Vector2 = gold_label.get_global_rect().get_center()
+		VFX.spawn_pixel_burst(pos, "water", 6, _vfx_layer())
+		VFX.spawn_status_text(pos, "+%d ✦" % delta, Color("75ddff"), _vfx_layer())
 
 
 var _last_account_level := 0
 
-func _on_account_progress_changed(level: int, xp: int, required: int) -> void:
-	if account_level_label:
-		account_level_label.text = "STUFE %d" % level
-	if account_xp_bar:
-		account_xp_bar.max_value = maxi(1, required)
-		account_xp_bar.value = xp
-		account_xp_bar.tooltip_text = "Archiv-XP: %d/%d" % [xp, required]
+func _on_account_progress_changed(level: int, _xp: int, _required: int) -> void:
 	if level > _last_account_level and _last_account_level > 0 and VFX:
-		var pos: Vector2 = account_level_label.get_global_rect().get_center() if account_level_label else get_viewport().get_visible_rect().size * 0.5
+		var pos: Vector2 = get_viewport().get_visible_rect().size * 0.5
 		VFX.spawn_pixel_ring(pos, "gold", 50.0, _vfx_layer())
 		VFX.screen_flash(Color(1.0, 0.85, 0.4, 0.4), 0.12)
 		VFX.spawn_status_text(pos, "STUFE %d ERREICHT" % level, Color("f4cf6a"), _vfx_layer())
@@ -1218,17 +1166,10 @@ func _on_streak_changed(streak: int, multiplier: float, time_left: float) -> voi
 			VFX.spawn_pixel_burst(streak_panel.get_global_rect().get_center(), "crit", 8, _vfx_layer())
 
 
-func _on_milestone_reached(wave: int, reward: int) -> void:
-	_update_progression_milestone()
-	if milestone_progress_label and VFX:
-		VFX.spawn_pixel_burst(milestone_progress_label.get_global_rect().get_center(), "gold", 12, _vfx_layer())
-	if milestone_progress_label:
-		milestone_progress_label.text = "MEILENSTEIN %d  +%d ✦" % [wave, reward]
-		var tween := milestone_progress_label.create_tween()
-		tween.tween_property(milestone_progress_label, "modulate", Color("8eeeff"), 0.12)
-		tween.tween_interval(1.4)
-		tween.tween_property(milestone_progress_label, "modulate", Color.WHITE, 0.2)
-		tween.tween_callback(_update_progression_milestone)
+func _on_milestone_reached(_wave: int, _reward: int) -> void:
+	if VFX:
+		var pos: Vector2 = get_viewport().get_visible_rect().size * 0.5
+		VFX.spawn_pixel_burst(pos, "gold", 12, _vfx_layer())
 
 
 func _on_research_changed(_research_id: String, _level: int) -> void:
@@ -1258,31 +1199,9 @@ func _on_auto_wave_pressed() -> void:
 func _update_progression_display() -> void:
 	if not ProgressionSystem:
 		return
-	_on_essence_changed(ProgressionSystem.essence, 0)
-	_on_account_progress_changed(ProgressionSystem.account_level, ProgressionSystem.account_xp, ProgressionSystem.get_xp_required())
 	if auto_wave_button:
 		auto_wave_button.visible = ProgressionSystem.is_automation_unlocked()
 		auto_wave_button.text = "AUTO AN" if ProgressionSystem.auto_wave_enabled else "AUTO AUS"
-	_update_progression_milestone()
-
-
-func _update_progression_milestone() -> void:
-	if not milestone_progress_label or not ProgressionSystem:
-		return
-	var milestone: Dictionary = ProgressionSystem.get_next_milestone()
-	var target_wave := int(milestone.get("wave", 0))
-	if target_wave > 0:
-		milestone_progress_label.text = "ZIEL W%d  ·  +%d ✦" % [target_wave, int(milestone.get("reward", 0))]
-	else:
-		milestone_progress_label.text = "ALLE ZIELE ERREICHT"
-
-
-func _format_number(value: int) -> String:
-	if value >= 1_000_000:
-		return "%.2fM" % (float(value) / 1_000_000.0)
-	if value >= 10_000:
-		return "%.1fK" % (float(value) / 1_000.0)
-	return str(value)
 
 
 func _on_inventory_button_pressed() -> void:
