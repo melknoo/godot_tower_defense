@@ -255,7 +255,9 @@ func shop_card(state := "normal") -> StyleBoxFlat:
 		"selected":
 			border = ACCENT
 			width = BW_SELECTED
-	var s := _box(BG_2, border, width, SP_3)
+	# pad=0: der Innenabstand kommt aus der expliziten MarginContainer in shop_card.gd,
+	# nicht aus der StyleBox — sonst verdoppelt sich das Padding.
+	var s := _box(BG_2, border, width, 0)
 	if state == "disabled":
 		s.bg_color = BG_1
 		s.border_color = BORDER_SOFT

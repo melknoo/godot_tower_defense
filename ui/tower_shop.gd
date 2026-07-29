@@ -6,6 +6,8 @@ class_name TowerShop
 signal tower_selected(tower_type: String)
 signal tower_deselected
 
+const ShopCardScene := preload("res://ui/shop/shop_card.tscn")
+
 var selected_type := ""
 var tower_buttons: Dictionary = {}
 var grid_container: HBoxContainer
@@ -13,29 +15,25 @@ var scroll_left_btn: Button
 var scroll_right_btn: Button
 var clip_container: Control
 
-
-var corner_textures: Dictionary = {}
-
 const VISIBLE_TOWERS := 5
-const BUTTON_WIDTH := 70
-const BUTTON_HEIGHT := 85
-const H_SPACING := 20
 const PADDING := 8
 
-# Archer Spritesheet Konstanten
-const ARCHER_FRAME_SIZE := Vector2(192, 192)
-const ARCHER_COLUMNS := 8
-
-const SWORD_FRAME_SIZE := Vector2(192, 192)
-const SWORD_COLUMNS := 6
+# Aus ShopCard.preferred_size() abgeleitet — keine eigene Kartengrößen-Quelle hier.
+var BUTTON_WIDTH: int
+var BUTTON_HEIGHT: int
+var H_SPACING: int
 
 var scroll_offset := 0
 var max_scroll := 0
 
 
 func _ready() -> void:
+	var card_size := ShopCard.preferred_size()
+	BUTTON_WIDTH = int(card_size.x)
+	BUTTON_HEIGHT = int(card_size.y)
+	H_SPACING = UI.SP_2
+
 	_setup_frame()
-	_load_corner_textures()
 	_load_arrow_textures()
 	_create_tower_buttons()
 	
@@ -56,7 +54,7 @@ func _move_to_front() -> void:
 
 func _setup_frame() -> void:
 	var content_width := VISIBLE_TOWERS * (BUTTON_WIDTH + H_SPACING) + 80 + (PADDING * 2)
-	var content_height := 105
+	var content_height := BUTTON_HEIGHT + PADDING * 2
 	custom_minimum_size = Vector2(content_width, content_height)
 	
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -113,7 +111,7 @@ func _setup_frame() -> void:
 	clip_container = Control.new()
 	clip_container.name = "ClipContainer"
 	clip_container.clip_contents = true
-	clip_container.custom_minimum_size = Vector2(VISIBLE_TOWERS * (BUTTON_WIDTH + H_SPACING), 85)
+	clip_container.custom_minimum_size = Vector2(VISIBLE_TOWERS * (BUTTON_WIDTH + H_SPACING), BUTTON_HEIGHT)
 	clip_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	clip_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	clip_container.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -218,15 +216,6 @@ func _on_right_btn_up() -> void:
 		scroll_right_btn.icon = arrow_right_idle
 
 
-func _load_corner_textures() -> void:
-	var base_path := "res://assets/ui/"
-	var corners := ["top_left", "top_right", "bottom_left", "bottom_right"]
-	
-	for corner in corners:
-		var path := base_path + "selection_%s_corner.png" % corner
-		if ResourceLoader.exists(path):
-			corner_textures[corner] = load(path)
-
 
 func _position_at_bottom_center() -> void:
 	var viewport_size := get_viewport_rect().size
@@ -320,165 +309,32 @@ func _on_supply_changed(_used: int, _max_supply: int) -> void:
 	_create_tower_buttons()
 
 
-func _get_tower_icon_texture(type: String) -> Texture2D:
-	return TowerData.get_tower_icon_texture(type)
+func _build_tower_data(type: String) -> Dictionary:
+	var data := TowerData.get_tower_data(type)
+	var cost: int = TowerData.get_tower_cost(type)
+	return {
+		"id": type,
+		"name": data.get("name", type.capitalize()),
+		"description": data.get("description", ""),
+		"cost": cost,
+		"texture": TowerData.get_tower_icon_texture(type),
+		"affordable": GameState.can_afford(cost),
+	}
 
 
 func _create_button(type: String) -> Control:
-	var container := Control.new()
-	container.name = type.capitalize() + "Container"
-	container.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
-	
-	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
-	btn.set_anchors_preset(Control.PRESET_FULL_RECT)
-	btn.flat = true
-	btn.name = "Button"
-	container.add_child(btn)
-	
-	# Vertikales Layout: Bild oben, Text unten
-	var vbox := VBoxContainer.new()
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 2)
-	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox.offset_left = 4
-	vbox.offset_right = -4
-	vbox.offset_top = 4
-	vbox.offset_bottom = -4
-	btn.add_child(vbox)
-	
-	# Icon Container (für Overlay - wie position:relative in CSS)
-	var icon_container := Control.new()
-	icon_container.custom_minimum_size = Vector2(50, 50)
-	icon_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	vbox.add_child(icon_container)
-	
-	# Icon zentriert im Container
-	var tex_rect := TextureRect.new()
-	tex_rect.custom_minimum_size = Vector2(50, 50)
-	tex_rect.size = Vector2(50, 50)
-	tex_rect.position = Vector2(0, 0)
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	
-	var icon_texture := _get_tower_icon_texture(type)
-	if icon_texture:
-		tex_rect.texture = icon_texture
-	
-	icon_container.add_child(tex_rect)
-	
-	# Kosten Overlay oben links auf dem Icon (wie position:absolute in CSS)
-	var cost: int = TowerData.get_tower_cost(type)
-	var base_cost: int = TowerData.get_stat(type, "cost")
-	
-	# Erstelle ein neues RichTextLabel für jeden Button
-	var cost_label := RichTextLabel.new()
-	cost_label.name = "CostLabel"
-	cost_label.bbcode_enabled = true
-	cost_label.fit_content = true
-	cost_label.scroll_active = false
-	cost_label.custom_minimum_size = Vector2(60, 20)
-	
-	# Zeige Discount wenn aktiv
-	if cost < base_cost:
-		cost_label.text = "%d%s" % [cost, IconSystem.bb("coin", 16)]
-	else:
-		cost_label.text = "%d%s" % [cost, IconSystem.bb("coin", 16)]
-	
-	cost_label.position = Vector2(-2, -2)  # Oben links
-	if UITheme and UITheme.game_font:
-		cost_label.add_theme_font_override("font", UITheme.game_font)
-	cost_label.add_theme_font_size_override("font_size", 12)
-	cost_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	cost_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	cost_label.add_theme_constant_override("outline_size", 3)
-	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_container.add_child(cost_label)
-	
-	# Name Label zentriert
-	var data := TowerData.get_tower_data(type)
-	var display_name: String = data.get("name", type.capitalize())
-	var name_label := Label.new()
-	name_label.name = "NameLabel"
-	name_label.text = display_name
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		name_label.add_theme_font_override("font", UITheme.game_font)
-	name_label.add_theme_font_size_override("font_size", 10)
-	name_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
-	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_child(name_label)
-	
-	_add_corners(container)
-	_apply_button_style(btn)
-	btn.pressed.connect(_on_tower_button_pressed.bind(type))
-	
-	var desc: String = data.get("description", "")
-	btn.tooltip_text = "%s\n%s\n %d gold" % [display_name, desc, cost]
-	
-	return container
-
-
-func _add_corners(container: Control) -> void:
-	if corner_textures.size() < 4:
-		return
-	
-	var corners_node := Node2D.new()
-	corners_node.name = "CornersNode"
-	corners_node.visible = false
-	corners_node.z_index = 100
-	
-	container.set_meta("corners_node", corners_node)
-	container.add_child(corners_node)
-	
-	var btn_width := BUTTON_WIDTH
-	var btn_height := BUTTON_HEIGHT
-	var scl := Vector2(1.5, 1.5)
-	var corner_size := 8.0 * scl.x
-	var offset := 1.0
-	
-	var tl := Sprite2D.new()
-	tl.texture = corner_textures["top_left"]
-	tl.scale = scl
-	tl.position = Vector2(offset, offset)
-	tl.centered = false
-	corners_node.add_child(tl)
-	
-	var tr := Sprite2D.new()
-	tr.texture = corner_textures["top_right"]
-	tr.scale = scl
-	tr.position = Vector2(btn_width - corner_size - offset, offset)
-	tr.centered = false
-	corners_node.add_child(tr)
-	
-	var bl := Sprite2D.new()
-	bl.texture = corner_textures["bottom_left"]
-	bl.scale = scl
-	bl.position = Vector2(offset, btn_height - corner_size - offset)
-	bl.centered = false
-	corners_node.add_child(bl)
-	
-	var br := Sprite2D.new()
-	br.texture = corner_textures["bottom_right"]
-	br.scale = scl
-	br.position = Vector2(btn_width - corner_size - offset, btn_height - corner_size - offset)
-	br.centered = false
-	corners_node.add_child(br)
-
-
-func _apply_button_style(btn: Button) -> void:
-	var style := StyleBoxEmpty.new()
-	btn.add_theme_stylebox_override("normal", style)
-	btn.add_theme_stylebox_override("hover", style)
-	btn.add_theme_stylebox_override("pressed", style)
-	btn.add_theme_stylebox_override("focus", style)
+	var card: ShopCard = ShopCardScene.instantiate()
+	var data := _build_tower_data(type)
+	card.setup(data)
+	card.tooltip_text = "%s\n%s\n%d gold" % [data["name"], data["description"], data["cost"]]
+	card.pressed.connect(_on_tower_button_pressed)
+	card.set_selected(type == selected_type)
+	return card
 
 
 func _on_tower_button_pressed(type: String) -> void:
 	Sound.play_click()
-	
+
 	if selected_type == type:
 		deselect()
 	else:
@@ -487,43 +343,27 @@ func _on_tower_button_pressed(type: String) -> void:
 
 func select(type: String) -> void:
 	selected_type = type
-	_update_corner_visibility()
+	_update_selection_visuals()
 	tower_selected.emit(type)
 
 
 func deselect() -> void:
 	selected_type = ""
-	_update_corner_visibility()
+	_update_selection_visuals()
 	tower_deselected.emit()
 
 
-func _update_corner_visibility() -> void:
+func _update_selection_visuals() -> void:
 	for type in tower_buttons:
-		var container: Control = tower_buttons[type]
-		var corners_node: Node2D = container.get_meta("corners_node", null)
-		if corners_node:
-			corners_node.visible = (type == selected_type)
+		var card: ShopCard = tower_buttons[type]
+		card.set_selected(type == selected_type)
 
 
 func _on_gold_changed(_amount: int) -> void:
 	for type in tower_buttons:
-		var container: Control = tower_buttons[type]
-		var btn := container.get_node("Button") as Button
-		_update_button_affordability(btn, container, type)
-
-
-func _update_button_affordability(btn: Button, container: Control, type: String) -> void:
-	var cost: int = TowerData.get_tower_cost(type)
-	var can_afford := GameState.can_afford(cost)
-	
-	container.modulate.a = 1.0 if can_afford else 0.5
-	
-	var cost_label := btn.find_child("CostLabel", true, false) as Label
-	if cost_label:
-		if can_afford:
-			cost_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-		else:
-			cost_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+		var card: ShopCard = tower_buttons[type]
+		card.setup(_build_tower_data(type))
+		card.set_selected(type == selected_type)
 
 
 func get_selected_type() -> String:

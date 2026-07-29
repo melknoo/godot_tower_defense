@@ -5,6 +5,14 @@ class_name ShopCard
 
 signal pressed(tower_id: String)
 
+## Einzige Quelle der Wahrheit für die Kartengröße — Aufrufer (z.B. tower_shop.gd)
+## sollen daraus ihre Scroll-/Frame-Geometrie ableiten statt die Maße zu duplizieren.
+static func preferred_size() -> Vector2:
+	return Vector2(
+		UI.SLOT_SIZE + UI.SP_3 * 2,
+		UI.SLOT_SIZE + UI.SP_3 * 2 + UI.SP_1 * 2 + UI.FS_MICRO * 2
+	)
+
 var tower_id: String = ""
 var _affordable := true
 var _selected := false
@@ -18,11 +26,8 @@ var _icon_rect: TextureRect
 var _name_label: Label
 
 
-func _ready() -> void:
-	custom_minimum_size = Vector2(
-		UI.SLOT_SIZE + UI.SP_3 * 2,
-		UI.SLOT_SIZE + UI.SP_3 * 2 + UI.SP_1 * 2 + UI.FS_MICRO * 2
-	)
+func _init() -> void:
+	custom_minimum_size = preferred_size()
 	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_theme_stylebox_override("panel", UI.shop_card("normal"))
