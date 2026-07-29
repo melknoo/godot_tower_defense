@@ -46,10 +46,43 @@ Umsetzung läuft phasenweise nach der "Implementation Order" in
   Turmkarten, Ability-Cooldowns, Item-Slots, Synergiezeilen anschließen.
   `ui/ability_upgrade_ui.gd::_get_element_color()` nutzt noch ein eigenes,
   unvollständiges 4-Elemente-Set statt `UI.el()` — Kandidat für Phase 3.
-- **Phase 4 (HUD-Umbau): offen.** Topbar/Bottombar nach Wireframe, Turm-Info
-  rechts andocken, Meta-Anzeigen ins Overlay verschieben. Ability-Bar wurde
-  von Phase3b bewusst nicht angefasst (eigene, weiterhin absolut positionierte
-  Komponente) — gehört strukturell erst hierher.
+- **Phase 4 (HUD-Umbau): fertig**, auf Wunsch vor Phase 3 umgesetzt; 5 Schritte,
+  je ein eigener Commit:
+  1. `ui/hud.gd`: HUD-Root von bottom-anchored Streifen auf `FULL_RECT`
+     umgestellt, alter Streifen unverändert in neuen `BottomStrip`-Container
+     verschoben (No-op), leere `TopBar` (64px, oben) angelegt.
+  2. HP/Wellen/Ressourcen-Gruppen (Gold · Kerne · Supply) in die TopBar
+     gezogen; `seed_label` entfernt (war nirgends mit Text befüllt — totes
+     UI-Element), `bonus_preview_label` in die Wellenvorschau verschoben.
+     Bewusste Abweichung vom Wireframe: kein "3/12"-Wellenbalken, da das
+     Spiel keine feste Wellen-Gesamtzahl kennt (endloser Run).
+  3. Alle 9 Panel-Buttons (Inventar, Kerne, Upgrades, Synergien, Fahrplan,
+     Schmiede, Statistik, Archiv, Pause) als 56×56-Icon-Cluster ans rechte
+     TopBar-Ende gedockt — auf Nutzerwunsch *nicht* auf 3 Buttons
+     konsolidiert, alle Panels bleiben 1 Klick entfernt.
+  4. Permanente Meta-Anzeige (Aether/Archiv-Stufe/XP/Meilenstein) entfernt:
+     `ui/meta_progression_ui.gd` (der `[U]`-Button) zeigt dieselben Werte
+     bereits eigenständig — ein zweites Label wäre Duplikat gewesen.
+     Ability-Bar wurde erste Spalte der `main.gd`-BottomBar-HBox (Breite 320,
+     wie im Wireframe) statt absolut positioniert.
+  5. `ui/tower_info.gd`: rechts angedockt (400px, unter der Topbar, Höhe
+     gedeckelt via `ScrollContainer`) statt als Popup neben dem Turm.
+     1280×720 geprüft: `get_viewport_rect()` bleibt bei
+     `content_scale_mode=canvas_items` unabhängig von der Fenstergröße auf
+     der 1920×1080-Design-Leinwand — der im README genannte 360px-Breakpoint
+     wäre daher totes Code gewesen, bewusst nicht umgesetzt.
+  - Beim Umbau aufgefallene, nicht Phase-4-spezifische Falle: `Control.
+    set_anchors_preset()` mit einem frisch aus einer `.tscn` geladenen Node
+    (gespeicherte `offset_right/bottom`-Werte aus dem Editor-Default) friert
+    die Größe auf den alten Wert ein, statt zu strecken — betraf sowohl den
+    HUD-Root als auch die erste TopBar-Fassung (`PanelContainer`). Fix:
+    manuelle Anchor/Offset-Zuweisung (Muster aus Phase3b's `BottomStrip`)
+    statt `set_anchors_preset()`.
+- **Phase 3 (Element-/Rarity-Codierung): offen** (übersprungen zugunsten von
+  Phase 4). `UI.el()`/`UI.rarity()` an Turmkarten, Ability-Cooldowns,
+  Item-Slots, Synergiezeilen anschließen. `ui/ability_upgrade_ui.gd::
+  _get_element_color()` nutzt noch ein eigenes, unvollständiges
+  4-Elemente-Set statt `UI.el()` — Kandidat für Phase 3.
 - **Phase 5 (Polish): offen.** Scrim + Hartschatten, Tooltip-Delay, Zahlen-
   Flash, Panel-Einblendung 80 ms.
 
