@@ -85,26 +85,20 @@ func _create_ui() -> void:
 	var title := Label.new()
 	title.text = "ARCANE BASTION"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		title.add_theme_font_override("font", UITheme.game_font)
 	title.add_theme_font_size_override("font_size", 48)
-	title.add_theme_color_override("font_color", UITheme.COLOR_TEXT_GOLD if UITheme else Color(1.0, 0.9, 0.7))
+	title.add_theme_color_override("font_color", UI.ACCENT)
 	title.add_theme_color_override("font_outline_color", Color(0.15, 0.1, 0.05))
 	title.add_theme_constant_override("outline_size", 4)
 	title_section.add_child(title)
 	
 	# Untertitel als Ribbon
-	if UITheme:
-		var subtitle_ribbon := UITheme.create_ribbon_title("Aether & Elemente", "blue", 440, 18)
-		subtitle_ribbon.custom_minimum_size.y = 52
-		subtitle_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		title_section.add_child(subtitle_ribbon)
-	else:
-		var subtitle := Label.new()
-		subtitle.text = "Aether & Elemente"
-		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		subtitle.add_theme_font_size_override("font_size", 20)
-		title_section.add_child(subtitle)
+	var subtitle_ribbon := Label.new()
+	subtitle_ribbon.text = "Aether & Elemente"
+	subtitle_ribbon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle_ribbon.custom_minimum_size = Vector2(440, 32)
+	subtitle_ribbon.custom_minimum_size.y = 52
+	subtitle_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	title_section.add_child(subtitle_ribbon)
 	
 	# === HAUPTMENÜ PANEL ===
 	main_panel = VBoxContainer.new()
@@ -114,16 +108,14 @@ func _create_ui() -> void:
 	root_container.add_child(main_panel)
 	
 	_create_menu_button(main_panel, "Neues Spiel", "play", _on_new_game_pressed)
-	_create_menu_button(main_panel, "Arkanes Archiv", "star_full", _on_archive_pressed)
-	characters_button = _create_menu_button(main_panel, "Charaktere", "characters", _on_characters_pressed)
-	_create_menu_button(main_panel, "Optionen", "settings", _on_options_pressed)
+	_create_menu_button(main_panel, "Arkanes Archiv", "star_full", _on_archive_pressed, false, true)
+	characters_button = _create_menu_button(main_panel, "Charaktere", "characters", _on_characters_pressed, false, true)
+	_create_menu_button(main_panel, "Optionen", "settings", _on_options_pressed, false, true)
 	_create_menu_button(main_panel, "Beenden", "exit", _on_quit_pressed, true)  # Rot
 	
 	# === CHARAKTERAUSWAHL PANEL ===
 	character_select_panel = PanelContainer.new()
 	character_select_panel.visible = false
-	if UITheme:
-		UITheme.style_panel(character_select_panel, "carved")
 	# Breit genug fuer drei Karten (3 x 230 + 2 x 12 Abstand). Bei zwei Spalten wurde
 	# die Auswahl mit der zusaetzlichen Passiv-Zeile so hoch, dass die Buttons darunter
 	# aus dem Bild liefen.
@@ -135,16 +127,12 @@ func _create_ui() -> void:
 	character_select_panel.add_child(char_vbox)
 	
 	# Charakter-Titel als Ribbon
-	if UITheme:
-		var char_title_ribbon := UITheme.create_ribbon_title("Wähle deinen Charakter", "blue", 320)
-		char_title_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		char_vbox.add_child(char_title_ribbon)
-	else:
-		var char_title := Label.new()
-		char_title.text = "Wähle deinen Charakter"
-		char_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		char_title.add_theme_font_size_override("font_size", 24)
-		char_vbox.add_child(char_title)
+	var char_title_ribbon := Label.new()
+	char_title_ribbon.text = "Wähle deinen Charakter"
+	char_title_ribbon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	char_title_ribbon.custom_minimum_size = Vector2(320, 32)
+	char_title_ribbon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	char_vbox.add_child(char_title_ribbon)
 	
 	# Character Grid
 	character_grid = GridContainer.new()
@@ -199,19 +187,20 @@ func _decorate_background(background: Control) -> void:
 		background.add_child(symbol)
 
 
-func _create_menu_button(parent: Node, text: String, icon_name: String, callback: Callable, red: bool = false) -> Button:
+func _create_menu_button(parent: Node, text: String, icon_name: String, callback: Callable, red: bool = false, secondary: bool = false) -> Button:
 	var btn := Button.new()
 	btn.text = " " + text
 	btn.custom_minimum_size = Vector2(300, 80)
 	btn.clip_text = false
 	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	
-	if UITheme:
-		UITheme.style_button(btn, red)
-		btn.add_theme_font_size_override("font_size", 26)
-	else:
-		btn.add_theme_font_size_override("font_size", 26)
-	
+
+	if red:
+		btn.theme_type_variation = &"DangerButton"
+	elif secondary:
+		btn.theme_type_variation = &"SecondaryButton"
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.add_theme_font_size_override("font_size", 24)
+
 	# Icon direkt auf dem Button
 	var icon_texture: Texture2D = null
 	if IconSystem:
@@ -229,12 +218,11 @@ func _create_styled_button(text: String, callback: Callable, red: bool = false) 
 	var btn := Button.new()
 	btn.text = text
 	
-	if UITheme:
-		UITheme.style_button(btn, red)
-		btn.add_theme_font_size_override("font_size", 16)
-	else:
-		btn.add_theme_font_size_override("font_size", 18)
-	
+	if red:
+		btn.theme_type_variation = &"DangerButton"
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.add_theme_font_size_override("font_size", 16)
+
 	btn.pressed.connect(callback)
 	return btn
 
@@ -263,10 +251,6 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	# Auswahl sonst unten aus dem Bild (die Buttons darunter verschwinden zuerst).
 	panel.custom_minimum_size = Vector2(230, 196)
 	
-	# Carved-Style Panel für jeden Charakter
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-	
 	if not unlocked:
 		panel.modulate = Color(0.5, 0.5, 0.5, 0.8)
 	
@@ -281,11 +265,8 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	var name_label := Label.new()
 	name_label.text = char_name if unlocked else "???"
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme:
-		UITheme.style_label(name_label, 18, char_color if unlocked else UITheme.COLOR_TEXT_DISABLED)
-	else:
-		name_label.add_theme_font_size_override("font_size", 18)
-		name_label.add_theme_color_override("font_color", char_color if unlocked else Color(0.4, 0.4, 0.4))
+	name_label.add_theme_font_size_override("font_size", 20)
+	name_label.add_theme_color_override("font_color", char_color if unlocked else UI.TEXT_DISABLED)
 	
 	if unlocked:
 		name_label.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05))
@@ -324,13 +305,13 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 		else:
 			var fallback := Label.new()
 			fallback.text = element.substr(0, 1).to_upper()
-			fallback.add_theme_font_size_override("font_size", 28)
+			fallback.add_theme_font_size_override("font_size", 32)
 			fallback.add_theme_color_override("font_color", char_color)
 			icon_container.add_child(fallback)
 	else:
 		var lock_label := Label.new()
 		lock_label.text = "?"
-		lock_label.add_theme_font_size_override("font_size", 28)
+		lock_label.add_theme_font_size_override("font_size", 32)
 		lock_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 		icon_container.add_child(lock_label)
 	
@@ -344,10 +325,8 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	else:
 		ability_label.text = "Gesperrt"
 	ability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme:
-		UITheme.style_label(ability_label, 13, UITheme.COLOR_TEXT_DARK if unlocked else UITheme.COLOR_TEXT_DISABLED)
-	else:
-		ability_label.add_theme_font_size_override("font_size", 13)
+	ability_label.add_theme_font_size_override("font_size", 16)
+	ability_label.add_theme_color_override("font_color", UI.TEXT_PRIMARY if unlocked else UI.TEXT_DISABLED)
 	vbox.add_child(ability_label)
 
 	# Passive: jeder Charakter hat eine, und sie ist der zweite Teil seiner Identitaet
@@ -358,10 +337,8 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	passive_label.text = ("Passiv: " + passive_text) if (unlocked and not passive_text.is_empty()) else ""
 	passive_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	passive_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	if UITheme:
-		UITheme.style_label(passive_label, 10, UITheme.COLOR_TEXT_DARK if unlocked else UITheme.COLOR_TEXT_DISABLED)
-	else:
-		passive_label.add_theme_font_size_override("font_size", 10)
+	passive_label.add_theme_font_size_override("font_size", 16)
+	passive_label.add_theme_color_override("font_color", UI.TEXT_PRIMARY if unlocked else UI.TEXT_DISABLED)
 	vbox.add_child(passive_label)
 
 	# Beschreibung
@@ -370,11 +347,8 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	desc_label.text = description if unlocked else ""
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	if UITheme:
-		UITheme.style_label(desc_label, 11, Color(0.4, 0.35, 0.25))
-	else:
-		desc_label.add_theme_font_size_override("font_size", 11)
-		desc_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	desc_label.add_theme_font_size_override("font_size", 16)
+	desc_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(desc_label)
 	
 	# Click Handler

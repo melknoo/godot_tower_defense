@@ -85,6 +85,7 @@ func _ready() -> void:
 	_setup_element_unlock_ui()
 	_setup_ability_upgrade_ui()
 	_setup_ability_bar()
+	_setup_bottom_bar()
 	_setup_meta_progression_ui()
 	_setup_pause_menu()
 	_setup_ability_preview()
@@ -319,6 +320,28 @@ func _setup_ability_bar() -> void:
 	$UI.add_child(ability_bar)
 	var viewport_size := get_viewport_rect().size
 	ability_bar.position = Vector2(5, viewport_size.y - 105 - ability_bar.custom_minimum_size.y)
+
+
+## Gemeinsame HBox für Tower-Shop + Wellensteuerung (Phase3b_ShopRow_Konzept.md §3):
+## kein Anchor-Overlay mehr, beide sitzen als Kinder derselben Row → Kollision ist
+## strukturell ausgeschlossen statt durch Pixel-Werte "vermieden".
+func _setup_bottom_bar() -> void:
+	var bottom_bar := HBoxContainer.new()
+	bottom_bar.name = "BottomBar"
+	bottom_bar.add_theme_constant_override("separation", UI.SP_3)
+	bottom_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var bar_height: int = tower_shop.BUTTON_HEIGHT + tower_shop.PADDING * 2
+	bottom_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom_bar.offset_left = ability_bar.custom_minimum_size.x + UI.SP_3
+	bottom_bar.offset_right = -UI.SP_2
+	bottom_bar.offset_top = -bar_height - UI.SP_2
+	bottom_bar.offset_bottom = -UI.SP_2
+	$UI.add_child(bottom_bar)
+
+	tower_shop.get_parent().remove_child(tower_shop)
+	bottom_bar.add_child(tower_shop)
+	bottom_bar.add_child(hud.wave_status_panel)
 
 
 func _setup_meta_progression_ui() -> void:

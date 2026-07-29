@@ -27,40 +27,35 @@ func _ready() -> void:
 
 
 func _create_styles() -> void:
-	panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.1, 0.1, 0.12, 0.98)
-	panel_style.border_color = Color(0.4, 0.6, 1.0)
-	panel_style.set_border_width_all(3)
-	panel_style.set_corner_radius_all(12)
-	panel_style.set_content_margin_all(25)
-	
+	panel_style = UI.panel()
+
 	choice_normal_style = StyleBoxFlat.new()
-	choice_normal_style.bg_color = Color(0.15, 0.15, 0.18)
-	choice_normal_style.border_color = Color(0.3, 0.3, 0.35)
-	choice_normal_style.set_border_width_all(2)
-	choice_normal_style.set_corner_radius_all(8)
-	choice_normal_style.set_content_margin_all(15)
-	
+	choice_normal_style.bg_color = UI.BG_2
+	choice_normal_style.border_color = UI.BORDER_SOFT
+	choice_normal_style.set_border_width_all(UI.BW_PANEL)
+	choice_normal_style.set_corner_radius_all(UI.RADIUS)
+	choice_normal_style.set_content_margin_all(UI.SP_4)
+
 	choice_hover_style = StyleBoxFlat.new()
-	choice_hover_style.bg_color = Color(0.2, 0.2, 0.25)
-	choice_hover_style.border_color = Color(0.5, 0.5, 0.6)
-	choice_hover_style.set_border_width_all(2)
-	choice_hover_style.set_corner_radius_all(8)
-	choice_hover_style.set_content_margin_all(15)
-	
+	choice_hover_style.bg_color = UI.BG_2
+	choice_hover_style.border_color = UI.BORDER_FOCUS
+	choice_hover_style.set_border_width_all(UI.BW_PANEL)
+	choice_hover_style.set_corner_radius_all(UI.RADIUS)
+	choice_hover_style.set_content_margin_all(UI.SP_4)
+
 	new_ability_style = StyleBoxFlat.new()
-	new_ability_style.bg_color = Color(0.15, 0.2, 0.15)
-	new_ability_style.border_color = Color(0.4, 0.8, 0.4)
-	new_ability_style.set_border_width_all(2)
-	new_ability_style.set_corner_radius_all(8)
-	new_ability_style.set_content_margin_all(15)
-	
+	new_ability_style.bg_color = UI.BG_2
+	new_ability_style.border_color = UI.SUCCESS
+	new_ability_style.set_border_width_all(UI.BW_PANEL)
+	new_ability_style.set_corner_radius_all(UI.RADIUS)
+	new_ability_style.set_content_margin_all(UI.SP_4)
+
 	upgrade_style = StyleBoxFlat.new()
-	upgrade_style.bg_color = Color(0.15, 0.15, 0.2)
-	upgrade_style.border_color = Color(0.4, 0.5, 0.9)
-	upgrade_style.set_border_width_all(2)
-	upgrade_style.set_corner_radius_all(8)
-	upgrade_style.set_content_margin_all(15)
+	upgrade_style.bg_color = UI.BG_2
+	upgrade_style.border_color = UI.ACCENT
+	upgrade_style.set_border_width_all(UI.BW_PANEL)
+	upgrade_style.set_corner_radius_all(UI.RADIUS)
+	upgrade_style.set_content_margin_all(UI.SP_4)
 
 
 func _create_ui() -> void:
@@ -90,8 +85,8 @@ func _create_ui() -> void:
 	title.fit_content = true
 	title.scroll_active = false
 	title.text = "[center]%s ABILITY UPGRADE %s[/center]" % [_get_icon_bb("ability_lightning", 28), _get_icon_bb("ability_lightning", 28)]
-	title.add_theme_font_size_override("normal_font_size", 28)
-	title.add_theme_color_override("default_color", Color(0.4, 0.7, 1.0))
+	title.add_theme_font_size_override("normal_font_size", 32)
+	title.add_theme_color_override("default_color", UI.ACCENT)
 	vbox.add_child(title)
 	
 	# Subtitle
@@ -99,14 +94,14 @@ func _create_ui() -> void:
 	subtitle.text = "Wähle eine Verbesserung für deine Abilities"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_size_override("font_size", 16)
-	subtitle.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	subtitle.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(subtitle)
 	
 	# Aktuelle Abilities anzeigen
 	var equipped_label := Label.new()
 	equipped_label.text = "Aktuelle Abilities:"
-	equipped_label.add_theme_font_size_override("font_size", 14)
-	equipped_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	equipped_label.add_theme_font_size_override("font_size", 16)
+	equipped_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(equipped_label)
 	
 	equipped_display = HBoxContainer.new()
@@ -131,6 +126,7 @@ func _create_ui() -> void:
 	vbox.add_child(skip_container)
 	
 	var skip_btn := Button.new()
+	skip_btn.theme_type_variation = &"SecondaryButton"
 	skip_btn.text = "Überspringen"
 	skip_btn.custom_minimum_size = Vector2(150, 40)
 	skip_btn.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -209,7 +205,7 @@ func _update_equipped_display() -> void:
 			var name_label := Label.new()
 			name_label.text = ability_data.get("name", equipped[i])
 			name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			name_label.add_theme_font_size_override("font_size", 10)
+			name_label.add_theme_font_size_override("font_size", 16)
 			name_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 			slot_vbox.add_child(name_label)
 			
@@ -222,7 +218,7 @@ func _update_equipped_display() -> void:
 				for _j in range(star_count):
 					stars.text += "★"
 				stars.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-				stars.add_theme_font_size_override("font_size", 10)
+				stars.add_theme_font_size_override("font_size", 16)
 				stars.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 				slot_vbox.add_child(stars)
 		else:
@@ -287,8 +283,8 @@ func _populate_new_ability_choice(vbox: VBoxContainer, choice: Dictionary) -> vo
 	var header := Label.new()
 	header.text = "NEUE ABILITY"
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.add_theme_font_size_override("font_size", 12)
-	header.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", UI.SUCCESS)
 	vbox.add_child(header)
 	
 	# Element Icon
@@ -303,7 +299,7 @@ func _populate_new_ability_choice(vbox: VBoxContainer, choice: Dictionary) -> vo
 	var name_label := Label.new()
 	name_label.text = ability_data.get("name", "???")
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 18)
+	name_label.add_theme_font_size_override("font_size", 20)
 	name_label.add_theme_color_override("font_color", _get_element_color(element))
 	vbox.add_child(name_label)
 	
@@ -311,8 +307,8 @@ func _populate_new_ability_choice(vbox: VBoxContainer, choice: Dictionary) -> vo
 	var desc := Label.new()
 	desc.text = ability_data.get("description", "")
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	desc.add_theme_font_size_override("font_size", 12)
-	desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	desc.add_theme_font_size_override("font_size", 16)
+	desc.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	desc.custom_minimum_size.x = 180
 	vbox.add_child(desc)
@@ -324,8 +320,8 @@ func _populate_new_ability_choice(vbox: VBoxContainer, choice: Dictionary) -> vo
 	cd_label.fit_content = true
 	cd_label.scroll_active = false
 	cd_label.text = "[center]%s %.1fs Cooldown[/center]" % [_get_icon_bb("cooldown", 14), cooldown]
-	cd_label.add_theme_font_size_override("normal_font_size", 11)
-	cd_label.add_theme_color_override("default_color", Color(0.5, 0.5, 0.6))
+	cd_label.add_theme_font_size_override("normal_font_size", 16)
+	cd_label.add_theme_color_override("default_color", UI.TEXT_SECOND)
 	vbox.add_child(cd_label)
 
 
@@ -344,8 +340,8 @@ func _populate_upgrade_choice(vbox: VBoxContainer, choice: Dictionary) -> void:
 	var header := Label.new()
 	header.text = "UPGRADE"
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.add_theme_font_size_override("font_size", 12)
-	header.add_theme_color_override("font_color", Color(0.4, 0.5, 1.0))
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", UI.ACCENT)
 	vbox.add_child(header)
 	
 	# Element Icon
@@ -368,16 +364,16 @@ func _populate_upgrade_choice(vbox: VBoxContainer, choice: Dictionary) -> void:
 	var effect := Label.new()
 	effect.text = upgrade_info.get("display", stat)
 	effect.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	effect.add_theme_font_size_override("font_size", 14)
-	effect.add_theme_color_override("font_color", Color(0.9, 0.9, 0.5))
+	effect.add_theme_font_size_override("font_size", 16)
+	effect.add_theme_color_override("font_color", UI.ACCENT)
 	vbox.add_child(effect)
 	
 	# Aktueller Fortschritt
 	var progress := Label.new()
 	progress.text = "Level: %d → %d" % [current_stacks, current_stacks + 1]
 	progress.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	progress.add_theme_font_size_override("font_size", 12)
-	progress.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	progress.add_theme_font_size_override("font_size", 16)
+	progress.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(progress)
 	
 	# Sterne für visuellen Fortschritt
@@ -390,13 +386,13 @@ func _populate_upgrade_choice(vbox: VBoxContainer, choice: Dictionary) -> void:
 		var star := Label.new()
 		if i < current_stacks:
 			star.text = "★"
-			star.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+			star.add_theme_color_override("font_color", UI.ACCENT)
 		elif i == current_stacks:
 			star.text = "★"
-			star.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
+			star.add_theme_color_override("font_color", UI.SUCCESS)
 		else:
 			star.text = "☆"
-			star.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+			star.add_theme_color_override("font_color", UI.TEXT_DISABLED)
 		star.add_theme_font_size_override("font_size", 16)
 		stars_container.add_child(star)
 

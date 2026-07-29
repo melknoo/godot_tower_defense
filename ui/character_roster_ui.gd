@@ -59,17 +59,13 @@ func _build_ui() -> void:
 	panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(1010, 850)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-	else:
-		panel.add_theme_stylebox_override("panel", _panel_style(COLOR_PANEL, COLOR_BORDER, 3, 14))
 	center.add_child(panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
 	panel.add_child(margin)
 
 	var root := VBoxContainer.new()
@@ -84,30 +80,25 @@ func _build_ui() -> void:
 	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title_box)
 
-	var title := UITheme.create_ribbon_title("CHARAKTERE", "blue", 410, 23)
+	var title := Label.new()
+	title.text = "CHARAKTERE"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(410, 32)
 	title.custom_minimum_size.y = 58
-	for child in title.get_children():
-		if child is Label:
-			child.offset_top = -4
-			child.offset_bottom = -4
 	title_box.add_child(title)
 
 	var subtitle := Label.new()
 	subtitle.text = "Neue Spielweisen · Freischalten durch Spielziele, Rekrutieren mit Aether"
-	_style_label(subtitle, 12, UITheme.COLOR_TEXT_DARK)
+	_style_label(subtitle, 16, UI.TEXT_DISABLED)
 	title_box.add_child(subtitle)
 
 	var currency_box := PanelContainer.new()
 	currency_box.custom_minimum_size = Vector2(230, 58)
-	if UITheme:
-		UITheme.style_panel(currency_box, "carved_small")
-	else:
-		currency_box.add_theme_stylebox_override("panel", _panel_style(Color("111a2a"), COLOR_AETHER.darkened(0.25), 2, 10))
 	header.add_child(currency_box)
 	essence_label = Label.new()
 	essence_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	essence_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_style_label(essence_label, 18, Color("185a78"))
+	_style_label(essence_label, 20, Color("185a78"))
 	currency_box.add_child(essence_label)
 
 	var close_button := Button.new()
@@ -120,8 +111,8 @@ func _build_ui() -> void:
 	close_button.add_theme_constant_override("icon_max_width", 18)
 	close_button.tooltip_text = "Schließen (Esc)"
 	close_button.pressed.connect(hide_panel)
-	if UITheme:
-		UITheme.style_icon_button(close_button, true)
+	close_button.theme_type_variation = &"DangerButton"
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	header.add_child(close_button)
 
 	var divider := HSeparator.new()
@@ -141,7 +132,7 @@ func _build_ui() -> void:
 	var footer := Label.new()
 	footer.text = "Charaktere sind Seitwärtsfortschritt: neue Spielweisen statt roher Macht."
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_style_label(footer, 11, Color("554731"))
+	_style_label(footer, 16, Color("554731"))
 	root.add_child(footer)
 
 
@@ -186,10 +177,6 @@ func _create_character_card(char_id: String, data: Dictionary) -> PanelContainer
 
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(455, 200)
-	if UITheme:
-		UITheme.style_panel(card, "carved_small")
-	else:
-		card.add_theme_stylebox_override("panel", _panel_style(COLOR_CARD, accent.darkened(0.35) if unlocked else Color("313746"), 2, 10))
 	if not unlocked:
 		card.modulate = Color(0.78, 0.76, 0.72, 0.94)
 
@@ -225,7 +212,7 @@ func _create_character_card(char_id: String, data: Dictionary) -> PanelContainer
 		glyph.text = "✦"
 		glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		glyph.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_style_label(glyph, 25, accent if unlocked else SILHOUETTE)
+		_style_label(glyph, 24, accent if unlocked else SILHOUETTE)
 		icon_panel.add_child(glyph)
 
 	var info := VBoxContainer.new()
@@ -238,17 +225,17 @@ func _create_character_card(char_id: String, data: Dictionary) -> PanelContainer
 	var name_label := Label.new()
 	name_label.text = String(data.get("name", char_id))
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_label(name_label, 15, accent if unlocked else UITheme.COLOR_TEXT_DARK)
+	_style_label(name_label, 16, accent if unlocked else UI.TEXT_DISABLED)
 	name_row.add_child(name_label)
 	var status_label := Label.new()
 	status_label.text = "Verfügbar" if unlocked else "Gesperrt"
-	_style_label(status_label, 11, Color("5a8a5e") if unlocked else Color("8a6a4a"))
+	_style_label(status_label, 16, Color("5a8a5e") if unlocked else Color("8a6a4a"))
 	name_row.add_child(status_label)
 
 	var playstyle := Label.new()
 	var ability_data: Dictionary = AbilitySystem.ABILITIES.get(String(data.get("starting_ability", "")), {})
 	playstyle.text = "%s  ·  Start: %s" % [String(data.get("playstyle", "")), String(ability_data.get("name", "?"))]
-	_style_label(playstyle, 11, Color("554b3b"))
+	_style_label(playstyle, 16, Color("554b3b"))
 	info.add_child(playstyle)
 
 	var passive: Dictionary = data.get("passive", {})
@@ -256,7 +243,7 @@ func _create_character_card(char_id: String, data: Dictionary) -> PanelContainer
 		var passive_label := Label.new()
 		passive_label.text = "Passiv: %s" % String(passive.get("description", ""))
 		passive_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_style_label(passive_label, 11, Color("185a78"))
+		_style_label(passive_label, 16, Color("185a78"))
 		info.add_child(passive_label)
 
 	if not unlocked:
@@ -278,7 +265,7 @@ func _add_unlock_section(info: VBoxContainer, char_id: String, card: PanelContai
 	var stat_name: String = STAT_LABELS.get(String(progress["stat"]), String(progress["stat"]))
 	goal_label.text = "%s: %d / %d" % [stat_name, int(progress["current"]), int(progress["target"])]
 	goal_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_label(goal_label, 11, UITheme.COLOR_TEXT_DARK)
+	_style_label(goal_label, 16, UI.TEXT_DISABLED)
 	goal_row.add_child(goal_label)
 
 	var bar := ProgressBar.new()
@@ -304,8 +291,7 @@ func _add_unlock_section(info: VBoxContainer, char_id: String, card: PanelContai
 			recruit_button.add_theme_color_override("font_disabled_color", Color("b05050"))
 	if not recruit_button.disabled:
 		recruit_button.pressed.connect(_on_recruit_pressed.bind(char_id, card))
-	if UITheme:
-		UITheme.style_button(recruit_button)
+	recruit_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	info.add_child(recruit_button)
 
 
@@ -369,5 +355,3 @@ func _panel_style(bg: Color, border: Color, width: int, radius: int) -> StyleBox
 func _style_label(label: Label, size: int, color: Color) -> void:
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
-	if UITheme and UITheme.game_font:
-		label.add_theme_font_override("font", UITheme.game_font)

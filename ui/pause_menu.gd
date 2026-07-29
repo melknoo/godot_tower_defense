@@ -52,15 +52,13 @@ func _build_ui() -> void:
 	panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(500, 620)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
 	center.add_child(panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 34)
-	margin.add_theme_constant_override("margin_right", 34)
-	margin.add_theme_constant_override("margin_top", 28)
-	margin.add_theme_constant_override("margin_bottom", 32)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	panel.add_child(margin)
 
 	var root_box := VBoxContainer.new()
@@ -86,7 +84,10 @@ func _build_ui() -> void:
 
 
 func _build_main_view() -> void:
-	var title := UITheme.create_ribbon_title("SPIEL PAUSIERT", "blue", 360, 22)
+	var title := Label.new()
+	title.text = "SPIEL PAUSIERT"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(360, 32)
 	title.custom_minimum_size.y = 58
 	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	main_view.add_child(title)
@@ -94,23 +95,28 @@ func _build_main_view() -> void:
 	var hint := Label.new()
 	hint.text = "Die Bastion wartet auf deinen Befehl."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UITheme.style_label(hint, 12, UITheme.COLOR_TEXT_DARK)
 	main_view.add_child(hint)
 
 	main_view.add_child(_make_menu_button("FORTSETZEN", "play", _on_resume_pressed))
-	main_view.add_child(_make_menu_button("OPTIONEN", "settings", _on_options_pressed))
-	main_view.add_child(_make_menu_button("HAUPTMENÜ", "characters", _on_main_menu_pressed))
+	var options_button := _make_menu_button("OPTIONEN", "settings", _on_options_pressed)
+	options_button.theme_type_variation = &"SecondaryButton"
+	main_view.add_child(options_button)
+	var main_menu_button := _make_menu_button("HAUPTMENÜ", "characters", _on_main_menu_pressed)
+	main_menu_button.theme_type_variation = &"SecondaryButton"
+	main_view.add_child(main_menu_button)
 	main_view.add_child(_make_menu_button("SPIEL BEENDEN", "exit", _on_quit_pressed, true))
 
 	var esc_hint := Label.new()
 	esc_hint.text = "Esc · Fortsetzen"
 	esc_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UITheme.style_label(esc_hint, 10, Color(0.38, 0.32, 0.24))
 	main_view.add_child(esc_hint)
 
 
 func _build_options_view() -> void:
-	var title := UITheme.create_ribbon_title("OPTIONEN", "yellow", 340, 22)
+	var title := Label.new()
+	title.text = "OPTIONEN"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(340, 32)
 	title.custom_minimum_size.y = 58
 	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	options_view.add_child(title)
@@ -141,32 +147,33 @@ func _build_options_view() -> void:
 	shake_toggle.toggled.connect(_on_shake_toggled)
 	options_view.add_child(shake_toggle)
 
-	var back_button := _make_menu_button("ZURÜCK", "exit", _on_options_back_pressed, true)
+	var back_button := _make_menu_button("ZURÜCK", "exit", _on_options_back_pressed)
+	back_button.theme_type_variation = &"SecondaryButton"
 	options_view.add_child(back_button)
 
 
 func _build_confirm_view() -> void:
-	var title := UITheme.create_ribbon_title("RUN BEENDEN?", "red", 350, 22)
+	var title := Label.new()
+	title.text = "RUN BEENDEN?"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(350, 32)
 	title.custom_minimum_size.y = 58
 	title.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	confirm_view.add_child(title)
-	for child in title.get_children():
-		if child is Label:
-			confirm_title_label = child
+	confirm_title_label = title
 
 	var warning_panel := PanelContainer.new()
 	warning_panel.custom_minimum_size = Vector2(390, 150)
-	UITheme.style_panel(warning_panel, "carved_small")
 	confirm_view.add_child(warning_panel)
 	confirm_message = Label.new()
 	confirm_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	confirm_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	confirm_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UITheme.style_label(confirm_message, 12, UITheme.COLOR_TEXT_DARK)
 	warning_panel.add_child(confirm_message)
 
 	var continue_button := _make_menu_button("WEITERSPIELEN", "play", _on_confirm_cancel_pressed)
 	continue_button.name = "ContinueRunButton"
+	continue_button.theme_type_variation = &"SecondaryButton"
 	confirm_view.add_child(continue_button)
 	confirm_action_button = _make_menu_button("RUN BEENDEN", "exit", _on_confirm_leave_pressed, true)
 	confirm_action_button.name = "ConfirmLeaveButton"
@@ -178,9 +185,9 @@ func _make_menu_button(text: String, icon_name: String, callback: Callable, red:
 	button.text = "  " + text
 	button.custom_minimum_size = Vector2(390, 70)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	button.add_theme_font_size_override("font_size", 19)
-	if UITheme:
-		UITheme.style_button(button, red)
+	button.add_theme_font_size_override("font_size", 20)
+	if red: button.theme_type_variation = &"DangerButton"
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	if IconSystem:
 		button.icon = IconSystem.get_texture(icon_name)
 		if UITheme:
@@ -194,8 +201,6 @@ func _make_menu_button(text: String, icon_name: String, callback: Callable, red:
 func _create_slider_row(title_text: String) -> Dictionary:
 	var row_panel := PanelContainer.new()
 	row_panel.custom_minimum_size = Vector2(390, 82)
-	if UITheme:
-		UITheme.style_panel(row_panel, "carved_small")
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 14)
@@ -212,12 +217,11 @@ func _create_slider_row(title_text: String) -> Dictionary:
 	var label := Label.new()
 	label.text = title_text
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UITheme.style_label(label, 12, UITheme.COLOR_TEXT_DARK)
 	header.add_child(label)
 	var value_label := Label.new()
 	value_label.custom_minimum_size.x = 52
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	UITheme.style_label(value_label, 12, UITheme.COLOR_TEXT_GOLD.darkened(0.2))
+	value_label.add_theme_color_override("font_color", UI.ACCENT.darkened(0.2))
 	header.add_child(value_label)
 
 	var slider := HSlider.new()
@@ -233,13 +237,7 @@ func _create_toggle(text: String) -> CheckButton:
 	var toggle := CheckButton.new()
 	toggle.text = text
 	toggle.custom_minimum_size = Vector2(390, 46)
-	toggle.add_theme_font_size_override("font_size", 13)
-	toggle.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
-	toggle.add_theme_color_override("font_hover_color", UITheme.COLOR_TEXT_DARK)
-	toggle.add_theme_color_override("font_pressed_color", UITheme.COLOR_TEXT_DARK)
-	toggle.add_theme_color_override("font_hover_pressed_color", UITheme.COLOR_TEXT_DARK)
-	if UITheme and UITheme.game_font:
-		toggle.add_theme_font_override("font", UITheme.game_font)
+	toggle.add_theme_font_size_override("font_size", 16)
 	return toggle
 
 

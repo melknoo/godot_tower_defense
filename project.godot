@@ -35,6 +35,7 @@ AbilitySystem="*res://autoload/ability_system.gd"
 ItemSystem="*res://autoload/item_system.gd"
 IconSystem="*res://autoload/icon_system.gd"
 CursorManager="*res://autoload/cursor_manager.gd"
+UI="*res://ui/ui_theme.gd"
 
 [display]
 

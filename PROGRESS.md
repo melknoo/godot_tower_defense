@@ -1,6 +1,69 @@
 # Projektfortschritt
 
-Letzte Aktualisierung: 2026-07-28
+Letzte Aktualisierung: 2026-07-29
+
+## UI-Redesign (siehe design_handoff_ui_system/README_design.md)
+
+Umsetzung läuft phasenweise nach der "Implementation Order" in
+`design_handoff_ui_system/README_design.md`. Tokens/StyleBox-Fabriken in
+`ui/ui_theme.gd` (Autoload `UI`).
+
+- **Phase 1 (Tokens zentralisieren): fertig.** `UI` als Autoload registriert,
+  Theme global gesetzt, alle alten `UITheme.style_*`-Aufrufe/Pergament-Reste
+  aus den 18 UI-Scripts entfernt, Pixel-Operator/Silkscreen-Fonts eingebunden.
+  Dabei auch mehrere durch die Migration sichtbar gewordene Lesbarkeits-Bugs
+  gefixt (hartkodierte dunkle Schrift auf hellen Alt-Buttons, die auf dem
+  neuen dunklen Theme unlesbar wurde) und einen echten Crash im
+  Pause-Menü-Bestätigungsdialog behoben.
+- **Phase 2 (Kontrast & Hierarchie): fertig.** Typo-Skala auf die 5 erlaubten
+  Größen (16/20/24/32/48) vereinheitlicht, Panel-Padding wo sinnvoll auf 24
+  normalisiert, Primär-/Sekundär-/Danger-Button-Rollen pro Panel vergeben.
+  `ui/ability_upgrade_ui.gd` war in Phase 1 übersehen worden (nutzte eigene
+  StyleBoxes statt der alten `UITheme`) — in Phase 2 nachgezogen: Radius 0,
+  Panel-Material, Farb-Tokens.
+- **Phase3b (Shop-Row/Bottombar-Kollision, siehe
+  `design_handoff_ui_system/Phase3b_ShopRow_Konzept.md`): fertig**, alle 3
+  Schritte je ein eigener Commit:
+  1. `ui/shop/shop_card.gd`(+`.tscn`) — feste Karten-Box (Icon-Slot =
+     `UI.SLOT_SIZE`, Cost-Row, Name mit `clip_text`+Ellipsis) statt
+     textabhängiger Breite; neue `UI.shop_card(state)`-StyleBox-Fabrik.
+  2. `ui/tower_shop.gd` instanziert `ShopCard` statt handgebauter
+     Icon/Label/Badge-Nodes; alte Corner-Sprite-Selektion entfernt.
+  3. Bottombar ist jetzt eine echte HBox (`main.gd::_setup_bottom_bar`):
+     Tower-Shop bekam einen echten `ScrollContainer` statt manuellem
+     Control+Positions-Hack, `hud.gd`s Wellenstatus-Panel verlor sein
+     Anchor-Overlay (`offset_left=-785` etc.) und ist jetzt Geschwister-Kind
+     derselben HBox — die Kollision ist strukturell ausgeschlossen statt
+     durch Pixel-Werte vermieden. `HUD.ICON_ROW_Y` musste angepasst werden,
+     da die neue Bottombar (echte ShopCard-Höhe) höher ist als die alte
+     Button-Reihe.
+  - Bekannte, bewusst nicht angefasste Diskrepanz: Türme ohne Sprite-Asset
+    (`wizard`, `trapper` fehlt `tower_wizard.png`/`tower_trapper.png`)
+    zeigen jetzt einen sichtbaren `BG_3`-Platzhalter statt still leer zu
+    bleiben (Absicht laut Konzept-Doku §2 R4) — kein Asset-Fix, nur
+    sichtbar gemacht.
+- **Phase 3 (Element-/Rarity-Codierung): offen.** `UI.el()`/`UI.rarity()` an
+  Turmkarten, Ability-Cooldowns, Item-Slots, Synergiezeilen anschließen.
+  `ui/ability_upgrade_ui.gd::_get_element_color()` nutzt noch ein eigenes,
+  unvollständiges 4-Elemente-Set statt `UI.el()` — Kandidat für Phase 3.
+- **Phase 4 (HUD-Umbau): offen.** Topbar/Bottombar nach Wireframe, Turm-Info
+  rechts andocken, Meta-Anzeigen ins Overlay verschieben. Ability-Bar wurde
+  von Phase3b bewusst nicht angefasst (eigene, weiterhin absolut positionierte
+  Komponente) — gehört strukturell erst hierher.
+- **Phase 5 (Polish): offen.** Scrim + Hartschatten, Tooltip-Delay, Zahlen-
+  Flash, Panel-Einblendung 80 ms.
+
+### Bekannte Test-Altlast (nicht Phase3b, vorher entstanden)
+`tests/ui_capture.gd` prüft an vier Stellen noch
+`get_theme_stylebox("panel") is StyleBoxTexture` für Inventar/Element-Kerne/
+Aktive-Upgrades/Ability-Bar — seit Phase 1 (Umstieg auf flache `StyleBoxFlat`-
+Panels) strukturell veraltet und schlägt seitdem fehl. Nicht in diesem Zug
+gefixt (außerhalb des Phase3b-Auftrags), aber hier vermerkt, damit es nicht
+als neue Regression missverstanden wird.
+
+Verifikation: `tests/progression_smoke.gd` + `tests/feature_smoke.gd`
+(headless) plus `tests/ui_capture.tscn` für visuelle Screenshots unter
+`user://ui_audit/`.
 
 ## Playtest-Notizen Runde 2 (2026-07-28)
 

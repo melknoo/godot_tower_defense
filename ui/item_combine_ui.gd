@@ -64,14 +64,11 @@ func _setup_ui() -> void:
 	panel.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	center.add_child(panel)
 
-	if UITheme:
-		UITheme.style_panel(panel, "panel_dark")
-
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 15)
-	margin.add_theme_constant_override("margin_bottom", 15)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	margin.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	panel.add_child(margin)
 
@@ -93,8 +90,8 @@ func _setup_ui() -> void:
 	subtitle_label.text = "Zwei Items gleicher Seltenheit ergeben ein besseres Item"
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	subtitle_label.add_theme_font_size_override("font_size", 14)
-	subtitle_label.add_theme_color_override("font_color", Color("9aa8c2"))
+	subtitle_label.add_theme_font_size_override("font_size", 16)
+	subtitle_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(subtitle_label)
 
 	# Auswahl-Vorschau: [A] + [B] = Ergebnis
@@ -119,8 +116,8 @@ func _setup_ui() -> void:
 	result_label.custom_minimum_size = Vector2(150, 0)
 	result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	result_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	result_label.add_theme_font_size_override("font_size", 13)
-	result_label.add_theme_color_override("font_color", Color("9aa8c2"))
+	result_label.add_theme_font_size_override("font_size", 16)
+	result_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	preview_box.add_child(result_label)
 
 	var sep := HSeparator.new()
@@ -166,13 +163,11 @@ func _setup_ui() -> void:
 	close_button.custom_minimum_size = Vector2(140, 35)
 	close_button.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	close_button.pressed.connect(_on_close_pressed)
+	close_button.theme_type_variation = &"SecondaryButton"
 	button_hbox.add_child(close_button)
 
-	if UITheme:
-		UITheme.style_button(combine_button)
-		UITheme.style_button_colors(combine_button, Color(0.2, 0.2, 0.2))
-		UITheme.style_button(close_button)
-		UITheme.style_button_colors(close_button, Color(0.2, 0.2, 0.2))
+	combine_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 func _create_symbol_label(text: String) -> Label:
@@ -180,7 +175,7 @@ func _create_symbol_label(text: String) -> Label:
 	label.text = text
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_color", Color("9aa8c2"))
+	label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	return label
 
 
@@ -314,7 +309,7 @@ func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
 	var dot := Label.new()
 	dot.text = "●"
 	dot.position = Vector2(2, 2)
-	dot.add_theme_font_size_override("font_size", 8)
+	dot.add_theme_font_size_override("font_size", 16)
 	dot.add_theme_color_override("font_color", item.get("color", Color.WHITE))
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(dot)
@@ -476,13 +471,13 @@ func _update_preview() -> void:
 		result_label.text = "Ergebnis: %s\n?" % RARITY_NAMES.get(rarity, rarity)
 		if ItemSystem.is_guaranteed_combine(selected_a, selected_b):
 			result_label.text += "\ngarantiert"
-		result_label.add_theme_color_override("font_color", result.get("color", Color("9aa8c2")))
+		result_label.add_theme_color_override("font_color", result.get("color", UI.TEXT_SECOND))
 	elif not selected_a.is_empty():
 		result_label.text = "Zweites Item derselben Seltenheit wählen"
-		result_label.add_theme_color_override("font_color", Color("9aa8c2"))
+		result_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	else:
 		result_label.text = "?"
-		result_label.add_theme_color_override("font_color", Color("9aa8c2"))
+		result_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 
 
 func _fill_preview_slot(slot: PanelContainer, item: Dictionary) -> void:
@@ -533,7 +528,7 @@ func _update_subtitle() -> void:
 		subtitle_label.add_theme_color_override("font_color", Color("c98d6b"))
 	else:
 		subtitle_label.text = "Zwei Items gleicher Seltenheit ergeben ein besseres Item\nZwei identische Items ergeben garantiert dieselbe Ausrüstung eine Stufe höher\nFrisch geschmiedete Items ruhen bis zur nächsten Schmiede"
-		subtitle_label.add_theme_color_override("font_color", Color("9aa8c2"))
+		subtitle_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 
 
 # === AKTIONEN ===

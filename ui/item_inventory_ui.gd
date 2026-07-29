@@ -74,9 +74,6 @@ func _setup_ui() -> void:
 	panel.custom_minimum_size = Vector2(300, 400)
 	add_child(panel)
 	
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-	
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 15)
 	margin.add_theme_constant_override("margin_right", 15)
@@ -95,17 +92,12 @@ func _setup_ui() -> void:
 	title_label = IconSystem.create_rich_label(200, 20)
 	title_label.text = "%s Inventar" % IconSystem.bb("inventory", 18)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if UITheme and UITheme.game_font:
-		title_label.add_theme_font_override("font", UITheme.game_font)
-	title_label.add_theme_font_size_override("font_size", 18)
-	title_label.add_theme_color_override("default_color", UITheme.COLOR_TEXT_DARK)
+	title_label.add_theme_font_size_override("font_size", 20)
 	header.add_child(title_label)
-	
+
 	count_label = Label.new()
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	if UITheme and UITheme.game_font:
-		count_label.add_theme_font_override("font", UITheme.game_font)
-	count_label.add_theme_font_size_override("font_size", 12)
+	count_label.add_theme_font_size_override("font_size", 16)
 	count_label.add_theme_color_override("font_color", Color("554731"))
 	header.add_child(count_label)
 	
@@ -117,9 +109,7 @@ func _setup_ui() -> void:
 	var info := Label.new()
 	info.text = "Klicke Item → Klicke Turm zum Ausrüsten"
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		info.add_theme_font_override("font", UITheme.game_font)
-	info.add_theme_font_size_override("font_size", 9)
+	info.add_theme_font_size_override("font_size", 16)
 	info.add_theme_color_override("font_color", Color("554731"))
 	vbox.add_child(info)
 	
@@ -146,9 +136,7 @@ func _setup_ui() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 	btn_center.add_child(close_button)
 	
-	if UITheme:
-		UITheme.style_button(close_button)
-	close_button.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	
 	# Detail Panel
 	_setup_detail_panel()
@@ -167,9 +155,6 @@ func _setup_detail_panel() -> void:
 	detail_panel.visible = false
 	add_child(detail_panel)
 	
-	if UITheme:
-		UITheme.style_panel(detail_panel, "panel_light")
-	
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_right", 12)
@@ -187,9 +172,7 @@ func _setup_detail_panel() -> void:
 	
 	detail_name = Label.new()
 	detail_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if UITheme and UITheme.game_font:
-		detail_name.add_theme_font_override("font", UITheme.game_font)
-	detail_name.add_theme_font_size_override("font_size", 14)
+	detail_name.add_theme_font_size_override("font_size", 16)
 	header.add_child(detail_name)
 	
 	# Close Button rechts im Header
@@ -221,9 +204,7 @@ func _setup_detail_panel() -> void:
 	close_btn.add_theme_stylebox_override("focus", transparent_style)
 	
 	detail_rarity = Label.new()
-	if UITheme and UITheme.game_font:
-		detail_rarity.add_theme_font_override("font", UITheme.game_font)
-	detail_rarity.add_theme_font_size_override("font_size", 10)
+	detail_rarity.add_theme_font_size_override("font_size", 16)
 	vbox.add_child(detail_rarity)
 	
 	var sep := HSeparator.new()
@@ -232,10 +213,7 @@ func _setup_detail_panel() -> void:
 	detail_desc = Label.new()
 	detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	detail_desc.custom_minimum_size = Vector2(170, 0)
-	if UITheme and UITheme.game_font:
-		detail_desc.add_theme_font_override("font", UITheme.game_font)
-	detail_desc.add_theme_font_size_override("font_size", 11)
-	detail_desc.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
+	detail_desc.add_theme_font_size_override("font_size", 16)
 	vbox.add_child(detail_desc)
 	
 	var sell_sep := HSeparator.new()
@@ -251,9 +229,8 @@ func _setup_detail_panel() -> void:
 	sell_button.pressed.connect(_on_sell_pressed)
 	sell_center.add_child(sell_button)
 	
-	if UITheme:
-		UITheme.style_button(sell_button)
-	
+	sell_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
 	# Roter Stil für Verkaufen
 	var sell_style := StyleBoxFlat.new()
 	sell_style.bg_color = Color(0.6, 0.2, 0.2)
@@ -283,9 +260,7 @@ func _setup_detail_panel() -> void:
 	detail_allowed = Label.new()
 	detail_allowed.autowrap_mode = TextServer.AUTOWRAP_WORD
 	detail_allowed.custom_minimum_size = Vector2(170, 0)
-	if UITheme and UITheme.game_font:
-		detail_allowed.add_theme_font_override("font", UITheme.game_font)
-	detail_allowed.add_theme_font_size_override("font_size", 9)
+	detail_allowed.add_theme_font_size_override("font_size", 16)
 	detail_allowed.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	vbox.add_child(detail_allowed)
 
@@ -315,10 +290,7 @@ func _show_sell_feedback(amount: int) -> void:
 	feedback.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	feedback.add_theme_constant_override("outline_size", 2)
-	
-	if UITheme and UITheme.game_font:
-		feedback.add_theme_font_override("font", UITheme.game_font)
-	
+
 	feedback.position = detail_panel.position + Vector2(detail_panel.size.x / 2 - 20, -10)
 	add_child(feedback)
 	
@@ -626,7 +598,7 @@ func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
 	var dot := Label.new()
 	dot.text = "●"
 	dot.position = Vector2(2, 2)
-	dot.add_theme_font_size_override("font_size", 8)
+	dot.add_theme_font_size_override("font_size", 16)
 	dot.add_theme_color_override("font_color", rarity_color)
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(dot)

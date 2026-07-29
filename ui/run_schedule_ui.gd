@@ -41,14 +41,12 @@ func _setup_ui() -> void:
 	panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(520, 470)
 	center.add_child(panel)
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 15)
-	margin.add_theme_constant_override("margin_bottom", 15)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
@@ -62,18 +60,13 @@ func _setup_ui() -> void:
 	var title_label := Label.new()
 	title_label.text = "Fahrplan"
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if UITheme and UITheme.game_font:
-		title_label.add_theme_font_override("font", UITheme.game_font)
 	title_label.add_theme_font_size_override("font_size", 20)
-	title_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	header.add_child(title_label)
 
 	subtitle_label = Label.new()
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	if UITheme and UITheme.game_font:
-		subtitle_label.add_theme_font_override("font", UITheme.game_font)
-	subtitle_label.add_theme_font_size_override("font_size", 14)
-	subtitle_label.add_theme_color_override("font_color", Color("554731"))
+	subtitle_label.add_theme_font_size_override("font_size", 16)
+	subtitle_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	header.add_child(subtitle_label)
 
 	var sep := HSeparator.new()
@@ -99,9 +92,7 @@ func _setup_ui() -> void:
 	close_button.custom_minimum_size = Vector2(120, 32)
 	close_button.pressed.connect(_on_close_pressed)
 	btn_center.add_child(close_button)
-	if UITheme:
-		UITheme.style_button(close_button)
-	close_button.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 func show_panel() -> void:
@@ -137,17 +128,19 @@ func _refresh() -> void:
 	first_wave = maxi(1, first_wave)
 	subtitle_label.text = "Welle %d – %d" % [first_wave, first_wave + PREVIEW_WAVES - 1]
 
+	var index := 0
 	for entry in RunSchedule.get_upcoming(first_wave, PREVIEW_WAVES):
-		rows_container.add_child(_create_row(entry, entry["wave"] == first_wave))
+		rows_container.add_child(_create_row(entry, entry["wave"] == first_wave, index % 2 == 1))
+		index += 1
 
 
-func _create_row(entry: Dictionary, is_current: bool) -> PanelContainer:
+func _create_row(entry: Dictionary, is_current: bool, striped: bool) -> PanelContainer:
 	var wave: int = entry["wave"]
 	var events: Array = entry["events"]
 
 	var row := PanelContainer.new()
-	if UITheme and (is_current or not events.is_empty()):
-		row.add_theme_stylebox_override("panel", UITheme.create_info_badge_style())
+	if UI:
+		row.add_theme_stylebox_override("panel", UI.row(striped))
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 10)
@@ -157,17 +150,15 @@ func _create_row(entry: Dictionary, is_current: bool) -> PanelContainer:
 	wave_label.text = "WELLE %d" % wave
 	wave_label.custom_minimum_size = Vector2(110, 26)
 	wave_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		wave_label.add_theme_font_override("font", UITheme.game_font)
-	wave_label.add_theme_font_size_override("font_size", 13)
+	wave_label.add_theme_font_size_override("font_size", 16)
 	wave_label.add_theme_color_override(
-		"font_color", UITheme.COLOR_TEXT_DARK if is_current else Color("554731")
+		"font_color", UI.ACCENT if is_current else UI.TEXT_SECOND
 	)
 	hbox.add_child(wave_label)
 
 	var events_label := IconSystem.create_rich_label(300, 26)
 	events_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	events_label.add_theme_font_size_override("normal_font_size", 11)
+	events_label.add_theme_font_size_override("normal_font_size", 16)
 	if events.is_empty():
 		events_label.text = "[color=#7d6c4d]nur Gegner[/color]"
 	else:

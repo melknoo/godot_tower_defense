@@ -85,7 +85,7 @@ func _bring_to_front() -> void:
 
 
 func _setup_panel_style() -> void:
-	UITheme.style_panel(self, "panel_dark")
+	add_theme_stylebox_override("panel", UI.panel())
 
 
 func _create_rich_label(font_size: int = 11, min_width: float = 200.0) -> RichTextLabel:
@@ -96,8 +96,6 @@ func _create_rich_label(font_size: int = 11, min_width: float = 200.0) -> RichTe
 	label.custom_minimum_size = Vector2(min_width, 0)
 	label.add_theme_font_size_override("normal_font_size", font_size)
 	label.add_theme_color_override("default_color", COLOR_TEXT)
-	if UITheme and UITheme.game_font:
-		label.add_theme_font_override("normal_font", UITheme.game_font)
 	return label
 
 
@@ -113,20 +111,20 @@ func _setup_ui() -> void:
 
 	tower_level_label = Label.new()
 	tower_level_label.name = "TowerLevelLabel"
-	tower_level_label.add_theme_font_size_override("font_size", 12)
+	tower_level_label.add_theme_font_size_override("font_size", 16)
 	tower_level_label.add_theme_color_override("font_color", COLOR_MUTED)
 	vbox.add_child(tower_level_label)
 
-	element_label = _create_rich_label(11, 200)
+	element_label = _create_rich_label(16, 200)
 	element_label.name = "ElementLabel"
 	element_label.visible = false
 	vbox.add_child(element_label)
 
-	stats_label = _create_rich_label(11, 200)
+	stats_label = _create_rich_label(16, 200)
 	stats_label.name = "StatsLabel"
 	vbox.add_child(stats_label)
 
-	supply_info_label = _create_rich_label(10, 180)
+	supply_info_label = _create_rich_label(16, 180)
 	supply_info_label.name = "SupplyInfoLabel"
 	vbox.add_child(supply_info_label)
 
@@ -147,7 +145,7 @@ func _setup_ui() -> void:
 	engrave_header_label = Label.new()
 	engrave_header_label.name = "EngraveHeaderLabel"
 	engrave_header_label.text = "Gravieren:"
-	engrave_header_label.add_theme_font_size_override("font_size", 10)
+	engrave_header_label.add_theme_font_size_override("font_size", 16)
 	engrave_header_label.add_theme_color_override("font_color", COLOR_MUTED)
 	engrave_container.add_child(engrave_header_label)
 
@@ -156,7 +154,7 @@ func _setup_ui() -> void:
 
 	var equip_header := Label.new()
 	equip_header.text = "Ausrüstung:"
-	equip_header.add_theme_font_size_override("font_size", 11)
+	equip_header.add_theme_font_size_override("font_size", 16)
 	equip_header.add_theme_color_override("font_color", COLOR_MUTED)
 	vbox.add_child(equip_header)
 
@@ -172,14 +170,13 @@ func _setup_ui() -> void:
 
 	equip_hint_label = Label.new()
 	equip_hint_label.text = "Klicke Slot → Wähle Item aus Inventar"
-	equip_hint_label.add_theme_font_size_override("font_size", 8)
+	equip_hint_label.add_theme_font_size_override("font_size", 16)
 	equip_hint_label.add_theme_color_override("font_color", COLOR_MUTED.darkened(0.1))
 	equip_hint_label.visible = false
 	vbox.add_child(equip_hint_label)
 
 	absorb_button = Button.new()
 	absorb_button.name = "AbsorbButton"
-	absorb_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	absorb_button.pressed.connect(_on_absorb_pressed)
 	absorb_button.visible = false
 	vbox.add_child(absorb_button)
@@ -187,35 +184,30 @@ func _setup_ui() -> void:
 	pickup_button = Button.new()
 	pickup_button.name = "PickupButton"
 	pickup_button.text = "Aufnehmen"
-	pickup_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	pickup_button.pressed.connect(_on_pickup_pressed)
 	vbox.add_child(pickup_button)
 
 	upgrade_button = Button.new()
 	upgrade_button.name = "UpgradeButton"
-	upgrade_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	vbox.add_child(upgrade_button)
 
 	sell_button = Button.new()
 	sell_button.name = "SellButton"
-	sell_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	sell_button.pressed.connect(_on_sell_pressed)
 	vbox.add_child(sell_button)
 
 	close_button = Button.new()
 	close_button.name = "CloseButton"
 	close_button.text = "Schließen"
-	close_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 
-	UITheme.style_button(absorb_button)
-	UITheme.style_button(pickup_button)
-	UITheme.style_button(upgrade_button)
-	UITheme.style_button(sell_button)
-	UITheme.style_button(close_button)
-	UITheme.style_button_colors(upgrade_button)
+	absorb_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	pickup_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	upgrade_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	sell_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 func _create_equipment_slot(index: int) -> PanelContainer:
@@ -850,11 +842,11 @@ func _update_pickup_button(is_blocked: bool) -> void:
 		if is_blocked:
 			pickup_button.text = "Aufnehmen"
 			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
-			pickup_button.add_theme_color_override("font_color", Color("8f241d"))
+			pickup_button.add_theme_color_override("font_color", UI.DANGER)
 		else:
 			pickup_button.text = "Aufnehmen"
 			pickup_button.tooltip_text = "Turm aufnehmen und umplatzieren (kostenlos)"
-			pickup_button.add_theme_color_override("font_color", COLOR_DARK_BUTTON_TEXT)
+			pickup_button.remove_theme_color_override("font_color")
 
 
 func _update_supply_info(level: int) -> void:
@@ -938,7 +930,7 @@ func _update_engrave_buttons() -> void:
 			btn.modulate.a = 0.5
 
 		btn.pressed.connect(_on_engrave_button_pressed.bind(element))
-		UITheme.style_icon_button(btn)
+		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		engrave_container.add_child(btn)
 
 
@@ -1007,8 +999,8 @@ func _update_aura_buff_buttons() -> void:
 			btn.tooltip_text += "\n\nNicht während einer Welle"
 		
 		btn.pressed.connect(_on_aura_buff_button_pressed.bind(option["type"]))
-		UITheme.style_icon_button(btn)
-		
+		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
 		# ✅ Farbe für Button basierend auf Typ
 		var bg_color := _get_aura_buff_button_color(option["type"])
 		btn.modulate = bg_color.lerp(Color.WHITE, 0.7)
@@ -1211,9 +1203,9 @@ func _update_sell_button(level: int) -> void:
 		sell_button.text = "Verkaufen: %dg +%d (%d%%)" % [sell_value, supply_refund, sell_percent]
 
 	if sell_percent == 100:
-		sell_button.add_theme_color_override("font_color", Color("12652d"))
+		sell_button.add_theme_color_override("font_color", UI.SUCCESS)
 	else:
-		sell_button.add_theme_color_override("font_color", Color("555555"))
+		sell_button.add_theme_color_override("font_color", UI.TEXT_SECOND)
 
 
 func _on_engrave_button_pressed(element: String) -> void:

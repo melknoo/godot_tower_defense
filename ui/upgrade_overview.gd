@@ -60,14 +60,11 @@ func _setup_ui() -> void:
 	panel.custom_minimum_size = Vector2(500, 450)
 	center.add_child(panel)
 	
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-	
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 15)
-	margin.add_theme_constant_override("margin_bottom", 15)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	panel.add_child(margin)
 	
 	var vbox := VBoxContainer.new()
@@ -81,17 +78,12 @@ func _setup_ui() -> void:
 	title_label = Label.new()
 	title_label.text = "Aktive Upgrades"
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if UITheme and UITheme.game_font:
-		title_label.add_theme_font_override("font", UITheme.game_font)
 	title_label.add_theme_font_size_override("font_size", 20)
-	title_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	header.add_child(title_label)
-	
+
 	count_label = Label.new()
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	if UITheme and UITheme.game_font:
-		count_label.add_theme_font_override("font", UITheme.game_font)
-	count_label.add_theme_font_size_override("font_size", 14)
+	count_label.add_theme_font_size_override("font_size", 16)
 	count_label.add_theme_color_override("font_color", Color("554731"))
 	header.add_child(count_label)
 	
@@ -114,9 +106,7 @@ func _setup_ui() -> void:
 	no_upgrades_label.text = "Noch keine Upgrades gewählt.\nSchließe Wellen ab, um Upgrades zu erhalten!"
 	no_upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	no_upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		no_upgrades_label.add_theme_font_override("font", UITheme.game_font)
-	no_upgrades_label.add_theme_font_size_override("font_size", 12)
+	no_upgrades_label.add_theme_font_size_override("font_size", 16)
 	no_upgrades_label.add_theme_color_override("font_color", Color("554731"))
 	no_upgrades_label.visible = false
 	upgrades_container.add_child(no_upgrades_label)
@@ -130,9 +120,7 @@ func _setup_ui() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 	btn_center.add_child(close_button)
 	
-	if UITheme:
-		UITheme.style_button(close_button)
-	close_button.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 func show_panel() -> void:
@@ -199,9 +187,7 @@ func _create_category_section(category: String, upgrades: Array) -> VBoxContaine
 	
 	var cat_label := Label.new()
 	cat_label.text = CATEGORY_NAMES.get(category, category.capitalize())
-	if UITheme and UITheme.game_font:
-		cat_label.add_theme_font_override("font", UITheme.game_font)
-	cat_label.add_theme_font_size_override("font_size", 12)
+	cat_label.add_theme_font_size_override("font_size", 16)
 	cat_label.add_theme_color_override("font_color", CATEGORY_COLORS.get(category, Color.WHITE).darkened(0.38))
 	section.add_child(cat_label)
 	
@@ -223,10 +209,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	var cat_color: Color = CATEGORY_COLORS.get(category, Color.WHITE)
 	
 	var entry := PanelContainer.new()
-	
-	if UITheme:
-		entry.add_theme_stylebox_override("panel", UITheme.create_info_badge_style())
-	
+
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 10)
 	entry.add_child(hbox)
@@ -246,17 +229,12 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	
 	var name_label := Label.new()
 	name_label.text = data.get("name", upgrade_info["id"])
-	if UITheme and UITheme.game_font:
-		name_label.add_theme_font_override("font", UITheme.game_font)
-	name_label.add_theme_font_size_override("font_size", 12)
-	name_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
+	name_label.add_theme_font_size_override("font_size", 16)
 	info_vbox.add_child(name_label)
-	
+
 	var desc_label := Label.new()
 	desc_label.text = data.get("description", "")
-	if UITheme and UITheme.game_font:
-		desc_label.add_theme_font_override("font", UITheme.game_font)
-	desc_label.add_theme_font_size_override("font_size", 9)
+	desc_label.add_theme_font_size_override("font_size", 16)
 	desc_label.add_theme_color_override("font_color", Color("554731"))
 	info_vbox.add_child(desc_label)
 	
@@ -268,9 +246,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 		var stack_label := Label.new()
 		stack_label.text = "%d/%d" % [stacks, max_stacks]
 		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		if UITheme and UITheme.game_font:
-			stack_label.add_theme_font_override("font", UITheme.game_font)
-		stack_label.add_theme_font_size_override("font_size", 11)
+		stack_label.add_theme_font_size_override("font_size", 16)
 		
 		if stacks >= max_stacks:
 			stack_label.add_theme_color_override("font_color", Color("795518"))
@@ -285,7 +261,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 			dots += "●" if i < stacks else "○"
 		dots_label.text = dots
 		dots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		dots_label.add_theme_font_size_override("font_size", 8)
+		dots_label.add_theme_font_size_override("font_size", 16)
 		dots_label.add_theme_color_override("font_color", cat_color.darkened(0.38))
 		stack_vbox.add_child(dots_label)
 	

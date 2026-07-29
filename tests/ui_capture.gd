@@ -64,8 +64,8 @@ func _run() -> void:
 	_assert_ui(not main.hud.wave_element_area.visible, "Alte doppelte Elementzeile ist ausgeblendet")
 	var wave_panel_style := main.hud.wave_status_panel.get_theme_stylebox("panel") as StyleBoxFlat
 	_assert_ui(
-		wave_panel_style != null and wave_panel_style.border_color.is_equal_approx(Color(0.4, 0.35, 0.3)),
-		"Wellenstatus nutzt den braunen Rahmen der unteren HUD-Leiste"
+		wave_panel_style != null and wave_panel_style.border_color.is_equal_approx(UI.BORDER_BRASS),
+		"Wellenstatus nutzt den Messing-Rahmen des gemeinsamen UI.panel()-Materials"
 	)
 	_assert_ui(main.hud.wave_preview_label.size.x >= 500.0, "Wellenvorschau hat ausreichend Textbreite")
 	_assert_ui(

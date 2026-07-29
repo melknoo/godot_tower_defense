@@ -56,17 +56,13 @@ func _build_ui() -> void:
 	panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(1010, 850)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-	else:
-		panel.add_theme_stylebox_override("panel", _panel_style(COLOR_PANEL, COLOR_BORDER, 3, 14))
 	center.add_child(panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	panel.add_child(margin)
 
 	var root := VBoxContainer.new()
@@ -81,30 +77,25 @@ func _build_ui() -> void:
 	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title_box)
 
-	var title := UITheme.create_ribbon_title("ARKANES ARCHIV", "blue", 410, 23)
+	var title := Label.new()
+	title.text = "ARKANES ARCHIV"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(410, 32)
 	title.custom_minimum_size.y = 58
-	for child in title.get_children():
-		if child is Label:
-			child.offset_top = -4
-			child.offset_bottom = -4
 	title_box.add_child(title)
 
 	var subtitle := Label.new()
 	subtitle.text = "Dauerhafte Forschung · Jeder Run nährt den nächsten"
-	_style_label(subtitle, 12, UITheme.COLOR_TEXT_DARK)
+	_style_label(subtitle, 16)
 	title_box.add_child(subtitle)
 
 	var currency_box := PanelContainer.new()
 	currency_box.custom_minimum_size = Vector2(230, 58)
-	if UITheme:
-		UITheme.style_panel(currency_box, "carved_small")
-	else:
-		currency_box.add_theme_stylebox_override("panel", _panel_style(Color("111a2a"), COLOR_AETHER.darkened(0.25), 2, 10))
 	header.add_child(currency_box)
 	essence_label = Label.new()
 	essence_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	essence_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_style_label(essence_label, 18, Color("185a78"))
+	_style_label(essence_label, 20, Color("185a78"))
 	currency_box.add_child(essence_label)
 
 	var close_button := Button.new()
@@ -117,17 +108,11 @@ func _build_ui() -> void:
 	close_button.add_theme_constant_override("icon_max_width", 18)
 	close_button.tooltip_text = "Schließen (Esc)"
 	close_button.pressed.connect(hide_panel)
-	if UITheme:
-		UITheme.style_icon_button(close_button, true)
-	else:
-		_style_dark_button(close_button, Color("713d58"))
+	close_button.theme_type_variation = &"DangerButton"
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	header.add_child(close_button)
 
 	var progress_panel := PanelContainer.new()
-	if UITheme:
-		progress_panel.add_theme_stylebox_override("panel", UITheme.create_info_badge_style())
-	else:
-		progress_panel.add_theme_stylebox_override("panel", _panel_style(Color("121827"), Color("293752"), 1, 10))
 	root.add_child(progress_panel)
 	var progress_margin := MarginContainer.new()
 	progress_margin.add_theme_constant_override("margin_left", 14)
@@ -141,18 +126,18 @@ func _build_ui() -> void:
 
 	level_label = Label.new()
 	level_label.custom_minimum_size.x = 180
-	_style_label(level_label, 14, Color("795518"))
+	_style_label(level_label, 16, Color("795518"))
 	progress_row.add_child(level_label)
 
 	stats_label = Label.new()
 	stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_label(stats_label, 12, UITheme.COLOR_TEXT_DARK)
+	_style_label(stats_label, 16)
 	progress_row.add_child(stats_label)
 
 	milestone_label = Label.new()
 	milestone_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	milestone_label.custom_minimum_size.x = 230
-	_style_label(milestone_label, 12, Color("185a78"))
+	_style_label(milestone_label, 16, Color("185a78"))
 	progress_row.add_child(milestone_label)
 
 	var divider := HSeparator.new()
@@ -172,7 +157,7 @@ func _build_ui() -> void:
 	var footer := Label.new()
 	footer.text = "Aether wird sofort gespeichert. Tiefere Runs zahlen überproportional mehr aus."
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_style_label(footer, 11, Color("554731"))
+	_style_label(footer, 16, Color("554731"))
 	root.add_child(footer)
 
 
@@ -262,10 +247,6 @@ func _create_research_card(research_id: String, data: Dictionary) -> PanelContai
 
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(455, 148)
-	if UITheme:
-		UITheme.style_panel(card, "carved_small")
-	else:
-		card.add_theme_stylebox_override("panel", _panel_style(COLOR_CARD if unlocked else Color("171b26"), accent.darkened(0.35) if unlocked else Color("313746"), 2, 10))
 	if not unlocked:
 		card.modulate = Color(0.68, 0.66, 0.61, 0.86)
 
@@ -310,7 +291,7 @@ func _create_research_card(research_id: String, data: Dictionary) -> PanelContai
 	var name_label := Label.new()
 	name_label.text = String(data.get("name", research_id))
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_label(name_label, 15, UITheme.COLOR_TEXT_DARK)
+	_style_label(name_label, 15)
 	name_row.add_child(name_label)
 	var rank_label := Label.new()
 	_style_label(rank_label, 12, accent.darkened(0.38))
@@ -338,10 +319,7 @@ func _create_research_card(research_id: String, data: Dictionary) -> PanelContai
 		buy_button.text = "ERFORSCHEN   %d ✦" % cost
 		buy_button.disabled = ProgressionSystem.essence < cost
 		buy_button.pressed.connect(_on_purchase_pressed.bind(research_id, card))
-	if UITheme:
-		UITheme.style_button(buy_button)
-	else:
-		_style_dark_button(buy_button, accent.darkened(0.45))
+	buy_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	info.add_child(buy_button)
 	return card
 
@@ -416,16 +394,12 @@ func _style_dark_button(button: Button, accent: Color) -> void:
 	button.add_theme_color_override("font_color", COLOR_TEXT)
 	button.add_theme_color_override("font_hover_color", Color.WHITE)
 	button.add_theme_color_override("font_disabled_color", Color("697286"))
-	button.add_theme_font_size_override("font_size", 12)
-	if UITheme and UITheme.game_font:
-		button.add_theme_font_override("font", UITheme.game_font)
+	button.add_theme_font_size_override("font_size", 16)
 
 
-func _style_label(label: Label, size: int, color: Color) -> void:
+func _style_label(label: Label, size: int, color: Color = UI.TEXT_PRIMARY) -> void:
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
-	if UITheme and UITheme.game_font:
-		label.add_theme_font_override("font", UITheme.game_font)
 
 
 func _format_number(value: int) -> String:

@@ -63,14 +63,11 @@ func _setup_ui() -> void:
 	panel.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	center.add_child(panel)
 	
-	if UITheme:
-		UITheme.style_panel(panel, "panel_dark")
-	
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 15)
-	margin.add_theme_constant_override("margin_bottom", 15)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	margin.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	panel.add_child(margin)
 	
@@ -91,7 +88,7 @@ func _setup_ui() -> void:
 	subtitle_label = Label.new()
 	subtitle_label.text = "Wähle ein Upgrade für diesen Run:"
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle_label.add_theme_font_size_override("font_size", 14)
+	subtitle_label.add_theme_font_size_override("font_size", 16)
 	subtitle_label.add_theme_color_override("font_color", Color("9aa8c2"))
 	vbox.add_child(subtitle_label)
 	
@@ -114,13 +111,12 @@ func _setup_ui() -> void:
 	reroll_button.custom_minimum_size = Vector2(140, 35)
 	reroll_button.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	reroll_button.pressed.connect(_on_reroll_pressed)
+	reroll_button.theme_type_variation = &"SecondaryButton"
 	_update_reroll_button_text()
 	button_hbox.add_child(reroll_button)
-	
-	if UITheme:
-		UITheme.style_button(reroll_button)
-		UITheme.style_button_colors(reroll_button, Color(0.2, 0.2, 0.2))
-	
+
+	reroll_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
 	# Skip Button
 	skip_button = Button.new()
 	skip_button.text = "Überspringen"
@@ -128,11 +124,10 @@ func _setup_ui() -> void:
 	skip_button.visible = false
 	skip_button.process_mode = Node.PROCESS_MODE_ALWAYS  # WICHTIG
 	skip_button.pressed.connect(_on_skip_pressed)
+	skip_button.theme_type_variation = &"SecondaryButton"
 	button_hbox.add_child(skip_button)
-	
-	if UITheme:
-		UITheme.style_button(skip_button)
-		UITheme.style_button_colors(skip_button, Color(0.2, 0.2, 0.2))
+
+	skip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 func show_upgrades(wave: int) -> void:
@@ -201,9 +196,7 @@ func _update_reroll_button_text() -> void:
 	
 	if GameState and GameState.can_afford(cost):
 		reroll_button.disabled = false
-		if UITheme:
-			UITheme.style_button(reroll_button)
-			UITheme.style_button_colors(reroll_button, Color(0.2, 0.2, 0.2))
+		reroll_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	else:
 		reroll_button.disabled = true
 
@@ -321,7 +314,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		if current_stacks > 5:
 			stack_label.text += " +%d" % (current_stacks - 5)
 		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stack_label.add_theme_font_size_override("font_size", 12)
+		stack_label.add_theme_font_size_override("font_size", 16)
 		stack_label.add_theme_color_override("font_color", Color("f4cf6a"))
 		vbox.add_child(stack_label)
 	
@@ -331,7 +324,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	desc_label.custom_minimum_size.x = CARD_WIDTH - 20
-	desc_label.add_theme_font_size_override("font_size", 12)
+	desc_label.add_theme_font_size_override("font_size", 16)
 	desc_label.add_theme_color_override("font_color", Color("c1cbe0"))
 	vbox.add_child(desc_label)
 	
@@ -342,7 +335,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		tooltip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 		tooltip_label.custom_minimum_size.x = CARD_WIDTH - 20
-		tooltip_label.add_theme_font_size_override("font_size", 10)
+		tooltip_label.add_theme_font_size_override("font_size", 16)
 		tooltip_label.add_theme_color_override("font_color", Color("8f9bb2"))
 		vbox.add_child(tooltip_label)
 	
@@ -351,7 +344,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	var cat_name: String = _get_category_name(category)
 	category_label.text = cat_name
 	category_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	category_label.add_theme_font_size_override("font_size", 10)
+	category_label.add_theme_font_size_override("font_size", 16)
 	category_label.add_theme_color_override("font_color", cat_color.lightened(0.18))
 	vbox.add_child(category_label)
 	
@@ -360,7 +353,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		var stack_info := Label.new()
 		stack_info.text = "(%d/%d)" % [current_stacks + 1, max_stacks]
 		stack_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stack_info.add_theme_font_size_override("font_size", 10)
+		stack_info.add_theme_font_size_override("font_size", 16)
 		stack_info.add_theme_color_override("font_color", Color("8491aa"))
 		vbox.add_child(stack_info)
 	
@@ -378,10 +371,8 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	btn.pressed.connect(_on_card_selected.bind(upgrade_id))
 	vbox.add_child(btn)
 	
-	if UITheme:
-		UITheme.style_button(btn)
-		UITheme.style_button_colors(btn, Color(0.2, 0.2, 0.2))
-	
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
 	# Hover-Effekt
 	card.mouse_entered.connect(func():
 		var hover_style := style.duplicate()

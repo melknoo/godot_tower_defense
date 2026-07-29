@@ -20,7 +20,7 @@ var close_button: Button
 var tower_manager: TowerManager = null
 var _highlighted_tower: Node2D = null
 
-const ROW_BG := Color(0.15, 0.15, 0.18, 0.6)
+const ROW_BG := UI.BG_2
 const ROW_BG_HOVER := Color(0.28, 0.24, 0.18, 0.9)
 
 # Das Panel sitzt am rechten Rand statt in der Bildmitte und faehrt von dort ein:
@@ -67,14 +67,11 @@ func _setup_ui() -> void:
 	panel.custom_minimum_size = PANEL_SIZE
 	side_holder.add_child(panel)
 
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 15)
-	margin.add_theme_constant_override("margin_bottom", 15)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
@@ -89,20 +86,19 @@ func _setup_ui() -> void:
 	title_label.text = "Turm-Statistik"
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.add_theme_font_size_override("font_size", 20)
-	title_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	header.add_child(title_label)
 
 	count_label = Label.new()
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	count_label.add_theme_font_size_override("font_size", 14)
-	count_label.add_theme_color_override("font_color", Color("554731"))
+	count_label.add_theme_font_size_override("font_size", 16)
+	count_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	header.add_child(count_label)
 
 	var hint := Label.new()
 	hint.text = "Zeile hovern → Turm leuchtet auf dem Spielfeld"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 10)
-	hint.add_theme_color_override("font_color", Color("554731"))
+	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(hint)
 
 	var legend := RichTextLabel.new()
@@ -110,10 +106,8 @@ func _setup_ui() -> void:
 	legend.fit_content = true
 	legend.scroll_active = false
 	legend.custom_minimum_size.y = 16
-	legend.add_theme_font_size_override("normal_font_size", 10)
-	legend.add_theme_color_override("default_color", Color("554731"))
-	if UITheme and UITheme.game_font:
-		legend.add_theme_font_override("normal_font", UITheme.game_font)
+	legend.add_theme_font_size_override("normal_font_size", 16)
+	legend.add_theme_color_override("default_color", UI.TEXT_SECOND)
 	var legend_damage := IconSystem.bb("damage", 12) if IconSystem else ""
 	var legend_kills := IconSystem.bb("star_full", 12) if IconSystem else ""
 	legend.text = "[right]%s Schaden Runde/Run     %s Kills Runde/Run[/right]" % [
@@ -139,8 +133,8 @@ func _setup_ui() -> void:
 	empty_label = Label.new()
 	empty_label.text = "Noch keine Türme gebaut."
 	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	empty_label.add_theme_font_size_override("font_size", 12)
-	empty_label.add_theme_color_override("font_color", Color("554731"))
+	empty_label.add_theme_font_size_override("font_size", 16)
+	empty_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	empty_label.visible = false
 	rows_container.add_child(empty_label)
 
@@ -153,13 +147,7 @@ func _setup_ui() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 	btn_center.add_child(close_button)
 
-	if UITheme:
-		UITheme.style_button(close_button)
-	close_button.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
-
-	for label in [title_label, count_label, hint, empty_label]:
-		if UITheme and UITheme.game_font:
-			label.add_theme_font_override("font", UITheme.game_font)
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 func show_panel() -> void:
@@ -282,7 +270,7 @@ func _create_row(tower: Node2D) -> PanelContainer:
 	]
 	name_label.custom_minimum_size.x = 150
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.add_theme_color_override("font_color", Color("edf3ff"))
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(name_label)
@@ -294,13 +282,9 @@ func _create_row(tower: Node2D) -> PanelContainer:
 	stats.scroll_active = false
 	stats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stats.add_theme_font_size_override("normal_font_size", 11)
+	stats.add_theme_font_size_override("normal_font_size", 16)
 	stats.add_theme_color_override("default_color", Color("edf3ff"))
 	box.add_child(stats)
-
-	if UITheme and UITheme.game_font:
-		name_label.add_theme_font_override("font", UITheme.game_font)
-		stats.add_theme_font_override("normal_font", UITheme.game_font)
 
 	_update_row_values(row)
 

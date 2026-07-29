@@ -62,15 +62,11 @@ func _setup_ui() -> void:
 	panel.custom_minimum_size = Vector2(480, 260)
 	center.add_child(panel)
 	
-	# Benutze UITheme für konsistentes Aussehen
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-	
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 15)
-	margin.add_theme_constant_override("margin_right", 15)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	panel.add_child(margin)
 	
 	vbox = VBoxContainer.new()
@@ -81,18 +77,13 @@ func _setup_ui() -> void:
 	title_label = Label.new()
 	title_label.text = "Element-Kerne investieren"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		title_label.add_theme_font_override("font", UITheme.game_font)
-	title_label.add_theme_font_size_override("font_size", 18)
-	title_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
+	title_label.add_theme_font_size_override("font_size", 20)
 	vbox.add_child(title_label)
-	
+
 	# Kerne-Anzeige
 	cores_label = Label.new()
 	cores_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		cores_label.add_theme_font_override("font", UITheme.game_font)
-	cores_label.add_theme_font_size_override("font_size", 12)
+	cores_label.add_theme_font_size_override("font_size", 16)
 	vbox.add_child(cores_label)
 	
 	# Separator
@@ -104,10 +95,8 @@ func _setup_ui() -> void:
 	var info_label := Label.new()
 	info_label.text = "Wähle ein Element zum Freischalten oder Aufwerten:"
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		info_label.add_theme_font_override("font", UITheme.game_font)
-	info_label.add_theme_font_size_override("font_size", 11)
-	info_label.add_theme_color_override("font_color", Color("554731"))
+	info_label.add_theme_font_size_override("font_size", 16)
+	info_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(info_label)
 	
 	# CenterContainer für die Buttons
@@ -131,11 +120,9 @@ func _setup_ui() -> void:
 	close_button.text = "Schließen"
 	close_button.custom_minimum_size = Vector2(100, 30)
 	close_button.pressed.connect(_on_close_pressed)
-	
-	if UITheme:
-		UITheme.style_button(close_button)
-		UITheme.style_button_colors(close_button)
-	
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	close_button.theme_type_variation = &"SecondaryButton"
+
 	var btn_container := CenterContainer.new()
 	btn_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_container.add_child(close_button)
@@ -189,9 +176,9 @@ func _update_cores_display() -> void:
 	cores_label.text = "Verfügbar: %d | Investiert: %d/%d" % [cores, invested, max_possible]
 	
 	if cores > 0:
-		cores_label.add_theme_color_override("font_color", Color("185a78"))
+		cores_label.add_theme_color_override("font_color", UI.ACCENT)
 	else:
-		cores_label.add_theme_color_override("font_color", Color("695c48"))
+		cores_label.add_theme_color_override("font_color", UI.TEXT_DISABLED)
 
 
 func _create_element_buttons() -> void:
@@ -204,8 +191,6 @@ func _create_element_buttons() -> void:
 		var all_done := Label.new()
 		all_done.text = "Alle Elemente auf Maximum!"
 		all_done.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		if UITheme and UITheme.game_font:
-			all_done.add_theme_font_override("font", UITheme.game_font)
 		all_done.add_theme_color_override("font_color", Color("78d58b"))
 		elements_container.add_child(all_done)
 		return
@@ -254,10 +239,7 @@ func _create_element_button(element: String) -> Button:
 	var name_label := Label.new()
 	name_label.text = element.capitalize()
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		name_label.add_theme_font_override("font", UITheme.game_font)
-	name_label.add_theme_font_size_override("font_size", 11)
-	name_label.add_theme_color_override("font_color", Color("201b17"))
+	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(name_label)
 	
@@ -270,10 +252,8 @@ func _create_element_button(element: String) -> Button:
 	var level_label := Label.new()
 	level_label.text = level_text
 	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		level_label.add_theme_font_override("font", UITheme.game_font)
-	level_label.add_theme_font_size_override("font_size", 9)
-	level_label.add_theme_color_override("font_color", Color("3d4654"))
+	level_label.add_theme_font_size_override("font_size", 16)
+	level_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(level_label)
 	
@@ -282,9 +262,7 @@ func _create_element_button(element: String) -> Button:
 	var cost_label := Label.new()
 	cost_label.text = "Kosten: %d" % cost
 	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if UITheme and UITheme.game_font:
-		cost_label.add_theme_font_override("font", UITheme.game_font)
-	cost_label.add_theme_font_size_override("font_size", 8)
+	cost_label.add_theme_font_size_override("font_size", 16)
 	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(cost_label)
 	
@@ -296,17 +274,7 @@ func _create_element_button(element: String) -> Button:
 	# Styling
 	var element_color: Color = ELEMENT_COLORS.get(element, Color.WHITE)
 	var is_maxed := current_level >= TowerData.MAX_ELEMENT_LEVEL
-	
-	# Basis-Style mit UITheme
-	if UITheme:
-		var base_style := UITheme.create_button_style(false)
-		btn.add_theme_stylebox_override("normal", base_style)
-		btn.add_theme_stylebox_override("disabled", base_style)
-		
-		var hover_style := UITheme.create_button_style(true)
-		btn.add_theme_stylebox_override("hover", hover_style)
-		btn.add_theme_stylebox_override("pressed", hover_style)
-	
+
 	# Modulate basierend auf Status
 	if is_maxed:
 		btn.modulate = Color(0.9, 0.85, 0.7)  # Goldener Tint
@@ -314,14 +282,14 @@ func _create_element_button(element: String) -> Button:
 		cost_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	elif not has_cores:
 		btn.modulate = Color(0.6, 0.6, 0.6)  # Ausgegraut
-		cost_label.add_theme_color_override("font_color", Color(0.5, 0.3, 0.3))
+		cost_label.add_theme_color_override("font_color", UI.TEXT_DISABLED)
 	elif current_level > 0:
 		# Leichter Element-Tint für bereits investierte
 		btn.modulate = element_color.lerp(Color.WHITE, 0.84)
-		cost_label.add_theme_color_override("font_color", Color("235b2e"))
+		cost_label.add_theme_color_override("font_color", UI.SUCCESS)
 	else:
 		btn.modulate = Color.WHITE
-		cost_label.add_theme_color_override("font_color", Color("235b2e"))
+		cost_label.add_theme_color_override("font_color", UI.SUCCESS)
 	
 	return btn
 

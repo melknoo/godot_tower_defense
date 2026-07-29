@@ -46,14 +46,11 @@ func _setup_ui() -> void:
 	panel.custom_minimum_size = Vector2(560, 520)
 	center.add_child(panel)
 
-	if UITheme:
-		UITheme.style_panel(panel, "carved")
-
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_top", 15)
-	margin.add_theme_constant_override("margin_bottom", 15)
+	margin.add_theme_constant_override("margin_left", UI.SP_5)
+	margin.add_theme_constant_override("margin_right", UI.SP_5)
+	margin.add_theme_constant_override("margin_top", UI.SP_5)
+	margin.add_theme_constant_override("margin_bottom", UI.SP_5)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()
@@ -62,19 +59,13 @@ func _setup_ui() -> void:
 
 	var title_label := Label.new()
 	title_label.text = "Meisterschaft & Synergien"
-	if UITheme and UITheme.game_font:
-		title_label.add_theme_font_override("font", UITheme.game_font)
 	title_label.add_theme_font_size_override("font_size", 20)
-	if UITheme:
-		title_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
 	vbox.add_child(title_label)
 
 	var hint := Label.new()
 	hint.text = "Investiere in Perks, Elemente & Türme, um Schwellen-Boni freizuschalten."
-	if UITheme and UITheme.game_font:
-		hint.add_theme_font_override("font", UITheme.game_font)
-	hint.add_theme_font_size_override("font_size", 10)
-	hint.add_theme_color_override("font_color", Color("554731"))
+	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(hint)
 
 	var sep := HSeparator.new()
@@ -101,9 +92,7 @@ func _setup_ui() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 	btn_center.add_child(close_button)
 
-	if UITheme:
-		UITheme.style_button(close_button)
-	close_button.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
 func show_panel() -> void:
@@ -135,11 +124,13 @@ func _refresh_tracks() -> void:
 	if not SynergySystem:
 		return
 
+	var index := 0
 	for tag in SynergySystem.TAGS:
-		tracks_container.add_child(_create_track_row(tag))
+		tracks_container.add_child(_create_track_row(tag, index % 2 == 1))
+		index += 1
 
 
-func _create_track_row(tag: String) -> PanelContainer:
+func _create_track_row(tag: String, striped: bool) -> PanelContainer:
 	var info: Dictionary = SynergySystem.TRACK_INFO.get(tag, {})
 	var color: Color = TRACK_COLORS.get(tag, Color.WHITE)
 	var points: int = SynergySystem.get_points(tag)
@@ -148,8 +139,8 @@ func _create_track_row(tag: String) -> PanelContainer:
 	var thresholds: Array = SynergySystem.TIER_THRESHOLDS
 
 	var entry := PanelContainer.new()
-	if UITheme:
-		entry.add_theme_stylebox_override("panel", UITheme.create_info_badge_style())
+	if UI:
+		entry.add_theme_stylebox_override("panel", UI.row(striped))
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
@@ -168,9 +159,7 @@ func _create_track_row(tag: String) -> PanelContainer:
 	var name_label := Label.new()
 	name_label.text = info.get("name", tag)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if UITheme and UITheme.game_font:
-		name_label.add_theme_font_override("font", UITheme.game_font)
-	name_label.add_theme_font_size_override("font_size", 14)
+	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.add_theme_color_override("font_color", color.darkened(0.35))
 	header.add_child(name_label)
 
@@ -179,10 +168,8 @@ func _create_track_row(tag: String) -> PanelContainer:
 	if tier < thresholds.size():
 		next_txt = " → %d" % thresholds[tier]
 	tier_label.text = "T%d · %d Pkt%s" % [tier, points, next_txt]
-	if UITheme and UITheme.game_font:
-		tier_label.add_theme_font_override("font", UITheme.game_font)
-	tier_label.add_theme_font_size_override("font_size", 11)
-	tier_label.add_theme_color_override("font_color", Color("554731"))
+	tier_label.add_theme_font_size_override("font_size", 16)
+	tier_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	header.add_child(tier_label)
 
 	# Effekt-Zeilen (freigeschaltete hervorgehoben)
@@ -190,10 +177,8 @@ func _create_track_row(tag: String) -> PanelContainer:
 		var eff := Label.new()
 		var unlocked := tier >= (i + 1)
 		eff.text = "%s  T%d: %s" % ["✔" if unlocked else "•", i + 1, effects[i]]
-		if UITheme and UITheme.game_font:
-			eff.add_theme_font_override("font", UITheme.game_font)
-		eff.add_theme_font_size_override("font_size", 10)
-		eff.add_theme_color_override("font_color", color.darkened(0.2) if unlocked else Color("8a7a55"))
+		eff.add_theme_font_size_override("font_size", 16)
+		eff.add_theme_color_override("font_color", color.darkened(0.2) if unlocked else UI.TEXT_SECOND)
 		vbox.add_child(eff)
 
 	return entry

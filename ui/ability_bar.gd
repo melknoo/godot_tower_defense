@@ -35,16 +35,10 @@ func _setup_ui() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
-	if UITheme:
-		UITheme.style_panel(bg, "carved_small")
-	
 	var title := Label.new()
 	title.text = "Fähigkeiten"
 	title.position = Vector2(14, 9)
-	title.add_theme_font_size_override("font_size", 10)
-	title.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
-	if UITheme and UITheme.game_font:
-		title.add_theme_font_override("font", UITheme.game_font)
+	title.add_theme_font_size_override("font_size", 16)
 	add_child(title)
 	
 	button_container = HBoxContainer.new()
@@ -367,8 +361,8 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 	hotkey.name = "Hotkey"
 	hotkey.text = str(slot_index + 1)
 	hotkey.position = Vector2(BUTTON_SIZE / 2 - 4, BUTTON_SIZE + 1)
-	hotkey.add_theme_font_size_override("font_size", 10)
-	hotkey.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	hotkey.add_theme_font_size_override("font_size", 16)
+	hotkey.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	container.add_child(hotkey)
 	
 	# Upgrade Stars
@@ -380,7 +374,7 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 		for _i in range(mini(upgrade_stacks, 5)):
 			stars.text += "★"
 		stars.position = Vector2(2, -2)
-		stars.add_theme_font_size_override("font_size", 8)
+		stars.add_theme_font_size_override("font_size", 16)
 		stars.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 		stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(stars)
@@ -439,8 +433,8 @@ func _create_empty_slot(slot_index: int) -> Control:
 	hotkey.name = "Hotkey"
 	hotkey.text = str(slot_index + 1)
 	hotkey.position = Vector2(BUTTON_SIZE / 2 - 4, BUTTON_SIZE + 1)
-	hotkey.add_theme_font_size_override("font_size", 10)
-	hotkey.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+	hotkey.add_theme_font_size_override("font_size", 16)
+	hotkey.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	container.add_child(hotkey)
 	
 	return container
