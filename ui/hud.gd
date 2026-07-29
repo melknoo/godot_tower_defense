@@ -27,7 +27,6 @@ signal pause_pressed
 var wave_preview_label: RichTextLabel
 @export var wave_element_icon: TextureRect
 @export var wave_element_label: Label
-@export var seed_label: Label
 @export var fast_forward_button: Button
 @export var bonus_preview_label: Label
 @export var supply_label: RichTextLabel
@@ -131,6 +130,8 @@ var tracked_boss: Node2D
 var bottom_strip: Control
 var top_bar: PanelContainer
 var top_bar_row: HBoxContainer
+var hp_dot: ColorRect
+var hp_bar: ProgressBar
 
 
 func _ready() -> void:
@@ -139,6 +140,7 @@ func _ready() -> void:
 	_load_element_textures()
 	_setup_hud_size()
 	_find_or_create_ui_elements()
+	_build_top_bar_content()
 	_create_wave_status_ui()
 	_create_progression_ui()
 	_create_item_toast_layer()
@@ -252,6 +254,89 @@ func _topbar_separator() -> VSeparator:
 	return separator
 
 
+# Zieht Gold/Leben/Welle/Kerne/Supply aus dem BottomStrip in die TopBar-Reihe.
+# Die Update-Funktionen (_on_gold_changed usw.) bleiben unveraendert - nur das
+# Parenting aendert sich, das Reihenfolge-Skelett entsteht hier einmalig.
+func _build_top_bar_content() -> void:
+	var hp_group := HBoxContainer.new()
+	hp_group.name = "HPGroup"
+	hp_group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hp_group.add_theme_constant_override("separation", UI.SP_2)
+	top_bar_row.add_child(hp_group)
+
+	hp_dot = ColorRect.new()
+	hp_dot.name = "HPDot"
+	hp_dot.custom_minimum_size = Vector2(12, 12)
+	hp_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hp_dot.color = UI.SUCCESS
+	hp_group.add_child(hp_dot)
+
+	lives_label.reparent(hp_group, false)
+	lives_label.position = Vector2.ZERO
+	lives_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	hp_bar = ProgressBar.new()
+	hp_bar.name = "HPBar"
+	hp_bar.custom_minimum_size = Vector2(64, UI.BAR_H_HP)
+	hp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hp_bar.show_percentage = false
+	hp_bar.min_value = 0.0
+	hp_bar.max_value = 1.0
+	hp_bar.add_theme_stylebox_override("background", UI.bar(true))
+	hp_bar.add_theme_stylebox_override("fill", UI.bar(false, UI.SUCCESS))
+	hp_group.add_child(hp_bar)
+
+	top_bar_row.add_child(_topbar_separator())
+
+	var wave_group := HBoxContainer.new()
+	wave_group.name = "WaveGroup"
+	wave_group.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	wave_group.add_theme_constant_override("separation", UI.SP_2)
+	top_bar_row.add_child(wave_group)
+
+	var wave_micro := Label.new()
+	wave_micro.name = "WaveMicroLabel"
+	wave_micro.text = "WELLE"
+	wave_micro.add_theme_font_size_override("font_size", UI.FS_MICRO)
+	wave_micro.add_theme_color_override("font_color", UI.TEXT_SECOND)
+	wave_group.add_child(wave_micro)
+
+	wave_label.reparent(wave_group, false)
+	wave_label.position = Vector2.ZERO
+	wave_label.add_theme_font_size_override("font_size", UI.FS_SECTION)
+
+	enemies_label.reparent(wave_group, false)
+	enemies_label.position = Vector2.ZERO
+	enemies_label.add_theme_font_size_override("font_size", UI.FS_MICRO)
+	enemies_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
+
+	top_bar_row.add_child(_topbar_separator())
+
+	var pod := HBoxContainer.new()
+	pod.name = "ResourcePod"
+	pod.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	pod.add_theme_constant_override("separation", UI.SP_3)
+	top_bar_row.add_child(pod)
+
+	gold_label.reparent(pod, false)
+	gold_label.position = Vector2.ZERO
+
+	pod.add_child(_topbar_separator())
+	cores_label.reparent(pod, false)
+	cores_label.position = Vector2.ZERO
+
+	pod.add_child(_topbar_separator())
+	supply_label.reparent(pod, false)
+	supply_label.position = Vector2.ZERO
+	supply_label.custom_minimum_size = Vector2(0, 20)
+
+	var spacer := Control.new()
+	spacer.name = "TopBarSpacer"
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top_bar_row.add_child(spacer)
+
+
 func _find_or_create_ui_elements() -> void:
 	var hud_height := 105
 	var bottom_y := hud_height - 22
@@ -266,7 +351,6 @@ func _find_or_create_ui_elements() -> void:
 	wave_label    = _get_or_create_label("WaveLabel",        Vector2(150, third_row_y))
 	enemies_label = _get_or_create_label("EnemiesLabel",     Vector2(150, second_row_y))
 	cores_label   = _get_or_create_rich_label("CoresLabel",  Vector2(20, bottom_y), 200)
-	seed_label    = _get_or_create_label("SeedLabel",        Vector2(10, -hud_height - 25))
 
 	bonus_preview_label = _get_or_create_label("BonusPreviewLabel", Vector2(20, first_row_y))
 	supply_label = _get_or_create_rich_label("SupplyLabel", Vector2(20, zero_row_y))
@@ -418,6 +502,12 @@ func _create_wave_status_ui() -> void:
 	wave_events_label.fit_content = true
 	wave_events_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	wave_events_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	# Wellenbelohnung gehoert inhaltlich zur Wellenvorschau, nicht in die Topbar.
+	bonus_preview_label.reparent(next_column, false)
+	bonus_preview_label.position = Vector2.ZERO
+	bonus_preview_label.custom_minimum_size = Vector2(0, 18)
+	bonus_preview_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	# Das Element steht jetzt kompakt in der immer sichtbaren Beratung.
 	# Die alte frei positionierte Zeile bleibt nur als Kompatibilitäts-Knoten erhalten.
@@ -822,10 +912,6 @@ func _apply_styles() -> void:
 	if cores_label:
 		cores_label.add_theme_font_size_override("font_size", 16)
 		cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
-
-	if seed_label:
-		seed_label.add_theme_font_size_override("font_size", 16)
-		seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.7))
 
 	if current_wave_info_label:
 		current_wave_info_label.add_theme_font_size_override("font_size", 16)
@@ -1304,6 +1390,14 @@ func _on_lives_changed(amount: int) -> void:
 	else:
 		lives_label.remove_theme_color_override("font_color")
 
+	var max_lives: int = GameState.get_max_lives()
+	var ratio: float = clampf(float(amount) / float(max_lives), 0.0, 1.0) if max_lives > 0 else 0.0
+	if hp_bar:
+		hp_bar.value = ratio
+		hp_bar.add_theme_stylebox_override("fill", UI.bar(false, UI.hp_color(ratio)))
+	if hp_dot:
+		hp_dot.color = UI.hp_color(ratio)
+
 
 func _on_cores_changed(amount: int) -> void:
 	var invested      := TowerData.get_total_cores_invested()
@@ -1513,7 +1607,7 @@ func _update_wave_display() -> void:
 	if not wave_label:
 		return
 	if GameState.current_wave == 0:
-		wave_label.text = "Welle: --"
+		wave_label.text = "--"
 		if not GameState.wave_active:
 			if current_wave_info_label:
 				current_wave_info_label.text = "AKTUELL"
@@ -1526,7 +1620,7 @@ func _update_wave_display() -> void:
 				current_wave_element_label.text = "—"
 				current_wave_element_label.add_theme_color_override("font_color", Color(0.58, 0.64, 0.7))
 	else:
-		wave_label.text = "Welle: %d" % GameState.current_wave
+		wave_label.text = "%d" % GameState.current_wave
 
 
 func _update_current_wave_element_display(wave_elem: String) -> void:
