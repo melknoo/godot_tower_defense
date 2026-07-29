@@ -27,6 +27,7 @@ var engrave_container: HBoxContainer
 var engrave_header_label: Label
 var close_button: Button
 var vbox: VBoxContainer
+var content_scroll: ScrollContainer
 
 var current_tower: Node2D = null
 var current_grid_pos: Vector2i = Vector2i(-1, -1)
@@ -100,9 +101,18 @@ func _create_rich_label(font_size: int = 11, min_width: float = 200.0) -> RichTe
 
 
 func _setup_ui() -> void:
+	# ScrollContainer statt direktem VBox-Kind: bei rechts angedocktem Panel (Step5,
+	# Phase4-HUD-Umbau) ist die Hoehe gedeckelt (screen - Topbar - Bottombar - Rand),
+	# ein besonders ausgeruesteter/hochstufiger Turm darf trotzdem scrollen statt
+	# die Bottombar zu ueberlappen.
+	content_scroll = ScrollContainer.new()
+	content_scroll.name = "ContentScroll"
+	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(content_scroll)
+
 	vbox = VBoxContainer.new()
 	vbox.name = "VBox"
-	add_child(vbox)
+	content_scroll.add_child(vbox)
 
 	tower_name_label = _create_rich_label(16, 220)
 	tower_name_label.name = "TowerNameLabel"
@@ -501,31 +511,34 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	call_deferred("_bring_to_front")
 
 
-# Groesse an den aktuellen Inhalt anpassen und neben dem Turm platzieren.
-# Muss nach jeder Inhaltsaenderung laufen, die die Hoehe/Breite veraendert -
-# sonst behaelt das Panel die Masse vom Oeffnen.
+# Rechts an den Spielfeldrand angedockt (Phase4-HUD-Umbau, "zwei Anker, keine
+# Ecken") statt neben dem angeklickten Turm zu schweben - Position ist damit
+# unabhaengig von current_grid_pos, die Hoehe bleibt gedeckelt (Topbar/Bottombar
+# duerfen nie ueberlappt werden), Inhalt scrollt bei Bedarf ueber content_scroll.
+#
+# Kein separater 1280x720-Breakpoint (README nennt 360 statt 400 dort): bei
+# content_scale_mode=canvas_items + aspect=keep (project.godot) bleibt
+# get_viewport_rect() unabhaengig von der Fensterbreite auf der 1920x1080-
+# Design-Leinwand - die gesamte UI skaliert bereits gemeinsam mit dem
+# Fenster, ein zusaetzlicher Code-Zweig haette hier nie ausgeloest.
+const DOCK_WIDTH := 400.0
+
 func _refit_and_position() -> void:
 	if current_grid_pos.x < 0:
 		return
 
-	size = get_combined_minimum_size()
+	custom_minimum_size.x = DOCK_WIDTH
 
 	var screen_size := get_viewport_rect().size
-	var margin := 10.0
-	var top_safe_margin := 72.0
-	var tile := 64.0
+	var max_height := screen_size.y - UI.TOPBAR_H - UI.BOTTOMBAR_H - 96.0
+	var content_height: float = vbox.get_combined_minimum_size().y
+	content_scroll.custom_minimum_size.y = minf(content_height, max_height)
 
-	var tower_y := float(current_grid_pos.y) * tile + tile * 0.5
-	var open_up := tower_y > screen_size.y * 0.5
+	size = get_combined_minimum_size()
+	size.x = DOCK_WIDTH
 
-	position.x = float(current_grid_pos.x) * tile + tile + margin
-	position.y = (tower_y - size.y - margin) if open_up else (tower_y + margin)
-
-	if position.x + size.x > screen_size.x - margin:
-		position.x = float(current_grid_pos.x) * tile - size.x - margin
-
-	position.x = clamp(position.x, margin, screen_size.x - size.x - margin)
-	position.y = clamp(position.y, top_safe_margin, screen_size.y - size.y - margin)
+	position.x = screen_size.x - size.x - UI.SP_5
+	position.y = UI.TOPBAR_H + UI.SP_5
 
 
 func hide_panel() -> void:
