@@ -476,6 +476,18 @@ func _create_wave_status_ui() -> void:
 	start_button.position = Vector2.ZERO
 	start_button.custom_minimum_size = Vector2(171, 42)
 	start_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Einziger Messing-Button im HUD (README §Bottombar) - explizit gestylt statt
+	# auf den geerbten Theme-Default zu vertrauen, damit die Betonung nicht von
+	# Panel-Verschachtelung/Theme-Vererbung abhaengt.
+	start_button.add_theme_stylebox_override("normal", UI.btn_primary("normal"))
+	start_button.add_theme_stylebox_override("hover", UI.btn_primary("hover"))
+	start_button.add_theme_stylebox_override("pressed", UI.btn_primary("pressed"))
+	start_button.add_theme_stylebox_override("disabled", UI.btn_primary("disabled"))
+	start_button.add_theme_color_override("font_color", UI.ACCENT)
+	start_button.add_theme_color_override("font_hover_color", UI.ACCENT_HOVER)
+	start_button.add_theme_color_override("font_pressed_color", UI.TEXT_ON_ACCENT)
+	start_button.add_theme_color_override("font_disabled_color", UI.TEXT_DISABLED)
+	start_button.add_theme_font_size_override("font_size", UI.FS_SECTION)
 	fast_forward_button.reparent(action_row, false)
 	fast_forward_button.position = Vector2.ZERO
 	fast_forward_button.custom_minimum_size = Vector2(42, 42)

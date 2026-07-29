@@ -182,7 +182,7 @@ func _build_confirm_view() -> void:
 
 func _make_menu_button(text: String, icon_name: String, callback: Callable, red: bool = false) -> Button:
 	var button := Button.new()
-	button.text = "  " + text
+	button.text = text
 	button.custom_minimum_size = Vector2(390, 70)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	button.add_theme_font_size_override("font_size", 20)

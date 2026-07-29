@@ -209,12 +209,21 @@ func style_icon_button(btn: Button, red: bool = false) -> void:
 	_apply_hover_cursor(btn)
 
 
-## Zentriert das Icon eines Buttons horizontal UND vertikal (Standard-Konvention
-## im Projekt: sonst hängt das Icon nur horizontal mittig, aber oben statt in der Mitte).
+## Zentriert das Icon eines Buttons vertikal (Standard-Konvention im Projekt:
+## sonst hängt das Icon nur horizontal mittig, aber oben statt in der Mitte).
+## Bei reinen Icon-Buttons (kein Text) wird das Icon zusätzlich horizontal
+## zentriert und füllt den Button aus. Hat der Button auch Text, bliebe das
+## horizontale Zentrieren+Expand sonst unabhängig vom Text stehen und beide
+## landen exakt übereinander ("FORT⬤SETZEN"-Bug) - dort bleibt das Icon links,
+## Godot zentriert Icon+Text dann als gemeinsamen Block.
 func center_button_icon(btn: Button) -> void:
-	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-	btn.expand_icon = true
+	if btn.text.is_empty():
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.expand_icon = true
+	else:
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.expand_icon = false
 
 
 ## Jeder gestylte Button bekommt den Hand-Cursor. Zentral hier, weil es sonst an
