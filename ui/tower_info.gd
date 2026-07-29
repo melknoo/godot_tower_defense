@@ -511,34 +511,39 @@ func show_tower(tower: Node2D, grid_pos: Vector2i) -> void:
 	call_deferred("_bring_to_front")
 
 
-# Rechts an den Spielfeldrand angedockt (Phase4-HUD-Umbau, "zwei Anker, keine
-# Ecken") statt neben dem angeklickten Turm zu schweben - Position ist damit
-# unabhaengig von current_grid_pos, die Hoehe bleibt gedeckelt (Topbar/Bottombar
-# duerfen nie ueberlappt werden), Inhalt scrollt bei Bedarf ueber content_scroll.
-#
-# Kein separater 1280x720-Breakpoint (README nennt 360 statt 400 dort): bei
-# content_scale_mode=canvas_items + aspect=keep (project.godot) bleibt
-# get_viewport_rect() unabhaengig von der Fensterbreite auf der 1920x1080-
-# Design-Leinwand - die gesamte UI skaliert bereits gemeinsam mit dem
-# Fenster, ein zusaetzlicher Code-Zweig haette hier nie ausgeloest.
-const DOCK_WIDTH := 400.0
-
+# Oeffnet direkt neben dem angeklickten Turm (nicht rechts angedockt - das
+# verlor bei mehreren Türmen hintereinander den räumlichen Bezug zum
+# aktuell inspizierten Turm). Bleibt aber innerhalb von Topbar/Bottombar,
+# Inhalt scrollt bei Bedarf ueber content_scroll statt die Bottombar zu
+# ueberlappen.
 func _refit_and_position() -> void:
 	if current_grid_pos.x < 0:
 		return
 
-	custom_minimum_size.x = DOCK_WIDTH
-
+	custom_minimum_size.x = 0
 	var screen_size := get_viewport_rect().size
-	var max_height := screen_size.y - UI.TOPBAR_H - UI.BOTTOMBAR_H - 96.0
+	var margin := 10.0
+	var top_safe_margin := UI.TOPBAR_H + margin
+	var bottom_safe_margin := UI.BOTTOMBAR_H + margin
+	var tile := 64.0
+
+	var max_height: float = screen_size.y - top_safe_margin - bottom_safe_margin
 	var content_height: float = vbox.get_combined_minimum_size().y
 	content_scroll.custom_minimum_size.y = minf(content_height, max_height)
 
 	size = get_combined_minimum_size()
-	size.x = DOCK_WIDTH
 
-	position.x = screen_size.x - size.x - UI.SP_5
-	position.y = UI.TOPBAR_H + UI.SP_5
+	var tower_y := float(current_grid_pos.y) * tile + tile * 0.5
+	var open_up := tower_y > screen_size.y * 0.5
+
+	position.x = float(current_grid_pos.x) * tile + tile + margin
+	position.y = (tower_y - size.y - margin) if open_up else (tower_y + margin)
+
+	if position.x + size.x > screen_size.x - margin:
+		position.x = float(current_grid_pos.x) * tile - size.x - margin
+
+	position.x = clamp(position.x, margin, screen_size.x - size.x - margin)
+	position.y = clamp(position.y, top_safe_margin, screen_size.y - size.y - bottom_safe_margin)
 
 
 func hide_panel() -> void:
