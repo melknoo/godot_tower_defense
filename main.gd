@@ -697,7 +697,7 @@ func _is_over_ui(pos: Vector2) -> bool:
 	# Tower Info Panel (hat feste Position)
 	if tower_info.visible and tower_info.get_global_rect().has_point(pos):
 		return true
-	if hud.progression_strip and hud.progression_strip.get_global_rect().has_point(pos):
+	if hud.top_bar and hud.top_bar.get_global_rect().has_point(pos):
 		return true
 	if hud.pause_button and hud.pause_button.get_global_rect().has_point(pos):
 		return true
