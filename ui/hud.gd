@@ -108,17 +108,6 @@ var streak_panel: PanelContainer
 var streak_label: Label
 var streak_bar: ProgressBar
 
-# Zeile der Panel-Buttons (Inventar, Kerne, Upgrades, Synergien, Fahrplan,
-# Schmiede, Statistik). Liegt HUD-lokal ueber der Leiste, rechts neben der
-# Ability-Bar und oberhalb des Tower-Shops.
-const ICON_BUTTON_SIZE := Vector2(48, 48)
-const ICON_ROW_START_X := 300.0
-const ICON_ROW_PITCH := 60.0
-# Muss oberhalb der BottomBar (Tower-Shop + Wellensteuerung, siehe main.gd
-# _setup_bottom_bar) frei bleiben. Die BottomBar ist seit Phase3b höher als
-# die alte Leiste (ShopCard-Höhe statt kompakter Buttons), daher -108 statt -64.
-const ICON_ROW_Y := -108.0
-
 const BOSS_BAR_WIDTH := 620.0
 const BOSS_BAR_TOP_MARGIN := 14.0
 
@@ -128,10 +117,11 @@ var boss_bar: ProgressBar
 var tracked_boss: Node2D
 
 var bottom_strip: Control
-var top_bar: PanelContainer
+var top_bar: Control
 var top_bar_row: HBoxContainer
 var hp_dot: ColorRect
 var hp_bar: ProgressBar
+var top_bar_icon_cluster: HBoxContainer
 
 
 func _ready() -> void:
@@ -188,7 +178,14 @@ func _load_fast_forward_textures() -> void:
 
 func _setup_hud_size() -> void:
 	var hud_height := 105
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	anchor_left = 0.0
+	anchor_right = 1.0
+	anchor_top = 0.0
+	anchor_bottom = 1.0
+	offset_left = 0
+	offset_right = 0
+	offset_top = 0
+	offset_bottom = 0
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	if not is_instance_valid(bottom_strip):
@@ -223,23 +220,43 @@ func _setup_hud_size() -> void:
 	_setup_top_bar()
 
 
+# PanelContainer schrumpfte hier trotz Vollbreiten-Anchors auf Inhaltsbreite
+# (Container-Eigenverhalten ausserhalb eines Eltern-Containers) - deshalb wie
+# BottomStrip/HUDBackground ein plain Control fuers Anchoring plus ein separates
+# Panel-Kind nur fuers Stylebox.
 func _setup_top_bar() -> void:
 	if is_instance_valid(top_bar):
 		return
 
-	top_bar = PanelContainer.new()
+	top_bar = Control.new()
 	top_bar.name = "TopBar"
-	top_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top_bar.custom_minimum_size.y = UI.TOPBAR_H
-	top_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	top_bar.anchor_left = 0.0
+	top_bar.anchor_right = 1.0
+	top_bar.anchor_top = 0.0
+	top_bar.anchor_bottom = 0.0
+	top_bar.offset_left = 0
+	top_bar.offset_right = 0
+	top_bar.offset_top = 0
+	top_bar.offset_bottom = UI.TOPBAR_H
+	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(top_bar)
+
+	var top_bar_bg := Panel.new()
+	top_bar_bg.name = "TopBarBackground"
+	top_bar_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	top_bar_bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	var top_bar_style := UI.panel()
 	top_bar_style.content_margin_top = 0
 	top_bar_style.content_margin_bottom = 0
-	top_bar.add_theme_stylebox_override("panel", top_bar_style)
-	add_child(top_bar)
+	top_bar_bg.add_theme_stylebox_override("panel", top_bar_style)
+	top_bar.add_child(top_bar_bg)
 
 	top_bar_row = HBoxContainer.new()
 	top_bar_row.name = "TopBarRow"
+	top_bar_row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	top_bar_row.offset_left = UI.SP_5
+	top_bar_row.offset_right = -UI.SP_5
+	top_bar_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top_bar_row.add_theme_constant_override("separation", UI.SP_4)
 	top_bar.add_child(top_bar_row)
 
@@ -336,6 +353,31 @@ func _build_top_bar_content() -> void:
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top_bar_row.add_child(spacer)
 
+	top_bar_icon_cluster = HBoxContainer.new()
+	top_bar_icon_cluster.name = "TopBarIconCluster"
+	top_bar_icon_cluster.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top_bar_icon_cluster.add_theme_constant_override("separation", UI.SP_1)
+	top_bar_row.add_child(top_bar_icon_cluster)
+
+	for btn in [inventory_button, cores_button, upgrades_button, synergy_button,
+			schedule_button, forge_button, tower_stats_button]:
+		_dock_icon_button(btn)
+
+
+# Loest einen Panel-Button aus dem BottomStrip und macht ihn zu einem
+# 56x56-Icon-Button im TopBar-Cluster (rechtes Ende). pause_button/research_button
+# kommen erst spaeter dazu, sobald _create_progression_ui() sie angelegt hat.
+func _dock_icon_button(btn: Button) -> void:
+	if not btn:
+		return
+	btn.reparent(top_bar_icon_cluster, false)
+	btn.position = Vector2.ZERO
+	btn.custom_minimum_size = Vector2(UI.ICON_BTN, UI.ICON_BTN)
+	btn.add_theme_stylebox_override("normal", UI.btn_icon("normal"))
+	btn.add_theme_stylebox_override("hover", UI.btn_icon("hover"))
+	btn.add_theme_stylebox_override("pressed", UI.btn_icon("pressed"))
+	btn.add_theme_stylebox_override("disabled", UI.btn_icon("disabled"))
+
 
 func _find_or_create_ui_elements() -> void:
 	var hud_height := 105
@@ -377,22 +419,18 @@ func _find_or_create_ui_elements() -> void:
 	wave_element_icon  = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon",  Vector2(8, 5),  Vector2(24, 24))
 	wave_element_label = _get_or_create_label_child(wave_element_area,        "WaveElementLabel", Vector2(40, 8))
 
-	# Panel-Buttons in einer eigenen Zeile ueber der HUD-Leiste. Auf Hoehe der
-	# Leiste selbst waeren sie ab dem vierten Button vom Tower-Shop verdeckt,
-	# der von unten mittig heraufreicht und mit jedem Turm breiter wird.
-	inventory_button   = _get_or_create_button("InventoryButton",   _icon_row_pos(0), ICON_BUTTON_SIZE)
-	cores_button       = _get_or_create_button("CoresButton",       _icon_row_pos(1), ICON_BUTTON_SIZE)
-	upgrades_button    = _get_or_create_button("UpgradesButton",    _icon_row_pos(2), ICON_BUTTON_SIZE)
-	synergy_button     = _get_or_create_button("SynergyButton",     _icon_row_pos(3), ICON_BUTTON_SIZE)
-	schedule_button    = _get_or_create_button("ScheduleButton",    _icon_row_pos(4), ICON_BUTTON_SIZE)
-	forge_button       = _get_or_create_button("ForgeButton",       _icon_row_pos(5), ICON_BUTTON_SIZE)
-	tower_stats_button = _get_or_create_button("TowerStatsButton",  _icon_row_pos(6), ICON_BUTTON_SIZE)
+	# Panel-Buttons docken in _build_top_bar_content()/_dock_icon_button() sofort in
+	# der TopBar an - die hier uebergebene Position/Groesse ist nur der Erstwert fuer
+	# den Fall, dass der Knoten neu erzeugt wird, und wird gleich danach ueberschrieben.
+	inventory_button   = _get_or_create_button("InventoryButton",   Vector2.ZERO, Vector2(UI.ICON_BTN, UI.ICON_BTN))
+	cores_button       = _get_or_create_button("CoresButton",       Vector2.ZERO, Vector2(UI.ICON_BTN, UI.ICON_BTN))
+	upgrades_button    = _get_or_create_button("UpgradesButton",    Vector2.ZERO, Vector2(UI.ICON_BTN, UI.ICON_BTN))
+	synergy_button     = _get_or_create_button("SynergyButton",     Vector2.ZERO, Vector2(UI.ICON_BTN, UI.ICON_BTN))
+	schedule_button    = _get_or_create_button("ScheduleButton",    Vector2.ZERO, Vector2(UI.ICON_BTN, UI.ICON_BTN))
+	forge_button       = _get_or_create_button("ForgeButton",       Vector2.ZERO, Vector2(UI.ICON_BTN, UI.ICON_BTN))
+	tower_stats_button = _get_or_create_button("TowerStatsButton",  Vector2.ZERO, Vector2(UI.ICON_BTN, UI.ICON_BTN))
 	start_button     = _get_or_create_button("StartWaveButton",  Vector2(viewport_size.x - 740, first_row_y  - 5), Vector2(130, 32))
 	fast_forward_button = _get_or_create_button("FastForwardButton", Vector2(viewport_size.x - 740, second_row_y - 5), Vector2(48, 48))
-
-
-func _icon_row_pos(index: int) -> Vector2:
-	return Vector2(ICON_ROW_START_X + ICON_ROW_PITCH * index, ICON_ROW_Y)
 
 
 func _create_wave_status_ui() -> void:
@@ -581,26 +619,30 @@ func _create_progression_ui() -> void:
 	auto_wave_button.pressed.connect(_on_auto_wave_pressed)
 	row.add_child(auto_wave_button)
 
+	_style_progression_button(auto_wave_button)
+
+	# "ARCHIV" wird ein reiner Icon-Button im TopBar-Cluster (kein eigenes Icon-Asset
+	# vorhanden -> thematisches Glyph, gleiches Muster wie Synergie/Schmiede oben).
 	research_button = Button.new()
-	research_button.text = "ARCHIV"
-	research_button.custom_minimum_size = Vector2(82, 38)
+	research_button.name = "ResearchButton"
+	research_button.text = "▤"
+	research_button.add_theme_font_size_override("font_size", 24)
+	research_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	research_button.tooltip_text = "Dauerhafte Forschung öffnen (M)"
 	research_button.pressed.connect(_on_research_pressed)
-	row.add_child(research_button)
-	_style_progression_button(auto_wave_button)
-	_style_progression_button(research_button)
+	bottom_strip.add_child(research_button)
+	_dock_icon_button(research_button)
 
 	pause_button = Button.new()
 	pause_button.name = "PauseButton"
-	pause_button.position = Vector2(viewport_size.x - 66, -viewport_size.y + 123)
-	pause_button.custom_minimum_size = Vector2(50, 44)
 	pause_button.icon = IconSystem.get_texture("settings") if IconSystem else null
-	if UITheme:
-		UITheme.center_button_icon(pause_button)
 	pause_button.tooltip_text = "Pause & Optionen (Esc)"
 	pause_button.pressed.connect(func(): pause_pressed.emit())
 	pause_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	bottom_strip.add_child(pause_button)
+	_dock_icon_button(pause_button)
+	if UITheme:
+		UITheme.center_button_icon(pause_button)
 
 	streak_panel = PanelContainer.new()
 	streak_panel.position = Vector2(viewport_size.x * 0.5 - 145, -viewport_size.y + 135)
