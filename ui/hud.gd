@@ -239,7 +239,14 @@ func _setup_top_bar() -> void:
 
 	var top_bar_bg := Panel.new()
 	top_bar_bg.name = "TopBarBackground"
-	top_bar_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	top_bar_bg.anchor_left = 0.0
+	top_bar_bg.anchor_right = 1.0
+	top_bar_bg.anchor_top = 0.0
+	top_bar_bg.anchor_bottom = 1.0
+	top_bar_bg.offset_left = 0
+	top_bar_bg.offset_right = 0
+	top_bar_bg.offset_top = 0
+	top_bar_bg.offset_bottom = 0
 	top_bar_bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	var top_bar_style := UI.panel()
 	top_bar_style.content_margin_top = 0
@@ -249,9 +256,14 @@ func _setup_top_bar() -> void:
 
 	top_bar_row = HBoxContainer.new()
 	top_bar_row.name = "TopBarRow"
-	top_bar_row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	top_bar_row.anchor_left = 0.0
+	top_bar_row.anchor_right = 1.0
+	top_bar_row.anchor_top = 0.0
+	top_bar_row.anchor_bottom = 1.0
 	top_bar_row.offset_left = UI.SP_5
 	top_bar_row.offset_right = -UI.SP_5
+	top_bar_row.offset_top = 0
+	top_bar_row.offset_bottom = 0
 	top_bar_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top_bar_row.add_theme_constant_override("separation", UI.SP_4)
 	top_bar.add_child(top_bar_row)
@@ -341,7 +353,6 @@ func _build_top_bar_content() -> void:
 	pod.add_child(_topbar_separator())
 	supply_label.reparent(pod, false)
 	supply_label.position = Vector2.ZERO
-	supply_label.custom_minimum_size = Vector2(0, 20)
 
 	var spacer := Control.new()
 	spacer.name = "TopBarSpacer"
