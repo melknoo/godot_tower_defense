@@ -5,17 +5,22 @@ greifen Platzhalter — das Spiel laeuft, sieht an diesen Stellen aber unfertig 
 Sobald eine Datei existiert, wird sie automatisch verwendet; es ist kein Codeaenderung
 noetig.
 
-Stand: 2026-07-21
+Stand: 2026-08-12
+
+Neu: `tools/spritegen/` enthaelt einen Python-Generator (numpy + Pillow) fuer
+16x16-/16x64-Pixel-Art im Stil der vorhandenen Turm-Sprites (harte Kanten, Alpha
+nur 0/255, kleine Palette aus einer Basisfarbe). `tower_wizard.png` ist das erste
+damit erzeugte Sprite; `pixel.py` ist als geteilte Basis fuer die restlichen
+Tuerme unten gedacht.
 
 ## 1. Turm-Sprites (hoechste Prioritaet)
 
-Vier von sieben Basistuermen haben kein Sprite und werden als einheitlicher
+Drei von sieben Basistuermen haben kein Sprite und werden als einheitlicher
 Platzhalter-Sockel mit Typ-Glyphe gezeichnet
 (`tower.gd` → `_setup_placeholder_sprite`).
 
 | Datei | Turm |
 | --- | --- |
-| `assets/elemental_tower/tower_wizard.png` | Zauberer |
 | `assets/elemental_tower/tower_cannon.png` | Kanone |
 | `assets/elemental_tower/tower_trapper.png` | Falle |
 | `assets/elemental_tower/tower_aura.png` | Aura-Turm |

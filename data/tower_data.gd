@@ -108,7 +108,7 @@ var towers := {
 		"special": "spell",
 		"is_base": true,
 		"engravable": true,
-		"animated": false,
+		"animated": true,
 		"attack_type": "projectile"
 	},
 	
