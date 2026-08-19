@@ -1,6 +1,6 @@
 # Projektfortschritt
 
-Letzte Aktualisierung: 2026-07-29
+Letzte Aktualisierung: 2026-08-19
 
 ## UI-Redesign (siehe design_handoff_ui_system/README_design.md)
 
@@ -37,12 +37,20 @@ Umsetzung läuft phasenweise nach der "Implementation Order" in
      durch Pixel-Werte vermieden. `HUD.ICON_ROW_Y` musste angepasst werden,
      da die neue Bottombar (echte ShopCard-Höhe) höher ist als die alte
      Button-Reihe.
-  - Bekannte, bewusst nicht angefasste Diskrepanz: Türme ohne Sprite-Asset
-    (`trapper` fehlt `tower_trapper.png`) zeigen jetzt einen sichtbaren
+  - Bekannte, damals bewusst nicht angefasste Diskrepanz (inzwischen behoben,
+    siehe unten): Türme ohne Sprite-Asset zeigten einen sichtbaren
     `BG_3`-Platzhalter statt still leer zu bleiben (Absicht laut
-    Konzept-Doku §2 R4) — kein Asset-Fix, nur sichtbar gemacht.
-    `wizard` hat inzwischen ein echtes Sprite (`tower_wizard.png`, erzeugt
-    via `tools/spritegen/`, siehe `ASSETS_TODO.md`).
+    Konzept-Doku §2 R4).
+
+## Turm-Sprites via `tools/spritegen/` (2026-08-19)
+
+Alle sieben Basistürme haben jetzt ein echtes, animiertes Sprite statt des
+Polygon-Platzhalters: `wizard` (`tower_wizard.png`, erzeugt in `c0aeb16`) sowie neu
+`cannon`, `trapper`, `aura` und der Fusionsturm `steam`. Jeder Turm bekam außerdem
+Stufen-Varianten an drei Meilensteinen (`_level_2`/`_level_5`/`_level_8`, bei `steam`
+`_level_2`/`_level_3` wegen nur 3 Ausbaustufen), mit Fallback in
+`tower.gd::_setup_standard_sprite()` auf die nächstniedrigere vorhandene Stufe.
+Details siehe `ASSETS_TODO.md` §1 und `tools/spritegen/run_all.py`.
 - **Phase 3 (Element-/Rarity-Codierung): offen.** `UI.el()`/`UI.rarity()` an
   Turmkarten, Ability-Cooldowns, Item-Slots, Synergiezeilen anschließen.
   `ui/ability_upgrade_ui.gd::_get_element_color()` nutzt noch ein eigenes,

@@ -126,7 +126,7 @@ var towers := {
 		"special": "explosive",
 		"is_base": true,
 		"engravable": true,
-		"animated": false,
+		"animated": true,
 		"attack_type": "cannon"
 	},
 	
@@ -148,7 +148,7 @@ var towers := {
 		"special": "trap",
 		"is_base": true,
 		"engravable": true,
-		"animated": false,
+		"animated": true,
 		"attack_type": "trap"
 	},
 	
@@ -163,7 +163,7 @@ var towers := {
 		"special": "aura",
 		"is_base": true,
 		"engravable": true,
-		"animated": false,
+		"animated": true,
 		"attack_type": "none",
 		"damage": [0, 0, 0, 0, 0, 0, 0, 0],
 		"fire_rate": [0, 0, 0, 0, 0, 0, 0, 0]

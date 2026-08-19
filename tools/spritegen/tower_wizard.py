@@ -1,20 +1,15 @@
-"""Generiert assets/elemental_tower/tower_wizard.png (16x64, 4 Frames).
+"""Generiert assets/elemental_tower/tower_wizard.png (16x64, 4 Frames) plus
+Stufen-Varianten _level_2/_level_5/_level_8.
 
 Kleiner Steinturm mit Zauberhut-Dach und pulsierendem Orb im Fenster.
 Palette leitet sich aus der Turmfarbe Color(0.6, 0.3, 0.9) = #9a4de5
 (data/tower_data.gd:106) ab. Ausfuehren: python3 tools/spritegen/tower_wizard.py
+[--preview DIR]
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from pixel import REPO_ROOT, Canvas, save_indexed_rgba, save_preview, shade
-
-PREVIEW_DIR = Path(
-    "/tmp/claude-1000/-home-melvin-Repositories-godot-tower-defense/"
-    "587361e5-4898-4b2b-aa4e-1dc60d74cad1/scratchpad"
-)
+from pixel import Canvas, emit_tower, preview_arg, shade
 
 BASE = "#9a4de5"
 
@@ -23,6 +18,9 @@ ROOF_DARK = shade(BASE, -0.40)
 STONE_LIGHT = (0x5c, 0x54, 0x68, 255)
 STONE_DARK = (0x36, 0x2e, 0x40, 255)
 OUTLINE = (0x18, 0x12, 0x1e, 255)
+TRIM_STRIPE = shade(BASE, -0.10)
+GOLD = (0xe8, 0xc4, 0x4a, 255)
+GOLD_DARK = (0xa8, 0x86, 0x24, 255)
 
 ORB_COLORS = [
     shade(BASE, -0.15),   # frame 0: gedimmt
@@ -47,7 +45,7 @@ def _span(y_center_half: int) -> tuple[int, int]:
     return 7 - y_center_half, 8 + y_center_half
 
 
-def build_body() -> Canvas:
+def build_body(level: int) -> Canvas:
     c = Canvas(W, H)
 
     for y, half in ROOF_HALF.items():
@@ -65,6 +63,16 @@ def build_body() -> Canvas:
         for x in range(x0, x1 + 1):
             c.px(x, y, STONE_LIGHT if x < 8 else STONE_DARK)
 
+    # Stufe 2: zusaetzliche Zierreihe am Sockelrand.
+    if level >= 2:
+        x0, x1 = _span(BASE_HALF[14])
+        c.hline(x0, x1, 12, TRIM_STRIPE)
+
+    # Stufe 5: verbreiterter Sockel (Strebepfeiler-Andeutung).
+    if level >= 5:
+        c.px(3, 15, STONE_DARK)
+        c.px(12, 15, STONE_DARK)
+
     # Fensterrahmen (Aussenrand dunkel), Innenflaeche bleibt frei fuer den Orb.
     for y in WINDOW_ROWS:
         c.px(6, y, OUTLINE)
@@ -72,11 +80,18 @@ def build_body() -> Canvas:
     c.hline(6, 9, WINDOW_ROWS[0] - 1, OUTLINE)
     c.hline(6, 9, WINDOW_ROWS[-1] + 1, OUTLINE)
 
+    # Stufe 8: goldener Dachrand.
+    if level >= 8:
+        c.px(3, 6, GOLD)
+        c.px(12, 6, GOLD)
+        c.px(4, 6, GOLD_DARK)
+        c.px(11, 6, GOLD_DARK)
+
     return c
 
 
-def build_frame(phase: int) -> Canvas:
-    c = build_body()
+def build_frame(phase: int, level: int) -> Canvas:
+    c = build_body(level)
     orb = ORB_COLORS[phase]
     c.rect(7, 9, 8, 10, orb)
 
@@ -88,19 +103,11 @@ def build_frame(phase: int) -> Canvas:
 
 
 def main() -> None:
-    from pixel import stack_frames
-
-    frames = [build_frame(p) for p in range(4)]
-    sheet = stack_frames(frames)
-
-    out_path = REPO_ROOT / "assets" / "elemental_tower" / "tower_wizard.png"
-    save_indexed_rgba(sheet, out_path, max_colors=10)
-
-    preview_path = PREVIEW_DIR / "tower_wizard_preview.png"
-    save_preview(sheet, preview_path, scale=8)
-
-    print(f"geschrieben: {out_path}")
-    print(f"preview:     {preview_path}")
+    frames_by_level = {
+        level: [build_frame(p, level) for p in range(4)]
+        for level in (0, 2, 5, 8)
+    }
+    emit_tower("wizard", frames_by_level, max_colors=12, preview_dir=preview_arg())
 
 
 if __name__ == "__main__":

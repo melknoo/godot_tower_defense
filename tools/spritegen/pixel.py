@@ -7,6 +7,7 @@ bauen: harte Kanten, Alpha nur 0/255, kleine Palette aus einer Basisfarbe.
 
 from __future__ import annotations
 
+import argparse
 import colorsys
 from pathlib import Path
 
@@ -95,3 +96,40 @@ def save_preview(canvas: Canvas, path: Path, scale: int = 8) -> None:
     img = Image.fromarray(canvas.data, mode="RGBA")
     img = img.resize((img.width * scale, img.height * scale), Image.NEAREST)
     img.save(path)
+
+
+def preview_arg() -> Path | None:
+    """--preview DIR aus argv lesen; None wenn nicht angegeben (kein Preview)."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--preview", type=Path, default=None)
+    args, _ = parser.parse_known_args()
+    return args.preview
+
+
+def emit_tower(
+    tower_type: str,
+    frames_by_level: dict[int, list[Canvas]],
+    max_colors: int = 10,
+    preview_dir: Path | None = None,
+) -> None:
+    """Schreibt Basis- und Stufen-Spritesheets fuer einen Turmtyp.
+
+    frames_by_level: {0: [frame0..frame3], 2: [...], ...}. Level 0 wird zu
+    tower_<typ>.png, alle anderen Keys zu tower_<typ>_level_<n>.png
+    (Konvention aus tower.gd:_get_tower_texture_path: level N -> level_(N+1)-Datei,
+    d.h. der Key hier ist bereits die Dateisuffix-Zahl, nicht der 0-basierte Level).
+    """
+    out_dir = REPO_ROOT / "assets" / "elemental_tower"
+    for level, frames in sorted(frames_by_level.items()):
+        sheet = stack_frames(frames)
+        if level == 0:
+            out_path = out_dir / f"tower_{tower_type}.png"
+        else:
+            out_path = out_dir / f"tower_{tower_type}_level_{level}.png"
+        save_indexed_rgba(sheet, out_path, max_colors=max_colors)
+        print(f"geschrieben: {out_path}")
+
+        if preview_dir is not None:
+            preview_path = preview_dir / f"{out_path.stem}_preview.png"
+            save_preview(sheet, preview_path, scale=8)
+            print(f"preview:     {preview_path}")
