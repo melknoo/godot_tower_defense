@@ -19,3 +19,7 @@ mono_crash.*.json
 
 # Editor-generated temp files
 *.tmp
+
+# Python (tools/spritegen/)
+__pycache__/
+*.pyc

@@ -53,6 +53,9 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
 - `main_menu.gd`, `ui_theme.gd` — Menü & Theme. `ui_theme.gd` hält die zentralen
   UI-Helper: `animate_panel_open/close()`, `center_button_icon()`, `style_*button()`
   (setzt auch den Hover-Cursor) — neue Panels/Buttons nutzen die, statt zu kopieren
+- `tools/spritegen/` — Python-Generator (numpy + Pillow, kein Godot-Bezug) für
+  fehlende 16x16/16x64-Turm-Sprites im Pixel-Art-Stil; `pixel.py` = geteilte
+  Basis, `tower_<typ>.py` = je ein Turm. Siehe `ASSETS_TODO.md`.
 
 ### UI (`ui/`)
 - `hud.gd` — In-Game-HUD (größte Datei!)

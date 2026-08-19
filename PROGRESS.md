@@ -38,10 +38,11 @@ Umsetzung läuft phasenweise nach der "Implementation Order" in
      da die neue Bottombar (echte ShopCard-Höhe) höher ist als die alte
      Button-Reihe.
   - Bekannte, bewusst nicht angefasste Diskrepanz: Türme ohne Sprite-Asset
-    (`wizard`, `trapper` fehlt `tower_wizard.png`/`tower_trapper.png`)
-    zeigen jetzt einen sichtbaren `BG_3`-Platzhalter statt still leer zu
-    bleiben (Absicht laut Konzept-Doku §2 R4) — kein Asset-Fix, nur
-    sichtbar gemacht.
+    (`trapper` fehlt `tower_trapper.png`) zeigen jetzt einen sichtbaren
+    `BG_3`-Platzhalter statt still leer zu bleiben (Absicht laut
+    Konzept-Doku §2 R4) — kein Asset-Fix, nur sichtbar gemacht.
+    `wizard` hat inzwischen ein echtes Sprite (`tower_wizard.png`, erzeugt
+    via `tools/spritegen/`, siehe `ASSETS_TODO.md`).
 - **Phase 3 (Element-/Rarity-Codierung): offen.** `UI.el()`/`UI.rarity()` an
   Turmkarten, Ability-Cooldowns, Item-Slots, Synergiezeilen anschließen.
   `ui/ability_upgrade_ui.gd::_get_element_color()` nutzt noch ein eigenes,

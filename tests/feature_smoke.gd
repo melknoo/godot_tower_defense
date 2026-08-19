@@ -52,7 +52,7 @@ func _run() -> void:
 
 	# --- Turm-Platzhalter ---
 	var tower_scene: PackedScene = load("res://tower.tscn")
-	for tower_type in ["cannon", "wizard", "trapper", "aura"]:
+	for tower_type in ["cannon", "trapper", "aura"]:
 		var tower: Node2D = tower_scene.instantiate()
 		main.add_child(tower)
 		tower.setup(root.get_node("TowerData").get_legacy_data(tower_type, 0), tower_type)
@@ -62,6 +62,14 @@ func _run() -> void:
 		_check(child_count >= 4,
 			"%s bekommt einen Platzhalter mit Sockel+Glyphe (Kinder: %d)" % [tower_type, child_count])
 		tower.queue_free()
+
+	# --- Zauberer hat inzwischen ein echtes Sprite (siehe tools/spritegen/) ---
+	var wizard: Node2D = tower_scene.instantiate()
+	main.add_child(wizard)
+	wizard.setup(root.get_node("TowerData").get_legacy_data("wizard", 0), "wizard")
+	await process_frame
+	_check(wizard.sprite != null, "wizard nutzt ein echtes Sprite statt des Platzhalters")
+	wizard.queue_free()
 
 	# --- Boss-Auftritt ---
 	var hud = main.get_node("UI/HUD")
