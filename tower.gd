@@ -1123,7 +1123,15 @@ func _setup_sword_sprite() -> void:
 func _setup_standard_sprite() -> void:
 	var texture_path := _get_tower_texture_path()
 	if not ResourceLoader.exists(texture_path) and level > 0:
+		# Kein Sprite fuer diese Stufe: auf die naechstniedrigere vorhandene
+		# Stufen-Variante zurueckfallen statt direkt aufs Basis-Sprite zu
+		# springen (sonst wirkt ein hochgestufter Turm ploetzlich wieder neu).
 		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
+		for fallback_level in range(level - 1, 0, -1):
+			var candidate := "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, fallback_level + 1]
+			if ResourceLoader.exists(candidate):
+				texture_path = candidate
+				break
 	var data := TowerData.get_tower_data(tower_type)
 	var is_animated: bool = data.get("animated", true)
 

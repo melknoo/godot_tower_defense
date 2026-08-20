@@ -5,56 +5,51 @@ greifen Platzhalter — das Spiel laeuft, sieht an diesen Stellen aber unfertig 
 Sobald eine Datei existiert, wird sie automatisch verwendet; es ist kein Codeaenderung
 noetig.
 
-Stand: 2026-08-12
+Stand: 2026-08-19
 
-Neu: `tools/spritegen/` enthaelt einen Python-Generator (numpy + Pillow) fuer
+`tools/spritegen/` enthaelt einen Python-Generator (numpy + Pillow) fuer
 16x16-/16x64-Pixel-Art im Stil der vorhandenen Turm-Sprites (harte Kanten, Alpha
-nur 0/255, kleine Palette aus einer Basisfarbe). `tower_wizard.png` ist das erste
-damit erzeugte Sprite; `pixel.py` ist als geteilte Basis fuer die restlichen
-Tuerme unten gedacht.
+nur 0/255, kleine Palette aus einer Basisfarbe). `pixel.py` ist die geteilte Basis
+(`Canvas`, `shade`, `stack_frames`, `emit_tower`, `save_indexed_rgba`), ein
+`tower_<typ>.py`-Modul pro Turm, `run_all.py` erzeugt alle auf einmal
+(`python3 tools/spritegen/run_all.py [--preview DIR]`, aus `tools/spritegen/` heraus
+laufen lassen). Damit erzeugt: `wizard`, `cannon`, `trapper`, `aura`, `steam`,
+je inklusive Stufen-Varianten.
 
 ## 1. Turm-Sprites (hoechste Prioritaet)
 
-Drei von sieben Basistuermen haben kein Sprite und werden als einheitlicher
-Platzhalter-Sockel mit Typ-Glyphe gezeichnet
-(`tower.gd` → `_setup_placeholder_sprite`).
-
-| Datei | Turm |
-| --- | --- |
-| `assets/elemental_tower/tower_cannon.png` | Kanone |
-| `assets/elemental_tower/tower_trapper.png` | Falle |
-| `assets/elemental_tower/tower_aura.png` | Aura-Turm |
-
-Zusaetzlich fehlt das Sprite fuer das Sammelgebaeude Stadt:
+Alle sieben Basistuerme haben jetzt ein Sprite. Offen ist nur noch das
+Sammelgebaeude Stadt:
 
 | Datei | Gebaeude |
 | --- | --- |
 | `assets/elemental_tower/city.png` | Stadt (nimmt Farmen auf) |
 
-**Format Stadt:** wie `farm.png` (32x48, im Spiel Faktor 2, `offset.y = -8`).
-Ersatz ist derzeit ein Polygon-Platzhalter in `tower.gd` → `_setup_city_sprite`.
+**Format Stadt:** wie `farm.png` (32x48, im Spiel Faktor 2, `offset.y = -8`) — ein
+eigenes Format, passt nicht ins 16x16-Raster des Generators. Ersatz ist derzeit ein
+Polygon-Platzhalter in `tower.gd` → `_setup_city_sprite`.
 
-**Format:** 16x64 px = 4 Frames a 16x16 untereinander (vertikale Animation), wie
-`tower_fire.png`. Im Spiel mit Faktor 3 skaliert. Nicht animierte Tuerme koennen auch
-16x16 liefern — dann in `data/tower_data.gd` `"animated": false` setzen (ist fuer diese
-vier bereits der Fall).
+**Format der Turm-Sprites:** 16x64 px = 4 Frames a 16x16 untereinander (vertikale
+Animation), wie `tower_fire.png`. Im Spiel mit Faktor 3 skaliert. Nicht animierte
+Tuerme koennen auch 16x16 liefern — dann in `data/tower_data.gd` `"animated": false`
+setzen.
 
-Optional analog dazu die Stufen-Varianten `tower_<typ>_level_2.png` bis `_level_4.png`
-(Muster: `tower_fire_level_2.png`).
+**Update (MAX_LEVEL 5 → 7, 8 Ausbaustufen):** `wizard`, `cannon`, `trapper`, `aura`
+haben inzwischen Stufen-Varianten an drei Meilensteinen —
+`tower_<typ>_level_2.png` (Stufe 2/3), `_level_5.png` (Stufe 5/6),
+`_level_8.png` (Stufe 7) — statt aller acht Einzelstufen, weil die Unterschiede auf
+16x16 sonst zu winzig waeren, um lesbar zu bleiben. `_setup_standard_sprite()` in
+`tower.gd` faellt bei einer fehlenden Zwischenstufe auf die naechstniedrigere
+vorhandene Variante zurueck (nie direkt auf das Basis-Sprite), sodass eine
+hochgestufte Kanone nie ploetzlich wieder aussieht wie frisch gebaut. Der
+Fusionsturm `steam` hat nur 3 Stufen (`upgrade_costs` mit 2 Eintraegen) und bekommt
+entsprechend `_level_2`/`_level_3` statt der 2/5/8-Meilensteine.
 
-**Update (MAX_LEVEL 5 → 7, 8 Ausbaustufen):** Für die sechs regulären Ausbau-Türme
-(`archer`, `sword`, `wizard`, `cannon`, `trapper`, `aura`) gibt es aktuell **keinerlei**
-level-spezifisches Sprite — auch nicht fuer die bisherigen Stufen. `wizard`/`cannon`/
-`trapper`/`aura` zeigen ohnehin unconditional den Polygon-Platzhalter (siehe oben,
-unabhaengig vom Level). `archer`/`sword` nutzen ein einziges, level-unabhaengiges
+Weiterhin offen: `archer`/`sword` nutzen ein einziges, level-unabhaengiges
 Richtungs-Spritesheet (`archer_spritesheet.png` / `sword_spritesheet.png`,
-`_setup_archer_sprite()` / `_setup_sword_sprite()` in `tower.gd`) - `_get_tower_texture_path()`
-mit dem `tower_<typ>_level_<N>.png`-Muster kommt fuer diese sechs Tuerme nur als Fallback
-zum Zug, wenn das Spritesheet fehlt, und faellt dann (ueber die `ResourceLoader.exists`-Pruefung
-in `_setup_standard_sprite()`) auf das Basis-Sprite `tower_<typ>.png` zurueck. Die neuen Stufen 7
-und 8 sehen also optisch identisch zu den bisherigen Stufen aus - kein neuer Regressionsfall,
-aber weiterhin offen: eigene Sprite-Varianten fuer alle 8 Stufen (mindestens fuer die neuen
-Stufen 7/8) waeren wuenschenswert, sobald ueberhaupt level-spezifische Turm-Grafiken entstehen.
+`_setup_archer_sprite()` / `_setup_sword_sprite()` in `tower.gd`) ohne
+Stufen-Varianten — dort waere ein eigener Ansatz noetig (Richtung x Stufe), kein
+Fall fuer den 16x16-Generator.
 
 ## 2. Gegner-Sprites pro Typ
 
