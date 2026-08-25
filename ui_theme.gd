@@ -122,6 +122,9 @@ func _load_font() -> void:
 	game_font = load("res://assets/fonts/Clarity.ttf")
 	if not game_font:
 		return
+	# Clarity hat keine Symbol-/Emoji-Glyphen. Ohne Fallback zeigt der Browser
+	# dafuer Tofu-Kaestchen (Desktop holt sie sich aus System-Fonts).
+	SymbolFont.install(game_font)
 
 	font_damage = FontVariation.new()
 	font_damage.base_font = game_font

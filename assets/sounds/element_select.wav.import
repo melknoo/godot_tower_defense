@@ -13,10 +13,10 @@ dest_files=["res://.godot/imported/element_select.wav-a96614e35f773af344c178e84d
 [params]
 
 force/8_bit=false
-force/mono=false
+force/mono=true
 force/max_rate=false
 force/max_rate_hz=44100
-edit/trim=false
+edit/trim=true
 edit/normalize=false
 edit/loop_mode=0
 edit/loop_begin=0

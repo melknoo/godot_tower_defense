@@ -111,7 +111,10 @@ func _create_ui() -> void:
 	_create_menu_button(main_panel, "Arkanes Archiv", "star_full", _on_archive_pressed, false, true)
 	characters_button = _create_menu_button(main_panel, "Charaktere", "characters", _on_characters_pressed, false, true)
 	_create_menu_button(main_panel, "Optionen", "settings", _on_options_pressed, false, true)
-	_create_menu_button(main_panel, "Beenden", "exit", _on_quit_pressed, true)  # Rot
+	# Im Browser gibt es nichts zu beenden - get_tree().quit() hinterlaesst nur ein
+	# totes Canvas. Der Button entfaellt dort komplett.
+	if not OS.has_feature("web"):
+		_create_menu_button(main_panel, "Beenden", "exit", _on_quit_pressed, true)  # Rot
 	
 	# === CHARAKTERAUSWAHL PANEL ===
 	character_select_panel = PanelContainer.new()

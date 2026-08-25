@@ -1291,7 +1291,12 @@ func _on_pause_quit_requested() -> void:
 	if ProgressionSystem and ProgressionSystem.run_active:
 		ProgressionSystem.finish_run(GameState.current_wave)
 	get_tree().paused = false
-	get_tree().quit()
+	# Im Browser waere quit() eine Sackgasse (schwarzes Canvas, kein Weg zurueck) -
+	# dort stattdessen ins Hauptmenue.
+	if OS.has_feature("web"):
+		get_tree().change_scene_to_file("res://main_menu.tscn")
+	else:
+		get_tree().quit()
 
 
 func _on_meta_progression_closed() -> void:

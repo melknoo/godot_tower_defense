@@ -13,10 +13,10 @@ dest_files=["res://.godot/imported/shoot_base_level_1.wav-1175f8d38e872b3d32014c
 [params]
 
 force/8_bit=false
-force/mono=false
+force/mono=true
 force/max_rate=false
 force/max_rate_hz=44100
-edit/trim=false
+edit/trim=true
 edit/normalize=false
 edit/loop_mode=0
 edit/loop_begin=0

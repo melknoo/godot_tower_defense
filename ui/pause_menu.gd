@@ -104,7 +104,9 @@ func _build_main_view() -> void:
 	var main_menu_button := _make_menu_button("HAUPTMENÜ", "characters", _on_main_menu_pressed)
 	main_menu_button.theme_type_variation = &"SecondaryButton"
 	main_view.add_child(main_menu_button)
-	main_view.add_child(_make_menu_button("SPIEL BEENDEN", "exit", _on_quit_pressed, true))
+	# Im Browser gibt es kein "Spiel schliessen" - der Weg raus ist "HAUPTMENUE".
+	if not OS.has_feature("web"):
+		main_view.add_child(_make_menu_button("SPIEL BEENDEN", "exit", _on_quit_pressed, true))
 
 	var esc_hint := Label.new()
 	esc_hint.text = "Esc · Fortsetzen"
@@ -141,6 +143,10 @@ func _build_options_view() -> void:
 
 	fullscreen_toggle = _create_toggle("VOLLBILD")
 	fullscreen_toggle.toggled.connect(_on_fullscreen_toggled)
+	# Im Browser laesst sich Vollbild nicht per DisplayServer schalten (nur ueber eine
+	# echte User-Geste, und im itch-Iframe unzuverlaessig). Der Schalter bleibt bestehen,
+	# damit _save_settings() weiter funktioniert, wird aber nicht angezeigt.
+	fullscreen_toggle.visible = not OS.has_feature("web")
 	options_view.add_child(fullscreen_toggle)
 
 	shake_toggle = _create_toggle("BILDSCHIRMWACKELN")
@@ -376,7 +382,8 @@ func _on_music_volume_changed(value: float) -> void:
 
 
 func _on_fullscreen_toggled(enabled: bool) -> void:
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if enabled else DisplayServer.WINDOW_MODE_WINDOWED)
+	if not OS.has_feature("web"):
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if enabled else DisplayServer.WINDOW_MODE_WINDOWED)
 	_save_settings()
 
 
@@ -412,7 +419,9 @@ func _load_settings() -> void:
 		Music.set_music_volume(music)
 	if VFX:
 		VFX.screen_shake_enabled = shake
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+	# Beim Laden gibt es garantiert keine User-Geste -> im Web nie umschalten.
+	if not OS.has_feature("web"):
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
 
 
 func _save_settings() -> void:

@@ -23,3 +23,9 @@ mono_crash.*.json
 # Python (tools/spritegen/)
 __pycache__/
 *.pyc
+
+# Deploy nach itch.io (deploy_itch.ps1)
+/export/
+deploy.env
+.deploy_build_number
+/tools/butler/

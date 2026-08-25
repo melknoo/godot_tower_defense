@@ -15,6 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Arcane Defense"
+config/version="0.1.0"
 run/main_scene="uid://d1hk2dvb6ru7k"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://assets/elemental_symbols/four_elements.png"
@@ -42,6 +43,7 @@ UI="*res://ui/ui_theme.gd"
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [dotnet]
 

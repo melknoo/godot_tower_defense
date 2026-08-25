@@ -302,6 +302,9 @@ func _load_font(path: String) -> FontFile:
 	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
 	f.generate_mipmaps = false
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	# Die Pixelschriften decken nur ASCII ab - Symbole/Emoji kommen aus den
+	# Fallback-Subsets, sonst Tofu im Browser.
+	SymbolFont.install(f)
 	return f
 
 func build_theme() -> Theme:
