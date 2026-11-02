@@ -11,8 +11,14 @@ Bilder aus dem laufenden Spiel rendern, Texte hier ablegen, dann ins Formular ü
   in `project.godot` bleibt „Arcane Defense“, sonst wechselt der `user://`-Ordner und
   Spielstände/Meta-Fortschritt wären weg.
 - [x] Kurztext, Beschreibung (EN + DE-Block), Genre Strategy, Tags, AI-Disclosure (Code).
-- [x] Cover + 6 Screenshots aus `docs/itch/`.
-- [x] Neuer Build (Web + Windows) mit den Ninja-Adventure-Türmen.
+- [x] Cover + 6 Screenshots aus `docs/itch/`, Embed mit Vollbild-Button. Gespeichert 02.11.
+- [x] Build 0.1.0.3 (Web + Windows): Ninja-Adventure-Türme + Fix Charakterauswahl
+  (Starten-Button lag unter dem Bildrand, `main_menu.gd`). Im itch-Embed getestet:
+  Menü, Optionen, Charakterauswahl.
+- [ ] Theme wie Legion Pixel: `header.png` (730x280, transparent) und `background.png`
+  (abgedunkeltes Spielfeld, Verlauf in `#0b1020`) liegen bereit. Farben: BG `#0b1020`,
+  Innenspalte `#101628` (~92 %), Text `#e8e4d8`, Links `#f0b848`, Rahmen `#3a4566`,
+  Buttons `#f0b848` / Schrift `#1a1408`.
 - [ ] Sichtbarkeit: bleibt **restricted**, Public schaltet der Owner selbst.
 - [ ] Optional: Musik (Ninja Adventure enthält 37 CC0-Tracks, `assets/music/` ist leer).
 
@@ -40,8 +46,8 @@ Ausschnitte mit Faktor 1/2 bzw. 2 bleiben pixelgenau.
 - **Kurztext:** Elemental pixel-art tower defense: fuse elements, forge items and research
   between runs. Plays in your browser.
 - **Genre:** Strategy
-- **Tags:** tower-defense, pixel-art, roguelite, strategy, fantasy, elemental, singleplayer,
-  incremental, 2d, browser
+- **Tags:** tower-defense, pixel-art, roguelite, fantasy, elemental, singleplayer,
+  incremental, 2d, magic, cute (itch rät, Genre/Plattform nicht als Tag zu doppeln)
 - **AI-Disclosure:** ja, Code (Grafik: Ninja Adventure CC0 + prozedural; Sound/Musik nicht KI)
 - **Embed:** 1280x720, Vollbild-Button an
 
