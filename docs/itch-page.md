@@ -15,11 +15,20 @@ Bilder aus dem laufenden Spiel rendern, Texte hier ablegen, dann ins Formular ü
 - [x] Build 0.1.0.3 (Web + Windows): Ninja-Adventure-Türme + Fix Charakterauswahl
   (Starten-Button lag unter dem Bildrand, `main_menu.gd`). Im itch-Embed getestet:
   Menü, Optionen, Charakterauswahl.
-- [ ] Theme wie Legion Pixel: `header.png` (730x280, transparent) und `background.png`
-  (abgedunkeltes Spielfeld, Verlauf in `#0b1020`) liegen bereit. Farben: BG `#0b1020`,
-  Innenspalte `#101628` (~92 %), Text `#e8e4d8`, Links `#f0b848`, Rahmen `#3a4566`,
-  Buttons `#f0b848` / Schrift `#1a1408`.
-- [ ] Sichtbarkeit: bleibt **restricted**, Public schaltet der Owner selbst.
+- [x] Theme (02.11.): Banner `header.png` (730x280, transparent), Hintergrund
+  `background.png` (abgedunkeltes Spielfeld, Verlauf in BG-Farbe; no-repeat, fixed).
+  Farben: BG `#0b1020`, BG2 `#121a30`, Text `#e8e4d8`, Links/Überschriften `#f0b848`,
+  Buttons `#6c44b8`. Überschriften-Font „Pixel“, Screenshots in der Sidebar („Auto“
+  blendet sie bei 1280er-Embed aus).
+- [x] Sichtbarkeit: **Public** (vom Owner geschaltet, 02.11.).
+- [ ] Versionsanzeige lautet `0.1.0.3-local` (Default `-VersionSuffix local` in
+  `deploy_itch.ps1`) – für öffentliche Builds ggf. ohne Suffix pushen.
+
+**Hinweis Theme-Editor per Chrome:** Farbfelder und Selects übernehmen nur echte
+Eingaben (Tippen bzw. Fokus + Typeahead), per JS gesetzte Werte werden beim Speichern
+verworfen. Datei-Uploads (Cover, Screenshots, Banner): `HTMLInputElement.prototype.click`
+abfangen, den erzeugten File-Input in `<body>` hängen und per `file_upload` befüllen –
+sonst öffnet itch einen nativen Dateidialog.
 - [ ] Optional: Musik (Ninja Adventure enthält 37 CC0-Tracks, `assets/music/` ist leer).
 
 ## Bilder (`docs/itch/`, mit `.gdignore` – landen nicht im `.pck`)
