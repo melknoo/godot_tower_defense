@@ -374,3 +374,7 @@ func build_theme() -> Theme:
 
 func _ready() -> void:
 	get_tree().root.theme = build_theme()
+	# Controls, die das Root-Theme nicht erreicht (z. B. unter einem CanvasLayer),
+	# rendern mit Godots eingebautem Standardfont. Der braucht dieselben Fallbacks,
+	# sonst zeigt der Browser dort Tofu (Desktop faellt auf System-Fonts zurueck).
+	SymbolFont.install(ThemeDB.fallback_font)

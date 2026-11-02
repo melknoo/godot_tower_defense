@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Baut die beiden Fallback-Fonts fuer UI-Symbole:
 
-  assets/fonts/ui_emoji.ttf    farbige Emoji (COLRv1-Vektoren aus NotoColorEmoji)
+  assets/fonts/ui_emoji.ttf    farbige Emoji (CBDT-Bitmaps aus NotoColorEmojiLegacy)
   assets/fonts/ui_symbols.ttf  monochrome Geometrie/Pfeile (Noto Sans Symbols)
 
 Hintergrund: Fuer Zeichen wie 🔥 ⚡ ★ → hat weder Clarity.ttf noch PixelOperator8
@@ -10,12 +10,19 @@ Segoe UI Emoji) - im Browser gibt es die nicht, dort erscheinen Tofu-Kaestchen.
 Diese beiden Subsets werden zur Laufzeit als Fallback hinter die Projektfonts
 gehaengt, siehe `ui/symbol_font.gd`.
 
-Zwei Dateien statt einer, weil sich ein COLR-Farbfont nicht mit reinen
-Outline-Fonts mergen laesst. Godot nimmt beliebig viele Fallbacks in Reihenfolge.
+Zwei Dateien statt einer, weil sich ein Farbfont nicht mit reinen Outline-Fonts
+mergen laesst. Godot nimmt beliebig viele Fallbacks in Reihenfolge.
+
+Emoji-Quelle ist bewusst die CBDT-Variante (Legacy): Godot zeichnet die
+COLRv1-Glyphen aus NotoColorEmoji.ttf nicht - sie werden gefunden, bleiben aber
+unsichtbar. Am Desktop fiel das nicht auf, solange Windows' Segoe UI Emoji
+einsprang. Nach einem Neubau in `ui_emoji.ttf.import`
+`disable_embedded_bitmaps=false` pruefen.
 
 Aufruf:  python tools/build_symbol_font.py <verzeichnis-mit-quell-ttfs>
-Quellen (OFL, siehe assets/fonts/OFL.txt):
-  NotoColorEmoji.ttf  NotoSansSymbols-Regular-Subsetted.ttf
+Quellen (OFL, siehe assets/fonts/OFL.txt), z. B. aus Android Studio
+(`plugins/design-tools/resources/layoutlib/data/fonts`):
+  NotoColorEmojiLegacy.ttf  NotoSansSymbols-Regular-Subsetted.ttf
   NotoSansSymbols-Regular-Subsetted2.ttf  NotoSerif-Regular.ttf
 """
 import glob
@@ -35,7 +42,7 @@ OUT_EMOJI = os.path.join(FONT_DIR, "ui_emoji.ttf")
 OUT_SYMBOLS = os.path.join(FONT_DIR, "ui_symbols.ttf")
 
 UPEM = 1000  # alle Outline-Quellen darauf normalisieren, sonst bricht der Merge
-EMOJI_SOURCE = "NotoColorEmoji.ttf"
+EMOJI_SOURCE = "NotoColorEmojiLegacy.ttf"
 # Reihenfolge = Prioritaet (erster Treffer gewinnt)
 SYMBOL_SOURCES = [
     "NotoSansSymbols-Regular-Subsetted.ttf",
@@ -85,7 +92,7 @@ def subset_font(src_path, codepoints, out_path, drop_layout=True):
 
 
 def build_emoji(src_dir, cps):
-    """COLRv1-Farbemoji. Wird NICHT gemergt - Farbtabellen vertragen das nicht."""
+    """CBDT-Farbemoji. Wird NICHT gemergt - Farbtabellen vertragen das nicht."""
     src = os.path.join(src_dir, EMOJI_SOURCE)
     if not os.path.exists(src):
         print("  FEHLT: %s" % src)

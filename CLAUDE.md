@@ -118,6 +118,12 @@ itch.io → Settings → API keys). Godot-Binary findet `tools/find_godot.ps1` s
   *Rohtext*. Quelldateien importierter Ressourcen landen nie im `.pck`, und `include_filter`
   ändert daran nichts — deshalb steht in `arcane_cursor.svg.import` `importer="keep"`.
   Wird der Importer zurückgesetzt, ist der Cursor im Web-Build weg.
+- **Symbole/Emoji (✦ ▤ 💰 🔥 …):** Der Browser hat keine System-Fallback-Fonts → Tofu.
+  `ui/symbol_font.gd` hängt `assets/fonts/ui_emoji.ttf` + `ui_symbols.ttf` hinter die
+  Projektfonts **und** hinter `ThemeDB.fallback_font` (Controls unter CanvasLayern
+  erreicht das Root-Theme nicht). `ui_emoji.ttf` muss CBDT sein (NotoColorEmojiLegacy),
+  COLRv1 zeichnet Godot unsichtbar. Neue Symbole im Code → `tools/build_symbol_font.py`
+  neu laufen lassen. Am Desktop prüfen hilft nicht (Windows springt ein) – im Web-Build testen.
 - **Kein Vollbild, kein Beenden:** `DisplayServer.window_set_mode()` scheitert im Iframe
   ohne User-Geste, `get_tree().quit()` hinterlässt ein totes Canvas. Beides ist über
   `OS.has_feature("web")` gegated (`ui/pause_menu.gd`, `main_menu.gd`, `main.gd`);
