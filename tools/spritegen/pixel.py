@@ -106,6 +106,16 @@ def preview_arg() -> Path | None:
     return args.preview
 
 
+def force_arg() -> bool:
+    """--force aus argv lesen. Die Turm-Sprites stammen inzwischen aus dem
+    Ninja-Adventure-Pack (ASSETS_TODO.md §1); ohne --force schreibt der Generator
+    nur Previews und laesst assets/ unangetastet."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--force", action="store_true")
+    args, _ = parser.parse_known_args()
+    return args.force
+
+
 def emit_tower(
     tower_type: str,
     frames_by_level: dict[int, list[Canvas]],
@@ -120,14 +130,18 @@ def emit_tower(
     d.h. der Key hier ist bereits die Dateisuffix-Zahl, nicht der 0-basierte Level).
     """
     out_dir = REPO_ROOT / "assets" / "elemental_tower"
+    write_assets = force_arg()
     for level, frames in sorted(frames_by_level.items()):
         sheet = stack_frames(frames)
         if level == 0:
             out_path = out_dir / f"tower_{tower_type}.png"
         else:
             out_path = out_dir / f"tower_{tower_type}_level_{level}.png"
-        save_indexed_rgba(sheet, out_path, max_colors=max_colors)
-        print(f"geschrieben: {out_path}")
+        if write_assets:
+            save_indexed_rgba(sheet, out_path, max_colors=max_colors)
+            print(f"geschrieben: {out_path}")
+        else:
+            print(f"uebersprungen (ohne --force): {out_path}")
 
         if preview_dir is not None:
             preview_path = preview_dir / f"{out_path.stem}_preview.png"

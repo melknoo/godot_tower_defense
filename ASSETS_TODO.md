@@ -5,7 +5,7 @@ greifen Platzhalter — das Spiel laeuft, sieht an diesen Stellen aber unfertig 
 Sobald eine Datei existiert, wird sie automatisch verwendet; es ist kein Codeaenderung
 noetig.
 
-Stand: 2026-08-19
+Stand: 2026-11-02
 
 `tools/spritegen/` enthaelt einen Python-Generator (numpy + Pillow) fuer
 16x16-/16x64-Pixel-Art im Stil der vorhandenen Turm-Sprites (harte Kanten, Alpha
@@ -13,37 +13,37 @@ nur 0/255, kleine Palette aus einer Basisfarbe). `pixel.py` ist die geteilte Bas
 (`Canvas`, `shade`, `stack_frames`, `emit_tower`, `save_indexed_rgba`), ein
 `tower_<typ>.py`-Modul pro Turm, `run_all.py` erzeugt alle auf einmal
 (`python3 tools/spritegen/run_all.py [--preview DIR]`, aus `tools/spritegen/` heraus
-laufen lassen). Damit erzeugt: `wizard`, `cannon`, `trapper`, `aura`, `steam`,
-je inklusive Stufen-Varianten.
+laufen lassen). Damit erzeugt waren: `wizard`, `cannon`, `trapper`, `aura`, `steam`,
+je inklusive Stufen-Varianten — inzwischen durch Ninja-Adventure-Sprites ersetzt
+(§1); der Generator schreibt nur noch mit `--force` nach `assets/`.
 
 ## 1. Turm-Sprites (hoechste Prioritaet)
 
-Alle sieben Basistuerme haben jetzt ein Sprite. Offen ist nur noch das
-Sammelgebaeude Stadt:
+**Erledigt (2026-11-02).** Alle Tuerme inkl. Stadt haben ein Sprite. Die vorher
+generierten Sprites (`wizard`, `cannon`, `trapper`, `aura`, `steam`) passten nicht
+zum Stil der Element-Tuerme und sind ersetzt durch Figuren aus dem
+[Ninja Adventure Asset Pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack)
+von Pixel-boy & AAA (**CC0**, kommerziell frei, Nennung erwuenscht):
 
-| Datei | Gebaeude |
+| Datei | Quelle im Pack |
 | --- | --- |
-| `assets/elemental_tower/city.png` | Stadt (nimmt Farmen auf) |
+| `tower_wizard.png` | `Actor/Character/NinjaMageBlack/SpriteSheet.png` |
+| `tower_cannon.png` | `Actor/Character/NinjaBomb/SpriteSheet.png` |
+| `tower_trapper.png` | `Actor/Monster/SpiderRed/SpriteSheet.png` |
+| `tower_aura.png` | `Actor/Monster/LanternGreen/SpriteSheet.png` |
+| `tower_steam.png` | `Actor/Monster/Spirit/SpriteSheet.png` (Schattenzeile y=15 entfernt) |
+| `city.png` | `Backgrounds/Tilesets/TilesetTowers.png`, Kachel Spalte 6/Zeile 0 (32x32), unten buendig in 32x48 |
 
-**Format Stadt:** wie `farm.png` (32x48, im Spiel Faktor 2, `offset.y = -8`) — ein
-eigenes Format, passt nicht ins 16x16-Raster des Generators. Ersatz ist derzeit ein
-Polygon-Platzhalter in `tower.gd` → `_setup_city_sprite`.
+Uebernahme: jeweils Spalte 0 (Blick nach unten, 4 Lauf-Frames) = 16x64, exakt das
+Format der Element-Tuerme. Die Stufen-Varianten (`_level_2/5/8`, `steam` `_2/_3`)
+sind entfernt — alle Stufen nutzen das Basis-Sprite. Ideen fuer spaetere
+Stufen-Optik: Farbvarianten aus dem Pack (z. B. `SpiderYellow`, `LanternRed`,
+`NinjaMageOrange`). `tools/spritegen/` schreibt nur noch mit `--force` nach `assets/`.
 
 **Format der Turm-Sprites:** 16x64 px = 4 Frames a 16x16 untereinander (vertikale
 Animation), wie `tower_fire.png`. Im Spiel mit Faktor 3 skaliert. Nicht animierte
 Tuerme koennen auch 16x16 liefern — dann in `data/tower_data.gd` `"animated": false`
-setzen.
-
-**Update (MAX_LEVEL 5 → 7, 8 Ausbaustufen):** `wizard`, `cannon`, `trapper`, `aura`
-haben inzwischen Stufen-Varianten an drei Meilensteinen —
-`tower_<typ>_level_2.png` (Stufe 2/3), `_level_5.png` (Stufe 5/6),
-`_level_8.png` (Stufe 7) — statt aller acht Einzelstufen, weil die Unterschiede auf
-16x16 sonst zu winzig waeren, um lesbar zu bleiben. `_setup_standard_sprite()` in
-`tower.gd` faellt bei einer fehlenden Zwischenstufe auf die naechstniedrigere
-vorhandene Variante zurueck (nie direkt auf das Basis-Sprite), sodass eine
-hochgestufte Kanone nie ploetzlich wieder aussieht wie frisch gebaut. Der
-Fusionsturm `steam` hat nur 3 Stufen (`upgrade_costs` mit 2 Eintraegen) und bekommt
-entsprechend `_level_2`/`_level_3` statt der 2/5/8-Meilensteine.
+setzen. **Stadt/Farm:** 32x48, Faktor 2, `offset.y = -8`.
 
 Weiterhin offen: `archer`/`sword` nutzen ein einziges, level-unabhaengiges
 Richtungs-Spritesheet (`archer_spritesheet.png` / `sword_spritesheet.png`,

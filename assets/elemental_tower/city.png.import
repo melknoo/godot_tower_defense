@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ik4uhyyvbryo"
-path="res://.godot/imported/tower_aura_level_2.png-87fad35d586d68b02509e94f1a2a1b62.ctex"
+uid="uid://fp7yl7n8s4uw"
+path="res://.godot/imported/city.png-c9379c4684e5e6e23a58c2b49636a356.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/elemental_tower/tower_aura_level_2.png"
-dest_files=["res://.godot/imported/tower_aura_level_2.png-87fad35d586d68b02509e94f1a2a1b62.ctex"]
+source_file="res://assets/elemental_tower/city.png"
+dest_files=["res://.godot/imported/city.png-c9379c4684e5e6e23a58c2b49636a356.ctex"]
 
 [params]
 

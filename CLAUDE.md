@@ -58,7 +58,8 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
 - `tools/spritegen/` — Python-Generator (numpy + Pillow, kein Godot-Bezug) für
   fehlende 16x16/16x64-Turm-Sprites im Pixel-Art-Stil; `pixel.py` = geteilte
   Basis, `tower_<typ>.py` = je ein Turm (inkl. Stufen-Varianten), `run_all.py`
-  erzeugt alle auf einmal. Siehe `ASSETS_TODO.md`.
+  erzeugt alle auf einmal. Spiel-Sprites dieser Türme kommen inzwischen aus dem
+  Ninja-Adventure-Pack (CC0) — Generator schreibt nur mit `--force`. Siehe `ASSETS_TODO.md`.
 
 ### UI (`ui/`)
 - `hud.gd` — In-Game-HUD (größte Datei!)

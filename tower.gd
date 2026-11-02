@@ -990,8 +990,8 @@ func _setup_farm_sprite() -> void:
 		turret.add_child(door)
 
 
-# Stadt: eigenes Asset fehlt noch (siehe ASSETS_TODO.md), deshalb ein Platzhalter
-# aus der Farm-Formsprache - breiter Sockel mit mehreren Daechern.
+# Stadt: city.png (Burgturm aus dem Ninja-Adventure-Pack, siehe ASSETS_TODO.md).
+# Fehlt die Datei, greift ein Platzhalter aus der Farm-Formsprache.
 func _setup_city_sprite() -> void:
 	var texture_path := "res://assets/elemental_tower/city.png"
 	if ResourceLoader.exists(texture_path):
@@ -1157,8 +1157,8 @@ func _setup_standard_sprite() -> void:
 	turret.add_child(sprite)
 
 
-# Einheitlicher Platzhalter fuer Tuerme ohne Sprite (aktuell Zauberer, Kanone,
-# Falle und Aura - siehe ASSETS_TODO.md). Bewusst ein Look fuer alle: vier
+# Einheitlicher Platzhalter fuer Tuerme ohne Sprite (aktuell keiner - greift nur,
+# wenn tower_<typ>.png fehlt, siehe ASSETS_TODO.md). Bewusst ein Look fuer alle: vier
 # verschiedene Vektorformen lesen sich wie ein Bug, ein konsistenter Sockel mit
 # Typ-Glyphe wie eine Designentscheidung. Raster und Groesse folgen den echten
 # Sprites (16x16 bei Skalierung 3).

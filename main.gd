@@ -1012,8 +1012,8 @@ func _update_hover_appearance(tower_type: String, level: int = 0) -> void:
 			hover_sprite.add_child(sprite)
 		else:
 			_create_fallback_preview(tower_type)
-	elif tower_type == "farm":
-		var texture_path := "res://assets/elemental_tower/farm.png"
+	elif tower_type == "farm" or tower_type == "city":
+		var texture_path := "res://assets/elemental_tower/%s.png" % tower_type
 		if ResourceLoader.exists(texture_path):
 			var sprite := Sprite2D.new()
 			sprite.texture = load(texture_path)

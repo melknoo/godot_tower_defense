@@ -51,6 +51,14 @@ Stufen-Varianten an drei Meilensteinen (`_level_2`/`_level_5`/`_level_8`, bei `s
 `_level_2`/`_level_3` wegen nur 3 Ausbaustufen), mit Fallback in
 `tower.gd::_setup_standard_sprite()` auf die nächstniedrigere vorhandene Stufe.
 Details siehe `ASSETS_TODO.md` §1 und `tools/spritegen/run_all.py`.
+
+**Update 2026-11-02:** Die generierten Sprites passten stilistisch nicht zu den
+Element-Türmen und sind ersetzt durch Figuren aus dem Ninja-Adventure-Pack (CC0,
+pixel-boy): `wizard`=NinjaMageBlack, `cannon`=NinjaBomb, `trapper`=SpiderRed,
+`aura`=LanternGreen, `steam`=Spirit (Schattenzeile entfernt), dazu
+`city.png`=Burgturm aus `TilesetTowers.png`. Die Stufen-Varianten der fünf Türme
+sind entfernt (alle Stufen nutzen das Basis-Sprite, wie earth/air/ice).
+`tools/spritegen/` schreibt nur noch mit `--force` nach `assets/`.
 - **Phase 3 (Element-/Rarity-Codierung): offen.** `UI.el()`/`UI.rarity()` an
   Turmkarten, Ability-Cooldowns, Item-Slots, Synergiezeilen anschließen.
   `ui/ability_upgrade_ui.gd::_get_element_color()` nutzt noch ein eigenes,
@@ -306,8 +314,7 @@ beiden Branches sollten zusammengefuehrt und einer davon stillgelegt werden.
   mit Tracks in `assets/music/` (siehe README dort) wird der groesste
   Feel-Hebel wirksam.
 - Alle sieben Gegnertypen benutzen weiterhin dasselbe Sprite, nur eingefaerbt
-  und skaliert. Zauberer, Kanone, Falle und Aura haben nur einen Platzhalter.
-  Details in `ASSETS_TODO.md`.
+  und skaliert. Details in `ASSETS_TODO.md`.
 - Ein Run kennt weiterhin nur Verlieren als Ende — kein Sieg, kein Kapitel, kein
   Endboss. `get_save_data()`/`load_save_data()` existieren in vier Systemen,
   werden aber nirgends aufgerufen: ein Run laesst sich nicht fortsetzen.

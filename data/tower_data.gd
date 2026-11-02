@@ -549,6 +549,16 @@ func get_tower_icon_texture(tower_type: String) -> Texture2D:
 			return atlas
 		return null
 
+	# Stadt: 32x32-Burgturm unten buendig im 32x48-Format - quadratischer Ausschnitt
+	if tower_type == "city":
+		var city_path := "res://assets/elemental_tower/city.png"
+		if ResourceLoader.exists(city_path):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = load(city_path)
+			atlas.region = Rect2(0, 11, 32, 32)
+			return atlas
+		return null
+
 	# Standard Tower Textur
 	var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
 	if ResourceLoader.exists(texture_path):
