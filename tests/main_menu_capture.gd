@@ -31,6 +31,25 @@ func _capture() -> void:
 		return
 	menu.options_overlay.hide_menu()
 	await get_tree().process_frame
+
+	# Charakterauswahl: der Starten-Button muss im Viewport liegen. Er rutschte schon
+	# mehrfach unter den Bildrand, sobald die Karten mehr Text bekamen.
+	var new_game_button := _find_button(menu, "Neues Spiel")
+	if not new_game_button:
+		push_error("[UI Capture] Neues-Spiel-Button im Hauptmenue nicht gefunden")
+		get_tree().quit(1)
+		return
+	await _click_button(new_game_button)
+	await get_tree().create_timer(0.5, true).timeout
+	var start_button: Control = menu.character_select_panel.find_child("StartButton", true, false)
+	var viewport_rect := get_viewport().get_visible_rect()
+	if not start_button or not viewport_rect.encloses(start_button.get_global_rect()):
+		push_error("[UI Capture] Starten-Button der Charakterauswahl liegt ausserhalb des Bildes")
+		get_tree().quit(1)
+		return
+	if not await _save_view("15b_character_select"):
+		get_tree().quit(1)
+		return
 	get_tree().quit(0)
 
 
@@ -57,7 +76,9 @@ func _find_button(root: Node, label: String) -> Button:
 
 
 func _click_button(button: Button) -> void:
-	var click_position := button.get_global_rect().get_center()
+	# Input-Events erwarten Fensterkoordinaten; auf HiDPI-Fenstern (z. B. 2560x1440 bei
+	# 1920x1080-Viewport) weichen die von den Viewport-Koordinaten des Buttons ab.
+	var click_position := get_viewport().get_final_transform() * button.get_global_rect().get_center()
 	Input.warp_mouse(click_position)
 	await get_tree().process_frame
 	for is_pressed in [true, false]:

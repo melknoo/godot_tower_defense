@@ -119,10 +119,10 @@ func _create_ui() -> void:
 	# === CHARAKTERAUSWAHL PANEL ===
 	character_select_panel = PanelContainer.new()
 	character_select_panel.visible = false
-	# Breit genug fuer drei Karten (3 x 230 + 2 x 12 Abstand). Bei zwei Spalten wurde
-	# die Auswahl mit der zusaetzlichen Passiv-Zeile so hoch, dass die Buttons darunter
-	# aus dem Bild liefen.
-	character_select_panel.custom_minimum_size = Vector2(760, 0)
+	# Breit genug fuer vier Karten (4 x 230 + 3 x 12 Abstand). Mit Passiv- und
+	# Beschreibungstext wird jede Karte ~340 px hoch; bei drei Reihen lag der
+	# Starten-Button unterhalb des 1080er-Viewports.
+	character_select_panel.custom_minimum_size = Vector2(1000, 0)
 	root_container.add_child(character_select_panel)
 	
 	var char_vbox := VBoxContainer.new()
@@ -139,8 +139,8 @@ func _create_ui() -> void:
 	
 	# Character Grid
 	character_grid = GridContainer.new()
-	# Drei Spalten: acht Charaktere passen damit in drei Reihen statt vier.
-	character_grid.columns = 3
+	# Vier Spalten: acht Charaktere passen damit in zwei Reihen.
+	character_grid.columns = 4
 	character_grid.add_theme_constant_override("h_separation", 12)
 	character_grid.add_theme_constant_override("v_separation", 8)
 	char_vbox.add_child(character_grid)
@@ -250,8 +250,8 @@ func _update_character_grid() -> void:
 func _create_character_button(char_id: String, data: Dictionary, unlocked: bool) -> PanelContainer:
 	var panel := PanelContainer.new()
 	# Hoeher als frueher (170): die Karte zeigt jetzt zusaetzlich die Passive. Nicht
-	# weiter erhoehen ohne die Gesamthoehe zu pruefen - bei drei Reihen stoesst die
-	# Auswahl sonst unten aus dem Bild (die Buttons darunter verschwinden zuerst).
+	# weiter erhoehen ohne die Gesamthoehe zu pruefen - stoesst die Auswahl unten aus
+	# dem Bild, verschwinden die Buttons darunter zuerst.
 	panel.custom_minimum_size = Vector2(230, 196)
 	
 	if not unlocked:
