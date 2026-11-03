@@ -307,7 +307,7 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 			icon_container.add_child(icon)
 		else:
 			var fallback := Label.new()
-			fallback.text = element.substr(0, 1).to_upper()
+			fallback.text = ElementalSystem.get_element_display_name(element).substr(0, 1).to_upper()
 			fallback.add_theme_font_size_override("font_size", 32)
 			fallback.add_theme_color_override("font_color", char_color)
 			icon_container.add_child(fallback)

@@ -29,6 +29,9 @@ var source_tower_type := ""   # z.B. "archer", "sword", "wizard" ...
 var source_tower: Node2D = null   # Referenz auf den abfeuernden Turm (situative Items / Procs)
 var already_hit: Array[Node2D] = []
 
+const LAVA_POOL_TICK_PCT := 0.10   # Lava-Pool: 10% des Trefferschadens pro 0,5-s-Tick
+const LAVA_POOL_MIN_TICK := 5
+
 # Visuals
 var sprite: Sprite2D
 var trail_timer: Timer
@@ -215,20 +218,26 @@ func _credit_damage(amount: int) -> void:
 		source_tower.register_damage_dealt(amount)
 
 
-func _hit_single(enemy: Node2D) -> void:
+func _hit_single(enemy: Node2D, extra_mult: float = 1.0) -> void:
 	if not is_instance_valid(enemy) or enemy in already_hit:
 		return
-	
+
 	already_hit.append(enemy)
 
 	# Situative Items: Schadensbonus nur bei passendem Gegner-Zustand
-	var bonus_mult := 1.0
+	var bonus_mult := extra_mult
 	if ItemSystem and source_tower:
-		bonus_mult = ItemSystem.get_tower_conditional_mult(source_tower, enemy)
+		bonus_mult *= ItemSystem.get_tower_conditional_mult(source_tower, enemy)
 
 	if enemy.has_method("take_damage"):
 		var dealt: int = enemy.take_damage(damage, true, bullet_type, is_crit, source_tower_type, bonus_mult, source_tower)
 		_credit_damage(dealt)
+
+	# Meisterschaft crit T3: Crits setzen in Brand
+	if is_crit and SynergySystem and enemy.has_method("apply_burn"):
+		var crit_burn := SynergySystem.get_crit_burn_dps(damage)
+		if crit_burn > 0:
+			enemy.apply_burn(crit_burn, SynergySystem.CRIT_T3_BURN_DURATION)
 
 	# Treffer-basierte Procs (chance_on_hit / execute)
 	if ItemSystem and source_tower:
@@ -239,9 +248,19 @@ func _hit_single(enemy: Node2D) -> void:
 
 func _hit_splash() -> void:
 	var hit_count := 0
+	# Meisterschaft splash T2 (+Schaden) / T3 (Splash verlangsamt)
+	var splash_mult := 1.0
+	var splash_slow := false
+	if SynergySystem:
+		splash_mult += SynergySystem.get_splash_damage_bonus()
+		splash_slow = SynergySystem.splash_applies_slow()
 	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy.has_method("is_targetable") and not enemy.is_targetable():
+			continue
 		if position.distance_to(enemy.position) <= splash_radius:
-			_hit_single(enemy)
+			_hit_single(enemy, splash_mult)
+			if splash_slow and is_instance_valid(enemy) and enemy.has_method("apply_slow"):
+				enemy.apply_slow(SynergySystem.SPLASH_T3_SLOW, SynergySystem.SPLASH_T3_SLOW_DURATION * _status_dur("slow"))
 			hit_count += 1
 	
 	if VFX:
@@ -261,16 +280,16 @@ func _apply_special_effects(enemy: Node2D) -> void:
 	if not is_instance_valid(enemy):
 		return
 	
+	# Slow/Burn/Stun unabhaengig vom special_type pruefen (wie im Nahkampf): Items und
+	# Charakter-Passiven (z. B. Geomant-Stun) geben die Werte, ohne special_type zu setzen.
+	if slow_amount > 0.0 and enemy.has_method("apply_slow"):
+		enemy.apply_slow(slow_amount, slow_duration * _status_dur("slow"))
+	if burn_damage > 0 and special_type != "pool" and enemy.has_method("apply_burn"):
+		enemy.apply_burn(burn_damage, burn_duration)
+	if stun_chance > 0.0 and randf() < stun_chance and enemy.has_method("apply_stun"):
+		enemy.apply_stun(stun_duration * _status_dur("stun"))
+
 	match special_type:
-		"slow":
-			if enemy.has_method("apply_slow"):
-				enemy.apply_slow(slow_amount, slow_duration * _status_dur("slow"))
-		"burn":
-			if enemy.has_method("apply_burn"):
-				enemy.apply_burn(burn_damage, burn_duration)
-		"stun":
-			if randf() < stun_chance and enemy.has_method("apply_stun"):
-				enemy.apply_stun(stun_duration * _status_dur("stun"))
 		"freeze":
 			if enemy.has_method("apply_freeze"):
 				enemy.apply_freeze(2.0 * _status_dur("freeze"))
@@ -295,7 +314,9 @@ func _apply_special_effects(enemy: Node2D) -> void:
 func _do_chain_attack() -> void:
 	var current := target
 	var remaining := chain_targets
-	var chain_dmg := damage / 2
+	# Meisterschaft air T3: Ketten verlieren keinen Schaden
+	var no_falloff := SynergySystem != null and SynergySystem.chains_no_falloff()
+	var chain_dmg := damage if no_falloff else damage / 2
 	
 	while remaining > 0 and is_instance_valid(current):
 		var next: Node2D = null
@@ -303,6 +324,8 @@ func _do_chain_attack() -> void:
 		
 		for e in get_tree().get_nodes_in_group("enemies"):
 			if e in already_hit:
+				continue
+			if e.has_method("is_targetable") and not e.is_targetable():
 				continue
 			var d := current.position.distance_to(e.position)
 			if d < closest:
@@ -367,7 +390,8 @@ func _spawn_lava_pool() -> void:
 	tmr.autostart = true
 	pool.add_child(tmr)
 	
-	var pool_dmg := burn_damage if burn_damage > 0 else 5
+	# Skaliert mit dem Trefferschaden (und damit mit Stufe/Boni) statt fixer 5
+	var pool_dmg := maxi(LAVA_POOL_MIN_TICK, roundi(damage * LAVA_POOL_TICK_PCT))
 	# Turm-Referenz lokal kopieren: das Bullet ist bereits weg, wenn der Pool tickt
 	var pool_tower := source_tower
 	tmr.timeout.connect(func():
@@ -375,7 +399,7 @@ func _spawn_lava_pool() -> void:
 			if pool.position.distance_to(e.position) <= splash_radius:
 				if e.has_method("take_damage"):
 					# Lava Pool Damage ist kein Crit
-					var dealt: int = e.take_damage(pool_dmg, false, "lava", false, "", 1.0, pool_tower)
+					var dealt: int = e.take_damage(pool_dmg, false, "lava", false, "", 1.0, pool_tower, true)
 					if dealt > 0 and is_instance_valid(pool_tower) and pool_tower.has_method("register_damage_dealt"):
 						pool_tower.register_damage_dealt(dealt)
 		if VFX and randf() > 0.5:

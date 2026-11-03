@@ -95,7 +95,7 @@ func _setup_ui() -> void:
 	header.add_child(count_label)
 
 	var hint := Label.new()
-	hint.text = "Zeile hovern → Turm leuchtet auf dem Spielfeld"
+	hint.text = "Maus über Zeile → Turm leuchtet auf dem Spielfeld"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 16)
 	hint.add_theme_color_override("font_color", UI.TEXT_SECOND)

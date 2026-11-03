@@ -84,14 +84,14 @@ func _create_ui() -> void:
 	title.bbcode_enabled = true
 	title.fit_content = true
 	title.scroll_active = false
-	title.text = "[center]%s ABILITY UPGRADE %s[/center]" % [_get_icon_bb("ability_lightning", 28), _get_icon_bb("ability_lightning", 28)]
+	title.text = "[center]%s FÄHIGKEIT VERBESSERN %s[/center]" % [_get_icon_bb("ability_lightning", 28), _get_icon_bb("ability_lightning", 28)]
 	title.add_theme_font_size_override("normal_font_size", 32)
 	title.add_theme_color_override("default_color", UI.ACCENT)
 	vbox.add_child(title)
 	
 	# Subtitle
 	var subtitle := Label.new()
-	subtitle.text = "Wähle eine Verbesserung für deine Abilities"
+	subtitle.text = "Wähle eine Verbesserung für deine Fähigkeiten"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_size_override("font_size", 16)
 	subtitle.add_theme_color_override("font_color", UI.TEXT_SECOND)
@@ -99,7 +99,7 @@ func _create_ui() -> void:
 	
 	# Aktuelle Abilities anzeigen
 	var equipped_label := Label.new()
-	equipped_label.text = "Aktuelle Abilities:"
+	equipped_label.text = "Aktuelle Fähigkeiten:"
 	equipped_label.add_theme_font_size_override("font_size", 16)
 	equipped_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(equipped_label)
@@ -281,7 +281,7 @@ func _populate_new_ability_choice(vbox: VBoxContainer, choice: Dictionary) -> vo
 	
 	# Header
 	var header := Label.new()
-	header.text = "NEUE ABILITY"
+	header.text = "NEUE FÄHIGKEIT"
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	header.add_theme_font_size_override("font_size", 16)
 	header.add_theme_color_override("font_color", UI.SUCCESS)

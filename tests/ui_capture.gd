@@ -28,9 +28,9 @@ func _run() -> void:
 	_assert_ui(main.upgrade_overview_ui.panel.get_theme_stylebox("panel") is StyleBoxTexture, "Aktive Upgrades nutzen ein Panel-Asset")
 	var ability_background := main.ability_bar.get_child(0) as PanelContainer
 	_assert_ui(ability_background != null and ability_background.get_theme_stylebox("panel") is StyleBoxTexture, "Ability-Bar nutzt ein Panel-Asset")
-	_assert_ui(main.hud.inventory_button.get_theme_constant("icon_max_width") == 26, "Inventar-Icon ist begrenzt")
-	_assert_ui(main.hud.cores_button.get_theme_constant("icon_max_width") == 30, "Element-Icon ist begrenzt")
-	_assert_ui(main.hud.upgrades_button.get_theme_constant("icon_max_width") == 26, "Upgrade-Icon ist begrenzt")
+	_assert_ui(main.hud.inventory_button.get_theme_constant("icon_max_width") == 32, "Inventar-Icon ist begrenzt")
+	_assert_ui(main.hud.cores_button.get_theme_constant("icon_max_width") == 32, "Element-Icon ist begrenzt")
+	_assert_ui(main.hud.upgrades_button.get_theme_constant("icon_max_width") == 32, "Upgrade-Icon ist begrenzt")
 	_assert_ui(main.hud.research_button.custom_minimum_size.y >= 38, "Archiv-Button hat genug Asset-Hoehe")
 	# Die Panel-Buttons liegen ueber der HUD-Leiste. Auf Leistenhoehe verdeckt sie
 	# der Tower-Shop, sobald genug Tuerme freigeschaltet sind.
@@ -117,11 +117,12 @@ func _run() -> void:
 			await get_tree().process_frame
 			_assert_ui(tower.get_range_cells() >= 1, "Tower-Reichweite ist in Rasterfeldern verfuegbar")
 			_assert_ui(tower.range_visual.get_child_count() > 0, "Tower zeigt ein quadratisches Reichweitenraster")
-			_assert_ui(tower.level_indicator.get_child_count() == 1, "Tower-Level ist direkt am Tower sichtbar")
+			# Stufen-Pips: pro Stufe ein Punkt mit Umriss (2 Nodes) - Stufe 1 = 1 Pip
+			_assert_ui(tower.level_indicator.get_child_count() == 2, "Tower-Level ist direkt am Tower sichtbar (Pips)")
 			_assert_ui("Schaden:" in main.tower_info.stats_label.text, "Tower-Stats sind sichtbar")
 			_assert_ui("Felder" in main.tower_info.stats_label.text, "Tower-Info zeigt Reichweite als Felder")
 			_assert_ui(
-				"Aktuelle Tower-Stats:" in main.tower_info.stats_label.tooltip_text,
+				"Aktuelle Turm-Werte:" in main.tower_info.stats_label.tooltip_text,
 				"Tower-Stat-Tooltip ist befuellt"
 			)
 			var has_engrave_icon := false

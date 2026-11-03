@@ -764,9 +764,9 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		tooltip_lines.append(crit_tooltip)
 
 	if elem_damage_bonus > 0.0 and elem != "":
-		tooltip_lines.append("Elementarschaden: +%d%% aus Items - wirkt nur, weil der Turm das passende Element traegt" % int(round(elem_damage_bonus * 100.0)))
+		tooltip_lines.append("Elementarschaden: +%d%% aus Items - wirkt nur, weil der Turm das passende Element trägt" % int(round(elem_damage_bonus * 100.0)))
 
-	stats_label.tooltip_text = "Aktuelle Tower-Stats:\n" + "\n".join(tooltip_lines)
+	stats_label.tooltip_text = "Aktuelle Turm-Werte:\n" + "\n".join(tooltip_lines)
 
 
 # Aura-Tuerme haben weder Schaden noch Feuerrate - fuer sie zaehlt nur, welcher
@@ -789,9 +789,9 @@ func _update_aura_stats() -> void:
 	stats_label.text = "\n".join(lines)
 
 	if buff_type == "":
-		stats_label.tooltip_text = "Waehle einen Buff - die Gravur ist dauerhaft.\nWirkt auf alle Tuerme im Raster."
+		stats_label.tooltip_text = "Wähle einen Buff - die Gravur ist dauerhaft.\nWirkt auf alle Türme im Raster."
 	else:
-		stats_label.tooltip_text = "Verstaerkt %s aller Tuerme im Umkreis von %d Feldern um %d%%." % [
+		stats_label.tooltip_text = "Verstärkt %s aller Türme im Umkreis von %d Feldern um %d%%." % [
 			_get_aura_buff_name(buff_type), range_cells, int(current_tower.buff_strength * 100)
 		]
 
@@ -877,7 +877,7 @@ func _update_supply_info(level: int) -> void:
 
 	var supply_used := TowerData.get_supply_cost_place() + (level * TowerData.get_supply_cost_upgrade())
 	supply_info_label.text = "%s Supply: %d" % [supply_icon, supply_used]
-	supply_info_label.tooltip_text = "Dieser Tower verwendet %d Supply\n(1 Basis + %d für Upgrades)" % [supply_used, level]
+	supply_info_label.tooltip_text = "Dieser Turm verwendet %d Supply\n(1 Basis + %d für Upgrades)" % [supply_used, level]
 
 
 func _update_element_display() -> void:
@@ -941,7 +941,7 @@ func _update_engrave_buttons() -> void:
 		btn.custom_minimum_size = Vector2(40, 36)
 		if UITheme:
 			UITheme.center_button_icon(btn)
-		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [element.capitalize(), cost]
+		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [ElementalSystem.get_element_display_name(element), cost]
 
 		if not can_afford or GameState.wave_active:
 			btn.disabled = true
@@ -1159,7 +1159,7 @@ func _update_upgrade_button(tower_type: String, level: int) -> void:
 	if at_game_max:
 		upgrade_button.text = "Max Level"
 		upgrade_button.disabled = true
-		upgrade_button.tooltip_text = "Maximales Tower-Level erreicht"
+		upgrade_button.tooltip_text = "Maximales Turm-Level erreicht"
 		upgrade_button.visible = true
 		return
 

@@ -142,6 +142,33 @@ func _get_stat_value(data: Dictionary, key: String, default_val):
 		return val[0]
 	return val if val != null else default_val
 
+
+func _get_type_crit_chance() -> float:
+	match tower_type:
+		"archer": return 0.2
+		"sword": return 0.15
+	return 0.0
+
+
+func _load_level_specials() -> void:
+	"""Stufenabhaengige Spezialwerte (Fallen, Aura, Kanonen-Mindestreichweite).
+	Wurden frueher nur in setup() mit Stufe 0 gelesen - Upgrades erhoehten weder
+	Fallenzahl noch -dauer."""
+	var mr = TowerData.get_stat(tower_type, "min_range", level)
+	if mr != null:
+		min_range = mr
+	var mt = TowerData.get_stat(tower_type, "max_traps", level)
+	if mt != null:
+		max_traps = mt
+	var td = TowerData.get_stat(tower_type, "trap_duration", level)
+	if td != null:
+		trap_duration = td
+	var bs = TowerData.get_stat(tower_type, "buff_strength", level)
+	if bs != null:
+		buff_strength = bs
+		aura_range = tower_range  # Aura nutzt tower_range
+
+
 func is_isolated() -> bool:
 	if not is_inside_tree():
 		return false
@@ -202,6 +229,7 @@ func _load_corner_textures() -> void:
 
 func _recalculate_after_ready() -> void:
 	if base_damage > 0:  # Nur wenn Tower schon setup wurde
+		_load_special_effects()  # Reset der additiven Statuswerte, sonst doppelte Boni
 		_apply_upgrade_bonuses()
 		_apply_item_bonuses()
 		_update_isolation_visual()
@@ -356,44 +384,15 @@ func setup(data: Dictionary, type: String) -> void:
 	base_damage = _get_stat_value(data, "damage", 20)
 	base_splash = _get_stat_value(data, "splash", 0.0)
 	
-	# NEU: Base Crit-Chance basierend auf Tower-Typ
-	if tower_type == "archer":
-		base_crit_chance = 0.2
-	elif tower_type == "sword":
-		base_crit_chance = 0.15
-	else:
-		base_crit_chance = 0.0
-	
 	# Aktuelle Werte setzen
 	tower_range = base_range
 	fire_rate = base_fire_rate
 	damage = base_damage
 	splash_radius = base_splash
-	
+
 	attack_type = data.get("attack_type", "projectile")
-	
-	# NEU: Spezielle Stats für neue Türme
-	if data.has("min_range"):
-		var min_r = data.get("min_range", 0.0)
-		min_range = min_r[0] if min_r is Array else min_r
-	
-	if data.has("max_traps"):
-		var mt = data.get("max_traps", 2)
-		max_traps = mt[0] if mt is Array else mt
-	
-	if data.has("trap_duration"):
-		var td = data.get("trap_duration", 15.0)
-		trap_duration = td[0] if td is Array else td
-	
-	if data.has("buff_strength"):
-		var bs = data.get("buff_strength", 0.15)
-		buff_strength = bs[0] if bs is Array else bs
-		aura_range = tower_range  # Aura nutzt tower_range
-	
-	if data.has("slow_amount"):
-		var sa = data.get("slow_amount", 0.0)
-		slow_amount = sa[0] if sa is Array else sa
-	
+	_load_level_specials()
+
 	_load_special_effects()
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()
@@ -513,7 +512,9 @@ func _update_item_indicators() -> void:
 		return
 	
 	var items := ItemSystem.get_tower_equipped_items(self)
-	var slot_x := -20
+	# Oben rechts, 16-px-Icons in Originalgroesse - unten sitzen die Stufen-Pips,
+	# oben links die Gravur
+	var slot_x := 14
 	
 	for i in range(items.size()):
 		var item: Dictionary = items[i]
@@ -521,7 +522,7 @@ func _update_item_indicators() -> void:
 			continue
 		
 		var indicator := Node2D.new()
-		indicator.position = Vector2(slot_x + i * 20, 25)
+		indicator.position = Vector2(slot_x + i * 16, -38)
 		add_child(indicator)
 		item_indicators.append(indicator)
 		
@@ -530,7 +531,6 @@ func _update_item_indicators() -> void:
 		var tex := ItemSystem.get_item_texture(item)
 		if tex:
 			icon.texture = tex
-			icon.scale = Vector2(1.5, 1.5)
 		else:
 			# Fallback: Farbiger Punkt
 			var dot := Polygon2D.new()
@@ -569,12 +569,8 @@ func upgrade(data: Dictionary, new_level: int) -> void:
 	damage = base_damage
 	splash_radius = base_splash
 	attack_type = data.get("attack_type", attack_type)
-	
-	if data.has("buff_strength"):
-		var bs = data.get("buff_strength", 0.15)
-		buff_strength = bs[level] if (bs is Array and level < bs.size()) else (bs[0] if bs is Array else bs)
-		aura_range = tower_range  # Aura nutzt tower_range
-	
+	_load_level_specials()
+
 	_load_special_effects()
 	_apply_upgrade_bonuses()
 	_apply_item_bonuses()  # ← DAS FEHLTE!
@@ -674,7 +670,8 @@ func _load_engraving_effects() -> void:
 		"water":
 			special_type = "slow"
 			# Gedeckelt bei 0.45: bei Stufe 7 waeren es sonst 0.50, also praktisch Stillstand.
-			slow_amount = minf(0.15 + level * 0.05, 0.45)
+			# maxf: eine Falle behaelt ihren (ggf. hoeheren) Grund-Slow.
+			slow_amount = maxf(slow_amount, minf(0.15 + level * 0.05, 0.45))
 		"fire":
 			special_type = "burn"
 			burn_damage = 2 + level * 2
@@ -764,10 +761,22 @@ func _get_aura_buff_color() -> Color:
 
 
 func _load_special_effects() -> void:
+	# Statuswerte jedes Mal von Grund auf neu setzen: _apply_upgrade_bonuses() und
+	# _apply_item_bonuses() addieren darauf. Ohne Reset wuchsen slow/stun/chain/Crit
+	# bei jedem Recalc (jede Platzierung loest einen fuer alle Tuerme aus) weiter an.
+	slow_amount = 0.0
+	burn_damage = 0
+	stun_chance = 0.0
+	chain_targets = 0
+	base_crit_chance = _get_type_crit_chance()
+	# Fallen verlangsamen immer, auch graviert - Grundwert waechst mit der Stufe
+	if tower_type == "trapper":
+		slow_amount = float(TowerData.get_stat(tower_type, "slow_amount", level))
+
 	if engraved_element != "":
 		_load_engraving_effects()
 		return
-	
+
 	special_type = TowerData.get_stat(tower_type, "special")
 	if special_type == null:
 		special_type = ""
@@ -797,7 +806,7 @@ func _create_visuals() -> void:
 	range_visual.z_index = -6
 	add_child(range_visual)
 	level_indicator = Node2D.new()
-	level_indicator.position = Vector2(18, -42)
+	level_indicator.position = Vector2(0, 26)  # Pips an der Sockelvorderkante
 	level_indicator.z_index = 12
 	add_child(level_indicator)
 	
@@ -818,12 +827,10 @@ func _update_visuals() -> void:
 	sword_sprite = null
 	sprite = null
 
-	# SPRITE SETUP - nur eine Funktion wird aufgerufen
-	if tower_type == "archer":
-		_setup_archer_sprite()
-	elif tower_type == "sword":
-		_setup_sword_sprite()
-	elif tower_type == "farm":
+	# SPRITE SETUP - nur eine Funktion wird aufgerufen. Bogen und Schwert nutzen seit
+	# der Art-Vereinheitlichung dasselbe 16-px-Posenblatt wie alle Tuerme; die
+	# 192-px-Spritesheets (_setup_archer_sprite/_setup_sword_sprite) sind stillgelegt.
+	if tower_type == "farm":
 		_setup_farm_sprite()
 	elif tower_type == "city":
 		_setup_city_sprite()
@@ -969,8 +976,7 @@ func _setup_farm_sprite() -> void:
 	if ResourceLoader.exists(texture_path):
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
-		sprite.scale = Vector2(2.0, 2.0)
-		sprite.offset.y = -8
+		sprite.scale = Vector2(2.0, 2.0)  # 32-px-Gebaeude, Ausnahme vom x4-Raster
 		turret.add_child(sprite)
 	else:
 		var poly := Polygon2D.new()
@@ -997,8 +1003,7 @@ func _setup_city_sprite() -> void:
 	if ResourceLoader.exists(texture_path):
 		sprite = Sprite2D.new()
 		sprite.texture = load(texture_path)
-		sprite.scale = Vector2(2.0, 2.0)
-		sprite.offset.y = -8
+		sprite.scale = Vector2(2.0, 2.0)  # 32-px-Gebaeude, Ausnahme vom x4-Raster
 		turret.add_child(sprite)
 	else:
 		var base := Polygon2D.new()
@@ -1078,83 +1083,70 @@ func _get_aura_buff_icon_name() -> String:
 		_: return "star_full"
 
 
-func _setup_archer_sprite() -> void:
-	var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
-	if not ResourceLoader.exists(spritesheet_path):
-		_setup_standard_sprite()
-		return
-	
-	archer_sprite = Sprite2D.new()
-	archer_sprite.texture = load(spritesheet_path)
-	archer_sprite.hframes = ARCHER_COLUMNS
-	archer_sprite.vframes = ARCHER_ROWS
-	archer_sprite.frame = 0
-	
-	var desired_size := 128.0
-	var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
-	archer_sprite.scale = Vector2(scale_factor, scale_factor)
-	
-	turret.add_child(archer_sprite)
-	current_anim_row = 0
-	current_anim_frame = 0
-
-
-func _setup_sword_sprite() -> void:
-	var spritesheet_path := "res://assets/elemental_tower/sword_spritesheet.png"
-	if not ResourceLoader.exists(spritesheet_path):
-		_setup_standard_sprite()
-		return
-	
-	sword_sprite = Sprite2D.new()
-	sword_sprite.texture = load(spritesheet_path)
-	sword_sprite.hframes = SWORD_COLUMNS
-	sword_sprite.vframes = SWORD_ROWS
-	sword_sprite.frame = 0
-	
-	var desired_size := 128.0
-	var scale_factor := desired_size / SWORD_FRAME_SIZE.x
-	sword_sprite.scale = Vector2(scale_factor, scale_factor)
-	
-	turret.add_child(sword_sprite)
-	current_anim_row = 0
-	current_anim_frame = 0
-
-
 func _setup_standard_sprite() -> void:
 	var texture_path := _get_tower_texture_path()
-	if not ResourceLoader.exists(texture_path) and level > 0:
-		# Kein Sprite fuer diese Stufe: auf die naechstniedrigere vorhandene
-		# Stufen-Variante zurueckfallen statt direkt aufs Basis-Sprite zu
-		# springen (sonst wirkt ein hochgestufter Turm ploetzlich wieder neu).
-		texture_path = "res://assets/elemental_tower/tower_%s.png" % tower_type
-		for fallback_level in range(level - 1, 0, -1):
-			var candidate := "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, fallback_level + 1]
-			if ResourceLoader.exists(candidate):
-				texture_path = candidate
-				break
 	var data := TowerData.get_tower_data(tower_type)
-	var is_animated: bool = data.get("animated", true)
 
 	if not ResourceLoader.exists(texture_path):
 		_setup_placeholder_sprite(data)
 		sprite = null
 		return
 
+	_add_pedestal()
 	sprite = Sprite2D.new()
 	sprite.texture = load(texture_path)
+	sprite.scale = Vector2(WORLD_SCALE, WORLD_SCALE)
+	sprite.position.y = -SPRITE_LIFT
+	# Posenblatt 16x32: [Stand, Angriff] (tools/ninja_import/build_assets.py).
+	# Der Angriffs-Frame blitzt beim Schuss kurz auf (_play_attack_pose).
 	sprite.hframes = 1
-	sprite.scale = Vector2(3, 3)
-	if is_animated:
-		sprite.vframes = 4
-		var timer := Timer.new()
-		timer.name = "AnimTimer"
-		timer.wait_time = 0.15
-		timer.autostart = true
-		timer.timeout.connect(func(): sprite.frame = (sprite.frame + 1) % 4)
-		turret.add_child(timer)
-	else:
-		sprite.vframes = 1
+	sprite.vframes = maxi(1, sprite.texture.get_height() / 16)
+	sprite.frame = 0
 	turret.add_child(sprite)
+
+
+# Runensockel unter jeder Figur: Stein + Rune in der Elementfarbe des Turms.
+# Damit liest sich jede Figur auf einen Blick als "meins" - Gegner haben keinen Sockel.
+func _add_pedestal() -> void:
+	var stone_tex := "res://assets/elemental_tower/pedestal.png"
+	var glow_tex := "res://assets/elemental_tower/pedestal_glow.png"
+	if not ResourceLoader.exists(stone_tex):
+		return
+	var stone := Sprite2D.new()
+	stone.texture = load(stone_tex)
+	stone.scale = Vector2(WORLD_SCALE, WORLD_SCALE)
+	turret.add_child(stone)
+	if ResourceLoader.exists(glow_tex):
+		var glow := Sprite2D.new()
+		glow.name = "PedestalGlow"
+		glow.texture = load(glow_tex)
+		glow.scale = Vector2(WORLD_SCALE, WORLD_SCALE)
+		glow.modulate = _get_pedestal_color()
+		turret.add_child(glow)
+
+
+func _get_pedestal_color() -> Color:
+	var elem := get_effective_element()
+	if elem != "" and ElementalSystem:
+		return ElementalSystem.get_element_color(elem)
+	if tower_type == "aura" and aura_buff_type != "":
+		return _get_aura_buff_color()
+	return Color(1.0, 0.86, 0.45)  # ungravierte Basistuerme: arkanes Gold
+
+
+# Angriffspose kurz zeigen (Frame 1 des Posenblatts)
+func _play_attack_pose() -> void:
+	if not sprite or sprite.vframes < 2:
+		return
+	sprite.frame = 1
+	sprite.position.y = -SPRITE_LIFT
+	var pose_sprite := sprite
+	var tw := pose_sprite.create_tween()
+	tw.tween_interval(ATTACK_POSE_TIME)
+	tw.tween_callback(func():
+		if is_instance_valid(pose_sprite):
+			pose_sprite.frame = 0
+	)
 
 
 # Einheitlicher Platzhalter fuer Tuerme ohne Sprite (aktuell keiner - greift nur,
@@ -1213,40 +1205,35 @@ func _placeholder_silhouette(scale_factor: float, offset: Vector2) -> PackedVect
 
 
 func _get_tower_texture_path() -> String:
-	if level == 0:
-		return "res://assets/elemental_tower/tower_%s.png" % tower_type
-	else:
-		return "res://assets/elemental_tower/tower_%s_level_%d.png" % [tower_type, level + 1]
+	# Ein Sprite fuer alle Stufen - die Stufe zeigen die Pips am Sockel
+	return "res://assets/elemental_tower/tower_%s.png" % tower_type
 
 
 func _update_level_indicator() -> void:
 	for child in level_indicator.get_children():
 		child.queue_free()
 
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.custom_minimum_size = Vector2(38, 17)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.04, 0.075, 0.94)
-	var accent: Color = TowerData.get_tower_data(tower_type).get("color", Color("75ddff"))
-	if engraved_element != "" and ElementalSystem:
-		accent = ElementalSystem.get_element_color(engraved_element)
-	style.border_color = accent
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
-	panel.add_theme_stylebox_override("panel", style)
-	level_indicator.add_child(panel)
-
-	var label := Label.new()
-	label.text = "LV %d" % (level + 1)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 8)
-	label.add_theme_color_override("font_color", Color(0.92, 0.97, 1.0))
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	label.add_theme_constant_override("outline_size", 1)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(label)
+	# Stufen-Pips statt "LV n"-Badge: ein Punkt pro Stufe, je 1 Art-Pixel (4 px) mit
+	# 1 Art-Pixel Abstand - bleibt im Pixelraster und rauscht nicht. Die Zahl steht
+	# im Turm-Info-Panel, sobald man den Turm auswaehlt.
+	if tower_type == "farm" or tower_type == "city":
+		return
+	var pips := level + 1
+	var step := WORLD_SCALE * 2.0
+	var start_x := -(pips - 1) * step * 0.5 - WORLD_SCALE * 0.5
+	for i in range(pips):
+		var outline := ColorRect.new()
+		outline.color = Color(0.1, 0.08, 0.14)
+		outline.size = Vector2(WORLD_SCALE + 2.0, WORLD_SCALE + 2.0)
+		outline.position = Vector2(start_x + i * step - 1.0, -1.0)
+		outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		level_indicator.add_child(outline)
+		var pip := ColorRect.new()
+		pip.color = Color(1.0, 0.84, 0.3)
+		pip.size = Vector2(WORLD_SCALE, WORLD_SCALE)
+		pip.position = Vector2(start_x + i * step, 0.0)
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		level_indicator.add_child(pip)
 
 	level_indicator.scale = Vector2(1.18, 1.18)
 	var tween := level_indicator.create_tween()
@@ -1431,15 +1418,16 @@ func _start_sword_attack_animation() -> void:
 func _do_idle_animation(delta: float) -> void:
 	idle_time += delta
 	if sprite:
-		sprite.position.y = sin(idle_time * 2.0) * 1.5
+		# Atmen um genau 1 Art-Pixel statt Sinus-Subpixel - bleibt im Raster
+		var lift := SPRITE_LIFT if sprite.vframes > 1 else 0.0
+		sprite.position.y = -lift - (WORLD_SCALE if fmod(idle_time, 1.2) < 0.6 else 0.0)
 
 
 func _do_melee_animation(delta: float) -> void:
 	if not sprite:
 		return
-	var progress := attack_anim_time / 0.3
-	turret.rotation = sin(progress * PI) * 0.5
-	sprite.scale = Vector2(3, 3) * (1.0 + sin(progress * PI) * 0.15)
+	# Angriffspose statt Dreh-/Skalierpuls (der verliess das Pixelraster)
+	turret.rotation = 0.0
 
 
 func _find_target() -> void:
@@ -1448,6 +1436,8 @@ func _find_target() -> void:
 	
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if not RangeGridHelper.contains_point(position, enemy.position, tower_range):
+			continue
+		if enemy.has_method("is_targetable") and not enemy.is_targetable():
 			continue
 		
 		if tower_type == "cannon" and RangeGridHelper.is_inside_minimum(position, enemy.position, min_range):
@@ -1463,23 +1453,26 @@ func _rotate_towards_target(delta: float) -> void:
 	var data := TowerData.get_tower_data(tower_type)
 	if data.get("animated", true) == false:
 		return
+	# Nur spiegeln, nicht drehen: gedrehte Pixelart verlaesst das Raster.
 	var direction := target.position - position
 	if sprite:
 		sprite.flip_h = direction.x < 0
-		sprite.position.y = 0
-	var adjusted := Vector2(abs(direction.x), direction.y)
-	turret.rotation = lerp_angle(turret.rotation, adjusted.angle() + TAU, 10 * delta)
+		sprite.position.y = -SPRITE_LIFT
+	turret.rotation = 0.0
 
 
 func _melee_attack() -> void:
 	is_attacking = true
 	attack_anim_time = 0.0
+	_play_attack_pose()
 	_execute_melee_damage()
 
 
 func _execute_melee_damage() -> void:
 	var hit_enemies: Array[Node2D] = []
 	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy.has_method("is_targetable") and not enemy.is_targetable():
+			continue
 		if RangeGridHelper.contains_point(position, enemy.position, tower_range):
 			hit_enemies.append(enemy)
 
@@ -1526,6 +1519,11 @@ func _execute_melee_damage() -> void:
 			var dealt: int = enemy.take_damage(melee_damage, true, elem, is_crit, tower_type, bonus_mult, self)
 			register_damage_dealt(dealt)
 		_apply_melee_effects(enemy)
+		# Meisterschaft crit T3: Crits setzen in Brand
+		if is_crit and SynergySystem and enemy.has_method("apply_burn"):
+			var crit_burn := SynergySystem.get_crit_burn_dps(melee_damage)
+			if crit_burn > 0:
+				enemy.apply_burn(crit_burn, SynergySystem.CRIT_T3_BURN_DURATION)
 
 		# Treffer-basierte Procs (chance_on_hit / execute)
 		if ItemSystem:
@@ -1584,6 +1582,11 @@ func _status_duration_mult(status: String) -> float:
 
 
 const MELEE_BURN_DURATION := 3.0
+const WORLD_SCALE := 4.0       # Welt-Pixelart: 16-px-Art fuellt genau eine 64-px-Zelle
+const SPRITE_LIFT := 8.0       # Figur steht auf dem Runensockel (2 Art-Pixel)
+const ATTACK_POSE_TIME := 0.16
+const WIZARD_SPELL_EVERY := 4          # jeder 4. Zauberer-Schuss ist ein Arkanstoss
+const WIZARD_SPELL_DAMAGE_MULT := 2.0
 
 
 # Status-Effekte werden unabhaengig voneinander geprueft, nicht per `match special_type`.
@@ -1649,8 +1652,16 @@ func _shoot() -> void:
 	if ItemSystem:
 		multishot = int(ItemSystem.get_tower_item_bonus(self, "multishot"))
 	
+	# Zauberer: jeder N-te Schuss ist ein Arkanstoss (doppelter Schaden, verstaerkte Gravur)
+	var empowered := tower_type == "wizard" and (shots_fired + 1) % WIZARD_SPELL_EVERY == 0
+	if empowered:
+		final_damage = int(final_damage * WIZARD_SPELL_DAMAGE_MULT)
+		if VFX:
+			VFX.spawn_pixel_ring(position, elem if elem != "" else "crit", 30.0)
+
 	# Haupt-Projektil
-	_fire_bullet(bullet, elem, final_damage, is_crit)
+	_play_attack_pose()
+	_fire_bullet(bullet, elem, final_damage, is_crit, empowered)
 	
 	# Extra Projektile durch Multishot
 	for i in range(multishot):
@@ -1674,18 +1685,23 @@ func _shoot() -> void:
 		_do_recoil()
 
 
-func _fire_bullet(bullet: Node2D, elem: String, dmg: int, is_crit: bool) -> void:
+func _fire_bullet(bullet: Node2D, elem: String, dmg: int, is_crit: bool, empowered: bool = false) -> void:
+	# Arkanstoss: Gravur-Effekt verstaerkt (sicherer Stun, staerkerer Slow/Brand, +2 Spruenge)
+	var b_slow := minf(slow_amount * 1.5, 0.6) if empowered else slow_amount
+	var b_burn := burn_damage * 2 if empowered else burn_damage
+	var b_stun := (1.0 if stun_chance > 0.0 else 0.0) if empowered else stun_chance
+	var b_chain := (chain_targets + 2 if chain_targets > 0 else 0) if empowered else chain_targets
 	var bullet_data := {
 		"target":            target,
 		"damage":            dmg,
-		"splash":            splash_radius,
+		"splash":            splash_radius * (1.5 if empowered else 1.0),
 		"type":              elem if elem != "" else tower_type,
 		"level":             level,
 		"special":           special_type,
-		"slow_amount":       slow_amount,
-		"burn_damage":       burn_damage,
-		"stun_chance":       stun_chance,
-		"chain_targets":     chain_targets,
+		"slow_amount":       b_slow,
+		"burn_damage":       b_burn,
+		"stun_chance":       b_stun,
+		"chain_targets":     b_chain,
 		"is_crit":           is_crit,
 		"source_tower_type": tower_type,   # NEU
 		"source_tower":      self,          # NEU: Referenz für situative Items & Procs
@@ -1744,7 +1760,12 @@ func _cannon_shoot() -> void:
 		"splash": splash_radius,
 		"type": elem if elem != "" else "cannon",
 		"level": level,
-		"special": "explosive",  # Kanone hat immer Explosion
+		# Ungraviert "explosive"; graviert traegt die Kugel den Status der Gravur
+		"special": special_type,
+		"slow_amount": slow_amount,
+		"burn_damage": burn_damage,
+		"stun_chance": stun_chance,
+		"chain_targets": chain_targets,
 		"is_crit": is_crit,
 		"is_cannon": true,  # Marker für größere Explosion-VFX
 		"source_tower_type": "cannon",
@@ -1755,6 +1776,7 @@ func _cannon_shoot() -> void:
 	shots_fired += 1
 	if ItemSystem:
 		ItemSystem.on_tower_shot(self, target, is_crit, shots_fired)
+	_play_attack_pose()
 	
 	if bullet.has_method("setup_extended"):
 		bullet.setup_extended(bullet_data)
@@ -1935,8 +1957,8 @@ func select() -> void:
 	selection_corners = Node2D.new()
 	selection_corners.name = "SelectionCorners"
 	add_child(selection_corners)
-	var offset := 38.0
-	var scl := Vector2(3, 3)
+	var offset := 36.0
+	var scl := Vector2(WORLD_SCALE, WORLD_SCALE)
 	for corner_data in [["top_left", Vector2(-offset, -offset)], ["top_right", Vector2(offset, -offset)],
 						["bottom_left", Vector2(-offset, offset)], ["bottom_right", Vector2(offset, offset)]]:
 		var s := Sprite2D.new()

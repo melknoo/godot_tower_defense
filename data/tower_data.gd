@@ -97,7 +97,7 @@ var towers := {
 	},
 	"wizard": {
 		"name": "Zauberer",
-		"description": "Schießt magische Projektile\nSpell ändert sich durch Gravur!",
+		"description": "Schießt magische Projektile\nJeder 4. Schuss: Arkanstoß\n(×2 Schaden, verstärkte Gravur)",
 		"cost": 80,
 		"damage": [35, 46, 59, 75, 95, 120, 151, 190],
 		"range": [180.0, 200.0, 220.0, 240.0, 260.0, 280.0, 300.0, 320.0],
@@ -529,46 +529,18 @@ func is_combination(tower_type: String) -> bool:
 # Icon eines Turmtyps fuer UI-Listen. Liegt hier statt im Shop, damit Shop und
 # Turm-Statistik dieselben Bilder benutzen.
 func get_tower_icon_texture(tower_type: String) -> Texture2D:
-	# Archer/Sword: ersten Frame aus dem Spritesheet ausschneiden
-	if tower_type == "archer" or tower_type == "sword":
-		var spritesheet_path := "res://assets/elemental_tower/%s_spritesheet.png" % tower_type
-		if ResourceLoader.exists(spritesheet_path):
-			var atlas := AtlasTexture.new()
-			atlas.atlas = load(spritesheet_path)
-			var margin := 66.0
-			atlas.region = Rect2(margin, margin + 10, 60, 60)
-			return atlas
+	# Farm/Stadt: 32x32-Gebaeude aus TilesetTowers, komplett als Icon
+	if tower_type == "farm" or tower_type == "city":
+		var building_path := "res://assets/elemental_tower/%s.png" % tower_type
+		return load(building_path) if ResourceLoader.exists(building_path) else null
 
-	# Farm: 32x48 Asset - oberen Bereich als Icon
-	if tower_type == "farm":
-		var farm_path := "res://assets/elemental_tower/farm.png"
-		if ResourceLoader.exists(farm_path):
-			var atlas := AtlasTexture.new()
-			atlas.atlas = load(farm_path)
-			atlas.region = Rect2(0, 0, 32, 48)
-			return atlas
-		return null
-
-	# Stadt: 32x32-Burgturm unten buendig im 32x48-Format - quadratischer Ausschnitt
-	if tower_type == "city":
-		var city_path := "res://assets/elemental_tower/city.png"
-		if ResourceLoader.exists(city_path):
-			var atlas := AtlasTexture.new()
-			atlas.atlas = load(city_path)
-			atlas.region = Rect2(0, 11, 32, 32)
-			return atlas
-		return null
-
-	# Standard Tower Textur
+	# Alle anderen: Posenblatt [Stand, Angriff] - der Stand-Frame ist das Icon
 	var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
 	if ResourceLoader.exists(texture_path):
-		var full_tex: Texture2D = load(texture_path)
-		if get_tower_data(tower_type).get("animated", true):
-			var atlas := AtlasTexture.new()
-			atlas.atlas = full_tex
-			atlas.region = Rect2(0, 0, 16, 16)
-			return atlas
-		return full_tex
+		var atlas := AtlasTexture.new()
+		atlas.atlas = load(texture_path)
+		atlas.region = Rect2(0, 0, 16, 16)
+		return atlas
 
 	return null
 

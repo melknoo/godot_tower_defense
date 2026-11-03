@@ -199,6 +199,149 @@ func _run() -> void:
 	# --- Stadt nimmt Farmen auf, ohne Supply zu verlieren ---
 	var game_state := root.get_node("GameState")
 	var tower_data := root.get_node("TowerData")
+	# --- Recalc stapelt keine Statuswerte mehr (Stacking-Bug) ---
+	var stack_tower: Node2D = tower_scene.instantiate()
+	main.add_child(stack_tower)
+	stack_tower.setup(root.get_node("TowerData").get_legacy_data("sword", 0), "sword")
+	await process_frame
+	var stun_once: float = stack_tower.stun_chance
+	var crit_once: float = stack_tower.base_crit_chance
+	for _i in range(5):
+		stack_tower.recalculate_stats()
+	_check(is_equal_approx(stack_tower.stun_chance, stun_once), "Mehrfacher Recalc veraendert stun_chance nicht")
+	_check(is_equal_approx(stack_tower.base_crit_chance, crit_once), "Mehrfacher Recalc veraendert die Crit-Chance nicht")
+	stack_tower.queue_free()
+
+	# --- Fallen-Upgrades wirken (max_traps/trap_duration pro Stufe) ---
+	var trap_tower: Node2D = tower_scene.instantiate()
+	main.add_child(trap_tower)
+	var td = root.get_node("TowerData")
+	trap_tower.setup(td.get_legacy_data("trapper", 0), "trapper")
+	await process_frame
+	var traps_lvl0: int = trap_tower.max_traps
+	trap_tower.upgrade(td.get_legacy_data("trapper", 3), 3)
+	_check(trap_tower.max_traps > traps_lvl0, "Fallen-Upgrade erhoeht die Fallenzahl (%d -> %d)" % [traps_lvl0, trap_tower.max_traps])
+	_check(trap_tower.slow_amount > 0.2, "Fallen-Slow waechst mit der Stufe")
+	trap_tower.queue_free()
+	await process_frame
+
+	# --- Wegzonen (TerrainData) ---
+	_check(is_equal_approx(TerrainData.damage_mult("earth", "mud"), 1.25), "Schlamm verstaerkt Erde")
+	_check(is_equal_approx(TerrainData.damage_mult("air", "mud"), 0.75), "Schlamm daempft Luft")
+	_check(is_equal_approx(TerrainData.damage_mult("fire", "ford"), 0.75), "Furt daempft Feuer")
+	_check(is_equal_approx(TerrainData.damage_mult("steam", "ford"), 1.25), "Fusion: bester Elternteil gewinnt")
+	_check(is_equal_approx(TerrainData.damage_mult("archer", "ash"), 1.0), "Elementlose Angriffe bleiben neutral")
+	_check(is_equal_approx(TerrainData.damage_mult("fire", ""), 1.0), "Erdweg ist neutral")
+	var zone_cells: Array[Vector2i] = []
+	for x in range(40):
+		zone_cells.append(Vector2i(x, 3))
+	var rng_a := RandomNumberGenerator.new()
+	rng_a.seed = 4242
+	var rng_b := RandomNumberGenerator.new()
+	rng_b.seed = 4242
+	var terrain_a: Array[String] = TerrainData.assign_zones(zone_cells, rng_a)
+	var terrain_b: Array[String] = TerrainData.assign_zones(zone_cells, rng_b)
+	_check(terrain_a == terrain_b, "Zonen sind fuer denselben Seed deterministisch")
+	_check(terrain_a.size() == zone_cells.size(), "Zonen liegen parallel zu den Pfadzellen")
+	var edge_clear := true
+	for i in range(TerrainData.EDGE_MARGIN):
+		if terrain_a[i] != "" or terrain_a[terrain_a.size() - 1 - i] != "":
+			edge_clear = false
+	_check(edge_clear, "Start und Ende des Wegs bleiben normaler Erdweg")
+	var runs: Array = []
+	var run_len := 0
+	var gap := 99
+	var gaps_ok := true
+	for i in range(terrain_a.size()):
+		if terrain_a[i] != "":
+			if run_len == 0 and gap < TerrainData.MIN_GAP:
+				gaps_ok = false
+			run_len += 1
+			gap = 0
+		else:
+			if run_len > 0:
+				runs.append(run_len)
+			run_len = 0
+			gap += 1
+	if run_len > 0:
+		runs.append(run_len)
+	_check(runs.size() >= TerrainData.ZONE_COUNT_MIN and runs.size() <= TerrainData.ZONE_COUNT_MAX,
+		"2-4 Zonen pro Weg (%d)" % runs.size())
+	var len_ok := true
+	for r in runs:
+		if r < TerrainData.ZONE_LEN_MIN or r > TerrainData.ZONE_LEN_MAX:
+			len_ok = false
+	_check(len_ok, "Zonenlaengen 4-7")
+	_check(gaps_ok, "Zwischen Zonen liegt genug Erdweg")
+	_check(main.path_terrain.size() == main.path_cells.size(), "Die echte Karte hat Zonen parallel zum Pfad")
+
+	# Gegner in einer Zone: Schaden und Tempo
+	var zone_enemy: Node2D = load("res://enemy.tscn").instantiate()
+	main.add_child(zone_enemy)
+	var zone_path: Array[Vector2] = [Vector2(32, 32), Vector2(96, 32), Vector2(160, 32)]
+	zone_enemy.path_terrain = ["mud", "mud", "mud"] as Array[String]
+	zone_enemy.setup_extended(zone_path, {
+		"type": "normal", "health": 10000, "speed": 10.0, "reward": 1, "element": "neutral"
+	})
+	_check(zone_enemy.get_current_zone() == "mud", "Gegner kennt seine Zone")
+	var hp_before: int = zone_enemy.health
+	var dealt_earth: int = zone_enemy.take_damage(100, true, "earth")
+	var dealt_air: int = zone_enemy.take_damage(100, true, "air")
+	_check(dealt_earth == 125 and dealt_air == 75,
+		"Zonen-Multiplikator wirkt im Schaden (Erde %d, Luft %d)" % [dealt_earth, dealt_air])
+	zone_enemy.free()
+
+	# --- Gegner-Verhalten ---
+	var behavior_path: Array[Vector2] = [Vector2(32, 32), Vector2(96, 32), Vector2(160, 32)]
+	var enemy_scene: PackedScene = load("res://enemy.tscn")
+
+	var tank: Node2D = enemy_scene.instantiate()
+	main.add_child(tank)
+	tank.setup_extended(behavior_path, {"type": "tank", "health": 10000, "speed": 1.0, "reward": 1,
+		"element": "neutral", "armor": 10})
+	_check(tank.take_damage(30, true, "earth") == 20, "Panzer: Ruestung zieht 10 pro Treffer ab")
+	_check(tank.take_damage(8, true, "air") == 2, "Panzer: mindestens 25 % kommen durch")
+	_check(tank.take_damage(8, false, "fire", false, "", 1.0, null, true) == 8, "Panzer: Brand ignoriert Ruestung")
+	tank.free()
+
+	var ghost: Node2D = enemy_scene.instantiate()
+	main.add_child(ghost)
+	ghost.setup_extended(behavior_path, {"type": "ethereal", "health": 10000, "speed": 1.0, "reward": 1,
+		"element": "neutral"})
+	_check(ghost.take_damage(100, true, "archer") == 50, "Aetherisch: ungravierte Treffer halbiert")
+	_check(ghost.take_damage(100, true, "fire") == 100, "Aetherisch: Element-Treffer voll")
+	ghost.free()
+
+	var brute: Node2D = enemy_scene.instantiate()
+	main.add_child(brute)
+	brute.setup_extended(behavior_path, {"type": "brute", "health": 10000, "speed": 1.0, "reward": 1,
+		"element": "neutral"})
+	brute.apply_slow(0.3, 2.0)
+	_check(is_equal_approx(brute.slow_timer, 1.0), "Koloss: Kontrolleffekte halb so lang")
+	brute.free()
+
+	var mole: Node2D = enemy_scene.instantiate()
+	main.add_child(mole)
+	mole.setup_extended(behavior_path, {"type": "burrower", "health": 10000, "speed": 1.0, "reward": 1,
+		"element": "neutral"})
+	mole.burrow_timer = 0.0
+	mole._update_burrow(0.01)
+	_check(mole.is_burrowed and not mole.is_targetable(), "Graeber taucht auf Erdweg ab und ist nicht anvisierbar")
+	mole.path_terrain = ["ford", "ford", "ford"] as Array[String]
+	mole._update_burrow(0.01)
+	_check(not mole.is_burrowed, "Graeber muss in der Furt auftauchen")
+	mole.free()
+
+	var boss: Node2D = enemy_scene.instantiate()
+	main.add_child(boss)
+	boss.setup_extended(behavior_path, {"type": "boss", "health": 1000, "speed": 10.0, "reward": 1,
+		"element": "fire"})
+	boss.take_damage(600, false, "")
+	_check(boss.boss_phase == 2, "Boss erreicht bei halber Energie Phase 2")
+	_check(boss.element == "air", "Boss wechselt ins Element, das den Konter schlaegt (Feuer -> Luft)")
+	_check(boss.base_speed > 10.0, "Boss wird in Phase 2 schneller")
+	boss.free()
+
 	var tower_manager = main.tower_manager
 	game_state.reset()
 	game_state.gold = 9999

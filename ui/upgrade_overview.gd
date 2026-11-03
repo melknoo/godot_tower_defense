@@ -16,7 +16,7 @@ var no_upgrades_label: Label
 const CATEGORY_ORDER := ["element", "tower_type", "global", "economy", "supply", "special", "instant"]
 const CATEGORY_NAMES := {
 	"element": "Elementar",
-	"tower_type": "Tower-Typ",
+	"tower_type": "Turm-Typ",
 	"economy": "Wirtschaft",
 	"supply": "Supply",
 	"global": "Global",

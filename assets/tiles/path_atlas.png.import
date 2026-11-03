@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://drojjakt8da82"
+path="res://.godot/imported/path_atlas.png-99b4f1fc656a0017673510f387de3979.image"
+
+[deps]
+
+source_file="res://assets/tiles/path_atlas.png"
+dest_files=["res://.godot/imported/path_atlas.png-99b4f1fc656a0017673510f387de3979.image"]
+
+[params]
+

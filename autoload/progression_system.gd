@@ -59,7 +59,7 @@ const TOWER_RESEARCH := {
 # (multipliziert jede Aether-Quelle und wuerde die Drosselung oben aushebeln).
 const RESEARCH := {
 	"starting_funds": {
-		"name": "Gefuellte Kriegskasse",
+		"name": "Gefüllte Kriegskasse",
 		"description": "+25 Startgold pro Rang.",
 		"icon": "gold", "max_level": 12, "base_cost": 12, "cost_growth": 1.55,
 		"tier": 1, "color": Color("e6b85c")
@@ -77,20 +77,20 @@ const RESEARCH := {
 		"tier": 1, "color": Color("75c77b")
 	},
 	"unlock_archer": {
-		"name": "Bogenschuetzen-Gilde",
-		"description": "Schaltet den Bogen-Turm ab dem naechsten Run frei.",
+		"name": "Bogenschützen-Gilde",
+		"description": "Schaltet den Bogen-Turm ab dem nächsten Run frei.",
 		"icon": "range", "max_level": 1, "base_cost": 24, "cost_growth": 1.0,
 		"tier": 1, "color": Color("7bd6c4")
 	},
 	"unlock_wizard": {
 		"name": "Arkanes Kolleg",
-		"description": "Schaltet den Zauberer ab dem naechsten Run frei.",
+		"description": "Schaltet den Zauberer ab dem nächsten Run frei.",
 		"icon": "upgrades", "max_level": 1, "base_cost": 32, "cost_growth": 1.0,
 		"tier": 1, "requires_invested": 2, "color": Color("b784f2")
 	},
 	"metallurgy": {
 		"name": "Sternenmetall",
-		"description": "+4% Schaden fuer alle Tuerme pro Rang.",
+		"description": "+4% Schaden für alle Türme pro Rang.",
 		"icon": "damage", "max_level": 10, "base_cost": 30, "cost_growth": 1.58,
 		"tier": 2, "requires_invested": 3, "color": Color("d879e8")
 	},
@@ -113,14 +113,14 @@ const RESEARCH := {
 		"tier": 2, "requires_invested": 5, "color": Color("8fd4ff")
 	},
 	"unlock_trapper": {
-		"name": "Pfadjaeger-Zunft",
-		"description": "Schaltet den Fallensteller ab dem naechsten Run frei.",
+		"name": "Pfadjäger-Zunft",
+		"description": "Schaltet den Fallensteller ab dem nächsten Run frei.",
 		"icon": "path", "max_level": 1, "base_cost": 42, "cost_growth": 1.0,
 		"tier": 2, "requires_invested": 4, "color": Color("82bd72")
 	},
 	"unlock_cannon": {
 		"name": "Belagerungswerkstatt",
-		"description": "Schaltet die Kanone ab dem naechsten Run frei.",
+		"description": "Schaltet die Kanone ab dem nächsten Run frei.",
 		"icon": "damage", "max_level": 1, "base_cost": 65, "cost_growth": 1.0,
 		"tier": 2, "requires_invested": 7, "color": Color("e58b58")
 	},
@@ -138,13 +138,13 @@ const RESEARCH := {
 	},
 	"resonance": {
 		"name": "Kernresonanz",
-		"description": "Bosswellen geben +1 zusaetzlichen Element-Kern.",
+		"description": "Bosswellen geben +1 zusätzlichen Element-Kern.",
 		"icon": "core", "max_level": 1, "base_cost": 180, "cost_growth": 1.0,
 		"tier": 3, "requires_invested": 14, "color": Color("ec84ff")
 	},
 	"unlock_aura": {
 		"name": "Resonanz-Obelisk",
-		"description": "Schaltet den Aura-Turm ab dem naechsten Run frei.",
+		"description": "Schaltet den Aura-Turm ab dem nächsten Run frei.",
 		"icon": "star_full", "max_level": 1, "base_cost": 110, "cost_growth": 1.0,
 		"tier": 3, "requires_invested": 10, "color": Color("f2d276")
 	}

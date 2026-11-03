@@ -138,7 +138,7 @@ static func get_events(wave: int) -> Array[Dictionary]:
 		})
 	if has_ability_upgrade(wave):
 		events.append({
-			"id": "ability", "label": "Ability-Upgrade",
+			"id": "ability", "label": "Fähigkeits-Upgrade",
 			"icon": "abilities", "color": COLOR_ABILITY
 		})
 	if has_element_core(wave):

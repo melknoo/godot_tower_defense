@@ -517,11 +517,12 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 	label.position = pos + Vector2(randf_range(-12, 12), -25)
 	label.z_index = 100
 	if UITheme:
-		# Schwer und aufrecht - der Gegenpol zur kursiven Goldschrift.
+		# Fett - Gold nutzt dieselbe Schrift, unterscheidet sich ueber Farbe und Muenz-Icon.
 		var font: Font = UITheme.font_damage if UITheme.font_damage else UITheme.game_font
 		if font:
 			label.add_theme_font_override("font", font)
-	var size := 21 if is_crit else 15
+	# Vielfache von 8: PixelOperator8 bleibt nur dann pixelscharf
+	var size := 24 if is_crit else 16
 	label.add_theme_font_size_override("font_size", size)
 	var color := Color(1.0, 1.0, 1.0)
 	if is_crit:
@@ -560,7 +561,6 @@ func spawn_gold_number(pos: Vector2, amount: int, is_spend: bool = false) -> voi
 	label.position = pos + Vector2(-15, -30)
 	label.z_index = 100
 	if UITheme:
-		# Leicht und kursiv - klar unterscheidbar von den Schadenszahlen.
 		var font: Font = UITheme.font_gold if UITheme.font_gold else UITheme.game_font
 		if font:
 			label.add_theme_font_override("normal_font", font)

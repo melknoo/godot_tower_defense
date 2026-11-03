@@ -116,7 +116,7 @@ const ITEMS := {
 		"min_rarity": "rare"
 	},
 	"critical_cape": {
-		"name": "Kritischer Cape", "category": "special",
+		"name": "Kritischer Umhang", "category": "special",
 		"description": "+{value}% Crit-Chance, +{value2}% Crit-Schaden",
 		"stat": "crit_chance", "base_value": 5,
 		"stat2": "crit_damage", "value2": 15,
@@ -134,7 +134,7 @@ const ITEMS := {
 		"min_rarity": "epic"
 	},
 	"longrange_bow": {
-		"name": "Langstrecken Bonge", "category": "accessory",
+		"name": "Langstreckenbogen", "category": "accessory",
 		"description": "+{value}% Crit-Chance, aber nur auf große Distanz",
 		"stat": "crit_chance", "base_value": 15,
 		"icon": "longrange_bow",
@@ -218,7 +218,7 @@ const ITEMS := {
 	},
 	"wind_essence": {
 		"name": "Windessenz", "category": "elemental",
-		"description": "+{value} Chain-Targets",
+		"description": "+{value} Kettenziele",
 		"stat": "chain_bonus", "base_value": 1,
 		"icon": "wind_essence",
 		"allowed_towers": ["air"],

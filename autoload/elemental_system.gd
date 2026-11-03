@@ -37,8 +37,19 @@ const COMBO_ELEMENTS := {
 }
 
 
+const DISPLAY_NAMES := {
+	"neutral": "Neutral", "water": "Wasser", "fire": "Feuer", "earth": "Erde", "air": "Luft",
+	"ice": "Eis", "steam": "Dampf", "lava": "Lava", "nature": "Natur",
+}
+
+
 func _ready() -> void:
 	print("[ElementalSystem] Initialisiert")
+
+
+# Deutscher Anzeigename eines Elements (UI zeigt nie die internen Keys)
+func get_element_display_name(element: String) -> String:
+	return DISPLAY_NAMES.get(element.to_lower(), element.capitalize())
 
 
 # Berechnet Damage-Multiplikator basierend auf Angreifer- und Verteidiger-Element

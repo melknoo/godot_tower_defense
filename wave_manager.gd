@@ -11,6 +11,7 @@ signal enemy_spawned(enemy: Node2D)
 @export var enemy_scene: PackedScene
 @export var spawn_interval: float = 0.6
 @export var path_points: Array[Vector2] = []
+var path_terrain: Array[String] = []   # Wegzone pro Pfadfeld, parallel zu den Pfadzellen
 
 var is_spawning := false
 var spawn_queue: Array[Dictionary] = []
@@ -27,37 +28,39 @@ var enemy_types := {
 	"normal": {
 		"health_base": 80,   "health_per_wave": 18,
 		"speed_base": 85.0,  "speed_per_wave": 6.0,
-		"reward": 1, "scale": 0.5
+		"reward": 1
 	},
 	"swift": {
 		"health_base": 45,   "health_per_wave": 10,
 		"speed_base": 160.0, "speed_per_wave": 10.0,
-		"reward": 2, "scale": 0.4
+		"reward": 2
 	},
 	"tank": {
 		"health_base": 280,  "health_per_wave": 55,
 		"speed_base": 50.0,  "speed_per_wave": 2.0,
-		"reward": 5, "scale": 0.7
+		"reward": 5,
+		# Ruestung: fester Abzug pro Treffer (enemy.gd), waechst mit der Welle
+		"armor_base": 4, "armor_per_wave": 0.8
 	},
 	"ethereal": {
 		"health_base": 120,  "health_per_wave": 22,
 		"speed_base": 75.0,  "speed_per_wave": 5.0,
-		"reward": 6, "scale": 0.5
+		"reward": 6
 	},
 	"brute": {
 		"health_base": 350,  "health_per_wave": 65,
 		"speed_base": 55.0,  "speed_per_wave": 2.5,
-		"reward": 7, "scale": 0.8
+		"reward": 7
 	},
 	"burrower": {
 		"health_base": 100,  "health_per_wave": 20,
 		"speed_base": 90.0,  "speed_per_wave": 7.0,
-		"reward": 4, "scale": 0.45
+		"reward": 4
 	},
 	"boss": {
 		"health_base": 1200, "health_per_wave": 180,
 		"speed_base": 45.0,  "speed_per_wave": 1.5,
-		"reward": 50, "scale": 1.0
+		"reward": 50
 	}
 }
 
@@ -232,7 +235,7 @@ func _create_enemy_data(type: String, wave: int) -> Dictionary:
 		"health":  int((base["health_base"] + base["health_per_wave"] * wave) * elem_bonus),
 		"speed":   base["speed_base"] + base["speed_per_wave"] * wave,
 		"reward":  base["reward"] + (1 if element != "neutral" else 0),
-		"scale":   base["scale"],
+		"armor":   int(base.get("armor_base", 0) + base.get("armor_per_wave", 0.0) * wave),
 		"element": element
 	}
 
@@ -268,6 +271,7 @@ func _spawn_enemy(data: Dictionary) -> void:
 		return
 
 	var enemy := enemy_scene.instantiate()
+	enemy.path_terrain = path_terrain
 	get_parent().add_child(enemy)
 
 	if enemy.has_method("setup_extended"):
@@ -315,12 +319,12 @@ func get_wave_info(wave_number: int) -> String:
 	var p := get_wave_preview(wave_number)
 	var parts: Array[String] = []
 
-	if p["normal"]   > 0: parts.append("%dx Norm"  % p["normal"])
+	if p["normal"]   > 0: parts.append("%dx Normal" % p["normal"])
 	if p["swift"]    > 0: parts.append("%dx Flink" % p["swift"])
-	if p["tank"]     > 0: parts.append("%dx Tank"  % p["tank"])
+	if p["tank"]     > 0: parts.append("%dx Panzer" % p["tank"])
 	if p["ethereal"] > 0: parts.append("%dx Äther" % p["ethereal"])
-	if p["brute"]    > 0: parts.append("%dx Brute" % p["brute"])
-	if p["burrower"] > 0: parts.append("%dx Grab"  % p["burrower"])
+	if p["brute"]    > 0: parts.append("%dx Koloss" % p["brute"])
+	if p["burrower"] > 0: parts.append("%dx Gräber" % p["burrower"])
 	if p["boss"]     > 0: parts.append("%dx Boss"  % p["boss"])
 
 	return " | ".join(parts)
@@ -338,8 +342,8 @@ func get_wave_element_info(wave_number: int) -> String:
 		var effective := ElementalSystem.get_effective_element(wave_elem)
 		var eff_sym  := ElementalSystem.get_element_symbol(effective) if effective != "neutral" else ""
 		if eff_sym != "":
-			return "%s %s (schwach gegen %s)" % [symbol, wave_elem.capitalize(), eff_sym]
-		return "%s %s" % [symbol, wave_elem.capitalize()]
+			return "%s %s (schwach gegen %s)" % [symbol, ElementalSystem.get_element_display_name(wave_elem), eff_sym]
+		return "%s %s" % [symbol, ElementalSystem.get_element_display_name(wave_elem)]
 
 	return "%s %s" % [wave_elem.substr(0, 1).to_upper(), wave_elem.capitalize()]
 

@@ -38,9 +38,13 @@ const AIR_T1_CHAIN := 1                  # +1 Kettenziel
 
 const CRIT_T1_CHANCE := 0.08             # +8% Crit-Chance
 const CRIT_T2_DAMAGE := 0.30             # +30% Crit-Schaden
+const CRIT_T3_BURN_PCT := 0.10           # Crit-Brand: 10% des Crit-Schadens pro Sekunde
+const CRIT_T3_BURN_DURATION := 3.0
 
 const SPLASH_T1_RADIUS := 0.20           # +20% Splash-Radius
 const SPLASH_T2_DAMAGE := 0.15           # +15% Splash-Schaden
+const SPLASH_T3_SLOW := 0.20             # Splash verlangsamt um 20%
+const SPLASH_T3_SLOW_DURATION := 1.5
 
 const CONTROL_T1_DURATION := 0.15        # +15% Status-Dauer (slow/freeze/stun)
 const CONTROL_T2_VULN := 0.12            # kontrollierte Gegner nehmen +12% Turmschaden
@@ -65,7 +69,7 @@ const TIER_EFFECTS := {
 	"air":     ["+1 Kettenziel", "+15% Schaden für Luft-Türme", "Ketten verlieren keinen Schaden"],
 	"crit":    ["+8% Crit-Chance", "+30% Crit-Schaden", "Crits lösen Brand aus"],
 	"splash":  ["+20% Splash-Radius", "+15% Splash-Schaden", "Splash verlangsamt Gegner"],
-	"control": ["+15% Status-Dauer", "Kontrollierte Gegner: +12% Turmschaden", "10% Freeze-Chance vs. verlangsamte Gegner"],
+	"control": ["+15% Status-Dauer", "Kontrollierte Gegner: +12% Turmschaden", "10% Einfrier-Chance vs. verlangsamte Gegner"],
 }
 
 # Perk-ID → Meisterschafts-Tags. Zentrale Quelle, damit upgrade_system.gd nicht
@@ -284,6 +288,13 @@ func get_status_duration_mult(status: String) -> float:
 
 func crit_applies_burn() -> bool:
 	return has_tier("crit", 3)
+
+
+# Brennschaden/s, den ein Crit mit diesem Schaden ausloest (0 ohne crit T3)
+func get_crit_burn_dps(crit_damage: int) -> int:
+	if not crit_applies_burn():
+		return 0
+	return maxi(1, roundi(crit_damage * CRIT_T3_BURN_PCT))
 
 
 func splash_applies_slow() -> bool:

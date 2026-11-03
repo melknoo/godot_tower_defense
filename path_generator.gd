@@ -45,11 +45,18 @@ func generate() -> Dictionary:
 		if result["valid"]:
 			print("[PathGenerator] Pfad generiert nach %d Versuchen, Länge: %d, Typ: %s" % 
 				[attempt + 1, result["cells"].size(), _get_path_type_name(result["path_type"])])
-			return result
+			return _with_terrain(result)
 	
 	# Fallback: Einfacher S-Kurven-Pfad
 	print("[PathGenerator] Fallback-Pfad verwendet")
-	return _generate_fallback_path()
+	return _with_terrain(_generate_fallback_path())
+
+
+# Wegzonen (Schlamm/Furt/Asche/Windpass) aus demselben Seed wie der Pfad
+func _with_terrain(result: Dictionary) -> Dictionary:
+	var cells: Array[Vector2i] = result["cells"]
+	result["terrain"] = TerrainData.assign_zones(cells, rng)
+	return result
 
 
 func _try_generate_path() -> Dictionary:

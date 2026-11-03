@@ -119,24 +119,32 @@ func _load_corner_pieces() -> void:
 
 
 func _load_font() -> void:
-	game_font = load("res://assets/fonts/Clarity.ttf")
+	# Dieselbe Pixelschrift wie das restliche UI (ui/ui_theme.gd). Vorher Clarity.ttf -
+	# ein zweiter, glatter Schriftstil fuer Schadens-/Goldzahlen und Alt-Buttons.
+	game_font = _load_pixel_font("res://ui/fonts/pixel_operator/PixelOperator8.ttf")
 	if not game_font:
 		return
-	# Clarity hat keine Symbol-/Emoji-Glyphen. Ohne Fallback zeigt der Browser
-	# dafuer Tofu-Kaestchen (Desktop holt sie sich aus System-Fonts).
-	SymbolFont.install(game_font)
+	var bold := _load_pixel_font("res://ui/fonts/pixel_operator/PixelOperator8-Bold.ttf")
 
+	# Keine embolden-/Scher-Variationen: die verschmieren das Pixelraster.
 	font_damage = FontVariation.new()
-	font_damage.base_font = game_font
-	font_damage.variation_embolden = 0.65
-	font_damage.spacing_glyph = -1
+	font_damage.base_font = bold if bold else game_font
 
 	font_gold = FontVariation.new()
-	font_gold.base_font = game_font
-	font_gold.variation_embolden = 0.15
-	# Schraegstellung ohne echte Kursiv-Schnitte: x-Scherung auf der Grundlinie.
-	font_gold.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(0.28, 1.0), Vector2.ZERO)
+	font_gold.base_font = bold if bold else game_font
 	font_gold.spacing_glyph = 1
+
+
+func _load_pixel_font(path: String) -> FontFile:
+	if not ResourceLoader.exists(path):
+		return null
+	var f: FontFile = load(path)
+	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	f.generate_mipmaps = false
+	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	# Die Pixelschrift deckt nur ASCII ab - Symbole/Emoji kommen aus den Fallback-Subsets
+	SymbolFont.install(f)
+	return f
 
 
 func _load_tex(path: String) -> Texture2D:

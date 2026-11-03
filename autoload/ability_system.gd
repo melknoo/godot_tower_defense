@@ -45,7 +45,7 @@ const CHARACTERS := {
 		"color": Color(0.3, 0.6, 1.0),
 		"base": true,
 		"passive": {
-			"description": "Verlangsamung wirkt 15% staerker.",
+			"description": "Verlangsamung wirkt 15% stärker.",
 			"modifiers": {"slow_strength_mult": 1.15}
 		}
 	},
@@ -59,7 +59,7 @@ const CHARACTERS := {
 		"color": Color(0.6, 0.4, 0.2),
 		"base": true,
 		"passive": {
-			"description": "+3 Prozentpunkte Stun-Chance fuer alle Tuerme.",
+			"description": "+3 Prozentpunkte Stun-Chance für alle Türme.",
 			"modifiers": {"stun_chance_add": 0.03}
 		}
 	},
@@ -73,7 +73,7 @@ const CHARACTERS := {
 		"color": Color(0.8, 0.9, 1.0),
 		"base": true,
 		"passive": {
-			"description": "Alle Tuerme feuern 6% schneller.",
+			"description": "Alle Türme feuern 6% schneller.",
 			"modifiers": {"tower_fire_rate_mult": 1.06}
 		}
 	},
@@ -308,15 +308,15 @@ const UPGRADE_VALUES := {
 	"cooldown": {"per_stack": -0.10, "display": "-10% Cooldown", "format": "%.1fs"},
 	"damage": {"per_stack": 0.20, "display": "+20% Schaden", "format": "+%d"},
 	"radius": {"per_stack": 0.15, "display": "+15% Radius", "format": "+%.0f"},
-	"chain_count": {"per_stack": 1, "display": "+1 Chain", "format": "+%d"},
-	"chain_range": {"per_stack": 0.20, "display": "+20% Chain-Reichweite", "format": "+%.0f"},
+	"chain_count": {"per_stack": 1, "display": "+1 Kette", "format": "+%d"},
+	"chain_range": {"per_stack": 0.20, "display": "+20% Kettenreichweite", "format": "+%.0f"},
 	"freeze_duration": {"per_stack": 0.25, "display": "+25% Einfrier-Dauer", "format": "+%.1fs"},
 	"burn_damage": {"per_stack": 0.25, "display": "+25% Brennschaden", "format": "+%d"},
 	"burn_duration": {"per_stack": 0.20, "display": "+20% Brenndauer", "format": "+%.1fs"},
 	"stun_duration": {"per_stack": 0.20, "display": "+20% Stun-Dauer", "format": "+%.1fs"},
 	"duration": {"per_stack": 0.25, "display": "+25% Dauer", "format": "+%.1fs"},
-	"slow_amount": {"per_stack": 0.15, "display": "+15% Slow", "format": "+%.0f%%"},
-	"slow_duration": {"per_stack": 0.20, "display": "+20% Slow-Dauer", "format": "+%.1fs"},
+	"slow_amount": {"per_stack": 0.15, "display": "+15% Verlangsamung", "format": "+%.0f%%"},
+	"slow_duration": {"per_stack": 0.20, "display": "+20% Verlangsamungsdauer", "format": "+%.1fs"},
 	"push_distance": {"per_stack": 0.20, "display": "+20% Rückstoß", "format": "+%.0f"},
 	"meteor_count": {"per_stack": 1, "display": "+1 Meteor", "format": "+%d"},
 	"area_radius": {"per_stack": 0.15, "display": "+15% Bereich", "format": "+%.0f"},

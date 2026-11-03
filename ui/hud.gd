@@ -39,11 +39,16 @@ var forge_button: Button
 var tower_stats_button: Button
 
 const ENEMY_TYPE_INFO := {
-	"tank":     {"weak": "archer",  "resist": "sword",   "name": "Tank"},
-	"swift":    {"weak": "sword",   "resist": "archer",  "name": "Flinker"},
-	"ethereal": {"weak": "wizard",  "resist": "cannon",  "name": "Ätherisch"},
-	"brute":    {"weak": "cannon",  "resist": "wizard",  "name": "Brute"},
-	"burrower": {"weak": "trapper", "resist": "archer",  "name": "Gräber"},
+	"tank":     {"weak": "archer",  "resist": "sword",   "name": "Panzer",
+		"trait": "Rüstung: fester Abzug pro Treffer, Brand ignoriert sie"},
+	"swift":    {"weak": "sword",   "resist": "archer",  "name": "Flinker",
+		"trait": "Sehr schnell, wenig Leben"},
+	"ethereal": {"weak": "wizard",  "resist": "cannon",  "name": "Ätherisch",
+		"trait": "Ungravierte Türme: halber Schaden"},
+	"brute":    {"weak": "cannon",  "resist": "wizard",  "name": "Koloss",
+		"trait": "Kontrolleffekte halb so lang"},
+	"burrower": {"weak": "trapper", "resist": "archer",  "name": "Gräber",
+		"trait": "Gräbt sich auf Erdweg/Schlamm ein - Fallen treffen trotzdem"},
 }
 
 const TOWER_NAMES := {
@@ -412,7 +417,7 @@ func _find_or_create_ui_elements() -> void:
 	var current_area_pos  := Vector2(viewport_size.x - 570, hud_height - 90)
 	var current_area_size := Vector2(190, 34)
 	current_wave_element_area  = _get_or_create_control("CurrentWaveElementArea", current_area_pos, current_area_size)
-	current_wave_element_icon  = _get_or_create_texture_rect_child(current_wave_element_area, "CurrentWaveElementIcon",  Vector2(8, 5),  Vector2(24, 24))
+	current_wave_element_icon  = _get_or_create_texture_rect_child(current_wave_element_area, "CurrentWaveElementIcon",  Vector2(8, 9),  Vector2(16, 16))
 	current_wave_element_label = _get_or_create_label_child(current_wave_element_area,         "CurrentWaveElementLabel", Vector2(40, 8))
 
 	# Wave-Preview-Label bekommt eigene hover-Area damit Tooltip auch dort triggert
@@ -423,7 +428,7 @@ func _find_or_create_ui_elements() -> void:
 	var area_size := Vector2(190, 34)
 	wave_element_area = _get_or_create_control("WaveElementArea", area_pos, area_size)
 
-	wave_element_icon  = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon",  Vector2(8, 5),  Vector2(24, 24))
+	wave_element_icon  = _get_or_create_texture_rect_child(wave_element_area, "WaveElementIcon",  Vector2(8, 9),  Vector2(16, 16))
 	wave_element_label = _get_or_create_label_child(wave_element_area,        "WaveElementLabel", Vector2(40, 8))
 
 	# Panel-Buttons docken in _build_top_bar_content()/_dock_icon_button() sofort in
@@ -517,9 +522,10 @@ func _create_wave_status_ui() -> void:
 	current_wave_element_area.position = Vector2.ZERO
 	current_wave_element_area.custom_minimum_size = Vector2(130, 16)
 	current_wave_element_icon.position = Vector2(0, 1)
-	current_wave_element_icon.custom_minimum_size = Vector2(14, 14)
-	current_wave_element_icon.size = Vector2(14, 14)
-	current_wave_element_label.position = Vector2(19, 1)
+	# Pixel-Icons nur in ganzzahligen Vielfachen von 16 (sonst ungleich breite Pixel)
+	current_wave_element_icon.custom_minimum_size = Vector2(16, 16)
+	current_wave_element_icon.size = Vector2(16, 16)
+	current_wave_element_label.position = Vector2(21, 1)
 
 	blocked_warning_label.reparent(action_column, false)
 	blocked_warning_label.position = Vector2.ZERO
@@ -708,7 +714,7 @@ func _show_item_toast(item: Dictionary) -> void:
 	margin.add_child(row)
 
 	var icon := TextureRect.new()
-	icon.custom_minimum_size = Vector2(38, 38)
+	icon.custom_minimum_size = Vector2(32, 32)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture = ItemSystem.get_item_texture(item) if ItemSystem else null
@@ -988,7 +994,7 @@ func _apply_styles() -> void:
 		inventory_button.icon = IconSystem.get_texture("inventory")
 		if UITheme:
 			UITheme.center_button_icon(inventory_button)
-		inventory_button.add_theme_constant_override("icon_max_width", 26)
+		inventory_button.add_theme_constant_override("icon_max_width", 32)
 		inventory_button.tooltip_text = "Inventar öffnen (I)"
 
 		inventory_notification = Label.new()
@@ -1020,7 +1026,7 @@ func _apply_styles() -> void:
 		cores_button.text = ""
 		if UITheme:
 			UITheme.center_button_icon(cores_button)
-		cores_button.add_theme_constant_override("icon_max_width", 30)
+		cores_button.add_theme_constant_override("icon_max_width", 32)
 		var icon_path := "res://assets/elemental_symbols/four_elements.png"
 		if ResourceLoader.exists(icon_path):
 			cores_button.icon = load(icon_path)
@@ -1029,7 +1035,7 @@ func _apply_styles() -> void:
 		upgrades_button.icon = IconSystem.get_texture("upgrades")
 		if UITheme:
 			UITheme.center_button_icon(upgrades_button)
-		upgrades_button.add_theme_constant_override("icon_max_width", 26)
+		upgrades_button.add_theme_constant_override("icon_max_width", 32)
 		upgrades_button.tooltip_text = "Aktive Upgrades anzeigen (U)"
 
 	if synergy_button:
@@ -1042,7 +1048,7 @@ func _apply_styles() -> void:
 		schedule_button.icon = IconSystem.get_texture("path")
 		if UITheme:
 			UITheme.center_button_icon(schedule_button)
-		schedule_button.add_theme_constant_override("icon_max_width", 26)
+		schedule_button.add_theme_constant_override("icon_max_width", 32)
 		schedule_button.tooltip_text = "Fahrplan der kommenden Wellen (F)"
 
 	if forge_button:
@@ -1055,7 +1061,7 @@ func _apply_styles() -> void:
 		tower_stats_button.icon = IconSystem.get_texture("damage")
 		if UITheme:
 			UITheme.center_button_icon(tower_stats_button)
-		tower_stats_button.add_theme_constant_override("icon_max_width", 26)
+		tower_stats_button.add_theme_constant_override("icon_max_width", 32)
 		tower_stats_button.tooltip_text = "Turm-Statistik: Kills & Schaden aller Türme (T)"
 
 	if start_button:
@@ -1492,7 +1498,7 @@ func _update_bonus_preview() -> void:
 	var tooltip_lines: Array[String] = []
 	tooltip_lines.append("=== Wellen-Bonus Berechnung ===")
 	tooltip_lines.append("")
-	tooltip_lines.append("📦 Flat Bonus: %d Gold" % flat)
+	tooltip_lines.append("📦 Fester Bonus: %d Gold" % flat)
 	if flat_bonus > 0:
 		tooltip_lines.append("    Basis: %d" % base_flat)
 		tooltip_lines.append("    Upgrade (Kriegskasse): +%d" % flat_bonus)
@@ -1631,7 +1637,7 @@ func _update_current_wave_element_display(wave_elem: String) -> void:
 			current_wave_element_icon.texture = null
 			current_wave_element_icon.visible = false
 
-		current_wave_element_label.text = wave_elem.to_upper()
+		current_wave_element_label.text = ElementalSystem.get_element_display_name(wave_elem).to_upper() if ElementalSystem else wave_elem.to_upper()
 		var elem_color := ElementalSystem.get_element_color(wave_elem) if ElementalSystem else Color.WHITE
 		current_wave_element_label.add_theme_color_override("font_color", elem_color)
 
@@ -1658,6 +1664,7 @@ func _update_wave_preview(next_wave: int) -> void:
 	var wave_elem : String = String(preview.get("wave_element", "neutral")).to_lower()
 
 	_next_wave_element = wave_elem
+	preview["map_zones"] = wave_manager.path_terrain
 	_next_wave_preview = preview
 	if next_wave_title_label:
 		next_wave_title_label.text = "NÄCHSTE WELLE · %d" % next_wave
@@ -1684,9 +1691,11 @@ func _update_wave_advice(preview: Dictionary, wave_elem: String) -> void:
 		var weak_element := ""
 		var resisted_element := ""
 		if ElementalSystem:
-			weak_element = String(ElementalSystem.get_effective_element(wave_elem)).to_upper()
-			resisted_element = String(ElementalSystem.RESISTANCES.get(wave_elem, "")).to_upper()
-		element_line = "[color=#718293]ELEMENT[/color]  [color=%s]%s[/color]" % [element_color, wave_elem.to_upper()]
+			weak_element = ElementalSystem.get_element_display_name(String(ElementalSystem.get_effective_element(wave_elem))).to_upper()
+			var resisted_key := String(ElementalSystem.RESISTANCES.get(wave_elem, ""))
+			resisted_element = ElementalSystem.get_element_display_name(resisted_key).to_upper() if resisted_key != "" else ""
+		var elem_name := ElementalSystem.get_element_display_name(wave_elem) if ElementalSystem else wave_elem
+		element_line = "[color=#718293]ELEMENT[/color]  [color=%s]%s[/color]" % [element_color, elem_name.to_upper()]
 		if weak_element != "" and weak_element != "NEUTRAL":
 			element_line += "   [color=#65d879]SCHWACH[/color] %s" % weak_element
 		if resisted_element != "":
@@ -1713,7 +1722,21 @@ func _update_wave_advice(preview: Dictionary, wave_elem: String) -> void:
 		if not ineffective.is_empty():
 			tower_line += "   [color=#e06b6b]▼[/color] %s" % ", ".join(ineffective)
 
-	wave_advice_label.text = "%s\n%s" % [element_line, tower_line]
+	wave_advice_label.text = "%s\n%s%s" % [element_line, tower_line, _zone_hint(preview, wave_elem)]
+
+
+# Wegzone, deren Element gegen die naechste Welle wirkt (z. B. Schlamm bei einer
+# Luft-Welle): nennt den Ort, an dem passende Tuerme doppelt lohnen.
+func _zone_hint(preview: Dictionary, wave_elem: String) -> String:
+	if wave_elem == "" or wave_elem == "neutral" or not ElementalSystem:
+		return ""
+	var counter := String(ElementalSystem.get_effective_element(wave_elem))
+	var zones: Array = preview.get("map_zones", [])
+	for zone in zones:
+		if zone != "" and TerrainData.zone_element(zone) == counter:
+			return "\n[color=#718293]ZONE[/color]  %s verstärkt %s ×1,25" % [
+				TerrainData.zone_name(zone), ElementalSystem.get_element_display_name(counter)]
+	return ""
 
 
 func _update_wave_element_display(wave_elem: String) -> void:
@@ -1736,7 +1759,7 @@ func _update_wave_element_display(wave_elem: String) -> void:
 			wave_element_icon.texture = null
 			wave_element_icon.visible = false
 
-		wave_element_label.text = wave_elem.capitalize()
+		wave_element_label.text = ElementalSystem.get_element_display_name(wave_elem) if ElementalSystem else wave_elem.capitalize()
 		var elem_color := ElementalSystem.get_element_color(wave_elem) if ElementalSystem else Color.WHITE
 		wave_element_label.add_theme_color_override("font_color", elem_color)
 
@@ -1896,7 +1919,7 @@ func _show_wave_tooltip(which: String) -> void:
 	if wave_elem == "" or wave_elem == "neutral":
 		wave_tooltip_title.text = "%sNeutral" % title_prefix
 	else:
-		wave_tooltip_title.text = "%s%s Gegner" % [title_prefix, wave_elem.capitalize()]
+		wave_tooltip_title.text = "%s%s Gegner" % [title_prefix, ElementalSystem.get_element_display_name(wave_elem) if ElementalSystem else wave_elem.capitalize()]
 
 	# --- Elementar-Schwäche / Resistenz ---
 	var weak_against := ""
@@ -1907,14 +1930,14 @@ func _show_wave_tooltip(which: String) -> void:
 
 	if weak_against != "" and weak_against != "neutral" and element_textures.has(weak_against):
 		wave_tooltip_weak_icon.texture = element_textures[weak_against]
-		wave_tooltip_weak_label.text   = weak_against.capitalize()
+		wave_tooltip_weak_label.text   = ElementalSystem.get_element_display_name(weak_against)
 	else:
 		wave_tooltip_weak_icon.texture = null
 		wave_tooltip_weak_label.text   = "-"
 
 	if resists != "" and element_textures.has(resists):
 		wave_tooltip_resist_icon.texture = element_textures[resists]
-		wave_tooltip_resist_label.text   = resists.capitalize()
+		wave_tooltip_resist_label.text   = ElementalSystem.get_element_display_name(resists)
 	else:
 		wave_tooltip_resist_icon.texture = null
 		wave_tooltip_resist_label.text   = "-"
@@ -1956,6 +1979,13 @@ func _show_wave_tooltip(which: String) -> void:
 			resist_lbl.add_theme_font_size_override("font_size", 16)
 			resist_lbl.add_theme_color_override("font_color", Color(1.0, 0.38, 0.38))
 			row.add_child(resist_lbl)
+
+			# Typ-Mechanik in einer Zeile darunter
+			var trait_lbl := Label.new()
+			trait_lbl.text = "   " + String(info.get("trait", ""))
+			trait_lbl.add_theme_font_size_override("font_size", 16)
+			trait_lbl.add_theme_color_override("font_color", Color(0.62, 0.68, 0.76))
+			wk_container.add_child(trait_lbl)
 
 			lines_added += 1
 

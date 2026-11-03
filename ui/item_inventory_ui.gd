@@ -365,7 +365,7 @@ func _show_item_detail(item: Dictionary) -> void:
 	else:
 		var names: Array[String] = []
 		for t in allowed:
-			names.append(t.capitalize())
+			names.append(String(TowerData.get_tower_data(String(t)).get("name", String(t).capitalize())))
 		detail_allowed.text = "Nur: " + ", ".join(names)
 
 	# Hinweis auf den aktuell gewählten Turm

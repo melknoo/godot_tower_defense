@@ -237,7 +237,7 @@ func _create_element_button(element: String) -> Button:
 	
 	# Name
 	var name_label := Label.new()
-	name_label.text = element.capitalize()
+	name_label.text = ElementalSystem.get_element_display_name(element)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE

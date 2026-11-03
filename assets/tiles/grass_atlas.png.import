@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://by8xcuov8s4hw"
+path="res://.godot/imported/grass_atlas.png-82f23998b8b60ba1ea34bc6cceea2af9.image"
+
+[deps]
+
+source_file="res://assets/tiles/grass_atlas.png"
+dest_files=["res://.godot/imported/grass_atlas.png-82f23998b8b60ba1ea34bc6cceea2af9.image"]
+
+[params]
+

@@ -16,7 +16,7 @@ const UPGRADES := {
 		"bonus": 10, "stackable": true, "max_stacks": 5
 	},
 	"flat_bonus": {
-		"name": "Kriegskasse", "description": "+8 Gold Flat-Bonus pro Welle",
+		"name": "Kriegskasse", "description": "+8 Gold fester Bonus pro Welle",
 		"icon": "🪙", "category": "economy", "stat": "flat_bonus",
 		"bonus": 8, "stackable": true, "max_stacks": 5
 	},
@@ -26,7 +26,7 @@ const UPGRADES := {
 		"bonus": 0.02, "stackable": true, "max_stacks": 3
 	},
 	"tower_discount": {
-		"name": "Großhandel", "description": "-10% Tower-Baukosten",
+		"name": "Großhandel", "description": "-10% Turm-Baukosten",
 		"icon": "🏷️", "category": "economy", "stat": "tower_cost",
 		"bonus": 0.10, "stackable": true, "max_stacks": 3
 	},

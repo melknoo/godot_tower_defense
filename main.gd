@@ -7,11 +7,6 @@ const RunSchedule = preload("res://autoload/run_schedule.gd")
 const MAP_WIDTH := 30
 const MAP_HEIGHT := 15
 
-const ARCHER_FRAME_SIZE := Vector2(192, 192)
-const ARCHER_COLUMNS := 8
-const SWORD_FRAME_SIZE := Vector2(192, 192)
-const SWORD_COLUMNS := 6
-
 @onready var ground_layer: GroundLayer = $GroundLayer
 @onready var wave_manager: WaveManager = $WaveManager
 @onready var tower_manager: TowerManager = $TowerManager
@@ -29,6 +24,7 @@ var path_generator: PathGenerator
 
 var path_points: Array[Vector2] = []
 var path_cells: Array[Vector2i] = []
+var path_terrain: Array[String] = []   # Wegzone pro Pfadfeld ("" = Erdweg), siehe TerrainData
 var path_line: Line2D
 var current_seed: int = 0
 
@@ -40,6 +36,9 @@ var endless_mode := false
 var hover_preview: Node2D
 var hover_range_circle: Line2D
 var hover_range_visual: Node2D
+var zone_highlight: Node2D      # Platzier-Vorschau: verstaerkte/gedaempfte Wegzonen in Reichweite
+var zone_tooltip: PanelContainer
+var zone_tooltip_label: Label
 var hover_sprite: Node2D
 
 var is_showing_pickup_preview := false
@@ -235,6 +234,7 @@ func _generate_new_path() -> void:
 	
 	path_points = path_data["points"]
 	path_cells = path_data["cells"]
+	path_terrain = path_data.get("terrain", [] as Array[String])
 	
 	# *** NEU: Setze auch Decoration-Seed ***
 	if ground_layer:
@@ -247,11 +247,12 @@ func _setup_ground() -> void:
 	ground_layer.grid_size = GRID_SIZE
 	ground_layer.map_width = MAP_WIDTH
 	ground_layer.map_height = MAP_HEIGHT
-	ground_layer.setup(path_cells)
+	ground_layer.setup(path_cells, path_terrain)
 
 
 func _setup_managers() -> void:
 	wave_manager.path_points = path_points
+	wave_manager.path_terrain = path_terrain
 	tower_manager.grid_size = GRID_SIZE
 	tower_manager.map_width = MAP_WIDTH
 	tower_manager.map_height = MAP_HEIGHT
@@ -406,6 +407,9 @@ func _connect_signals() -> void:
 	tower_manager.tower_deselected.connect(_on_tower_deselected)
 	tower_manager.tower_picked_up.connect(_on_tower_picked_up)
 	tower_manager.tower_relocated.connect(_on_tower_relocated)
+	# Deko unter einem Turm ausblenden (Busch/Stein wuerde sonst durch den Sockel ragen)
+	tower_manager.tower_placed.connect(func(_t: Node2D, grid_pos: Vector2i): _hide_decoration_at(grid_pos))
+	tower_manager.tower_relocated.connect(func(_t: Node2D, _old: Vector2i, new_pos: Vector2i): _hide_decoration_at(new_pos))
 	tower_manager.blocked_towers_changed.connect(_on_blocked_towers_changed)
 	tower_info.sell_pressed.connect(_on_tower_info_sell)
 	tower_info.upgrade_pressed.connect(_on_tower_info_upgrade)
@@ -748,6 +752,79 @@ func _setup_hover_preview() -> void:
 	hover_range_visual.name = "HoverRangeGrid"
 	hover_range_visual.z_index = -2
 	hover_preview.add_child(hover_range_visual)
+	zone_highlight = Node2D.new()
+	zone_highlight.name = "ZoneHighlight"
+	zone_highlight.z_index = -1
+	hover_preview.add_child(zone_highlight)
+	_setup_zone_tooltip()
+
+
+# Tooltip fuer Wegzonen: erscheint, wenn die Maus ohne Bauauswahl ueber einem
+# Zonenfeld steht (Schlamm, Furt, Asche, Windpass).
+func _setup_zone_tooltip() -> void:
+	zone_tooltip = PanelContainer.new()
+	zone_tooltip.name = "ZoneTooltip"
+	zone_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	zone_tooltip.visible = false
+	zone_tooltip.add_theme_stylebox_override("panel", UI.panel())
+	zone_tooltip_label = Label.new()
+	zone_tooltip_label.add_theme_font_size_override("font_size", UI.FS_MICRO)
+	zone_tooltip.add_child(zone_tooltip_label)
+	$UI.add_child(zone_tooltip)
+
+
+func _update_zone_tooltip(mouse_pos: Vector2) -> void:
+	if not zone_tooltip:
+		return
+	var zone := _zone_at(Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE)))
+	if zone == "":
+		zone_tooltip.visible = false
+		return
+	zone_tooltip_label.text = TerrainData.describe(zone)
+	zone_tooltip.visible = true
+	zone_tooltip.reset_size()
+	zone_tooltip.position = mouse_pos + Vector2(20, 20)
+
+
+func _zone_at(grid_pos: Vector2i) -> String:
+	var idx := path_cells.find(grid_pos)
+	if idx < 0 or idx >= path_terrain.size():
+		return ""
+	return path_terrain[idx]
+
+
+# Markiert in der Platzier-Vorschau alle Zonenfelder in Reichweite: gruen, wenn die
+# Zone das Element des Turms verstaerkt, rot, wenn sie es daempft.
+func _update_zone_highlight(tower_type: String, grid_pos: Vector2i, level: int) -> void:
+	for child in zone_highlight.get_children():
+		child.queue_free()
+	var elem := tower_type if (tower_type in TowerData.UNLOCKABLE_ELEMENTS or TowerData.is_combination(tower_type)) else ""
+	if elem == "" or path_terrain.is_empty():
+		return
+	var range_val: float = TowerData.get_stat(tower_type, "range", level)
+	if UpgradeSystem:
+		range_val *= UpgradeSystem.get_range_multiplier(tower_type)
+	var origin := Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE / 2, GRID_SIZE / 2)
+	for i in range(mini(path_cells.size(), path_terrain.size())):
+		if path_terrain[i] == "":
+			continue
+		var center := Vector2(path_cells[i]) * GRID_SIZE + Vector2(GRID_SIZE / 2, GRID_SIZE / 2)
+		if not RangeGridHelper.contains_point(origin, center, range_val):
+			continue
+		var mult := TerrainData.damage_mult(elem, path_terrain[i])
+		if is_equal_approx(mult, 1.0):
+			continue
+		var frame := Line2D.new()
+		var half := GRID_SIZE / 2.0 - 2.0
+		var rel := center - origin
+		frame.points = PackedVector2Array([
+			rel + Vector2(-half, -half), rel + Vector2(half, -half),
+			rel + Vector2(half, half), rel + Vector2(-half, half), rel + Vector2(-half, -half)
+		])
+		frame.width = 4.0
+		frame.antialiased = false
+		frame.default_color = Color(0.4, 1.0, 0.45, 0.9) if mult > 1.0 else Color(1.0, 0.35, 0.3, 0.9)
+		zone_highlight.add_child(frame)
 
 func _update_ability_preview(mouse_pos: Vector2) -> void:
 	if not AbilitySystem or not AbilitySystem.is_targeting:
@@ -858,6 +935,8 @@ func _end_ability_preview() -> void:
 
 func _update_hover_preview(mouse_pos: Vector2) -> void:
 	_check_drag_start(mouse_pos)
+	if zone_tooltip:
+		zone_tooltip.visible = false
 
 	# Cursor-Kontext: hier auf Default setzen, die Zweige unten ueberschreiben ihn.
 	# Jeder fruehe `return` laesst damit korrekt den Default stehen.
@@ -877,6 +956,7 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 
 	if not tower_shop.has_selection():
 		hover_preview.visible = false
+		_update_zone_tooltip(mouse_pos)
 		# Ohne Bauauswahl zeigt der Cursor an, ob unter ihm ein Turm liegt.
 		_set_cursor(CursorManager.CTX_HOVER_UI if _tower_under_mouse(mouse_pos) else CursorManager.CTX_DEFAULT)
 		return
@@ -906,6 +986,7 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 	_update_hover_appearance(tower_type, 0)
 	hover_preview.visible = true
 	hover_preview.position = Vector2(grid_pos) * GRID_SIZE + Vector2(GRID_SIZE/2, GRID_SIZE/2)
+	_update_zone_highlight(tower_type, grid_pos, 0)
 	var can_place := tower_manager.can_place_at(grid_pos, tower_type)
 	if can_place:
 		RangeGridHelper.tint_visual(hover_range_visual, Color(0.25, 1.0, 0.55, 0.4))
@@ -982,63 +1063,28 @@ func _update_hover_appearance(tower_type: String, level: int = 0) -> void:
 	
 	var data := TowerData.get_tower_data(tower_type)
 	
-	if tower_type == "archer":
-		var spritesheet_path := "res://assets/elemental_tower/archer_spritesheet.png"
-		if ResourceLoader.exists(spritesheet_path):
-			var sprite := Sprite2D.new()
-			sprite.texture = load(spritesheet_path)
-			sprite.hframes = ARCHER_COLUMNS
-			sprite.vframes = 7
-			sprite.frame = 0
-			var desired_size := 128.0
-			var scale_factor := desired_size / ARCHER_FRAME_SIZE.x
-			sprite.scale = Vector2(scale_factor, scale_factor)
-			sprite.modulate.a = 0.6
-			hover_sprite.add_child(sprite)
-		else:
-			_create_fallback_preview(tower_type)
-	elif tower_type == "sword":
-		var spritesheet_path := "res://assets/elemental_tower/sword_spritesheet.png"
-		if ResourceLoader.exists(spritesheet_path):
-			var sprite := Sprite2D.new()
-			sprite.texture = load(spritesheet_path)
-			sprite.hframes = SWORD_COLUMNS
-			sprite.vframes = 8
-			sprite.frame = 0
-			var desired_size := 128.0
-			var scale_factor := desired_size / SWORD_FRAME_SIZE.x
-			sprite.scale = Vector2(scale_factor, scale_factor)
-			sprite.modulate.a = 0.6
-			hover_sprite.add_child(sprite)
-		else:
-			_create_fallback_preview(tower_type)
-	elif tower_type == "farm" or tower_type == "city":
+	if tower_type == "farm" or tower_type == "city":
 		var texture_path := "res://assets/elemental_tower/%s.png" % tower_type
 		if ResourceLoader.exists(texture_path):
 			var sprite := Sprite2D.new()
 			sprite.texture = load(texture_path)
 			sprite.scale = Vector2(2.0, 2.0)
-			sprite.offset.y = -8
 			sprite.modulate.a = 0.6
 			hover_sprite.add_child(sprite)
 		else:
 			_create_fallback_preview(tower_type)
 	else:
 		var texture_path := "res://assets/elemental_tower/tower_%s.png" % tower_type
-		var is_animated: bool = data.get("animated", true)
 		
 		if ResourceLoader.exists(texture_path):
+			# Posenblatt [Stand, Angriff] wie im Turm selbst, x4 (siehe tower.gd)
 			var sprite := Sprite2D.new()
 			sprite.texture = load(texture_path)
-			if is_animated:
-				sprite.vframes = 4
-				sprite.hframes = 1
-				sprite.frame = 0
-				sprite.scale = Vector2(3, 3)
-			else:
-				sprite.vframes = 1
-				sprite.hframes = 1
-				sprite.scale = Vector2(3, 3)
+			sprite.hframes = 1
+			sprite.vframes = maxi(1, sprite.texture.get_height() / 16)
+			sprite.frame = 0
+			sprite.scale = Vector2(4, 4)
+			sprite.position.y = -8
 			sprite.modulate.a = 0.6
 			hover_sprite.add_child(sprite)
 		else:
@@ -1414,6 +1460,11 @@ func _on_tower_deselected() -> void:
 
 func _on_tower_picked_up(_tower: Node2D, _grid_pos: Vector2i) -> void:
 	_start_pickup_preview()
+
+
+func _hide_decoration_at(grid_pos: Vector2i) -> void:
+	if ground_layer and ground_layer.decoration_manager:
+		ground_layer.decoration_manager.hide_at(grid_pos)
 
 
 func _on_tower_relocated(_tower: Node2D, _old_pos: Vector2i, _new_pos: Vector2i) -> void:

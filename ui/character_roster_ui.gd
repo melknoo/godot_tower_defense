@@ -108,7 +108,7 @@ func _build_ui() -> void:
 	close_button.icon = IconSystem.get_texture("close") if IconSystem else null
 	if UITheme:
 		UITheme.center_button_icon(close_button)
-	close_button.add_theme_constant_override("icon_max_width", 18)
+	close_button.add_theme_constant_override("icon_max_width", 16)
 	close_button.tooltip_text = "Schließen (Esc)"
 	close_button.pressed.connect(hide_panel)
 	close_button.theme_type_variation = &"DangerButton"

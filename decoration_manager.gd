@@ -3,27 +3,24 @@
 extends Node
 class_name DecorationManager
 
-const DECO_PATH := "res://assets/decorations/"
-const DECO_COUNT := 15  # 01.png bis 15.png
-
-var decorations: Dictionary = {}
-var decoration_sprites: Array[Sprite2D] = []
-var rng := RandomNumberGenerator.new()
-
-# Gewichtungen für häufigeres Spawning
-const SPAWN_WEIGHTS := {
-	4: 3.0,  # 04.png - häufiger
-	5: 3.0,  # 05.png - häufiger
-	6: 3.0,  # 06.png - häufiger
-	7: 3.0,  # 07.png - häufiger
-	8: 3.0,  # 08.png - häufiger
-	9: 3.0,  # 09.png - häufiger
-}
+# 16-px-Deko aus dem Ninja-Adventure-Pack (Buesche, Blumen, Steine) als Atlas,
+# erzeugt von tools/ninja_import/build_assets.py. Laeuft wie alle Welt-Pixelart x4.
+const DECO_ATLAS_PATH := "res://assets/decorations/nature_atlas.png"
+const ART_TILE := 16
+const WORLD_SCALE := 4.0
 
 # Dichte-Einstellungen
-const DECO_DENSITY := 0.06  # Chance pro freier Zelle (reduziert von 0.15)
-const MIN_PATH_DISTANCE := 1  # Mindestabstand zu Pfad-Zellen
-const EDGE_SPAWN_CHANCE := 0.12  # Höhere Chance am Pfad-Rand (reduziert von 0.3)
+const DECO_DENSITY := 0.07      # Chance pro freier Zelle
+# Direkt am Weg stehen die Tuerme - dort keine Deko, sonst Verwechslungsgefahr
+const MIN_PATH_DISTANCE := 2
+# Verschiebung innerhalb der Zelle in ganzen Art-Pixeln (bleibt im Pixelraster)
+const MAX_OFFSET_ART_PX := 3
+
+var atlas: Texture2D
+var variant_count := 0
+var decoration_sprites: Array[Sprite2D] = []
+var sprites_by_cell := {}
+var rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -32,16 +29,12 @@ func _ready() -> void:
 
 
 func _load_decorations() -> void:
-	for i in range(1, DECO_COUNT + 1):
-		var filename := "%02d.png" % i
-		var file_path := DECO_PATH + filename
-		
-		if ResourceLoader.exists(file_path):
-			decorations[i] = load(file_path)
-		else:
-			push_warning("[DecorationManager] Nicht gefunden: %s" % file_path)
-	
-	print("[DecorationManager] %d Dekorationen geladen" % decorations.size())
+	if not ResourceLoader.exists(DECO_ATLAS_PATH):
+		push_warning("[DecorationManager] Nicht gefunden: %s" % DECO_ATLAS_PATH)
+		return
+	atlas = load(DECO_ATLAS_PATH)
+	variant_count = atlas.get_width() / ART_TILE
+	print("[DecorationManager] %d Dekorationen geladen" % variant_count)
 
 
 func place_decorations(
@@ -51,133 +44,57 @@ func place_decorations(
 	map_height: int,
 	parent: Node2D
 ) -> void:
-	# Alte Dekorationen entfernen
 	clear_decorations()
-	
-	# Erstelle Set für schnelle Pfad-Lookups
-	var path_set := {}
-	for cell in path_cells:
-		path_set[cell] = true
-	
-	# Finde Pfad-Randkanten
-	var edge_cells := _find_path_edges(path_cells, map_width, map_height)
-	
-	# Platziere Dekorationen auf freien Zellen
+	if atlas == null or variant_count == 0:
+		return
+
 	for x in range(map_width):
 		for y in range(map_height):
 			var cell := Vector2i(x, y)
-			
-			# Skip Pfad-Zellen
-			if path_set.has(cell):
+			if _distance_to_path(cell, path_cells) < MIN_PATH_DISTANCE:
 				continue
-			
-			# Zu nah am Pfad?
-			var dist := _distance_to_path(cell, path_cells)
-			if dist < MIN_PATH_DISTANCE:
+			if rng.randf() > DECO_DENSITY:
 				continue
-			
-			# Spawn-Chance
-			var spawn_chance := DECO_DENSITY
-			if cell in edge_cells:
-				spawn_chance = EDGE_SPAWN_CHANCE
-			
-			if rng.randf() > spawn_chance:
-				continue
-			
-			# Wähle gewichtetes Deko-Asset
-			var deco_id := _weighted_random_decoration()
-			if not decorations.has(deco_id):
-				continue
-			
-			_spawn_decoration(cell, deco_id, grid_size, parent)
-	
+			_spawn_decoration(cell, rng.randi_range(0, variant_count - 1), grid_size, parent)
+
 	print("[DecorationManager] %d Dekorationen platziert" % decoration_sprites.size())
-
-
-func _find_path_edges(path_cells: Array[Vector2i], map_width: int, map_height: int) -> Array[Vector2i]:
-	var edges: Array[Vector2i] = []
-	var path_set := {}
-	
-	for cell in path_cells:
-		path_set[cell] = true
-	
-	# Finde alle Zellen neben dem Pfad
-	var neighbors := [
-		Vector2i(1, 0), Vector2i(-1, 0),
-		Vector2i(0, 1), Vector2i(0, -1)
-	]
-	
-	for cell in path_cells:
-		for offset in neighbors:
-			var neighbor: Vector2i = cell + offset
-			
-			# In Bounds?
-			if neighbor.x < 0 or neighbor.x >= map_width:
-				continue
-			if neighbor.y < 0 or neighbor.y >= map_height:
-				continue
-			
-			# Nicht auf Pfad?
-			if not path_set.has(neighbor) and neighbor not in edges:
-				edges.append(neighbor)
-	
-	return edges
 
 
 func _distance_to_path(cell: Vector2i, path_cells: Array[Vector2i]) -> int:
 	var min_dist := 999
-	
 	for path_cell in path_cells:
-		var dx: int = abs(cell.x - path_cell.x)
-		var dy: int = abs(cell.y - path_cell.y)
-		var dist: int = max(dx, dy)  # Chebyshev distance
-		min_dist = min(min_dist, dist)
-	
+		var dist: int = maxi(absi(cell.x - path_cell.x), absi(cell.y - path_cell.y))  # Chebyshev
+		min_dist = mini(min_dist, dist)
 	return min_dist
 
 
-func _weighted_random_decoration() -> int:
-	var total_weight := 0.0
-	
-	# Berechne Gesamtgewicht
-	for id in decorations.keys():
-		total_weight += SPAWN_WEIGHTS.get(id, 1.0)
-	
-	# Zufallswahl
-	var roll := rng.randf() * total_weight
-	var cumulative := 0.0
-	
-	for id in decorations.keys():
-		cumulative += SPAWN_WEIGHTS.get(id, 1.0)
-		if roll <= cumulative:
-			return id
-	
-	# Fallback
-	return decorations.keys()[0]
+func _spawn_decoration(cell: Vector2i, variant: int, grid_size: int, parent: Node2D) -> void:
+	var region := AtlasTexture.new()
+	region.atlas = atlas
+	region.region = Rect2(variant * ART_TILE, 0, ART_TILE, ART_TILE)
 
-
-func _spawn_decoration(cell: Vector2i, deco_id: int, grid_size: int, parent: Node2D) -> void:
 	var sprite := Sprite2D.new()
-	sprite.texture = decorations[deco_id]
+	sprite.texture = region
 	sprite.centered = true
-	
-	# Position: Zellenmitte mit kleiner Zufallsverschiebung
+	sprite.scale = Vector2(WORLD_SCALE, WORLD_SCALE)
 	var offset := Vector2(
-		rng.randf_range(-grid_size * 0.2, grid_size * 0.2),
-		rng.randf_range(-grid_size * 0.2, grid_size * 0.2)
-	)
-	
+		rng.randi_range(-MAX_OFFSET_ART_PX, MAX_OFFSET_ART_PX),
+		rng.randi_range(-MAX_OFFSET_ART_PX, MAX_OFFSET_ART_PX)
+	) * WORLD_SCALE
 	sprite.position = Vector2(cell) * grid_size + Vector2(grid_size / 2, grid_size / 2) + offset
-	
-	# Z-Index für korrekte Layering:
-	# Ground = -100, Decorations = -50, Pfad = -10, Tower/Enemies = 0+
+	# Ground = -100, Decorations = -50, Tower/Enemies = 0+
 	sprite.z_index = -50
-	
-	# Leichte Zufallsrotation für Variation
-	sprite.rotation = rng.randf_range(-0.1, 0.1)
-	
+
 	parent.add_child(sprite)
 	decoration_sprites.append(sprite)
+	sprites_by_cell[cell] = sprite
+
+
+# Wird ein Turm auf ein Deko-Feld gestellt, verschwindet die Deko darunter
+func hide_at(cell: Vector2i) -> void:
+	var sprite: Sprite2D = sprites_by_cell.get(cell)
+	if is_instance_valid(sprite):
+		sprite.visible = false
 
 
 func clear_decorations() -> void:
@@ -185,6 +102,7 @@ func clear_decorations() -> void:
 		if is_instance_valid(sprite):
 			sprite.queue_free()
 	decoration_sprites.clear()
+	sprites_by_cell.clear()
 
 
 func set_seed(seed_value: int) -> void:

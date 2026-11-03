@@ -83,7 +83,7 @@ func _update_ability_tooltip(ability_id: String) -> void:
 	# === HEADER ===
 	var ability_name: String = data.get("name", ability_id)
 	var element: String = data.get("element", "")
-	tooltip_parts.append("[b]%s[/b] (%s)" % [ability_name, element.capitalize()])
+	tooltip_parts.append("[b]%s[/b] (%s)" % [ability_name, ElementalSystem.get_element_display_name(element)])
 	
 	# === BESCHREIBUNG ===
 	var desc: String = data.get("description", "")
@@ -326,7 +326,7 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 	else:
 		var fallback := Label.new()
 		fallback.name = "Icon"
-		fallback.text = element.substr(0, 1).to_upper()
+		fallback.text = ElementalSystem.get_element_display_name(element).substr(0, 1).to_upper()
 		fallback.position = Vector2(icon_offset, icon_offset - 4)
 		fallback.add_theme_font_size_override("font_size", 24)
 		fallback.add_theme_color_override("font_color", elem_color)

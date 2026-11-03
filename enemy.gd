@@ -5,6 +5,22 @@ class_name Enemy
 
 var path: Array[Vector2] = []
 var path_index := 0
+var path_terrain: Array[String] = []   # Wegzone je Pfadfeld (TerrainData), "" = Erdweg
+
+# --- Gegner-Verhalten: jeder Typ verlangt genau eine Antwort ---
+const TANK_ARMOR_MIN_SHARE := 0.25    # Ruestung laesst mindestens 25 % jedes Treffers durch
+const ETHEREAL_PHYSICAL_MULT := 0.5   # elementlose Treffer (ungravierte Basistuerme)
+const BRUTE_CC_MULT := 0.5            # Koloss: Kontrolleffekte halb so lang
+const BURROW_SURFACE_TIME := 2.5      # Graeber: so lange oben ...
+const BURROW_UNDER_TIME := 1.5        # ... so lange unter der Erde
+const DIGGABLE_ZONES := ["", "mud"]   # Erdweg und Schlamm; in Furt/Asche/Windpass bleibt er oben
+const BOSS_PHASE_HP := 0.5
+const BOSS_PHASE_SPEED_MULT := 1.15
+const ELEMENTAL_ATTACKS := ["water", "fire", "earth", "air", "ice", "steam", "lava", "nature"]
+var armor := 0
+var is_burrowed := false
+var burrow_timer := 0.0
+var boss_phase := 1
 var health := 85
 var max_health := 100
 var speed := 80.0
@@ -60,11 +76,15 @@ var element_indicator: RichTextLabel
 var anim_timer := 0.0
 var anim_frame := 3  # Start bei Frame 3, läuft rückwärts
 const ANIM_SPEED := 0.15  # Sekunden pro Frame
-const FRAME_COUNT := 4
 
-# Sprite-Konstanten
+# Sprite-Konstanten: Welt-Pixelart laeuft einheitlich x4 (16-px-Art = eine 64-px-Zelle).
+# Bosse sind groessere Quell-Sprites (~40 px) und laufen deshalb eine Stufe kleiner.
 const FRAME_SIZE := Vector2(16, 16)
-const ENEMY_SCALE := 3.0
+const ENEMY_SCALE := 4.0
+const BOSS_SCALE := 3.0
+const BOSS_FRAMES := {"neutral": 5, "fire": 5, "water": 5, "earth": 6, "air": 5}
+const ELEMENT_TINT := 0.25   # Element als leichte Toenung + farbiger Schatten
+var frame_count := 4
 
 var walk_bob := 0.0
 var wobble_time := 0.0
@@ -166,6 +186,8 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 	reward = data.get("reward", 10)
 	enemy_type = data.get("type", "normal")
 	element = String(data.get("element", "neutral")).to_lower()
+	armor = int(data.get("armor", 0))
+	burrow_timer = BURROW_SURFACE_TIME
 
 	# Schatten-Defaults (einheitlich für alle Gegner)
 	shadow_offset_y = 8.0
@@ -177,20 +199,28 @@ func setup_extended(path_points: Array[Vector2], data: Dictionary) -> void:
 
 	position = path[0] if path.size() > 0 else Vector2.ZERO
 
-	# Sprite laden basierend auf Element
+	# Sprite pro Gegnertyp, Element als Toenung/Schatten. Groesse kommt aus der
+	# Silhouette, nicht aus Skalierung - alle Gegner laufen in derselben Pixeldichte.
 	_setup_sprite()
 	_apply_type_visuals()
 
-	# Größe basierend auf Gegner-Typ
-	var type_scale: float = data.get("scale", 0.5)
-	var final_scale := ENEMY_SCALE * (type_scale / 0.5)
-
+	var final_scale := BOSS_SCALE if enemy_type == "boss" else ENEMY_SCALE
 	if sprite:
 		sprite.scale = Vector2(final_scale, final_scale)
 		original_modulate = sprite.modulate
+		_place_health_bar()
 
 	if shadow:
-		shadow.scale = Vector2(final_scale * 0.8, final_scale * 0.4)
+		var shadow_w := 4.0 if enemy_type == "boss" else 2.0
+		shadow_base_scale = Vector2(shadow_w, shadow_w * 0.6)
+		shadow.scale = shadow_base_scale
+		if sprite and sprite.texture:
+			# Schatten an die Fuesse statt in die Koerpermitte
+			shadow_offset_y = float(sprite.texture.get_height()) * sprite.scale.y * 0.5 - 6.0
+			shadow.position.y = shadow_offset_y
+		if element != "neutral" and element != "" and ElementalSystem:
+			var c := ElementalSystem.get_element_color(element)
+			shadow.color = Color(c.r, c.g, c.b, 0.45)
 	_setup_tower_type_multipliers()
 
 	if enemy_type == "boss":
@@ -278,21 +308,27 @@ func _setup_sprite() -> void:
 		return
 
 	var elem := String(element if element != null else "neutral").to_lower()
+	if elem == "":
+		elem = "neutral"
 	var sprite_path := ""
 
-	# Sprite-Pfad basierend auf Element
-	if elem != "" and elem != "neutral":
-		sprite_path = "res://assets/enemies/%s_enemy_level_1.png" % elem
+	# Gegner: eigenes Monster pro Typ (4 Lauf-Frames). Boss: eigener Riese pro Element.
+	if enemy_type == "boss":
+		sprite_path = "res://assets/enemies/boss_%s.png" % elem
+		frame_count = BOSS_FRAMES.get(elem, 5)
 	else:
-		sprite_path = "res://assets/enemies/normal_enemy_level_1.png"
+		sprite_path = "res://assets/enemies/enemy_%s.png" % enemy_type
+		frame_count = 4
+	if not ResourceLoader.exists(sprite_path):
+		sprite_path = "res://assets/enemies/enemy_normal.png"
+		frame_count = 4
 
 	if ResourceLoader.exists(sprite_path):
 		sprite.texture = load(sprite_path)
 		sprite.visible = true
-		# Alle Gegner: 4 Frames in einer Reihe
-		sprite.hframes = 4
+		sprite.hframes = frame_count
 		sprite.vframes = 1
-		anim_frame = clampi(anim_frame, 0, 3)
+		anim_frame = clampi(anim_frame, 0, frame_count - 1)
 		sprite.frame = anim_frame
 	else:
 		push_warning("[Enemy] Sprite nicht gefunden: %s" % sprite_path)
@@ -303,47 +339,24 @@ func _apply_type_visuals() -> void:
 	if not sprite:
 		return
 
+	# Der Typ steckt im Sprite; hier nur noch die Element-Toenung und zwei Typ-Effekte.
+	sprite.modulate = Color.WHITE
+	if element != "neutral" and element != "" and ElementalSystem:
+		sprite.modulate = Color.WHITE.lerp(ElementalSystem.get_element_color(element), ELEMENT_TINT)
+
 	match enemy_type:
-		"tank":
-			# Blau-grau getönt, etwas größer
-			sprite.modulate = Color(0.7, 0.8, 1.1)
-			sprite.scale *= 1.3
-
-		"swift":
-			# Grünlich, kleiner und flacher
-			sprite.modulate = Color(0.7, 1.2, 0.7)
-			sprite.scale *= 0.8
-			sprite.scale.y *= 0.85  # etwas flacher
-
 		"ethereal":
-			# Lila + halbtransparent, leichtes Pulsieren
-			sprite.modulate = Color(1.1, 0.6, 1.3, 0.75)
-			sprite.scale *= 1.0
-			# Pulsier-Tween für den Ghost-Effekt
+			# Halbtransparent mit leichtem Pulsieren (Geist)
+			sprite.modulate.a = 0.75
 			var tween := create_tween().set_loops()
 			tween.tween_property(sprite, "modulate:a", 0.45, 0.9).set_trans(Tween.TRANS_SINE)
 			tween.tween_property(sprite, "modulate:a", 0.85, 0.9).set_trans(Tween.TRANS_SINE)
 
-		"brute":
-			# Rot-orange getönt, deutlich größer und breiter
-			sprite.modulate = Color(1.3, 0.6, 0.4)
-			sprite.scale *= 1.6
-			sprite.scale.x *= 1.15  # breiter
-
-		"burrower":
-			# Braun-erdfarben, dunkler
-			sprite.modulate = Color(0.75, 0.55, 0.3)
-			sprite.scale *= 0.9
-
 		"boss":
-			# Gold-gelb, groß, pulsierendes Leuchten
-			sprite.modulate = Color(1.4, 1.1, 0.3)
+			# Pulsierendes Leuchten
 			var tween := create_tween().set_loops()
 			tween.tween_property(sprite, "modulate:v", 0.85, 0.6)
 			tween.tween_property(sprite, "modulate:v", 1.0,  0.6)
-
-		_:
-			pass  # "normal" bleibt unverändert
 
 	# original_modulate NACH den Änderungen setzen,
 	# damit Hit-Flash korrekt zurückfedert
@@ -373,6 +386,8 @@ func _process(delta: float) -> void:
 		flash_timer -= delta
 		if flash_timer <= 0 and sprite:
 			sprite.modulate = original_modulate
+			if is_burrowed:
+				sprite.modulate.a = 0.25
 
 	# Gestunned oder eingefroren?
 	if stun_timer > 0:
@@ -391,6 +406,7 @@ func _process(delta: float) -> void:
 		return
 
 	_update_status_effects(delta)
+	_update_burrow(delta)
 	_move(delta)
 	_update_health_bar()
 	_update_animation(delta)
@@ -413,7 +429,7 @@ func _update_animation(delta: float) -> void:
 		anim_timer = 0.0
 		anim_frame -= 1
 		if anim_frame < 0:
-			anim_frame = FRAME_COUNT - 1
+			anim_frame = frame_count - 1
 		sprite.frame = anim_frame
 
 
@@ -421,6 +437,76 @@ func _do_stun_wobble(delta: float) -> void:
 	wobble_time += delta * 20.0
 	if sprite:
 		sprite.rotation = sin(wobble_time) * 0.2
+
+
+# Tuerme zielen nur auf Gegner ueber der Erde (Graeber unten sind unsichtbar fuer sie;
+# Fallen, Brand und Flaechen-Faehigkeiten treffen trotzdem).
+func is_targetable() -> bool:
+	return not is_burrowed and health > 0
+
+
+# Graeber: wechselt auf grabbarem Boden zwischen oben und unten; in Furt, Asche und
+# Windpass muss er auftauchen - dort und mit Fallen ist er zu fassen.
+func _update_burrow(delta: float) -> void:
+	if enemy_type != "burrower":
+		return
+	var can_dig := get_current_zone() in DIGGABLE_ZONES
+	burrow_timer -= delta
+	if is_burrowed and (not can_dig or burrow_timer <= 0.0):
+		_set_burrowed(false)
+		burrow_timer = BURROW_SURFACE_TIME
+	elif not is_burrowed and can_dig and burrow_timer <= 0.0:
+		_set_burrowed(true)
+		burrow_timer = BURROW_UNDER_TIME
+
+
+func _set_burrowed(value: bool) -> void:
+	is_burrowed = value
+	if sprite:
+		sprite.modulate.a = 0.25 if value else original_modulate.a
+	if health_bar:
+		health_bar.visible = not value
+		health_bar_bg.visible = not value
+	if VFX:
+		VFX.spawn_pixels(position, "earth", 6, 18.0)
+
+
+# Boss bei halber Lebensenergie: wechselt ins Element, das den bisherigen Konter
+# schlaegt, und wird schneller. Wer sich auf eine Antwort verlassen hat, muss umdenken.
+func _enter_boss_phase_two() -> void:
+	boss_phase = 2
+	var new_elem := ""
+	if ElementalSystem:
+		if element == "" or element == "neutral":
+			new_elem = ElementalSystem.ELEMENTAL_TYPES[randi() % ElementalSystem.ELEMENTAL_TYPES.size()]
+		else:
+			new_elem = String(ElementalSystem.get_effective_element(ElementalSystem.get_effective_element(element)))
+	if new_elem != "" and new_elem != "neutral":
+		element = new_elem
+		if sprite:
+			sprite.modulate = Color.WHITE.lerp(ElementalSystem.get_element_color(element), ELEMENT_TINT * 2.0)
+			original_modulate = sprite.modulate
+		if shadow:
+			var c := ElementalSystem.get_element_color(element)
+			shadow.color = Color(c.r, c.g, c.b, 0.55)
+		_update_element_indicator()
+	base_speed *= BOSS_PHASE_SPEED_MULT
+	if VFX:
+		var label := "PHASE 2 · %s" % ElementalSystem.get_element_display_name(element).to_upper() if ElementalSystem else "PHASE 2"
+		VFX.spawn_status_text(position + Vector2(0, -80), label, Color(1.0, 0.45, 0.3))
+		VFX.spawn_pixel_ring(position, element if element != "" else "fire", 110.0)
+		VFX.screen_shake(5.0, 0.3)
+
+
+# Zone des Pfadfelds, auf dem der Gegner gerade steht. path[i] ist die Mitte von
+# Pfadfeld i; zwischen zwei Wegpunkten zaehlt das naehere Feld.
+func get_current_zone() -> String:
+	if path_terrain.is_empty() or path.is_empty():
+		return ""
+	var i := clampi(path_index - 1, 0, path.size() - 1)
+	if path_index < path.size() and position.distance_squared_to(path[path_index]) < position.distance_squared_to(path[i]):
+		i = path_index
+	return path_terrain[i] if i < path_terrain.size() else ""
 
 
 func _move(delta: float) -> void:
@@ -431,17 +517,24 @@ func _move(delta: float) -> void:
 	var current_speed := base_speed
 	if slow_timer > 0:
 		current_speed *= (1.0 - slow_amount)
+	current_speed *= TerrainData.speed_mult(get_current_zone())
 
 	var target_pos := path[path_index]
-	var direction := (target_pos - position).normalized()
-	position += direction * current_speed * delta
+	var to_target := target_pos - position
+	var direction := to_target.normalized()
+	var step := current_speed * delta
 
 	# Sprite spiegeln basierend auf Bewegungsrichtung
 	if sprite and direction.length() > 0:
 		sprite.flip_h = direction.x > 0
 
-	if position.distance_to(target_pos) < 5:
+	# Schritt auf die Restdistanz klemmen: bei Fast-Forward und schnellen Gegnern ist ein
+	# Frame-Schritt groesser als der 5-px-Fangradius, der Gegner pendelte dann um den Wegpunkt.
+	if step >= to_target.length() or to_target.length() < 5:
+		position = target_pos
 		path_index += 1
+	else:
+		position += direction * step
 
 
 func _reach_end() -> void:
@@ -499,7 +592,9 @@ func _update_status_effects(delta: float) -> void:
 		if burn_tick_timer <= 0.0:
 			burn_tick_timer += BURN_TICK_INTERVAL
 			# maxi(1, ...) haelt auch kleine Brandwerte wirksam
-			take_damage(maxi(1, roundi(burn_damage * BURN_TICK_INTERVAL)), false, "fire")
+			take_damage(maxi(1, roundi(burn_damage * BURN_TICK_INTERVAL)), false, "fire", false, "", 1.0, null, true)
+		if burn_timer <= 0.0:
+			_hide_status_icon("burn")
 
 	if confuse_timer > 0:
 		confuse_timer -= delta
@@ -518,7 +613,7 @@ func _update_status_effects(delta: float) -> void:
 # die verbleibenden HP). Bestehende Aufrufer, die den Rückgabewert ignorieren, bleiben gültig.
 func take_damage(amount: int, apply_elemental: bool = false, attacker_element: String = "",
 		is_crit: bool = false, attacker_tower_type: String = "", bonus_mult: float = 1.0,
-		source_tower: Node2D = null) -> int:
+		source_tower: Node2D = null, is_dot: bool = false) -> int:
 	if health <= 0:
 		return 0
 
@@ -560,13 +655,29 @@ func take_damage(amount: int, apply_elemental: bool = false, attacker_element: S
 	if confuse_timer > 0.0:
 		combined_mult *= CONFUSE_DAMAGE_MULT
 
+	# Wegzone: Zonenelement verstaerkt, das von ihm geschlagene Element gedaempft.
+	# Gilt fuer jede Quelle mit Element (Tuerme, Brand, Fallen, Abilities).
+	combined_mult *= TerrainData.damage_mult(attacker_element, get_current_zone())
+
+	# Aetherisch: elementlose Treffer (ungravierte Basistuerme) gleiten zur Haelfte ab
+	if enemy_type == "ethereal" and not (attacker_element in ELEMENTAL_ATTACKS):
+		combined_mult *= ETHEREAL_PHYSICAL_MULT
+
 	final_damage = int(amount * combined_mult * bonus_mult)
+
+	# Panzer: fester Abzug pro Treffer. Grosse Einzeltreffer (Kanone, Erde) und Brand
+	# (DoT ignoriert Ruestung) lohnen sich, viele kleine Kettentreffer nicht.
+	if armor > 0 and not is_dot and final_damage > 0:
+		final_damage = maxi(final_damage - armor, ceili(final_damage * TANK_ARMOR_MIN_SHARE))
 
 	# Real ausgeteilter Schaden: nie negativ und nie mehr als die verbleibenden HP
 	var dealt := clampi(final_damage, 0, health)
 
 	health -= final_damage
 	_update_health_bar()
+
+	if enemy_type == "boss" and boss_phase == 1 and health > 0 and health <= max_health * BOSS_PHASE_HP:
+		_enter_boss_phase_two()
 
 	GameState.record_damage(dealt)
 
@@ -672,7 +783,13 @@ func _die() -> void:
 
 # === STATUS EFFEKTE ===
 
+# Koloss: alle Kontrolleffekte wirken halb so lang
+func _cc_duration_mult() -> float:
+	return BRUTE_CC_MULT if enemy_type == "brute" else 1.0
+
+
 func apply_slow(amount: float, duration: float) -> void:
+	duration *= _cc_duration_mult()
 	# Charakter-Passive (Kryomant): Empfaenger-Hook deckt alle Slow-Quellen ab.
 	# minf(), damit eine Passive den Gegner nie komplett anhaelt.
 	if AbilitySystem:
@@ -696,6 +813,8 @@ func apply_burn(damage_per_second: int, duration: float) -> void:
 		damage_per_second = int(round(
 			damage_per_second * AbilitySystem.get_passive_modifier("burn_damage_mult", 1.0)
 		))
+	# Aschefeld: Brand haelt laenger
+	duration *= TerrainData.burn_duration_mult(get_current_zone())
 	# Frischer Brand startet den Tick-Zyklus neu; ein laufender behaelt seinen Rhythmus
 	if burn_timer <= 0.0:
 		burn_tick_timer = BURN_TICK_INTERVAL
@@ -717,7 +836,7 @@ func _diminished_cc_duration(duration: float) -> float:
 
 
 func apply_stun(duration: float) -> void:
-	var eff := _diminished_cc_duration(duration)
+	var eff := _diminished_cc_duration(duration * _cc_duration_mult())
 	if eff < CC_MIN_DURATION:
 		# Zu stark reduziert -> Slow-Fallback statt Stun
 		apply_slow(CC_FALLBACK_SLOW, CC_FALLBACK_SLOW_DURATION)
@@ -734,7 +853,7 @@ func apply_stun(duration: float) -> void:
 
 
 func apply_confuse(duration: float) -> void:
-	confuse_timer = maxf(confuse_timer, duration)
+	confuse_timer = maxf(confuse_timer, duration * _cc_duration_mult())
 
 	if sprite:
 		sprite.modulate = original_modulate.lerp(Color(0.9, 0.7, 1.0), 0.5)
@@ -744,7 +863,7 @@ func apply_confuse(duration: float) -> void:
 
 
 func apply_freeze(duration: float) -> void:
-	var eff := _diminished_cc_duration(duration)
+	var eff := _diminished_cc_duration(duration * _cc_duration_mult())
 	if eff < CC_MIN_DURATION:
 		# Zu stark reduziert -> Slow-Fallback statt Freeze (Eis bleibt nützlich)
 		apply_slow(CC_FALLBACK_SLOW, CC_FALLBACK_SLOW_DURATION)
@@ -764,9 +883,24 @@ func apply_freeze(duration: float) -> void:
 
 # === VISUALS ===
 
+# Lebensleiste knapp ueber dem Sprite - Bosse sind hoeher als normale Gegner
+var health_bar_y := -40.0
+
+
+func _place_health_bar() -> void:
+	if not sprite or not sprite.texture:
+		return
+	var sprite_h := float(sprite.texture.get_height()) * sprite.scale.y
+	health_bar_y = -sprite_h * 0.5 - 4.0
+	health_bar_bg.set_point_position(0, Vector2(-15, health_bar_y))
+	health_bar_bg.set_point_position(1, Vector2(15, health_bar_y))
+	health_bar.set_point_position(0, Vector2(-15, health_bar_y))
+	status_indicator.position.y = health_bar_y - 8.0
+
+
 func _update_health_bar() -> void:
 	var health_percent := float(health) / max_health
-	health_bar.set_point_position(1, Vector2(-15 + 30 * health_percent, -28))
+	health_bar.set_point_position(1, Vector2(-15 + 30 * health_percent, health_bar_y))
 
 	var bar_color := Color(1 - health_percent, health_percent, 0)
 	if element != "neutral" and element != "":
@@ -787,20 +921,34 @@ func _get_or_create_rich_label(node_name: String, default_pos: Vector2, min_widt
 		add_child(label)
 	return label
 
+func _hide_status_icon(effect_type: String) -> void:
+	var icon := status_indicator.get_node_or_null(effect_type)
+	if icon:
+		icon.queue_free()
+
+
+const STATUS_ICONS := {
+	"burn": "res://assets/icons/element_fire.png",
+	"slow": "res://assets/icons/element_ice.png",
+	"stun": "res://assets/icons/element_lightning.png",
+}
+
+
 func _show_status_icon(effect_type: String) -> void:
 	for child in status_indicator.get_children():
 		if child.name == effect_type:
 			return
 
-	var icon := Label.new()
+	# 16-px-Pixelicons statt Emoji (die kamen aus einer Fallback-Schrift in fremder
+	# Pixeldichte). x2, ganzzahlig wie alle UI-Overlays.
+	var icon_path: String = STATUS_ICONS.get(effect_type, "")
+	if icon_path == "" or not ResourceLoader.exists(icon_path):
+		return
+	var icon := Sprite2D.new()
 	icon.name = effect_type
-	icon.add_theme_font_size_override("font_size", 10)
-
-	match effect_type:
-		"burn": icon.text = "🔥"
-		"slow": icon.text = "❄"
-		"stun": icon.text = "⚡"
-
+	icon.texture = load(icon_path)
+	icon.scale = Vector2(2, 2)
+	icon.position.x = status_indicator.get_child_count() * 34.0
 	status_indicator.add_child(icon)
 
 
