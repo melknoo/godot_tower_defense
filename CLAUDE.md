@@ -49,13 +49,19 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
 - `enemy.gd`, `wave_manager.gd` — Gegner & Wellen
 - `bullet.gd`, `trap.gd`, `item_drop.gd` — Projektile, Fallen, Drops
 - `game_state.gd` — Run-Zustand
-- `path_generator.gd`, `ground_layer.gd`, `decoration_manager.gd`, `tilemap_slicer.gd` — Map-Generierung
+- `path_generator.gd`, `ground_layer.gd`, `decoration_manager.gd` — Map-Generierung; `ground_layer.gd`
+  komponiert die ganze Karte als ein 16-px-Bild (x4) inkl. Weg aus 8x8-Vierteln
+- `data/terrain_data.gd` — Wegzonen (Schlamm/Furt/Asche/Windpass): eine Regel, Zonenelement
+  x1,25 / geschlagenes Element x0,75 + Tempo; statisch, in `feature_smoke` getestet
 - `main_menu.gd`, `ui_theme.gd` — Menü & Theme. `ui_theme.gd` hält die zentralen
   UI-Helper: `animate_panel_open/close()`, `center_button_icon()`, `style_*button()`
   (setzt auch den Hover-Cursor) — neue Panels/Buttons nutzen die, statt zu kopieren
 - `deploy_itch.ps1` + `tools/find_godot.ps1` — Build & Upload nach itch.io (eigener
   Abschnitt unten); Artefakte landen in `export/` (gitignored)
-- `tools/spritegen/` — Python-Generator (numpy + Pillow, kein Godot-Bezug) für
+- `tools/ninja_import/build_assets.py` — erzeugt alle Welt-Grafik (Tuerme, Gegner, Bosse,
+  Boden, Deko, Sockel) aus dem Ninja-Adventure-Pack (CC0, liegt ausserhalb des Repos).
+  Regel: 16-px-Art x4; Ausnahmen Bosse x3, Farm/Stadt x2. Siehe `ASSETS_TODO.md`
+- `tools/spritegen/` — (veraltet) Python-Generator (numpy + Pillow, kein Godot-Bezug) für
   fehlende 16x16/16x64-Turm-Sprites im Pixel-Art-Stil; `pixel.py` = geteilte
   Basis, `tower_<typ>.py` = je ein Turm (inkl. Stufen-Varianten), `run_all.py`
   erzeugt alle auf einmal. Spiel-Sprites dieser Türme kommen inzwischen aus dem
@@ -78,7 +84,8 @@ godot --headless --path . --script res://tests/progression_smoke.gd
 godot --headless --path . --script res://tests/feature_smoke.gd
 ```
 
-UI-Screenshots: `godot --path . res://tests/ui_capture.tscn`. Nach Szenen-/Skriptänderungen ggf. Import-Cache aktualisieren: `--headless --editor --quit-after 3` (siehe `MEMORY.md`).
+UI-Screenshots: `godot --path . res://tests/ui_capture.tscn`. Spielfeld mit allen Turm-/Gegnertypen:
+`godot --path . res://tests/battlefield_capture.tscn` (→ `user://ui_audit/battlefield.png`). Nach Szenen-/Skriptänderungen ggf. Import-Cache aktualisieren: `--headless --editor --quit-after 3` (siehe `MEMORY.md`).
 
 ## Deploy & Export (itch.io)
 

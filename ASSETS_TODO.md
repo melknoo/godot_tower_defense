@@ -5,7 +5,7 @@ greifen Platzhalter — das Spiel laeuft, sieht an diesen Stellen aber unfertig 
 Sobald eine Datei existiert, wird sie automatisch verwendet; es ist kein Codeaenderung
 noetig.
 
-Stand: 2026-11-02
+Stand: 2026-11-03
 
 `tools/spritegen/` enthaelt einen Python-Generator (numpy + Pillow) fuer
 16x16-/16x64-Pixel-Art im Stil der vorhandenen Turm-Sprites (harte Kanten, Alpha
@@ -17,63 +17,49 @@ laufen lassen). Damit erzeugt waren: `wizard`, `cannon`, `trapper`, `aura`, `ste
 je inklusive Stufen-Varianten — inzwischen durch Ninja-Adventure-Sprites ersetzt
 (§1); der Generator schreibt nur noch mit `--force` nach `assets/`.
 
-## 1. Turm-Sprites (hoechste Prioritaet)
+## 1./2. Welt-Grafik: Tuerme, Gegner, Boden, Deko
 
-**Erledigt (2026-11-02).** Alle Tuerme inkl. Stadt haben ein Sprite. Die vorher
-generierten Sprites (`wizard`, `cannon`, `trapper`, `aura`, `steam`) passten nicht
-zum Stil der Element-Tuerme und sind ersetzt durch Figuren aus dem
+**Erledigt (2026-11-03): Art-Vereinheitlichung.** Alle Welt-Grafik kommt aus dem
 [Ninja Adventure Asset Pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack)
-von Pixel-boy & AAA (**CC0**, kommerziell frei, Nennung erwuenscht):
+(Pixel-boy & AAA, **CC0**) und wird reproduzierbar von
+`tools/ninja_import/build_assets.py` erzeugt (Zuordnungstabellen oben im Skript):
 
-| Datei | Quelle im Pack |
-| --- | --- |
-| `tower_wizard.png` | `Actor/Character/NinjaMageBlack/SpriteSheet.png` |
-| `tower_cannon.png` | `Actor/Character/NinjaBomb/SpriteSheet.png` |
-| `tower_trapper.png` | `Actor/Monster/SpiderRed/SpriteSheet.png` |
-| `tower_aura.png` | `Actor/Monster/LanternGreen/SpriteSheet.png` |
-| `tower_steam.png` | `Actor/Monster/Spirit/SpriteSheet.png` (Schattenzeile y=15 entfernt) |
-| `city.png` | `Backgrounds/Tilesets/TilesetTowers.png`, Kachel Spalte 6/Zeile 0 (32x32), unten buendig in 32x48 |
+```
+python -I tools/ninja_import/build_assets.py --pack "<Pack>/Ninja Adventure - Asset Pack" --write
+python -I tools/ninja_import/build_assets.py --pack ... --preview kontaktbogen.png
+```
 
-Uebernahme: jeweils Spalte 0 (Blick nach unten, 4 Lauf-Frames) = 16x64, exakt das
-Format der Element-Tuerme. Die Stufen-Varianten (`_level_2/5/8`, `steam` `_2/_3`)
-sind entfernt — alle Stufen nutzen das Basis-Sprite. Ideen fuer spaetere
-Stufen-Optik: Farbvarianten aus dem Pack (z. B. `SpiderYellow`, `LanternRed`,
-`NinjaMageOrange`). `tools/spritegen/` schreibt nur noch mit `--force` nach `assets/`.
+Das Pack liegt bewusst ausserhalb des Repos (lokal: `D:\assets_src\ninja_adventure\`).
 
-**Format der Turm-Sprites:** 16x64 px = 4 Frames a 16x16 untereinander (vertikale
-Animation), wie `tower_fire.png`. Im Spiel mit Faktor 3 skaliert. Nicht animierte
-Tuerme koennen auch 16x16 liefern — dann in `data/tower_data.gd` `"animated": false`
-setzen. **Stadt/Farm:** 32x48, Faktor 2, `offset.y = -8`.
+**Regel:** 16-px-Art, im Spiel ganzzahlig **x4** - ein 16-px-Tile fuellt genau eine
+64-px-Zelle. Keine Rotation, keine Typ-Skalierung; Groesse kommt ueber die Silhouette.
+Zwei dokumentierte Ausnahmen: **Bosse x3** (Quell-Sprites ~40 px) und **Farm/Stadt x2**
+(32-px-Gebaeude aus `TilesetTowers.png`).
 
-Weiterhin offen: `archer`/`sword` nutzen ein einziges, level-unabhaengiges
-Richtungs-Spritesheet (`archer_spritesheet.png` / `sword_spritesheet.png`,
-`_setup_archer_sprite()` / `_setup_sword_sprite()` in `tower.gd`) ohne
-Stufen-Varianten — dort waere ein eigener Ansatz noetig (Richtung x Stufe), kein
-Fall fuer den 16x16-Generator.
+| Was | Datei(en) | Quelle im Pack |
+| --- | --- | --- |
+| Tuerme | `elemental_tower/tower_<id>.png`, 16x32 = [Stand, Angriff] | `Actor/Character/*` (Zuordnung `TOWERS`) |
+| Runensockel | `elemental_tower/pedestal.png` + `pedestal_glow.png` | im Skript gezeichnet, Rune per `modulate` in Elementfarbe |
+| Farm / Stadt | `elemental_tower/farm.png`, `city.png`, 32x32 | `Backgrounds/Tilesets/TilesetTowers.png` |
+| Gegner pro Typ | `enemies/enemy_<typ>.png`, 64x16 (4 Lauf-Frames) | `Actor/Monster/*` (Zuordnung `ENEMIES`) |
+| Boss pro Element | `enemies/boss_<element>.png`, Idle-Streifen | `Actor/Boss/*` (Zuordnung `BOSSES`) |
+| Gras | `tiles/grass_atlas.png` | `TilesetFloor.png` |
+| Weg + Zonen | `tiles/path_atlas.png`, Zeile = Material (Erde, Schlamm, Furt, Asche, Windpass) | `TilesetFloor.png`, umgefaerbt |
+| Deko | `decorations/nature_atlas.png` | `TilesetNature.png` |
 
-## 2. Gegner-Sprites pro Typ
+Tuerme = Figuren, Gegner = Monster: so bleibt Freund/Feind schon an der Figurenart
+lesbar, der Sockel verstaerkt das. Der Weg wird zur Laufzeit aus 8x8-Vierteln der
+Pfad-Kacheln komponiert (`ground_layer.gd::_compose_path_cell`), die ganze Karte als
+ein Bild.
 
-Aktuell existieren nur Element-Varianten; **alle sieben Gegnertypen benutzen dasselbe
-Sprite**, unterschieden nur durch Faerbung und Groesse (`enemy.gd` →
-`_apply_type_visuals`). Das ist der groesste optische Schwachpunkt des Spiels.
+Entfernt: Tiny-Swords-Deko (`decorations/01-15.png`), `grass_tileable.png`,
+`ground.png`, `tilemap.png` + 521 ungenutzte Slices (`tilemap_slicer.gd`), die
+192-px-Bogen/Schwert-Sheets, alte Slime-Gegner, Stufen-Varianten.
 
-Vorhanden: `normal_`, `fire_`, `water_`, `earth_`, `air_enemy_level_1.png`
-(je 4 Frames nebeneinander).
-
-Gewuenscht — eigene Silhouetten fuer:
-
-| Typ | Rolle |
-| --- | --- |
-| `swift` | schnell, klein |
-| `tank` | langsam, viel HP |
-| `ethereal` | halbtransparent, schwebend |
-| `brute` | gross, breit |
-| `burrower` | graebt sich ein |
-| `boss` | Bosswellen (alle 5 Wellen) |
-
-**Format:** wie die vorhandenen Gegner — 4 Frames horizontal, `hframes = 4`.
-Dateiname `assets/enemies/<typ>_enemy_level_1.png` (der Loader muss dann in
-`enemy.gd:_setup_sprite` um den Typ erweitert werden).
+**Offen - Lizenz:** `assets/ui/` (Buttons, Panels, Banner, Ribbons, Auswahlecken)
+stammt vermutlich noch aus Tiny Swords (Pixel Frog, Commit `829d494`). Das Repo ist
+oeffentlich; die Tiny-Swords-Lizenz erlaubt nach meinem Stand keine Weitergabe der
+Dateien selbst. Pruefen und entweder ersetzen oder Credits/Rechte klaeren.
 
 ## 3. Item-Icons
 
@@ -132,9 +118,8 @@ dort.
 
 ## 5. Audio
 
-Siehe `assets/music/README.md` fuer Musik und die fehlenden Kern-SFX
-(`hit.wav`, `enemy_death.wav`, `error.wav` — aktuell Platzhalter aus vorhandenen
-Dateien, siehe TODO in `autoload/sound_manager.gd`).
+**Erledigt (2026-11-03):** Musik (5 Tracks) und die drei Kern-SFX `hit.wav`,
+`enemy_death.wav`, `error.wav` aus Ninja Adventure (CC0), siehe `assets/music/README.md`.
 
 ## 6. Ungenutzte Assets
 
@@ -143,6 +128,5 @@ Vorhanden, aber von keinem Code mehr referenziert:
 | Datei | Grund |
 | --- | --- |
 | `assets/elemental_bullets/bullet_sniper.png` | ungenutzt (kein Sniper-Turm im Spiel) |
-| `assets/elemental_tower/tower_sniper.png` | ungenutzt (kein Sniper-Turm im Spiel) |
 
 Bleiben liegen, koennen aber fuer einen zukuenftigen Turmtyp wiederverwendet werden.

@@ -29,7 +29,7 @@ Eingaben (Tippen bzw. Fokus + Typeahead), per JS gesetzte Werte werden beim Spei
 verworfen. Datei-Uploads (Cover, Screenshots, Banner): `HTMLInputElement.prototype.click`
 abfangen, den erzeugten File-Input in `<body>` hängen und per `file_upload` befüllen –
 sonst öffnet itch einen nativen Dateidialog.
-- [ ] Optional: Musik (Ninja Adventure enthält 37 CC0-Tracks, `assets/music/` ist leer).
+- [x] Musik + SFX aus Ninja Adventure (CC0) eingebaut - Credits-Zeile unten ist angepasst, auf itch noch übernehmen.
 
 ## Bilder (`docs/itch/`, mit `.gdignore` – landen nicht im `.pck`)
 
@@ -77,5 +77,5 @@ Ausschnitte mit Faktor 1/2 bzw. 2 bleiben pixelgenau.
 <p><strong>In-game language: German.</strong> Early version, feedback in the comments is very welcome.</p>
 <hr>
 <p><strong>Deutsch:</strong> Pixel-Art-Tower-Defense mit Elementen. Türme bauen, mit Feuer, Wasser, Erde oder Luft gravieren, Elemente zu Dampf, Eis, Lava und Natur verschmelzen, Items schmieden und zwischen den Runs im Arkanen Archiv forschen. Läuft direkt im Browser.</p>
-<p>Art: tower and city sprites from the <a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack">Ninja Adventure Asset Pack</a> by Pixel-boy &amp; AAA (CC0). Fonts: Silkscreen &amp; Noto (OFL), Pixel Operator (CC0).</p>
+<p>Art, music and sound: <a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack">Ninja Adventure Asset Pack</a> by Pixel-boy &amp; AAA (CC0). Fonts: Silkscreen &amp; Noto (OFL), Pixel Operator (CC0).</p>
 ```

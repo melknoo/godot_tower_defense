@@ -1,6 +1,69 @@
 # Projektfortschritt
 
-Letzte Aktualisierung: 2026-08-19
+Letzte Aktualisierung: 2026-11-03
+
+## Design-Pass 2026-11-03 (Branch `design-pass`)
+
+Game-Design-Review mit Plan in fuenf Phasen; Phasen 0-4 sind umgesetzt, Phase 5 bleibt
+Roadmap. Kernbefund: Die Tiefe lag in Menues, nicht auf der Karte. Die Optik mischte
+drei Stilquellen und Pixeldichten zwischen x1 und x10.
+
+- **Phase 0 - Korrektheit:**
+  - Stacking-Bug behoben: slow/stun/chain/Crit wuchsen bei jedem Recalc weiter.
+    `tower._load_special_effects` setzt sie jetzt zurueck.
+  - Fallen-Upgrades erhoehen jetzt Fallenzahl, -dauer und Slow
+    (`_load_level_specials`); vorher galt immer Stufe 0.
+  - Tote Mastery-Effekte angeschlossen: Crit-T3-Brand, Splash-T2/T3, Luft-T3 ohne
+    Ketten-Abfall.
+  - Zauberer-„Arkanstoss“: jeder 4. Schuss macht x2 Schaden mit verstaerkter Gravur.
+  - Kanonen-Gravur traegt jetzt Status-Effekte.
+  - Lava-Pool skaliert mit dem Trefferschaden.
+  - Bullet-Status wird unabhaengig von `special_type` geprueft, damit Items und der
+    Geomant-Stun auch bei Projektilen wirken.
+  - Waypoint-Overshoot bei Fast-Forward behoben.
+  - Texte: deutsche Elementnamen (`ElementalSystem.get_element_display_name`),
+    Umlaute, Fähigkeit/Panzer/Koloss.
+  - Ein Font: PixelOperator auch fuer Schadens- und Goldzahlen statt Clarity.
+- **Phase 1 - Audio:** 5 Musik-Tracks und 3 Kern-SFX aus Ninja Adventure (CC0).
+- **Phase 2 - Art-Vereinheitlichung:**
+  - Alle Welt-Grafik stammt aus Ninja Adventure, x4, erzeugt von
+    `tools/ninja_import/build_assets.py` (Details in `ASSETS_TODO.md`).
+  - Tuerme sind Figuren auf einem Runensockel in Elementfarbe. Stufen-Pips ersetzen
+    das „LV n“-Badge, dazu eine Angriffspose. Keine Rotation mehr.
+  - Gegner bekommen ein eigenes Monster pro Typ, Bosse einen eigenen Riesen pro
+    Element.
+  - Der Weg wird aus 8x8-Vierteln komponiert.
+  - Emoji-Status ueber Gegnern sind durch Pixel-Icons ersetzt.
+  - Icon-Groessen sind nur noch Vielfache von 16.
+- **Phase 3 - Wegzonen** (`data/terrain_data.gd`):
+  - Schlamm/Erde, Furt/Wasser, Aschefeld/Feuer, Windpass/Luft; 2-4 Zonen pro Karte,
+    geseedet.
+  - Regel: Das Zonenelement wirkt x1,25, das von ihm geschlagene Element x0,75, dazu
+    ein Tempo-Effekt; im Aschefeld brennen Gegner 50 % laenger.
+  - Lesbar ueber Tooltip auf Wegfeldern, gruen/roten Rahmen in der
+    Platzier-Vorschau und eine ZONE-Zeile in der Wellenvorschau.
+- **Phase 4 - Gegner mit Verhalten:**
+  - Panzer: Ruestung, ein fester Abzug pro Treffer, mindestens 25 % kommen durch;
+    DoT ignoriert die Ruestung.
+  - Aetherisch: halber Schaden von ungravierten Tuermen.
+  - Koloss: Kontrolleffekte wirken halb so lang.
+  - Graeber: graebt sich auf Erdweg und Schlamm ein und ist dann nicht anvisierbar;
+    Fallen treffen trotzdem.
+  - Boss: Phase 2 bei 50 % HP, wechselt ins Element, das den Konter schlaegt, und
+    wird +15 % schneller.
+  - Wellen-Tooltip zeigt die Typ-Mechanik.
+
+**Verifikation:**
+- `feature_smoke` und `progression_smoke` sind gruen, mit neuen Asserts fuer
+  Stacking, Fallen, Zonen und Gegner-Verhalten.
+- Neu: `tests/battlefield_capture.tscn` rendert alle Turm- und Gegnertypen.
+- `ui_capture`: nur die bekannten vier StyleBoxTexture-Altlasten sind rot (s. unten).
+
+**Offen:**
+- Phase 5, siehe Plan: Event-Wellen, Belohnungen buendeln, progressive HUD, Run-Save.
+- Tiny-Swords-Lizenz fuer `assets/ui/` (Repo ist oeffentlich), siehe `ASSETS_TODO.md`.
+- Balance der neuen Zahlen (Zonen x1,25/x0,75, Ruestung 4+0,8/Welle, Boss-Phase) ist
+  nur im Kopf gerechnet, noch nicht gespielt.
 
 ## UI-Redesign (siehe design_handoff_ui_system/README_design.md)
 
@@ -310,11 +373,6 @@ beiden Branches sollten zusammengefuehrt und einer davon stillgelegt werden.
   `item_system.gd` kann einem Turm den Kill wegnehmen.
 - Item-Kombinieren hat keinen Schutz gegen "Raritaets-Waesche": genuegend
   Commons lassen sich ueber mehrere Schmiede-Besuche bis Episch hochziehen.
-- Musik ist implementiert, aber es existiert **keine einzige Musikdatei**. Erst
-  mit Tracks in `assets/music/` (siehe README dort) wird der groesste
-  Feel-Hebel wirksam.
-- Alle sieben Gegnertypen benutzen weiterhin dasselbe Sprite, nur eingefaerbt
-  und skaliert. Details in `ASSETS_TODO.md`.
 - Ein Run kennt weiterhin nur Verlieren als Ende — kein Sieg, kein Kapitel, kein
   Endboss. `get_save_data()`/`load_save_data()` existieren in vier Systemen,
   werden aber nirgends aufgerufen: ein Run laesst sich nicht fortsetzen.
