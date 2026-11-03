@@ -1,5 +1,9 @@
 # Musik
 
+**Belegt (2026-11-03)** mit Tracks aus dem Ninja Adventure Asset Pack (CC0,
+`Audio/Musics`): `menu` = 13 Mystical, `build` = 5 Peaceful, `wave` = 17 Fight,
+`boss` = 24 Final Area, `game_over` = 29 Lament. Austauschen = Datei ersetzen.
+
 `autoload/music_manager.gd` sucht die Tracks in diesem Ordner. **Fehlt eine Datei,
 passiert nichts** — der Zustandswechsel wird uebersprungen, das Spiel laeuft ohne
 Musik weiter. Es ist also keine Codeaenderung noetig, um Musik nachzureichen:
