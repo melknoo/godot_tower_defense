@@ -78,13 +78,14 @@ static func damage_mult(attack_element: String, zone: String) -> float:
 	return 1.0
 
 
-# Kurztext fuer Tooltip und Wellenvorschau, z. B. "Furt (Wasser): Gegner -15 % Tempo ..."
+# Tooltip-Text der Wegzone, mehrzeilig (eine Zeile pro Aussage), z. B.
+# "Furt (Wasser)" / "Gegner -15 % Tempo" / "Wasser-Türme ×1,25" / "Feuer-Türme ×0,75"
 static func describe(zone: String) -> String:
 	var z_elem := zone_element(zone)
 	if z_elem == "":
 		return ""
 	var dampened := String(BEATS.get(z_elem, ""))
-	return "%s: %s · %s ×%s · %s ×%s" % [
+	return "%s\n%s\n%s-Türme ×%s\n%s-Türme ×%s" % [
 		zone_name(zone), String(ZONES[zone]["note"]),
 		_elem_name(z_elem), _fmt(BOOST_MULT), _elem_name(dampened), _fmt(DAMPEN_MULT),
 	]

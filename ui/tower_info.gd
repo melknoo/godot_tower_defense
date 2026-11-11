@@ -941,6 +941,7 @@ func _update_engrave_buttons() -> void:
 		btn.text = ""
 		btn.icon = IconSystem.get_texture(element) if IconSystem else null
 		btn.custom_minimum_size = Vector2(40, 36)
+		btn.theme_type_variation = &"IconButton"
 		if UITheme:
 			UITheme.center_button_icon(btn)
 		btn.tooltip_text = "%s gravieren (%dg)\nFügt Elementar-Effekte hinzu" % [ElementalSystem.get_element_display_name(element), cost]
@@ -1003,6 +1004,7 @@ func _update_aura_buff_buttons() -> void:
 			btn.text = _get_aura_buff_fallback_icon(option["type"])
 		
 		btn.custom_minimum_size = Vector2(48, 40)
+		btn.theme_type_variation = &"IconButton"
 		if UITheme:
 			UITheme.center_button_icon(btn)
 

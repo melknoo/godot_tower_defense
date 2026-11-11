@@ -664,18 +664,26 @@ func _create_progression_ui() -> void:
 func _create_item_toast_layer() -> void:
 	item_toast_container = VBoxContainer.new()
 	item_toast_container.name = "ItemToastContainer"
+	# Eigene Ebene ueber dem HUD: in bottom_strip lag der Toast unter der BottomBar,
+	# die main.gd erst danach auf $UI haengt. Layer 5 = ueber HUD/BottomBar, unter den
+	# Vollbild-Overlays (Inventar & Co. liegen bei 100+).
+	var toast_layer := CanvasLayer.new()
+	toast_layer.name = "ItemToastLayer"
+	toast_layer.layer = 5
+	add_child(toast_layer)
+	# Unten rechts, direkt ueber der unteren Leiste; die Toasts stapeln sich nach oben.
 	item_toast_container.anchor_left = 1.0
 	item_toast_container.anchor_right = 1.0
-	item_toast_container.anchor_top = 0.0
-	item_toast_container.anchor_bottom = 0.0
+	item_toast_container.anchor_top = 1.0
+	item_toast_container.anchor_bottom = 1.0
+	item_toast_container.offset_right = -UI.SP_4
 	item_toast_container.offset_left = -390.0
-	item_toast_container.offset_right = -18.0
-	item_toast_container.offset_top = -300.0
-	item_toast_container.offset_bottom = -12.0
+	item_toast_container.offset_bottom = -(UI.BOTTOMBAR_H + UI.SP_4)
+	item_toast_container.offset_top = item_toast_container.offset_bottom - 300.0
 	item_toast_container.alignment = BoxContainer.ALIGNMENT_END
 	item_toast_container.add_theme_constant_override("separation", 7)
 	item_toast_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bottom_strip.add_child(item_toast_container)
+	toast_layer.add_child(item_toast_container)
 
 
 func _show_item_toast(item: Dictionary) -> void:

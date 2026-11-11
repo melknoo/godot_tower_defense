@@ -337,8 +337,12 @@ func build_theme() -> Theme:
 	for state in ["normal", "hover", "pressed", "disabled"]:
 		t.set_stylebox(state, "SecondaryButton", btn_secondary(state))
 		t.set_stylebox(state, "DangerButton", btn_danger(state))
-	# Reine Icon-Buttons (Schliessen-X): DangerButton mit SP_5 Seitenabstand liesse bei
-	# 46 px Breite keinen Platz fuers Icon.
+	# Reine Icon-Buttons (Gravur, Aura-Buff, Schliessen-X): die Button-Stile mit SP_5
+	# Seitenabstand liessen bei 40-48 px Breite keinen Platz fuers Icon.
+	t.add_type("IconButton")
+	t.set_type_variation("IconButton", "Button")
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		t.set_stylebox(state, "IconButton", btn_icon(state))
 	t.add_type("IconDangerButton")
 	t.set_type_variation("IconDangerButton", "DangerButton")
 	for state in ["normal", "hover", "pressed", "disabled"]:

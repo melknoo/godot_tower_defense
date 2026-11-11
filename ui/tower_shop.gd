@@ -304,7 +304,6 @@ func _create_button(type: String) -> Control:
 	var card: ShopCard = ShopCardScene.instantiate()
 	var data := _build_tower_data(type)
 	card.setup(data)
-	card.tooltip_text = "%s\n%s\n%d Gold" % [data["name"], data["description"], data["cost"]]
 	card.pressed.connect(_on_tower_button_pressed)
 	card.set_selected(type == selected_type)
 	return card

@@ -180,6 +180,7 @@ func _setup_detail_panel() -> void:
 	close_btn.text = ""
 	close_btn.icon = IconSystem.get_texture("close")
 	close_btn.custom_minimum_size = Vector2(24, 24)
+	close_btn.theme_type_variation = &"IconButton"
 	close_btn.pressed.connect(_on_detail_close_pressed)
 	close_btn.flat = true
 	if UITheme:

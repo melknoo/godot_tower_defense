@@ -808,6 +808,8 @@ func _setup_zone_tooltip() -> void:
 	zone_tooltip.add_theme_stylebox_override("panel", UI.panel())
 	zone_tooltip_label = Label.new()
 	zone_tooltip_label.add_theme_font_size_override("font_size", UI.FS_MICRO)
+	zone_tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	zone_tooltip_label.custom_minimum_size.x = 260
 	zone_tooltip.add_child(zone_tooltip_label)
 	$UI.add_child(zone_tooltip)
 
@@ -822,7 +824,19 @@ func _update_zone_tooltip(mouse_pos: Vector2) -> void:
 	zone_tooltip_label.text = TerrainData.describe(zone)
 	zone_tooltip.visible = true
 	zone_tooltip.reset_size()
-	zone_tooltip.position = _to_screen(mouse_pos) + Vector2(20, 20)
+	# Neben dem Cursor, aber nie aus dem Bild: am rechten/unteren Rand auf die andere
+	# Seite des Cursors klappen und zusaetzlich auf den Viewport begrenzen.
+	var tip_size := zone_tooltip.get_combined_minimum_size()
+	var screen := get_viewport_rect().size
+	var cursor := _to_screen(mouse_pos)
+	var pos := cursor + Vector2(20, 20)
+	if pos.x + tip_size.x > screen.x - UI.SP_2:
+		pos.x = cursor.x - tip_size.x - 20
+	if pos.y + tip_size.y > screen.y - UI.BOTTOMBAR_H:
+		pos.y = cursor.y - tip_size.y - 20
+	zone_tooltip.position = Vector2(
+		clampf(pos.x, UI.SP_2, screen.x - tip_size.x - UI.SP_2),
+		clampf(pos.y, UI.TOPBAR_H, screen.y - tip_size.y - UI.SP_2))
 
 
 func _zone_at(grid_pos: Vector2i) -> String:
