@@ -337,6 +337,17 @@ func build_theme() -> Theme:
 	for state in ["normal", "hover", "pressed", "disabled"]:
 		t.set_stylebox(state, "SecondaryButton", btn_secondary(state))
 		t.set_stylebox(state, "DangerButton", btn_danger(state))
+	# Reine Icon-Buttons (Schliessen-X): DangerButton mit SP_5 Seitenabstand liesse bei
+	# 46 px Breite keinen Platz fuers Icon.
+	t.add_type("IconDangerButton")
+	t.set_type_variation("IconDangerButton", "DangerButton")
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var icon_box := btn_danger(state)
+		icon_box.content_margin_left = SP_2
+		icon_box.content_margin_right = SP_2
+		icon_box.content_margin_top = SP_2
+		icon_box.content_margin_bottom = SP_2
+		t.set_stylebox(state, "IconDangerButton", icon_box)
 	t.set_color("font_color", "SecondaryButton", TEXT_SECOND)
 	t.set_color("font_color", "DangerButton", DANGER)
 	t.set_color("font_pressed_color", "DangerButton", TEXT_ON_ACCENT)
@@ -372,9 +383,24 @@ func build_theme() -> Theme:
 
 	return t
 
+func _styles_only(t: Theme) -> Theme:
+	t.default_font = null
+	t.default_font_size = -1
+	for type in t.get_font_size_type_list():
+		for item in t.get_font_size_list(type):
+			t.clear_font_size(item, type)
+	return t
+
 func _ready() -> void:
-	get_tree().root.theme = build_theme()
-	# Controls, die das Root-Theme nicht erreicht (z. B. unter einem CanvasLayer),
-	# rendern mit Godots eingebautem Standardfont. Der braucht dieselben Fallbacks,
-	# sonst zeigt der Browser dort Tofu (Desktop faellt auf System-Fonts zurueck).
+	var theme := build_theme()
+	get_tree().root.theme = theme
+	# Das Root-Theme erreicht keine Controls unter einem CanvasLayer (das ganze HUD,
+	# alle Overlays) - die fielen auf Godots Standard-Theme zurueck: graue Panels ohne
+	# Messingrahmen. Deshalb Styles und Farben auch ins Standard-Theme mergen. Font und
+	# Schriftgroessen bewusst NICHT: das HUD ist auf den bisherigen Font ausgelegt, mit
+	# PixelOperator8 laufen Top-Bar, Shop und Wellenpanel ueber.
+	ThemeDB.get_default_theme().merge_with(_styles_only(build_theme()))
+	# Controls ohne Font aus dem Theme rendern mit Godots eingebautem Standardfont.
+	# Der braucht dieselben Fallbacks, sonst zeigt der Browser dort Tofu (Desktop
+	# faellt auf System-Fonts zurueck).
 	SymbolFont.install(ThemeDB.fallback_font)

@@ -53,6 +53,10 @@ func _setup_frame() -> void:
 
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	gui_input.connect(_on_shop_gui_input)
+	# Der Knoten ist in der Szene ein PanelContainer; den Rahmen zeichnet FramePanel.
+	# Ohne leere StyleBox kaeme das System-Panel aus dem Theme als zweiter Rahmen samt
+	# Innenabstand dazu und schoebe die Karten nach unten aus dem Bild.
+	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 
 	var style_panel := Panel.new()
 	style_panel.name = "FramePanel"

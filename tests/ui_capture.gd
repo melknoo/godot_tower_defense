@@ -23,11 +23,12 @@ func _run() -> void:
 		push_error("[UI Capture] Main-Szene konnte nicht geladen werden")
 		get_tree().quit(1)
 		return
-	_assert_ui(main.item_inventory_ui.panel.get_theme_stylebox("panel") is StyleBoxTexture, "Inventar nutzt ein Panel-Asset")
-	_assert_ui(main.element_unlock_ui.panel.get_theme_stylebox("panel") is StyleBoxTexture, "Element-Kerne nutzen ein Panel-Asset")
-	_assert_ui(main.upgrade_overview_ui.panel.get_theme_stylebox("panel") is StyleBoxTexture, "Aktive Upgrades nutzen ein Panel-Asset")
-	var ability_background := main.ability_bar.get_child(0) as PanelContainer
-	_assert_ui(ability_background != null and ability_background.get_theme_stylebox("panel") is StyleBoxTexture, "Ability-Bar nutzt ein Panel-Asset")
+	# Panels folgen dem Designsystem (design_handoff_ui_system): flach mit Messingrahmen
+	# aus UI.panel() - die frueheren Pergament-Texturen sind bewusst abgeloest.
+	_assert_ui(_is_system_panel(main.item_inventory_ui.panel), "Inventar nutzt das System-Panel")
+	_assert_ui(_is_system_panel(main.element_unlock_ui.panel), "Element-Kerne nutzen das System-Panel")
+	_assert_ui(_is_system_panel(main.upgrade_overview_ui.panel), "Aktive Upgrades nutzen das System-Panel")
+	_assert_ui(_is_system_panel(main.ability_bar.get_child(0) as PanelContainer), "Ability-Bar nutzt das System-Panel")
 	_assert_ui(main.hud.inventory_button.get_theme_constant("icon_max_width") == 32, "Inventar-Icon ist begrenzt")
 	_assert_ui(main.hud.cores_button.get_theme_constant("icon_max_width") == 32, "Element-Icon ist begrenzt")
 	_assert_ui(main.hud.upgrades_button.get_theme_constant("icon_max_width") == 32, "Upgrade-Icon ist begrenzt")
@@ -358,6 +359,13 @@ func _run() -> void:
 	get_tree().paused = false
 	print("[UI Capture] Screenshots gespeichert: %s" % ProjectSettings.globalize_path(OUTPUT_DIR))
 	get_tree().quit(1 if failed else 0)
+
+
+func _is_system_panel(panel: PanelContainer) -> bool:
+	if panel == null:
+		return false
+	var box := panel.get_theme_stylebox("panel") as StyleBoxFlat
+	return box != null and box.border_color == UI.BORDER_BRASS
 
 
 func _find_free_cell(manager: TowerManager, tower_type: String) -> Vector2i:

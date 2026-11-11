@@ -108,7 +108,7 @@ func _build_ui() -> void:
 	close_button.add_theme_constant_override("icon_max_width", 16)
 	close_button.tooltip_text = "Schließen (Esc)"
 	close_button.pressed.connect(hide_panel)
-	close_button.theme_type_variation = &"DangerButton"
+	close_button.theme_type_variation = &"IconDangerButton"
 	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	header.add_child(close_button)
 
