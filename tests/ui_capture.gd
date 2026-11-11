@@ -225,6 +225,9 @@ func _run() -> void:
 	var first_slot: PanelContainer = main.item_inventory_ui.grid_container.get_child(0)
 	main.item_inventory_ui._position_detail_panel_at_slot(first_slot)
 	await get_tree().create_timer(0.55, true).timeout
+	# Turmliste "Ausrüsten auf:" - der Bogen aus 02_tower_info ist ein passender Turm
+	var equip_rows: Array = main.item_inventory_ui.equip_list.get_children()
+	_assert_ui(equip_rows.size() > 0 and equip_rows[0] is Button, "Inventar listet passende Türme zum Ausrüsten")
 	await _capture("06_inventory")
 
 	# Equip-Kontext: kompatible Items behalten ihren Raritaetsrahmen, sie werden

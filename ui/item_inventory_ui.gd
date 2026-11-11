@@ -25,6 +25,13 @@ var drag_preview: Control
 # Turm für den gerade ausgerüstet wird - steuert die Kompatibilitäts-Hervorhebung
 var filter_tower: Node2D = null
 
+# Turmliste "Ausrüsten auf:" im Detailpanel (main.gd setzt tower_manager)
+var tower_manager: TowerManager
+var equip_header: Label
+var equip_scroll: ScrollContainer
+var equip_list: VBoxContainer
+var _hover_tower: Node2D = null
+
 const SLOT_SIZE := 48
 const GRID_COLUMNS := 5
 
@@ -107,7 +114,7 @@ func _setup_ui() -> void:
 	
 	# Info Text
 	var info := Label.new()
-	info.text = "Klicke Item → Klicke Turm zum Ausrüsten"
+	info.text = "Klicke Item → wähle Turm zum Ausrüsten"
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.add_theme_font_size_override("font_size", 16)
 	info.add_theme_color_override("font_color", Color("554731"))
@@ -265,6 +272,23 @@ func _setup_detail_panel() -> void:
 	detail_allowed.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	vbox.add_child(detail_allowed)
 
+	# Direkt aus dem Inventar ausrüsten: eine Zeile pro passendem Turm
+	equip_header = Label.new()
+	equip_header.text = "Ausrüsten auf:"
+	equip_header.add_theme_font_size_override("font_size", 16)
+	equip_header.add_theme_color_override("font_color", UI.TEXT_SECOND)
+	vbox.add_child(equip_header)
+
+	equip_scroll = ScrollContainer.new()
+	equip_scroll.custom_minimum_size = Vector2(240, 168)
+	equip_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(equip_scroll)
+
+	equip_list = VBoxContainer.new()
+	equip_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	equip_list.add_theme_constant_override("separation", UI.SP_1)
+	equip_scroll.add_child(equip_list)
+
 
 func show_panel(equip_tower: Node2D = null) -> void:
 	Sound.play_click()
@@ -379,6 +403,8 @@ func _show_item_detail(item: Dictionary) -> void:
 			detail_allowed.add_theme_color_override("font_color", Color(0.7, 0.25, 0.25))
 	else:
 		detail_allowed.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+
+	_populate_equip_list(item)
 
 	if sell_button:
 		var sell_price: int = SELL_PRICES.get(rarity, 10)
@@ -720,8 +746,101 @@ func _position_detail_panel_at_slot(slot: PanelContainer) -> void:
 
 
 func deselect_item() -> void:
+	_clear_hover_tower()
 	_clear_selection_visuals()
 	selected_item = {}
 	detail_panel.visible = false
 	if sell_button:
 		sell_button.visible = false
+
+
+# --- Ausrüsten aus dem Inventar -------------------------------------------------
+
+func _populate_equip_list(item: Dictionary) -> void:
+	_clear_hover_tower()
+	for child in equip_list.get_children():
+		child.queue_free()
+	if not tower_manager or not ItemSystem:
+		equip_header.visible = false
+		equip_scroll.visible = false
+		return
+	equip_header.visible = true
+	equip_scroll.visible = true
+
+	var towers: Array = []
+	for tower in tower_manager.get_all_towers():
+		if is_instance_valid(tower) and ItemSystem.can_equip_on_tower(item, tower):
+			towers.append(tower)
+	# Der Turm aus dem Equip-Kontext (offene Turm-Info) steht oben
+	if _has_filter_tower() and towers.has(filter_tower):
+		towers.erase(filter_tower)
+		towers.push_front(filter_tower)
+
+	if towers.is_empty():
+		var hint := Label.new()
+		hint.text = "Kein passender Turm gebaut"
+		hint.add_theme_font_size_override("font_size", 16)
+		hint.add_theme_color_override("font_color", UI.TEXT_DISABLED)
+		equip_list.add_child(hint)
+		return
+
+	for tower in towers:
+		equip_list.add_child(_create_equip_row(item, tower))
+
+
+func _create_equip_row(item: Dictionary, tower: Node2D) -> Button:
+	var tower_type: String = tower.tower_type
+	var equipped := ItemSystem.get_tower_equipped_items(tower)
+	var used := 0
+	for slot_item in equipped:
+		if not slot_item.is_empty():
+			used += 1
+
+	var btn := Button.new()
+	btn.theme_type_variation = &"SecondaryButton"
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.icon = TowerData.get_tower_icon_texture(tower_type)
+	btn.expand_icon = true
+	btn.add_theme_constant_override("icon_max_width", 32)
+	btn.add_theme_font_size_override("font_size", 16)
+	btn.text = "%s  Lv %d  ·  %d/%d" % [
+		TowerData.get_tower_data(tower_type).get("name", tower_type.capitalize()),
+		int(tower.level) + 1, used, equipped.size()]
+	if used >= equipped.size():
+		btn.tooltip_text = "Beide Slots belegt - ersetzt Slot 1, das alte Item kommt ins Inventar"
+	if tower == filter_tower:
+		btn.add_theme_color_override("font_color", UI.ACCENT)
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.mouse_entered.connect(_on_equip_row_hover.bind(tower))
+	btn.mouse_exited.connect(_clear_hover_tower)
+	btn.pressed.connect(_on_equip_row_pressed.bind(item.get("uid", ""), tower))
+	return btn
+
+
+func _on_equip_row_hover(tower: Node2D) -> void:
+	_clear_hover_tower()
+	if not is_instance_valid(tower) or tower.is_selected:
+		return
+	_hover_tower = tower
+	tower.select()
+
+
+func _clear_hover_tower() -> void:
+	if _hover_tower and is_instance_valid(_hover_tower):
+		# Den Turm nur zuruecksetzen, wenn ihn nicht der TowerManager selbst gewaehlt hat
+		if not (tower_manager and tower_manager.get_selected_tower() == _hover_tower):
+			_hover_tower.deselect()
+	_hover_tower = null
+
+
+func _on_equip_row_pressed(uid: String, tower: Node2D) -> void:
+	if uid == "" or not is_instance_valid(tower) or not ItemSystem:
+		return
+	_clear_hover_tower()
+	if ItemSystem.equip_item(tower, uid, ItemSystem.get_free_slot(tower)):
+		Sound.play_place()
+		if VFX:
+			VFX.spawn_status_text(tower.global_position + Vector2(0, -40), "AUSGERÜSTET", UI.ACCENT)
+		deselect_item()
+	else:
+		Sound.play_error()

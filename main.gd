@@ -133,6 +133,7 @@ func _on_ability_upgrade_closed() -> void:
 func _setup_item_inventory_ui() -> void:
 	item_inventory_ui = ItemInventoryUI.new()
 	item_inventory_ui.name = "ItemInventoryUI"
+	item_inventory_ui.tower_manager = tower_manager
 	add_child(item_inventory_ui)
 	item_inventory_ui.item_selected.connect(_on_inventory_item_selected)
 	# Wegklicken des Inventars muss den pending Equip-Slot in TowerInfo zurücksetzen
@@ -212,12 +213,7 @@ func _on_inventory_item_selected(item: Dictionary) -> void:
 			if uid2 == "":
 				return
 
-			var equipped := ItemSystem.get_tower_equipped_items(selected_tower)
-			var slot := 0
-			for i in range(equipped.size()):
-				if equipped[i].is_empty():
-					slot = i
-					break
+			var slot := ItemSystem.get_free_slot(selected_tower)
 
 			if not ItemSystem.can_equip_on_tower(item, selected_tower):
 				Sound.play_error()

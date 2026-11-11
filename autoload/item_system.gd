@@ -557,7 +557,10 @@ func collect_item(item: Dictionary) -> bool:
 	if inventory.size() >= MAX_INVENTORY:
 		print("[ItemSystem] Inventar voll!")
 		return false
-	
+
+	# Ohne uid liesse sich das Item weder ausruesten noch verkaufen (remove_item sucht per uid)
+	if String(item.get("uid", "")) == "":
+		item["uid"] = _generate_uid()
 	inventory.append(item)
 	item_collected.emit(item)
 	inventory_changed.emit()
@@ -783,13 +786,14 @@ func unequip_item(tower: Node2D, slot: int) -> bool:
 	if equipped[slot].is_empty():
 		return false
 	
+	# Volles Inventar: nicht abnehmen - frueher verschwand das Item dabei ersatzlos.
+	if inventory.size() >= MAX_INVENTORY:
+		return false
+
 	var item: Dictionary = equipped[slot]
 	equipped[slot] = {}
 	tower.set_meta("equipped_items", equipped)
-	
-	# Zurück ins Inventar
-	if inventory.size() < MAX_INVENTORY:
-		inventory.append(item)
+	inventory.append(item)
 	
 	# Tower-Stats aktualisieren
 	_apply_item_effects(tower)
@@ -797,6 +801,16 @@ func unequip_item(tower: Node2D, slot: int) -> bool:
 	item_unequipped.emit(tower, item, slot)
 	inventory_changed.emit()
 	return true
+
+
+# Erster freier Ausruestungsslot, sonst 0 (dann ersetzt equip_item das alte Item und
+# legt es zurueck ins Inventar).
+func get_free_slot(tower: Node2D) -> int:
+	var equipped := get_tower_equipped_items(tower)
+	for i in range(equipped.size()):
+		if equipped[i].is_empty():
+			return i
+	return 0
 
 
 func get_tower_equipped_items(tower: Node2D) -> Array:

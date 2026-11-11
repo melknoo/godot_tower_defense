@@ -476,6 +476,11 @@ func _unequip_item(slot_index: int) -> void:
 		Sound.play_sell()
 		_update_equipment_display()
 		_update_display()
+	elif not ItemSystem.get_tower_equipped_items(current_tower)[slot_index].is_empty():
+		# Slot belegt, aber Inventar voll - Item bleibt am Turm
+		Sound.play_error()
+		if VFX:
+			VFX.spawn_status_text(current_tower.global_position + Vector2(0, -40), "INVENTAR VOLL", UI.DANGER)
 
 
 func set_tower_manager(tm: TowerManager) -> void:
