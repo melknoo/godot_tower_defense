@@ -159,7 +159,7 @@ func _create_visuals() -> void:
 	# Element Indicator
 	element_indicator = _get_or_create_rich_label("element_indicator", Vector2(-8, -50))
 	#element_indicator.position = Vector2(-8, -44)
-	element_indicator.add_theme_font_size_override("font_size", 12)
+	element_indicator.add_theme_font_size_override("font_size", 18)
 	element_indicator.visible = false
 
 	# Status Indicator

@@ -12,14 +12,14 @@ var milestone_label: Label
 var research_root: VBoxContainer
 var _tree_was_paused := false
 
-const COLOR_BG := Color("10131f")
-const COLOR_PANEL := Color("181d2e")
-const COLOR_CARD := Color("20273b")
-const COLOR_BORDER := Color("394866")
-const COLOR_TEXT := Color("edf3ff")
-const COLOR_MUTED := Color("9aa8c2")
+const COLOR_BG := Color("231F18")
+const COLOR_PANEL := Color("46402E")
+const COLOR_CARD := Color("34312C")
+const COLOR_BORDER := Color("131B1B")
+const COLOR_TEXT := Color("F4EAD8")
+const COLOR_MUTED := Color("CBBC9C")
 const COLOR_AETHER := Color("75ddff")
-const COLOR_GOLD := Color("f4cf6a")
+const COLOR_GOLD := Color("FFAD55")
 
 
 func _ready() -> void:
@@ -34,7 +34,7 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.025, 0.035, 0.07, 0.92)
+	backdrop.color = Color(UI.BG_0, 0.92)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	backdrop.gui_input.connect(_on_backdrop_input)
 	add_child(backdrop)
@@ -42,7 +42,7 @@ func _build_ui() -> void:
 	# Dezente horizontale Bänder geben Tiefe, ohne fremde Assets einzuführen.
 	for i in range(6):
 		var band := ColorRect.new()
-		band.color = Color(0.15, 0.3, 0.48, 0.025 + i * 0.008)
+		band.color = Color(0.94, 0.4, 0.2, 0.02 + i * 0.006)
 		band.position = Vector2(0, 90 + i * 155)
 		band.size = Vector2(1920, 2)
 		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -95,7 +95,7 @@ func _build_ui() -> void:
 	essence_label = Label.new()
 	essence_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	essence_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_style_label(essence_label, 20, Color("185a78"))
+	_style_label(essence_label, 20, Color("8FD8F0"))
 	currency_box.add_child(essence_label)
 
 	var close_button := Button.new()
@@ -126,7 +126,7 @@ func _build_ui() -> void:
 
 	level_label = Label.new()
 	level_label.custom_minimum_size.x = 180
-	_style_label(level_label, 16, Color("795518"))
+	_style_label(level_label, 16, UI.ACCENT)
 	progress_row.add_child(level_label)
 
 	stats_label = Label.new()
@@ -137,11 +137,11 @@ func _build_ui() -> void:
 	milestone_label = Label.new()
 	milestone_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	milestone_label.custom_minimum_size.x = 230
-	_style_label(milestone_label, 16, Color("185a78"))
+	_style_label(milestone_label, 16, Color("8FD8F0"))
 	progress_row.add_child(milestone_label)
 
 	var divider := HSeparator.new()
-	divider.add_theme_color_override("separator", Color("785d32"))
+	divider.add_theme_color_override("separator", UI.BORDER_SOFT)
 	root.add_child(divider)
 
 	var scroll := ScrollContainer.new()
@@ -157,7 +157,7 @@ func _build_ui() -> void:
 	var footer := Label.new()
 	footer.text = "Aether wird sofort gespeichert. Tiefere Runs zahlen überproportional mehr aus."
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_style_label(footer, 16, Color("554731"))
+	_style_label(footer, 16, UI.TEXT_SECOND)
 	root.add_child(footer)
 
 
@@ -224,7 +224,7 @@ func _rebuild_research_cards() -> void:
 		var tier_label := Label.new()
 		var requirement := 0 if tier == 1 else (3 if tier == 2 else 10)
 		tier_label.text = "STUFE %d%s" % [tier, "  ·  ab %d investierten Rängen" % requirement if requirement > 0 else ""]
-		_style_label(tier_label, 14, Color("795518") if tier == 1 else Color("185a78"))
+		_style_label(tier_label, 14, UI.ACCENT if tier == 1 else Color("8FD8F0"))
 		research_root.add_child(tier_label)
 
 		var grid := GridContainer.new()
@@ -302,7 +302,7 @@ func _create_research_card(research_id: String, data: Dictionary) -> PanelContai
 	description.text = String(data.get("description", ""))
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	description.custom_minimum_size.y = 38
-	_style_label(description, 11, Color("554b3b"))
+	_style_label(description, 11, UI.TEXT_SECOND)
 	info.add_child(description)
 
 	var buy_button := Button.new()
@@ -385,7 +385,7 @@ func _style_dark_button(button: Button, accent: Color) -> void:
 	var normal := _panel_style(accent, accent.lightened(0.16), 1, 6)
 	var hover := _panel_style(accent.lightened(0.12), accent.lightened(0.3), 2, 6)
 	var pressed := _panel_style(accent.darkened(0.12), accent, 1, 6)
-	var disabled := _panel_style(Color("262b38"), Color("343b4c"), 1, 6)
+	var disabled := _panel_style(Color("2B2720"), Color("46402E"), 1, 6)
 	button.add_theme_stylebox_override("normal", normal)
 	button.add_theme_stylebox_override("hover", hover)
 	button.add_theme_stylebox_override("pressed", pressed)
@@ -394,11 +394,11 @@ func _style_dark_button(button: Button, accent: Color) -> void:
 	button.add_theme_color_override("font_color", COLOR_TEXT)
 	button.add_theme_color_override("font_hover_color", Color.WHITE)
 	button.add_theme_color_override("font_disabled_color", Color("697286"))
-	button.add_theme_font_size_override("font_size", 16)
+	button.add_theme_font_size_override("font_size", 18)
 
 
 func _style_label(label: Label, size: int, color: Color = UI.TEXT_PRIMARY) -> void:
-	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_font_size_override("font_size", UI.snap_font_size(size))
 	label.add_theme_color_override("font_color", color)
 
 

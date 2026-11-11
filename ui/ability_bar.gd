@@ -38,7 +38,7 @@ func _setup_ui() -> void:
 	var title := Label.new()
 	title.text = "Fähigkeiten"
 	title.position = Vector2(14, 9)
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", 18)
 	add_child(title)
 	
 	button_container = HBoxContainer.new()
@@ -328,7 +328,7 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 		fallback.name = "Icon"
 		fallback.text = ElementalSystem.get_element_display_name(element).substr(0, 1).to_upper()
 		fallback.position = Vector2(icon_offset, icon_offset - 4)
-		fallback.add_theme_font_size_override("font_size", 24)
+		fallback.add_theme_font_size_override("font_size", 27)
 		fallback.add_theme_color_override("font_color", elem_color)
 		fallback.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		btn.add_child(fallback)
@@ -348,7 +348,7 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 	cd_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cd_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	cd_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	cd_label.add_theme_font_size_override("font_size", 16)
+	cd_label.add_theme_font_size_override("font_size", 18)
 	cd_label.add_theme_color_override("font_color", Color.WHITE)
 	cd_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	cd_label.add_theme_constant_override("outline_size", 3)
@@ -361,7 +361,7 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 	hotkey.name = "Hotkey"
 	hotkey.text = str(slot_index + 1)
 	hotkey.position = Vector2(BUTTON_SIZE / 2 - 4, BUTTON_SIZE + 1)
-	hotkey.add_theme_font_size_override("font_size", 16)
+	hotkey.add_theme_font_size_override("font_size", 18)
 	hotkey.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	container.add_child(hotkey)
 	
@@ -374,7 +374,7 @@ func _create_ability_button(ability_id: String, slot_index: int) -> Control:
 		for _i in range(mini(upgrade_stacks, 5)):
 			stars.text += "★"
 		stars.position = Vector2(2, -2)
-		stars.add_theme_font_size_override("font_size", 16)
+		stars.add_theme_font_size_override("font_size", 18)
 		stars.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 		stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		container.add_child(stars)
@@ -423,7 +423,7 @@ func _create_empty_slot(slot_index: int) -> Control:
 	slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	slot_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	slot_label.add_theme_font_size_override("font_size", 20)
+	slot_label.add_theme_font_size_override("font_size", 18)
 	slot_label.add_theme_color_override("font_color", Color(0.25, 0.25, 0.25))
 	slot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(slot_label)
@@ -433,7 +433,7 @@ func _create_empty_slot(slot_index: int) -> Control:
 	hotkey.name = "Hotkey"
 	hotkey.text = str(slot_index + 1)
 	hotkey.position = Vector2(BUTTON_SIZE / 2 - 4, BUTTON_SIZE + 1)
-	hotkey.add_theme_font_size_override("font_size", 16)
+	hotkey.add_theme_font_size_override("font_size", 18)
 	hotkey.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	container.add_child(hotkey)
 	

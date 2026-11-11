@@ -23,8 +23,7 @@ func _run() -> void:
 		push_error("[UI Capture] Main-Szene konnte nicht geladen werden")
 		get_tree().quit(1)
 		return
-	# Panels folgen dem Designsystem (design_handoff_ui_system): flach mit Messingrahmen
-	# aus UI.panel() - die frueheren Pergament-Texturen sind bewusst abgeloest.
+	# Panels nutzen das Ninja-Holz-Theme (UI.panel(): 9-Patch aus assets/ui/ninja/).
 	_assert_ui(_is_system_panel(main.item_inventory_ui.panel), "Inventar nutzt das System-Panel")
 	_assert_ui(_is_system_panel(main.element_unlock_ui.panel), "Element-Kerne nutzen das System-Panel")
 	_assert_ui(_is_system_panel(main.upgrade_overview_ui.panel), "Aktive Upgrades nutzen das System-Panel")
@@ -63,11 +62,7 @@ func _run() -> void:
 	_assert_ui("ELEMENT" in main.hud.wave_advice_label.text, "Element-Hinweis ist dauerhaft sichtbar")
 	_assert_ui("TURM-TIPP" in main.hud.wave_advice_label.text, "Turm-Kontering ist dauerhaft sichtbar")
 	_assert_ui(not main.hud.wave_element_area.visible, "Alte doppelte Elementzeile ist ausgeblendet")
-	var wave_panel_style := main.hud.wave_status_panel.get_theme_stylebox("panel") as StyleBoxFlat
-	_assert_ui(
-		wave_panel_style != null and wave_panel_style.border_color.is_equal_approx(UI.BORDER_BRASS),
-		"Wellenstatus nutzt den Messing-Rahmen des gemeinsamen UI.panel()-Materials"
-	)
+	_assert_ui(_is_system_panel(main.hud.wave_status_panel), "Wellenstatus nutzt das gemeinsame UI.panel()-Material")
 	_assert_ui(main.hud.wave_preview_label.size.x >= 500.0, "Wellenvorschau hat ausreichend Textbreite")
 	_assert_ui(
 		main.hud.wave_status_panel.get_global_rect().encloses(main.hud.wave_events_label.get_global_rect()),
@@ -367,8 +362,8 @@ func _run() -> void:
 func _is_system_panel(panel: PanelContainer) -> bool:
 	if panel == null:
 		return false
-	var box := panel.get_theme_stylebox("panel") as StyleBoxFlat
-	return box != null and box.border_color == UI.BORDER_BRASS
+	var box := panel.get_theme_stylebox("panel") as StyleBoxTexture
+	return box != null and box.texture != null and box.texture.resource_path.begins_with(UI.NINJA_DIR)
 
 
 func _find_free_cell(manager: TowerManager, tower_type: String) -> Vector2i:

@@ -104,6 +104,11 @@ Ebenfalls komplett neu und ohne eigenes Icon (fallen auf das Kategorie-Sammelico
 
 ## 4. UI-Icons
 
+**UI-Theme (2026-11-11):** Panels, Buttons, Slots, Tooltips und Font kommen aus dem
+Ninja-Adventure-Pack (`Ui/Theme/Theme Wood`, `Ui/Font/NormalFont.ttf`, `Ui/Skill Icon/` für
+Archiv/Synergie/Schmiede), gebaut mit `tools/ninja_import/build_assets.py --ui`.
+Offen: weitere Glyphen/Emoji im Text (💰 in der Wellenvorschau, ⚠) durch Pixel-Icons ersetzen.
+
 In `autoload/icon_system.gd` registriert, Datei fehlt. Ersatz laut `FALLBACKS`-Tabelle
 dort.
 

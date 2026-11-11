@@ -60,12 +60,12 @@ func _setup_ui() -> void:
 	var title_label := Label.new()
 	title_label.text = "Fahrplan"
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_label.add_theme_font_size_override("font_size", 20)
+	title_label.add_theme_font_size_override("font_size", 18)
 	header.add_child(title_label)
 
 	subtitle_label = Label.new()
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	subtitle_label.add_theme_font_size_override("font_size", 16)
+	subtitle_label.add_theme_font_size_override("font_size", 18)
 	subtitle_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	header.add_child(subtitle_label)
 
@@ -150,7 +150,7 @@ func _create_row(entry: Dictionary, is_current: bool, striped: bool) -> PanelCon
 	wave_label.text = "WELLE %d" % wave
 	wave_label.custom_minimum_size = Vector2(110, 26)
 	wave_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	wave_label.add_theme_font_size_override("font_size", 16)
+	wave_label.add_theme_font_size_override("font_size", 18)
 	wave_label.add_theme_color_override(
 		"font_color", UI.ACCENT if is_current else UI.TEXT_SECOND
 	)
@@ -158,14 +158,14 @@ func _create_row(entry: Dictionary, is_current: bool, striped: bool) -> PanelCon
 
 	var events_label := IconSystem.create_rich_label(300, 26)
 	events_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	events_label.add_theme_font_size_override("normal_font_size", 16)
+	events_label.add_theme_font_size_override("normal_font_size", 18)
 	if events.is_empty():
 		events_label.text = "[color=#7d6c4d]nur Gegner[/color]"
 	else:
 		var parts: Array[String] = []
 		for event in events:
 			parts.append("%s [color=#%s]%s[/color]" % [
-				IconSystem.bb(event["icon"], 14),
+				IconSystem.bb(event["icon"], 16),
 				Color(event["color"]).darkened(0.45).to_html(false),
 				event["label"]
 			])

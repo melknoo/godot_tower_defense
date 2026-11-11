@@ -81,7 +81,7 @@ func _setup_ui() -> void:
 	title_label = Label.new()
 	title_label.text = "Schmiede"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_font_size_override("font_size", 27)
 	title_label.add_theme_color_override("font_color", Color("edf3ff"))
 	vbox.add_child(title_label)
 
@@ -90,7 +90,7 @@ func _setup_ui() -> void:
 	subtitle_label.text = "Zwei Items gleicher Seltenheit ergeben ein besseres Item"
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	subtitle_label.add_theme_font_size_override("font_size", 16)
+	subtitle_label.add_theme_font_size_override("font_size", 18)
 	subtitle_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(subtitle_label)
 
@@ -116,7 +116,7 @@ func _setup_ui() -> void:
 	result_label.custom_minimum_size = Vector2(150, 0)
 	result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	result_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	result_label.add_theme_font_size_override("font_size", 16)
+	result_label.add_theme_font_size_override("font_size", 18)
 	result_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	preview_box.add_child(result_label)
 
@@ -174,7 +174,7 @@ func _create_symbol_label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	return label
 
@@ -309,7 +309,7 @@ func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
 	var dot := Label.new()
 	dot.text = "●"
 	dot.position = Vector2(2, 2)
-	dot.add_theme_font_size_override("font_size", 16)
+	dot.add_theme_font_size_override("font_size", 18)
 	dot.add_theme_color_override("font_color", item.get("color", Color.WHITE))
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(dot)
@@ -562,7 +562,7 @@ func _show_result_feedback(item: Dictionary) -> void:
 		item.get("name", "Item"),
 		RARITY_NAMES.get(item.get("rarity", "common"), "")
 	]
-	feedback.add_theme_font_size_override("font_size", 16)
+	feedback.add_theme_font_size_override("font_size", 18)
 	feedback.add_theme_color_override("font_color", item.get("color", Color.WHITE))
 	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	feedback.add_theme_constant_override("outline_size", 3)

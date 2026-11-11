@@ -4,36 +4,41 @@ extends Node
 ## Registrierung: Project Settings → Globals → Autoload
 ##   Pfad: res://ui/ui_theme.gd   Name: UI   (Enable ✔)
 ##
+## Stil: Holz-Theme aus dem Ninja-Adventure-Pack (CC0) - dieselbe Pixel-Sprache wie
+## Figuren und Boden: schwarze 1-px-Outline, Pixel-Ecken, warmes Oliv/Braun/Orange.
+## Die 9-Patch-Grafiken baut tools/ninja_import/build_assets.py --ui nach
+## assets/ui/ninja/ (vorskaliert x NINJA_SCALE). Ein Font: NinjaAdventure (9 px Raster).
+##
 ## Regeln, die dieser Code durchsetzt:
-##   1. Ein Panel-Material im ganzen Spiel (dunkler Stein + 2 px Messingrahmen).
-##   2. corner_radius ist IMMER 0 — Pixel-Art und Rundungen schließen sich aus.
-##   3. Gold/Messing ist knapp: nur Fokus, Währung, Legendary, Panel-Rahmen.
+##   1. Panels/Buttons sind StyleBoxTexture aus den Ninja-9-Patches, keine Rundungen.
+##   2. Schrift nur in Vielfachen von 9 px (snap_font_size), sonst verwischt das Raster.
+##   3. Orange ist knapp: Primär-Button, Fokus, Währung, Rahmen-Panel.
 ##   4. Farbe bedeutet immer etwas (Element, Rarity, Status). Keine Dekorfarbe.
 
 # ═══ Hintergrund-Ebenen ════════════════════════════════════════
-const BG_0        := Color("0A0D13")   # Screen-Backdrop, Menühintergrund
-const BG_1        := Color("141A24")   # Panel / Overlay — der Standard
-const BG_2        := Color("1E2632")   # Sektion, Listenzeile, Panel-Header, Button
-const BG_3        := Color("2A3442")   # Vertiefung: Item-Slot, Balken-Track, Input
-const SCRIM       := Color("060810B8") # 72 % Abdunkelung unter modalen Overlays
+const BG_0        := Color("231F18")   # Screen-Backdrop, Menühintergrund
+const BG_1        := Color("46402E")   # Panel / Overlay — der Standard (Pack-Oliv)
+const BG_2        := Color("5A5240")   # Sektion, Listenzeile, Panel-Header
+const BG_3        := Color("34312C")   # Vertiefung: Item-Slot, Balken-Track, Input
+const SCRIM       := Color("131B1BB8") # 72 % Abdunkelung unter modalen Overlays
 
 # ═══ Rahmen ════════════════════════════════════════════════════
-const BORDER_BRASS := Color("C79A3C")  # Panel-Außenrahmen
-const BORDER_SOFT  := Color("3A4658")  # Karten, Slots, Trennlinien
-const BORDER_SHADE := Color("0A0D13")  # 1 px Innenschatten = Tiefe ohne Blur
-const BORDER_FOCUS := Color("E0B44E")  # Hover / Fokus / Selektion
-const BRASS_INNER  := Color("6B5522")  # 1 px Innenlinie im Messingprofil
+const BORDER_BRASS := Color("F06733")  # Rahmen-Akzent (Pack-Orange); Name historisch
+const BORDER_SOFT  := Color("131B1B")  # Outline wie in der Pixel-Art
+const BORDER_SHADE := Color("131B1B")
+const BORDER_FOCUS := Color("FFAD55")  # Hover / Fokus / Selektion
+const BRASS_INNER  := Color("9B513C")  # Holzbraun
 
 # ═══ Text ══════════════════════════════════════════════════════
-const TEXT_PRIMARY   := Color("EDE6D6")  # 13.4:1 auf BG_1
-const TEXT_SECOND    := Color("9EAAB9")  #  6.8:1 auf BG_1
-const TEXT_DISABLED  := Color("5A6675")
-const TEXT_ON_ACCENT := Color("10141B")  # Text auf gefüllter Messingfläche
+const TEXT_PRIMARY   := Color("F4EAD8")
+const TEXT_SECOND    := Color("CBBC9C")
+const TEXT_DISABLED  := Color("8A7D63")
+const TEXT_ON_ACCENT := Color("131B1B")  # Text auf gefüllter Orangefläche
 
 # ═══ Semantik ══════════════════════════════════════════════════
-const ACCENT       := Color("E0B44E")
-const ACCENT_HOVER := Color("F2CB6E")
-const ACCENT_PRESS := Color("B98E33")
+const ACCENT       := Color("FFAD55")
+const ACCENT_HOVER := Color("FFD09E")
+const ACCENT_PRESS := Color("F06733")
 const SUCCESS      := Color("5FBF7A")
 const WARNING      := Color("E8963C")
 const DANGER       := Color("E0524B")
@@ -80,13 +85,19 @@ func rarity(r: int) -> Color:
 	return RARITY.get(r, RARITY[Rarity.COMMON])
 
 # ═══ Typo-Skala (px @ 1920×1080) ═══════════════════════════════
-## Nur diese fünf Größen. Untergrenze 16 — bei 1280×720 (Faktor 0.667)
-## landet das bei ~11 px und bleibt gerade lesbar.
-const FS_DISPLAY := 48   # Spieltitel, Sieg/Niederlage
-const FS_TITLE   := 32   # Panel-Header (genau 1× pro Panel)
-const FS_SECTION := 24   # Sektionstitel, Buttonlabel, hervorgehobene Werte
-const FS_BODY    := 20   # Stats, Beschreibungen, Listen
-const FS_MICRO   := 16   # Labels, Hotkeys, Fußnoten
+## Der NinjaAdventure-Font hat ein 9-px-Raster (2048 Einheiten / 9) - nur Vielfache
+## von 9 bleiben pixelscharf. Berechnete Größen über snap_font_size().
+const FONT_GRID  := 9
+const FS_DISPLAY := 45   # Spieltitel, Sieg/Niederlage
+const FS_TITLE   := 36   # Panel-Header (genau 1× pro Panel)
+const FS_SECTION := 27   # Sektionstitel, Buttonlabel, hervorgehobene Werte
+const FS_BODY    := 18   # Stats, Beschreibungen, Listen
+const FS_MICRO   := 18   # Labels, Hotkeys, Fußnoten
+
+## Rundet eine Schriftgröße aufs Font-Raster. Untergrenze 18 (2x): 9 px ist die native
+## Groesse und auf 1080p kaum lesbar.
+func snap_font_size(px: float) -> int:
+	return maxi(FONT_GRID * 2, int(round(px / FONT_GRID)) * FONT_GRID)
 
 ## Nur MICRO und SECTION dürfen ALL CAPS + letter_spacing 2.
 ## BODY nie gesperrt, nie zentriert: links Label, rechts Wert.
@@ -144,13 +155,46 @@ func _box(fill: Color, border: Color, w: int, pad: int) -> StyleBoxFlat:
 	s.anti_aliasing = false
 	return s
 
-## Panel / Overlay: BG_1, 2 px Messing, harter 4-px-Schatten.
-func panel() -> StyleBoxFlat:
-	var s := _box(BG_1, BORDER_BRASS, BW_PANEL, SP_5)
-	s.shadow_color = SHADOW_COLOR
-	s.shadow_size = 0
-	s.shadow_offset = SHADOW_OFFSET
+# ─── Ninja-9-Patches (assets/ui/ninja, x NINJA_SCALE vorskaliert) ───
+const NINJA_DIR := "res://assets/ui/ninja/"
+const NINJA_SCALE := 3
+var _tex_cache := {}
+
+func _ninja_tex(tex_name: String) -> Texture2D:
+	if not _tex_cache.has(tex_name):
+		var path := NINJA_DIR + tex_name + ".png"
+		_tex_cache[tex_name] = load(path) if ResourceLoader.exists(path) else null
+	return _tex_cache[tex_name]
+
+## margins = Quellrand in Pack-Pixeln [links, oben, rechts, unten].
+func _nine(tex_name: String, margins: Array, pad_h: int, pad_v: int, tint := Color.WHITE) -> StyleBox:
+	var tex := _ninja_tex(tex_name)
+	if tex == null:   # Assets fehlen (z. B. vor dem ersten --ui-Lauf): flacher Ersatz
+		return _box(BG_1, BORDER_SOFT, BW_PANEL, pad_h)
+	var s := StyleBoxTexture.new()
+	s.texture = tex
+	s.texture_margin_left = margins[0] * NINJA_SCALE
+	s.texture_margin_top = margins[1] * NINJA_SCALE
+	s.texture_margin_right = margins[2] * NINJA_SCALE
+	s.texture_margin_bottom = margins[3] * NINJA_SCALE
+	s.content_margin_left = pad_h
+	s.content_margin_right = pad_h
+	s.content_margin_top = pad_v
+	s.content_margin_bottom = pad_v
+	s.modulate_color = tint
 	return s
+
+const M_BOX := [3, 3, 3, 3]      # panel/section/tooltip/cell/focus: 2-px-Ecke + Outline
+const M_FRAMED := [5, 5, 5, 5]   # Holzrahmen mit Innenkante
+const M_BUTTON := [3, 2, 3, 2]   # 16x8-Buttons
+
+## Panel / Overlay: Pack-Oliv mit schwarzer Pixel-Outline.
+func panel() -> StyleBox:
+	return _nine("panel", M_BOX, SP_5, SP_5)
+
+## Rahmen-Panel für modale Overlays (Pause, Upgrades, Archiv): Holzrahmen.
+func panel_framed() -> StyleBox:
+	return _nine("panel_framed", M_FRAMED, SP_6, SP_6)
 
 ## Panel-Header-Leiste: BG_2 mit 1 px Messing-Innenlinie unten.
 func panel_header() -> StyleBoxFlat:
@@ -160,16 +204,16 @@ func panel_header() -> StyleBoxFlat:
 	s.content_margin_right = SP_5
 	return s
 
-func section() -> StyleBoxFlat:
-	return _box(BG_2, BORDER_SOFT, BW_HAIRLINE, SP_4)
+func section() -> StyleBox:
+	return _nine("section", M_BOX, SP_4, SP_4)
 
 ## Listenzeile mit Zebra: Hinterlegung ist BG_2 — HELLER als das Panel,
 ## niemals dunkler als der eigene Text.
 func row(striped: bool) -> StyleBoxFlat:
 	return _box(BG_2 if striped else Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, SP_3)
 
-func slot() -> StyleBoxFlat:
-	return _box(BG_3, BORDER_SOFT, BW_PANEL, SP_1)
+func slot() -> StyleBox:
+	return _nine("cell", M_BOX, SP_1, SP_1)
 
 func slot_rarity(r: int) -> StyleBoxFlat:
 	var s := _box(BG_3, rarity(r), BW_PANEL, SP_1)
@@ -179,61 +223,49 @@ func slot_rarity(r: int) -> StyleBoxFlat:
 		s.shadow_offset = Vector2.ZERO
 	return s
 
-func slot_selected() -> StyleBoxFlat:
-	return _box(BG_3, ACCENT, BW_SELECTED, SP_1)
+func slot_selected() -> StyleBox:
+	return _nine("focus", M_BOX, SP_1, SP_1)
 
-## Primär-Button: genau EINER pro Panel. Der mit dem Messingrahmen.
-func btn_primary(state := "normal") -> StyleBoxFlat:
-	var fill := BG_2
-	var border := BORDER_BRASS
-	match state:
-		"hover":    border = ACCENT_HOVER
-		"pressed":  fill = ACCENT_PRESS; border = ACCENT_PRESS
-		"disabled": fill = BG_1; border = BORDER_SOFT
-	var s := _box(fill, border, BW_PANEL, SP_3)
-	s.content_margin_left = SP_5
-	s.content_margin_right = SP_5
-	if state == "pressed":   # Text 2 px nach unten statt Schattenanimation
-		s.content_margin_top += 2
-		s.content_margin_bottom -= 2
+## Primär-Button: genau EINER pro Panel. Der orange Pack-Button.
+func btn_primary(state := "normal") -> StyleBox:
+	var s := _nine("button_" + state, M_BUTTON, SP_5, SP_2)
+	if state == "pressed":   # der Pack-Button sinkt 1 Pack-Pixel ein - Text mitnehmen
+		s.content_margin_top += NINJA_SCALE
+		s.content_margin_bottom -= NINJA_SCALE
 	return s
 
-## Sekundär-Button: nur Umriss, transparente Fläche.
-func btn_secondary(state := "normal") -> StyleBoxFlat:
-	var border := BORDER_SOFT
-	if state == "hover" or state == "pressed":
-		border = BORDER_FOCUS
-	var s := _box(Color(0, 0, 0, 0), border, BW_PANEL, SP_3)
-	s.content_margin_left = SP_5
-	s.content_margin_right = SP_5
+## Sekundär-Button: dunkle Holzfläche, Hover hellt auf.
+func btn_secondary(state := "normal") -> StyleBox:
+	var tint := Color.WHITE
+	match state:
+		"hover":    tint = Color(1.35, 1.3, 1.2)
+		"pressed":  tint = Color(0.8, 0.8, 0.8)
+		"disabled": tint = Color(1, 1, 1, 0.55)
+	var s := _nine("section", M_BOX, SP_5, SP_2, tint)
 	if state == "pressed":
-		s.bg_color = BG_2
-		s.content_margin_top += 2
-		s.content_margin_bottom -= 2
+		s.content_margin_top += NINJA_SCALE
+		s.content_margin_bottom -= NINJA_SCALE
+	return s
+
+## Destruktiv (Verkaufen, Beenden): rot getönter Pack-Button.
+func btn_danger(state := "normal") -> StyleBox:
+	var tint := Color(1.0, 0.55, 0.55)
 	if state == "disabled":
-		s.border_color = BG_3
+		tint = Color(1, 1, 1, 0.55)
+	var s := _nine("button_" + state, M_BUTTON, SP_5, SP_2, tint)
+	if state == "pressed":
+		s.content_margin_top += NINJA_SCALE
+		s.content_margin_bottom -= NINJA_SCALE
 	return s
 
-## Destruktiv (Verkaufen, Beenden): Danger-UMRISS im Ruhezustand,
-## gefüllt erst bei pressed.
-func btn_danger(state := "normal") -> StyleBoxFlat:
-	var s := _box(BG_2, DANGER, BW_PANEL, SP_3)
+## Reine Icon-Buttons: kleine Innenabstände, Fokusrahmen bei Hover/Pressed.
+func btn_icon(state := "normal") -> StyleBox:
 	match state:
-		"hover":    s.bg_color = DANGER_HOVER
-		"pressed":  s.bg_color = DANGER
-		"disabled": s.bg_color = BG_1; s.border_color = BORDER_SOFT
-	s.content_margin_left = SP_5
-	s.content_margin_right = SP_5
-	return s
-
-func btn_icon(state := "normal") -> StyleBoxFlat:
-	var border := BORDER_SOFT
-	var fill := BG_2
-	match state:
-		"hover":    border = ACCENT
-		"pressed":  fill = ACCENT; border = ACCENT
-		"disabled": fill = BG_1; border = BG_3
-	return _box(fill, border, BW_PANEL, SP_1)
+		"hover", "pressed":
+			return _nine("focus", M_BOX, SP_1, SP_1)
+		"disabled":
+			return _nine("section", M_BOX, SP_1, SP_1, Color(1, 1, 1, 0.55))
+	return _nine("section", M_BOX, SP_1, SP_1)
 
 ## Karte mit linker Elementkante (Turmkarte, Synergiezeile, Panel-Header).
 func element_card(id: String, selected := false) -> StyleBoxFlat:
@@ -246,22 +278,17 @@ func element_card(id: String, selected := false) -> StyleBoxFlat:
 
 ## Shop-Karte (Bottombar-Turmreihe): fixe Box, nie textabhängig (Phase3b_ShopRow_Konzept.md).
 ## states: "normal", "hover", "selected", "disabled".
-func shop_card(state := "normal") -> StyleBoxFlat:
-	var border := BORDER_SOFT
-	var width := BW_HAIRLINE
-	match state:
-		"hover":
-			border = BORDER_FOCUS
-		"selected":
-			border = ACCENT
-			width = BW_SELECTED
+func shop_card(state := "normal") -> StyleBox:
 	# pad=0: der Innenabstand kommt aus der expliziten MarginContainer in shop_card.gd,
 	# nicht aus der StyleBox — sonst verdoppelt sich das Padding.
-	var s := _box(BG_2, border, width, 0)
-	if state == "disabled":
-		s.bg_color = BG_1
-		s.border_color = BORDER_SOFT
-	return s
+	match state:
+		"hover":
+			return _nine("section", M_BOX, 0, 0, Color(1.35, 1.3, 1.2))
+		"selected":
+			return _nine("focus", M_BOX, 0, 0)
+		"disabled":
+			return _nine("section", M_BOX, 0, 0, Color(1, 1, 1, 0.6))
+	return _nine("section", M_BOX, 0, 0)
 
 ## Fortschrittsbalken. track = true → Hintergrund, false → Füllung.
 func bar(track: bool, tint := ACCENT) -> StyleBoxFlat:
@@ -277,12 +304,8 @@ func hp_color(ratio: float) -> Color:
 		return WARNING
 	return SUCCESS
 
-func tooltip() -> StyleBoxFlat:
-	var s := _box(BG_1, BORDER_BRASS, BW_PANEL, SP_4)
-	s.shadow_color = SHADOW_COLOR
-	s.shadow_size = 0
-	s.shadow_offset = SHADOW_OFFSET
-	return s
+func tooltip() -> StyleBox:
+	return _nine("tooltip", M_BOX, SP_4, SP_3)
 
 # ═══ Theme-Aufbau ══════════════════════════════════════════════
 ## Einmal in _ready() der Root-Control aufrufen und zuweisen:
@@ -290,11 +313,18 @@ func tooltip() -> StyleBoxFlat:
 ## Alles darunter erbt. Danach KEINE Farb- oder Font-Overrides
 ## mehr in einzelnen Szenen setzen.
 
-const FONT_REGULAR := "res://ui/fonts/pixel_operator/PixelOperator8.ttf"
-const FONT_BOLD    := "res://ui/fonts/pixel_operator/PixelOperator8-Bold.ttf"
-const FONT_DISPLAY := "res://ui/fonts/Silkscreen/Silkscreen-Regular.ttf"
+## NinjaAdventure (Pack-Font) fuer alles. Ihm fehlen u. a. ß · × → – … € - die kommen
+## aus PixelOperator8, Emoji/Symbole danach aus den SymbolFont-Subsets.
+const FONT_REGULAR  := "res://assets/fonts/ninja_normal.ttf"
+const FONT_FALLBACK := "res://ui/fonts/pixel_operator/PixelOperator8.ttf"
 
-func _load_font(path: String) -> FontFile:
+## Das Leerzeichen des Pack-Fonts ist nur 1 Font-Pixel breit - deutsche Saetze lesen
+## sich dann wie ein Wort. Zusaetzlicher Wortabstand in Bildschirmpixeln.
+const FONT_WORD_SPACING := 6
+
+var _font_cache: Font = null
+
+func _prepare_pixel_font(path: String) -> FontFile:
 	if not ResourceLoader.exists(path):
 		return null
 	var f: FontFile = load(path)
@@ -302,16 +332,47 @@ func _load_font(path: String) -> FontFile:
 	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
 	f.generate_mipmaps = false
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	# Die Pixelschriften decken nur ASCII ab - Symbole/Emoji kommen aus den
-	# Fallback-Subsets, sonst Tofu im Browser.
-	SymbolFont.install(f)
+	f.hinting = TextServer.HINTING_NONE
+	# Immer in Nenngroesse rastern: bei Fenstern != 1920x1080 (2560er-Monitor, itch-
+	# Embed 1280x720) wuerde Godot sonst z. B. bei 24 px rastern - das 9-px-Raster
+	# zerfaellt, duenne Striche (i, l) verschwinden. So skaliert die Leinwand die
+	# fertigen Pixel (nearest) wie bei der Welt-Grafik.
+	f.oversampling = 1.0
 	return f
+
+## Der eine UI-Font inkl. Fallback-Kette und Wortabstand (auch fuer VFX-Zahlen).
+func ui_font() -> Font:
+	if _font_cache:
+		return _font_cache
+	var f := _prepare_pixel_font(FONT_REGULAR)
+	if f == null:
+		f = _prepare_pixel_font(FONT_FALLBACK)
+		if f == null:
+			return null
+	else:
+		var fallback := _prepare_pixel_font(FONT_FALLBACK)
+		if fallback and not f.fallbacks.has(fallback):
+			var fbs := f.fallbacks
+			fbs.append(fallback)
+			f.fallbacks = fbs
+	# Symbole/Emoji aus den Subsets, sonst Tofu im Browser.
+	SymbolFont.install(f)
+	var spaced := FontVariation.new()
+	spaced.base_font = f
+	spaced.spacing_space = FONT_WORD_SPACING
+	_font_cache = spaced
+	return spaced
 
 func build_theme() -> Theme:
 	var t := Theme.new()
-	var font := _load_font(FONT_REGULAR)
+	var font := ui_font()
 	if font:
 		t.default_font = font
+		# RichTextLabel [b]/[i] fielen ohne eigenen Eintrag auf den glatten Engine-Font
+		# zurueck. Der Pack-Font hat keinen Bold-Schnitt - Hervorhebung ueber Farbe.
+		for slot in ["normal_font", "bold_font", "italics_font", "bold_italics_font", "mono_font"]:
+			t.set_font(slot, "RichTextLabel", font)
+			t.set_font_size(slot + "_size", "RichTextLabel", FS_BODY)
 	t.default_font_size = FS_BODY
 
 	# Panel
@@ -325,8 +386,12 @@ func build_theme() -> Theme:
 	t.set_stylebox("disabled", "Button", btn_primary("disabled"))
 	t.set_stylebox("focus", "Button", btn_primary("hover"))
 	t.set_color("font_color", "Button", TEXT_PRIMARY)
-	t.set_color("font_hover_color", "Button", ACCENT_HOVER)
-	t.set_color("font_pressed_color", "Button", TEXT_ON_ACCENT)
+	# Primär = oranger Pack-Button: heller Text mit schwarzer Pixel-Outline; Hover ist
+	# der hellste Button-Zustand, dort dunkler Text.
+	t.set_color("font_hover_color", "Button", TEXT_ON_ACCENT)
+	t.set_color("font_pressed_color", "Button", TEXT_PRIMARY)
+	t.set_color("font_outline_color", "Button", BORDER_SOFT)
+	t.set_constant("outline_size", "Button", NINJA_SCALE)
 	t.set_color("font_disabled_color", "Button", TEXT_DISABLED)
 	t.set_constant("h_separation", "Button", SP_2)   # Icon links, Label rechts —
 	t.set_font_size("font_size", "Button", FS_SECTION)  # nie übereinander
@@ -353,8 +418,10 @@ func build_theme() -> Theme:
 		icon_box.content_margin_bottom = SP_2
 		t.set_stylebox(state, "IconDangerButton", icon_box)
 	t.set_color("font_color", "SecondaryButton", TEXT_SECOND)
-	t.set_color("font_color", "DangerButton", DANGER)
-	t.set_color("font_pressed_color", "DangerButton", TEXT_ON_ACCENT)
+	t.set_color("font_hover_color", "SecondaryButton", ACCENT)
+	t.set_color("font_color", "DangerButton", TEXT_PRIMARY)
+	t.set_color("font_hover_color", "DangerButton", TEXT_PRIMARY)
+	t.set_color("font_pressed_color", "DangerButton", TEXT_PRIMARY)
 
 	# Label
 	t.set_color("font_color", "Label", TEXT_PRIMARY)
@@ -387,24 +454,17 @@ func build_theme() -> Theme:
 
 	return t
 
-func _styles_only(t: Theme) -> Theme:
-	t.default_font = null
-	t.default_font_size = -1
-	for type in t.get_font_size_type_list():
-		for item in t.get_font_size_list(type):
-			t.clear_font_size(item, type)
-	return t
-
 func _ready() -> void:
 	var theme := build_theme()
 	get_tree().root.theme = theme
 	# Das Root-Theme erreicht keine Controls unter einem CanvasLayer (das ganze HUD,
-	# alle Overlays) - die fielen auf Godots Standard-Theme zurueck: graue Panels ohne
-	# Messingrahmen. Deshalb Styles und Farben auch ins Standard-Theme mergen. Font und
-	# Schriftgroessen bewusst NICHT: das HUD ist auf den bisherigen Font ausgelegt, mit
-	# PixelOperator8 laufen Top-Bar, Shop und Wellenpanel ueber.
-	ThemeDB.get_default_theme().merge_with(_styles_only(build_theme()))
-	# Controls ohne Font aus dem Theme rendern mit Godots eingebautem Standardfont.
-	# Der braucht dieselben Fallbacks, sonst zeigt der Browser dort Tofu (Desktop
-	# faellt auf System-Fonts zurueck).
-	SymbolFont.install(ThemeDB.fallback_font)
+	# alle Overlays) - die fielen auf Godots Standard-Theme zurueck. Deshalb das
+	# System-Theme komplett (Styles, Farben, Font, Groessen) ins Standard-Theme mergen.
+	ThemeDB.get_default_theme().merge_with(build_theme())
+	# Letzte Instanz fuer Controls ohne jeden Theme-Font: derselbe Pixel-Font samt
+	# Fallback-Kette (Symbole/Emoji, sonst Tofu im Browser).
+	var font := ui_font()
+	if font:
+		ThemeDB.fallback_font = font
+	else:
+		SymbolFont.install(ThemeDB.fallback_font)

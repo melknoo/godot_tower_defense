@@ -78,12 +78,12 @@ func _setup_ui() -> void:
 	title_label = Label.new()
 	title_label.text = "Aktive Upgrades"
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_label.add_theme_font_size_override("font_size", 20)
+	title_label.add_theme_font_size_override("font_size", 18)
 	header.add_child(title_label)
 
 	count_label = Label.new()
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	count_label.add_theme_font_size_override("font_size", 16)
+	count_label.add_theme_font_size_override("font_size", 18)
 	count_label.add_theme_color_override("font_color", Color("554731"))
 	header.add_child(count_label)
 	
@@ -106,7 +106,7 @@ func _setup_ui() -> void:
 	no_upgrades_label.text = "Noch keine Upgrades gewählt.\nSchließe Wellen ab, um Upgrades zu erhalten!"
 	no_upgrades_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	no_upgrades_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	no_upgrades_label.add_theme_font_size_override("font_size", 16)
+	no_upgrades_label.add_theme_font_size_override("font_size", 18)
 	no_upgrades_label.add_theme_color_override("font_color", Color("554731"))
 	no_upgrades_label.visible = false
 	upgrades_container.add_child(no_upgrades_label)
@@ -187,7 +187,7 @@ func _create_category_section(category: String, upgrades: Array) -> VBoxContaine
 	
 	var cat_label := Label.new()
 	cat_label.text = CATEGORY_NAMES.get(category, category.capitalize())
-	cat_label.add_theme_font_size_override("font_size", 16)
+	cat_label.add_theme_font_size_override("font_size", 18)
 	cat_label.add_theme_color_override("font_color", CATEGORY_COLORS.get(category, Color.WHITE).darkened(0.38))
 	section.add_child(cat_label)
 	
@@ -218,7 +218,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	icon_label.text = data.get("icon", "?")
 	icon_label.custom_minimum_size = Vector2(30, 0)
 	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon_label.add_theme_font_size_override("font_size", 20)
+	icon_label.add_theme_font_size_override("font_size", 18)
 	icon_label.add_theme_color_override("font_color", cat_color.darkened(0.35))
 	hbox.add_child(icon_label)
 	
@@ -229,12 +229,12 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 	
 	var name_label := Label.new()
 	name_label.text = data.get("name", upgrade_info["id"])
-	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_font_size_override("font_size", 18)
 	info_vbox.add_child(name_label)
 
 	var desc_label := Label.new()
 	desc_label.text = data.get("description", "")
-	desc_label.add_theme_font_size_override("font_size", 16)
+	desc_label.add_theme_font_size_override("font_size", 18)
 	desc_label.add_theme_color_override("font_color", Color("554731"))
 	info_vbox.add_child(desc_label)
 	
@@ -246,7 +246,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 		var stack_label := Label.new()
 		stack_label.text = "%d/%d" % [stacks, max_stacks]
 		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stack_label.add_theme_font_size_override("font_size", 16)
+		stack_label.add_theme_font_size_override("font_size", 18)
 		
 		if stacks >= max_stacks:
 			stack_label.add_theme_color_override("font_color", Color("795518"))
@@ -261,7 +261,7 @@ func _create_upgrade_entry(upgrade_info: Dictionary, category: String) -> PanelC
 			dots += "●" if i < stacks else "○"
 		dots_label.text = dots
 		dots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		dots_label.add_theme_font_size_override("font_size", 16)
+		dots_label.add_theme_font_size_override("font_size", 18)
 		dots_label.add_theme_color_override("font_color", cat_color.darkened(0.38))
 		stack_vbox.add_child(dots_label)
 	

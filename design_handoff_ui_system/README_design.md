@@ -1,5 +1,9 @@
 # Handoff: Arcane Bastion — UI-Designsystem (Godot 4)
 
+> **Abgelöst (2026-11-11):** Farben/Material sind durch das Ninja-Holz-Theme ersetzt
+> (`ui/ui_theme.gd`, Assets aus dem Ninja-Adventure-Pack). Struktur-Regeln (ein
+> Primär-Button pro Panel, Spacing-Raster, feste Panel-Breiten) gelten weiter.
+
 ## Overview
 Ein zusammenhängendes visuelles Designsystem für ein 2D-Top-Down-Tower-Defense-Spiel
 in Godot 4 mit elementbasierten Türmen (Feuer, Wasser, Erde, Luft, Eis, Lava, Natur,

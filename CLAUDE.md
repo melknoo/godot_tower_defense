@@ -61,7 +61,9 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
   Abschnitt unten); Artefakte landen in `export/` (gitignored)
 - `tools/ninja_import/build_assets.py` — erzeugt alle Welt-Grafik (Tuerme, Gegner, Bosse,
   Boden, Deko, Sockel) aus dem Ninja-Adventure-Pack (CC0, liegt ausserhalb des Repos).
-  Regel: 16-px-Art x4; Ausnahmen Bosse x3, Farm/Stadt x2. Siehe `ASSETS_TODO.md`
+  Regel: 16-px-Art x4; Ausnahmen Bosse x3, Farm/Stadt x2. Siehe `ASSETS_TODO.md`.
+  `--ui` baut nur das UI-Holz-Theme (`assets/ui/ninja/`, x3), den Font (`assets/fonts/
+  ninja_normal.ttf`, 'i'-Glyphe repariert) und die Top-Bar-Icons (`assets/icons/hud_*`)
 - `tools/spritegen/` — (veraltet) Python-Generator (numpy + Pillow, kein Godot-Bezug) für
   fehlende 16x16/16x64-Turm-Sprites im Pixel-Art-Stil; `pixel.py` = geteilte
   Basis, `tower_<typ>.py` = je ein Turm (inkl. Stufen-Varianten), `run_all.py`
@@ -69,6 +71,12 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
   Ninja-Adventure-Pack (CC0) — Generator schreibt nur mit `--force`. Siehe `ASSETS_TODO.md`.
 
 ### UI (`ui/`)
+- `ui_theme.gd` (Autoload `UI`) — Ninja-Holz-Theme: Stil-Fabriken (`panel()`, `btn_*()`, …)
+  liefern `StyleBoxTexture` aus den Pack-9-Patches; wird auch ins Godot-Default-Theme gemergt
+  (CanvasLayer-HUD erreicht das Root-Theme nicht). **Font-Regel:** NinjaAdventure hat ein
+  9-px-Raster → Schriftgrößen nur Vielfache von 9 (`UI.snap_font_size`, Tokens `FS_*`),
+  `oversampling = 1` (sonst zerfällt das Raster bei Fenstern ≠ 1920x1080). Reine
+  Icon-Buttons: `theme_type_variation = &"IconButton"`
 - `hud.gd` — In-Game-HUD (größte Datei!)
 - `tower_shop.gd`, `tower_info.gd`, `tower_stats_ui.gd` — Turm-Kauf/-Info
 - `ability_bar.gd`, `ability_upgrade_ui.gd` — Fähigkeiten

@@ -99,12 +99,12 @@ func _setup_ui() -> void:
 	title_label = IconSystem.create_rich_label(200, 20)
 	title_label.text = "%s Inventar" % IconSystem.bb("inventory", 18)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_label.add_theme_font_size_override("font_size", 20)
+	title_label.add_theme_font_size_override("font_size", 18)
 	header.add_child(title_label)
 
 	count_label = Label.new()
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	count_label.add_theme_font_size_override("font_size", 16)
+	count_label.add_theme_font_size_override("font_size", 18)
 	count_label.add_theme_color_override("font_color", Color("554731"))
 	header.add_child(count_label)
 	
@@ -116,7 +116,7 @@ func _setup_ui() -> void:
 	var info := Label.new()
 	info.text = "Klicke Item → wähle Turm zum Ausrüsten"
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info.add_theme_font_size_override("font_size", 16)
+	info.add_theme_font_size_override("font_size", 18)
 	info.add_theme_color_override("font_color", Color("554731"))
 	vbox.add_child(info)
 	
@@ -179,7 +179,7 @@ func _setup_detail_panel() -> void:
 	
 	detail_name = Label.new()
 	detail_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail_name.add_theme_font_size_override("font_size", 16)
+	detail_name.add_theme_font_size_override("font_size", 18)
 	header.add_child(detail_name)
 	
 	# Close Button rechts im Header
@@ -212,7 +212,7 @@ func _setup_detail_panel() -> void:
 	close_btn.add_theme_stylebox_override("focus", transparent_style)
 	
 	detail_rarity = Label.new()
-	detail_rarity.add_theme_font_size_override("font_size", 16)
+	detail_rarity.add_theme_font_size_override("font_size", 18)
 	vbox.add_child(detail_rarity)
 	
 	var sep := HSeparator.new()
@@ -221,7 +221,7 @@ func _setup_detail_panel() -> void:
 	detail_desc = Label.new()
 	detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	detail_desc.custom_minimum_size = Vector2(170, 0)
-	detail_desc.add_theme_font_size_override("font_size", 16)
+	detail_desc.add_theme_font_size_override("font_size", 18)
 	vbox.add_child(detail_desc)
 	
 	var sell_sep := HSeparator.new()
@@ -268,14 +268,14 @@ func _setup_detail_panel() -> void:
 	detail_allowed = Label.new()
 	detail_allowed.autowrap_mode = TextServer.AUTOWRAP_WORD
 	detail_allowed.custom_minimum_size = Vector2(170, 0)
-	detail_allowed.add_theme_font_size_override("font_size", 16)
+	detail_allowed.add_theme_font_size_override("font_size", 18)
 	detail_allowed.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	vbox.add_child(detail_allowed)
 
 	# Direkt aus dem Inventar ausrüsten: eine Zeile pro passendem Turm
 	equip_header = Label.new()
 	equip_header.text = "Ausrüsten auf:"
-	equip_header.add_theme_font_size_override("font_size", 16)
+	equip_header.add_theme_font_size_override("font_size", 18)
 	equip_header.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(equip_header)
 
@@ -311,7 +311,7 @@ func hide_panel() -> void:
 func _show_sell_feedback(amount: int) -> void:
 	var feedback := Label.new()
 	feedback.text = "+%d" % amount
-	feedback.add_theme_font_size_override("font_size", 16)
+	feedback.add_theme_font_size_override("font_size", 18)
 	feedback.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	feedback.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	feedback.add_theme_constant_override("outline_size", 2)
@@ -625,7 +625,7 @@ func _fill_slot(slot: PanelContainer, item: Dictionary) -> void:
 	var dot := Label.new()
 	dot.text = "●"
 	dot.position = Vector2(2, 2)
-	dot.add_theme_font_size_override("font_size", 16)
+	dot.add_theme_font_size_override("font_size", 18)
 	dot.add_theme_color_override("font_color", rarity_color)
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(dot)
@@ -779,7 +779,7 @@ func _populate_equip_list(item: Dictionary) -> void:
 	if towers.is_empty():
 		var hint := Label.new()
 		hint.text = "Kein passender Turm gebaut"
-		hint.add_theme_font_size_override("font_size", 16)
+		hint.add_theme_font_size_override("font_size", 18)
 		hint.add_theme_color_override("font_color", UI.TEXT_DISABLED)
 		equip_list.add_child(hint)
 		return
@@ -802,7 +802,7 @@ func _create_equip_row(item: Dictionary, tower: Node2D) -> Button:
 	btn.icon = TowerData.get_tower_icon_texture(tower_type)
 	btn.expand_icon = true
 	btn.add_theme_constant_override("icon_max_width", 32)
-	btn.add_theme_font_size_override("font_size", 16)
+	btn.add_theme_font_size_override("font_size", 18)
 	btn.text = "%s  Lv %d  ·  %d/%d" % [
 		TowerData.get_tower_data(tower_type).get("name", tower_type.capitalize()),
 		int(tower.level) + 1, used, equipped.size()]

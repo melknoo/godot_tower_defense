@@ -521,8 +521,8 @@ func spawn_damage_number(pos: Vector2, amount: int, is_crit: bool = false, eleme
 		var font: Font = UITheme.font_damage if UITheme.font_damage else UITheme.game_font
 		if font:
 			label.add_theme_font_override("font", font)
-	# Vielfache von 8: PixelOperator8 bleibt nur dann pixelscharf
-	var size := 24 if is_crit else 16
+	# Vielfache von 9: der NinjaAdventure-Font bleibt nur dann pixelscharf (UI.FONT_GRID)
+	var size := 27 if is_crit else 18
 	label.add_theme_font_size_override("font_size", size)
 	var color := Color(1.0, 1.0, 1.0)
 	if is_crit:
@@ -564,7 +564,7 @@ func spawn_gold_number(pos: Vector2, amount: int, is_spend: bool = false) -> voi
 		var font: Font = UITheme.font_gold if UITheme.font_gold else UITheme.game_font
 		if font:
 			label.add_theme_font_override("normal_font", font)
-	label.add_theme_font_size_override("normal_font_size", 16)
+	label.add_theme_font_size_override("normal_font_size", 18)
 	# RichTextLabel faerbt ueber default_color - "font_color" blieb hier wirkungslos.
 	label.add_theme_color_override("default_color", Color(0.9, 0.5, 0.4) if is_spend else Color(1.0, 0.85, 0.1))
 	label.add_theme_color_override("font_outline_color", Color(0.3, 0.1, 0.05) if is_spend else Color(0.4, 0.25, 0.0))
@@ -592,7 +592,7 @@ func spawn_status_text(pos: Vector2, text: String, color: Color, parent_override
 	label.position = pos + Vector2(-42, -46)
 	label.custom_minimum_size.x = 84
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	label.add_theme_constant_override("outline_size", 2)

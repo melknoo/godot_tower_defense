@@ -236,6 +236,106 @@ def build_pedestal() -> tuple[Image.Image, Image.Image]:
     return stone, glow
 
 
+# --- UI (Holz-Theme) ------------------------------------------------------------
+
+# UI-Grafiken laufen ganzzahlig x3 (Rahmen ~6-15 px auf 1920x1080). x4 wie die Welt
+# waere auf den 168-px-Leisten zu wuchtig. Godot skaliert StyleBoxTexture-Raender nicht,
+# deshalb werden die 9-Patches hier vorskaliert; texture_margin in ui/ui_theme.gd =
+# Quellrand x UI_SCALE.
+UI_SCALE = 3
+WOOD = "Ui/Theme/Theme Wood"
+OUTLINE = (19, 27, 27, 255)       # #131b1b
+WOOD_DARK = (70, 64, 46, 255)     # #46402e
+WOOD_BROWN = (155, 81, 60, 255)   # #9b513c
+
+
+def _up(img: Image.Image) -> Image.Image:
+    return img.resize((img.width * UI_SCALE, img.height * UI_SCALE), Image.NEAREST)
+
+
+def _recolor_exact(img: Image.Image, mapping: dict) -> Image.Image:
+    out = img.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if a and (r, g, b) in mapping:
+                px[x, y] = mapping[(r, g, b)] + (a,)
+    return out
+
+
+def _outlined_box(fill: tuple) -> Image.Image:
+    """16x16-Box mit 1-px-Outline und Pixel-Ecken wie nine_path_bg - dort fehlt die
+    Outline rechts/unten (Innenschatten-Look), als Panel wirkt das unfertig."""
+    img = Image.new("RGBA", (T, T))
+    px = img.load()
+    for y in range(T):
+        for x in range(T):
+            corner = min(x, T - 1 - x) + min(y, T - 1 - y)
+            if corner < 2:
+                continue
+            edge = x == 0 or y == 0 or x == T - 1 or y == T - 1 or corner == 2
+            px[x, y] = OUTLINE if edge else fill
+    return img
+
+
+def build_ui(pack: Path) -> dict[str, Image.Image]:
+    wood = pack / WOOD
+    load = lambda name: Image.open(wood / name).convert("RGBA")
+    out: dict[str, Image.Image] = {}
+    out["panel"] = _outlined_box(WOOD_DARK)
+    out["section"] = _outlined_box((52, 49, 44, 255))   # #34312c, eine Stufe tiefer
+    # Rahmen-Panel fuer Overlays: Pack-Holzrahmen, innen braun statt orange (Lesbarkeit)
+    out["panel_framed"] = _recolor_exact(load("nine_path_panel.png"),
+                                         {(243, 140, 76): WOOD_BROWN[:3], (163, 117, 78): WOOD_BROWN[:3]})
+    for state in ("normal", "hover", "pressed", "disabled"):
+        out[f"button_{state}"] = load(f"button_{state}.png")
+    out["cell"] = load("inventory_cell.png")
+    out["focus"] = load("nine_path_focus.png")
+    out["tooltip"] = _outlined_box(WOOD_BROWN)
+    return {k: _up(v) for k, v in out.items()}
+
+
+def patch_font(src: Path, dst: Path) -> None:
+    """Kopiert NormalFont.ttf und repariert das 'i': im Pack ist der Stamm nur 2 px hoch
+    und der Punkt sitzt direkt darauf - in Woertern liest es sich wie ein Punkt
+    ('Qu.t' steht sogar in der Pack-Vorschau). Neu: Fuesse wie gehabt, Stamm 3 px,
+    1 px Luft, Punkt. Raster: 9 px pro em (2048 Einheiten)."""
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+    from fontTools.ttLib import TTFont
+
+    font = TTFont(src)
+    px = lambda v: round(v * 2048 / 9)
+    pen = TTGlyphPen(None)
+    for x0, y0, x1, y1 in ((0, 0, 2, 1), (3, 0, 4, 1), (2, 0, 3, 4), (2, 5, 3, 6)):
+        pen.moveTo((px(x0), px(y0)))
+        pen.lineTo((px(x0), px(y1)))
+        pen.lineTo((px(x1), px(y1)))
+        pen.lineTo((px(x1), px(y0)))
+        pen.closePath()
+    glyph_name = font.getBestCmap()[ord("i")]
+    font["glyf"][glyph_name] = pen.glyph()
+    font.save(dst)
+
+
+def write_ui(pack: Path) -> None:
+    ui_dir = REPO / "assets/ui/ninja"
+    ui_dir.mkdir(parents=True, exist_ok=True)
+    for name, img in build_ui(pack).items():
+        img.save(ui_dir / f"{name}.png")
+    patch_font(pack / "Ui/Font/NormalFont.ttf", REPO / "assets/fonts/ninja_normal.ttf")
+    # Top-Bar-Icons statt Unicode-Glyphen (▤ ✦ ⚒) - 24-px-Kacheln, im Spiel x2
+    for name, src in UI_ICONS.items():
+        Image.open(pack / "Ui/Skill Icon" / src).convert("RGBA").save(REPO / "assets/icons" / f"{name}.png")
+
+
+UI_ICONS = {
+    "hud_archive": "Items & Weapon/Scroll.png",
+    "hud_synergy": "Spell/Alchemy.png",
+    "hud_forge": "Job & Action/Repair.png",
+}
+
+
 # --- Ausgabe --------------------------------------------------------------------
 
 def write_assets(pack: Path) -> None:
@@ -385,11 +485,14 @@ def main() -> None:
     ap.add_argument("--pack", required=True, type=Path)
     ap.add_argument("--write", action="store_true", help="Assets nach assets/ schreiben")
     ap.add_argument("--preview", type=Path, help="Kontaktbogen-PNG erzeugen")
+    ap.add_argument("--ui", action="store_true", help="nur UI-Theme (assets/ui/ninja) + Font schreiben")
     args = ap.parse_args()
     if args.preview:
         preview(args.pack, args.preview)
     if args.write:
         write_assets(args.pack)
+    if args.write or args.ui:
+        write_ui(args.pack)
 
 
 if __name__ == "__main__":

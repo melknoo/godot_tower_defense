@@ -23,6 +23,10 @@ var icons := {
 	"settings": "settings.png",
 	"abilities": "abilities.png",
 	"star_full": "star_full.png",
+	# Top-Bar (24-px-Kacheln aus dem Ninja-Pack, tools/ninja_import --ui)
+	"hud_archive": "hud_archive.png",
+	"hud_synergy": "hud_synergy.png",
+	"hud_forge": "hud_forge.png",
 	"star_empty": "star_empty.png",
 	"damage": "damage.png",
 	"range": "range.png",

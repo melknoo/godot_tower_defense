@@ -85,19 +85,19 @@ func _setup_ui() -> void:
 	title_label = Label.new()
 	title_label.text = "Turm-Statistik"
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_label.add_theme_font_size_override("font_size", 20)
+	title_label.add_theme_font_size_override("font_size", 18)
 	header.add_child(title_label)
 
 	count_label = Label.new()
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	count_label.add_theme_font_size_override("font_size", 16)
+	count_label.add_theme_font_size_override("font_size", 18)
 	count_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	header.add_child(count_label)
 
 	var hint := Label.new()
 	hint.text = "Maus über Zeile → Turm leuchtet auf dem Spielfeld"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_font_size_override("font_size", 18)
 	hint.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(hint)
 
@@ -106,7 +106,7 @@ func _setup_ui() -> void:
 	legend.fit_content = true
 	legend.scroll_active = false
 	legend.custom_minimum_size.y = 16
-	legend.add_theme_font_size_override("normal_font_size", 16)
+	legend.add_theme_font_size_override("normal_font_size", 18)
 	legend.add_theme_color_override("default_color", UI.TEXT_SECOND)
 	var legend_damage := IconSystem.bb("damage", 12) if IconSystem else ""
 	var legend_kills := IconSystem.bb("star_full", 12) if IconSystem else ""
@@ -133,7 +133,7 @@ func _setup_ui() -> void:
 	empty_label = Label.new()
 	empty_label.text = "Noch keine Türme gebaut."
 	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	empty_label.add_theme_font_size_override("font_size", 16)
+	empty_label.add_theme_font_size_override("font_size", 18)
 	empty_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	empty_label.visible = false
 	rows_container.add_child(empty_label)
@@ -270,7 +270,7 @@ func _create_row(tower: Node2D) -> PanelContainer:
 	]
 	name_label.custom_minimum_size.x = 150
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_font_size_override("font_size", 18)
 	name_label.add_theme_color_override("font_color", Color("edf3ff"))
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(name_label)
@@ -282,7 +282,7 @@ func _create_row(tower: Node2D) -> PanelContainer:
 	stats.scroll_active = false
 	stats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stats.add_theme_font_size_override("normal_font_size", 16)
+	stats.add_theme_font_size_override("normal_font_size", 18)
 	stats.add_theme_color_override("default_color", Color("edf3ff"))
 	box.add_child(stats)
 

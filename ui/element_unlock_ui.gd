@@ -77,13 +77,13 @@ func _setup_ui() -> void:
 	title_label = Label.new()
 	title_label.text = "Element-Kerne investieren"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 20)
+	title_label.add_theme_font_size_override("font_size", 18)
 	vbox.add_child(title_label)
 
 	# Kerne-Anzeige
 	cores_label = Label.new()
 	cores_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cores_label.add_theme_font_size_override("font_size", 16)
+	cores_label.add_theme_font_size_override("font_size", 18)
 	vbox.add_child(cores_label)
 	
 	# Separator
@@ -95,7 +95,7 @@ func _setup_ui() -> void:
 	var info_label := Label.new()
 	info_label.text = "Wähle ein Element zum Freischalten oder Aufwerten:"
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.add_theme_font_size_override("font_size", 16)
+	info_label.add_theme_font_size_override("font_size", 18)
 	info_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(info_label)
 	
@@ -202,7 +202,10 @@ func _create_element_buttons() -> void:
 
 func _create_element_button(element: String) -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(100, 115)
+	btn.custom_minimum_size = Vector2(120, 136)
+	# Karte mit eigenem Inhalt (Icon, Name, Stufe, Kosten): dunkle Holzflaeche, sonst
+	# steht der helle Text auf dem orangen Primaer-Button
+	btn.theme_type_variation = &"SecondaryButton"
 	btn.name = element.capitalize() + "UnlockBtn"
 	
 	var margin := MarginContainer.new()
@@ -239,7 +242,7 @@ func _create_element_button(element: String) -> Button:
 	var name_label := Label.new()
 	name_label.text = ElementalSystem.get_element_display_name(element)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_font_size_override("font_size", 18)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(name_label)
 	
@@ -252,7 +255,7 @@ func _create_element_button(element: String) -> Button:
 	var level_label := Label.new()
 	level_label.text = level_text
 	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	level_label.add_theme_font_size_override("font_size", 16)
+	level_label.add_theme_font_size_override("font_size", 18)
 	level_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(level_label)
@@ -262,7 +265,7 @@ func _create_element_button(element: String) -> Button:
 	var cost_label := Label.new()
 	cost_label.text = "Kosten: %d" % cost
 	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cost_label.add_theme_font_size_override("font_size", 16)
+	cost_label.add_theme_font_size_override("font_size", 18)
 	cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_btn.add_child(cost_label)
 	

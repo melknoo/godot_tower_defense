@@ -59,12 +59,12 @@ func _setup_ui() -> void:
 
 	var title_label := Label.new()
 	title_label.text = "Meisterschaft & Synergien"
-	title_label.add_theme_font_size_override("font_size", 20)
+	title_label.add_theme_font_size_override("font_size", 18)
 	vbox.add_child(title_label)
 
 	var hint := Label.new()
 	hint.text = "Investiere in Perks, Elemente & Türme, um Schwellen-Boni freizuschalten."
-	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_font_size_override("font_size", 18)
 	hint.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(hint)
 
@@ -153,13 +153,13 @@ func _create_track_row(tag: String, striped: bool) -> PanelContainer:
 
 	var icon_label := Label.new()
 	icon_label.text = info.get("icon", "")
-	icon_label.add_theme_font_size_override("font_size", 20)
+	icon_label.add_theme_font_size_override("font_size", 18)
 	header.add_child(icon_label)
 
 	var name_label := Label.new()
 	name_label.text = info.get("name", tag)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_font_size_override("font_size", 18)
 	name_label.add_theme_color_override("font_color", color.darkened(0.35))
 	header.add_child(name_label)
 
@@ -168,7 +168,7 @@ func _create_track_row(tag: String, striped: bool) -> PanelContainer:
 	if tier < thresholds.size():
 		next_txt = " → %d" % thresholds[tier]
 	tier_label.text = "T%d · %d Pkt%s" % [tier, points, next_txt]
-	tier_label.add_theme_font_size_override("font_size", 16)
+	tier_label.add_theme_font_size_override("font_size", 18)
 	tier_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	header.add_child(tier_label)
 
@@ -177,7 +177,7 @@ func _create_track_row(tag: String, striped: bool) -> PanelContainer:
 		var eff := Label.new()
 		var unlocked := tier >= (i + 1)
 		eff.text = "%s  T%d: %s" % ["✔" if unlocked else "•", i + 1, effects[i]]
-		eff.add_theme_font_size_override("font_size", 16)
+		eff.add_theme_font_size_override("font_size", 18)
 		eff.add_theme_color_override("font_color", color.darkened(0.2) if unlocked else UI.TEXT_SECOND)
 		vbox.add_child(eff)
 

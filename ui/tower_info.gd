@@ -95,7 +95,7 @@ func _create_rich_label(font_size: int = 11, min_width: float = 200.0) -> RichTe
 	label.fit_content = true
 	label.scroll_active = false
 	label.custom_minimum_size = Vector2(min_width, 0)
-	label.add_theme_font_size_override("normal_font_size", font_size)
+	label.add_theme_font_size_override("normal_font_size", UI.snap_font_size(font_size))
 	label.add_theme_color_override("default_color", COLOR_TEXT)
 	return label
 
@@ -121,7 +121,7 @@ func _setup_ui() -> void:
 
 	tower_level_label = Label.new()
 	tower_level_label.name = "TowerLevelLabel"
-	tower_level_label.add_theme_font_size_override("font_size", 16)
+	tower_level_label.add_theme_font_size_override("font_size", 18)
 	tower_level_label.add_theme_color_override("font_color", COLOR_MUTED)
 	vbox.add_child(tower_level_label)
 
@@ -155,7 +155,7 @@ func _setup_ui() -> void:
 	engrave_header_label = Label.new()
 	engrave_header_label.name = "EngraveHeaderLabel"
 	engrave_header_label.text = "Gravieren:"
-	engrave_header_label.add_theme_font_size_override("font_size", 16)
+	engrave_header_label.add_theme_font_size_override("font_size", 18)
 	engrave_header_label.add_theme_color_override("font_color", COLOR_MUTED)
 	engrave_container.add_child(engrave_header_label)
 
@@ -164,7 +164,7 @@ func _setup_ui() -> void:
 
 	var equip_header := Label.new()
 	equip_header.text = "Ausrüstung:"
-	equip_header.add_theme_font_size_override("font_size", 16)
+	equip_header.add_theme_font_size_override("font_size", 18)
 	equip_header.add_theme_color_override("font_color", COLOR_MUTED)
 	vbox.add_child(equip_header)
 
@@ -180,7 +180,7 @@ func _setup_ui() -> void:
 
 	equip_hint_label = Label.new()
 	equip_hint_label.text = "Klicke Slot → Wähle Item aus Inventar"
-	equip_hint_label.add_theme_font_size_override("font_size", 16)
+	equip_hint_label.add_theme_font_size_override("font_size", 18)
 	equip_hint_label.add_theme_color_override("font_color", COLOR_MUTED.darkened(0.1))
 	equip_hint_label.visible = false
 	vbox.add_child(equip_hint_label)
@@ -194,6 +194,8 @@ func _setup_ui() -> void:
 	pickup_button = Button.new()
 	pickup_button.name = "PickupButton"
 	pickup_button.text = "Aufnehmen"
+	# Ein Primaer-Button pro Panel (Upgrade); der Rest dunkel, sonst vier orange Balken
+	pickup_button.theme_type_variation = &"SecondaryButton"
 	pickup_button.pressed.connect(_on_pickup_pressed)
 	vbox.add_child(pickup_button)
 
@@ -204,12 +206,14 @@ func _setup_ui() -> void:
 
 	sell_button = Button.new()
 	sell_button.name = "SellButton"
+	sell_button.theme_type_variation = &"SecondaryButton"
 	sell_button.pressed.connect(_on_sell_pressed)
 	vbox.add_child(sell_button)
 
 	close_button = Button.new()
 	close_button.name = "CloseButton"
 	close_button.text = "Schließen"
+	close_button.theme_type_variation = &"SecondaryButton"
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 
@@ -249,7 +253,7 @@ func _create_equipment_slot(index: int) -> PanelContainer:
 	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	empty_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	empty_label.add_theme_font_size_override("font_size", 20)
+	empty_label.add_theme_font_size_override("font_size", 18)
 	empty_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	slot.add_child(empty_label)
 
@@ -694,9 +698,9 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 		crit_mult = UpgradeSystem.get_crit_multiplier()
 
 	# Stats-Text zusammenbauen
-	var damage_icon := IconSystem.bb("damage", 14) if IconSystem else ""
-	var range_icon := IconSystem.bb("range", 14) if IconSystem else ""
-	var speed_icon := IconSystem.bb("fire_rate", 14) if IconSystem else ""
+	var damage_icon := IconSystem.bb("damage", 16) if IconSystem else ""
+	var range_icon := IconSystem.bb("range", 16) if IconSystem else ""
+	var speed_icon := IconSystem.bb("fire_rate", 16) if IconSystem else ""
 	var damage_text := "%s Schaden: [b]%d[/b]" % [damage_icon, final_damage]
 	if damage_bonus > 0:
 		damage_text += " [color=#75ddff](+%d)[/color]" % damage_bonus
@@ -715,7 +719,7 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	if crit_chance > 0.0:
 		var crit_percent := int(crit_chance * 100)
 		var crit_damage_percent := int((crit_mult - 1.0) * 100)
-		var crit_icon := IconSystem.bb("star_full", 14) if IconSystem else ""
+		var crit_icon := IconSystem.bb("star_full", 16) if IconSystem else ""
 		var crit_text := "%s Crit: [b]%d%%[/b] (x%.1f)" % [crit_icon, crit_percent, crit_mult]
 		stats_lines.append(crit_text)
 
@@ -723,7 +727,7 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 	# Der Wert steckt bereits in `final_damage` - die Zeile macht nur die Quelle sichtbar.
 	var elem_damage_bonus: float = float(current_tower.item_element_damage_bonus)
 	if elem_damage_bonus > 0.0 and elem != "":
-		var elem_icon := ElementalSystem.get_element_bb(elem, 14) if ElementalSystem else ""
+		var elem_icon := ElementalSystem.get_element_bb(elem, 16) if ElementalSystem else ""
 		var elem_color := ElementalSystem.get_element_color(elem) if ElementalSystem else Color.WHITE
 		stats_lines.append("%s Elementarschaden: [color=#%s][b]+%d%%[/b][/color]" % [
 			elem_icon, elem_color.to_html(false), int(round(elem_damage_bonus * 100.0))
@@ -781,7 +785,7 @@ func _update_stats_with_upgrades(tower_type: String, level: int) -> void:
 func _update_aura_stats() -> void:
 	var buff_type: String = current_tower.aura_buff_type
 	var range_cells := RangeGridHelper.get_cell_radius(current_tower.aura_range)
-	var range_icon := IconSystem.bb("range", 14) if IconSystem else ""
+	var range_icon := IconSystem.bb("range", 16) if IconSystem else ""
 	var lines: Array[String] = []
 
 	if buff_type == "":
@@ -789,7 +793,7 @@ func _update_aura_stats() -> void:
 	else:
 		var percent := int(current_tower.buff_strength * 100)
 		lines.append("%s Aura: [b]%s +%d%%[/b]" % [
-			_get_aura_buff_icon_bb(buff_type, 14), _get_aura_buff_name(buff_type), percent
+			_get_aura_buff_icon_bb(buff_type, 16), _get_aura_buff_name(buff_type), percent
 		])
 
 	lines.append("%s Reichweite: [b]%d Felder[/b]" % [range_icon, range_cells])
@@ -806,7 +810,7 @@ func _update_aura_stats() -> void:
 func _update_blocked_info(is_blocked: bool) -> void:
 	blocked_info_label.visible = is_blocked
 	if is_blocked:
-		var warning_icon := IconSystem.bb("warning", 14) if IconSystem else "⚠"
+		var warning_icon := IconSystem.bb("warning", 16) if IconSystem else "⚠"
 		blocked_info_label.text = "%s Steht auf dem Pfad!\nKlicke 'Aufnehmen' zum Umplatzieren" % warning_icon
 
 
@@ -900,13 +904,13 @@ func _update_element_display() -> void:
 	element_label.visible = true
 
 	var elem_color: Color = ElementalSystem.get_element_color(effective_elem) if ElementalSystem else Color.WHITE
-	var elem_icon: String = IconSystem.bb(effective_elem, 14) if IconSystem else ""
+	var elem_icon: String = IconSystem.bb(effective_elem, 16) if IconSystem else ""
 	var effectiveness_info: String = ""
 
 	if ElementalSystem:
 		for defender in ["water", "fire", "earth", "air"]:
 			if ElementalSystem.is_effective(effective_elem, defender):
-				var def_icon: String = IconSystem.bb(defender, 14) if IconSystem else defender
+				var def_icon: String = IconSystem.bb(defender, 16) if IconSystem else defender
 				effectiveness_info = "Effektiv gegen: %s" % def_icon
 				break
 

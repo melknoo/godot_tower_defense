@@ -11,10 +11,10 @@ var essence_label: Label
 var roster_root: VBoxContainer
 var _tree_was_paused := false
 
-const COLOR_PANEL := Color("181d2e")
-const COLOR_CARD := Color("20273b")
-const COLOR_BORDER := Color("394866")
-const COLOR_TEXT := Color("edf3ff")
+const COLOR_PANEL := Color("46402E")
+const COLOR_CARD := Color("34312C")
+const COLOR_BORDER := Color("131B1B")
+const COLOR_TEXT := Color("F4EAD8")
 const COLOR_AETHER := Color("75ddff")
 const SILHOUETTE := Color(0.05, 0.05, 0.08)
 
@@ -38,14 +38,14 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.025, 0.035, 0.07, 0.92)
+	backdrop.color = Color(UI.BG_0, 0.92)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	backdrop.gui_input.connect(_on_backdrop_input)
 	add_child(backdrop)
 
 	for i in range(6):
 		var band := ColorRect.new()
-		band.color = Color(0.15, 0.3, 0.48, 0.025 + i * 0.008)
+		band.color = Color(0.94, 0.4, 0.2, 0.02 + i * 0.006)
 		band.position = Vector2(0, 90 + i * 155)
 		band.size = Vector2(1920, 2)
 		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -98,7 +98,7 @@ func _build_ui() -> void:
 	essence_label = Label.new()
 	essence_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	essence_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_style_label(essence_label, 20, Color("185a78"))
+	_style_label(essence_label, 20, Color("8FD8F0"))
 	currency_box.add_child(essence_label)
 
 	var close_button := Button.new()
@@ -116,7 +116,7 @@ func _build_ui() -> void:
 	header.add_child(close_button)
 
 	var divider := HSeparator.new()
-	divider.add_theme_color_override("separator", Color("785d32"))
+	divider.add_theme_color_override("separator", UI.BORDER_SOFT)
 	root.add_child(divider)
 
 	var scroll := ScrollContainer.new()
@@ -132,7 +132,7 @@ func _build_ui() -> void:
 	var footer := Label.new()
 	footer.text = "Charaktere sind Seitwärtsfortschritt: neue Spielweisen statt roher Macht."
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_style_label(footer, 16, Color("554731"))
+	_style_label(footer, 16, UI.TEXT_SECOND)
 	root.add_child(footer)
 
 
@@ -229,13 +229,13 @@ func _create_character_card(char_id: String, data: Dictionary) -> PanelContainer
 	name_row.add_child(name_label)
 	var status_label := Label.new()
 	status_label.text = "Verfügbar" if unlocked else "Gesperrt"
-	_style_label(status_label, 16, Color("5a8a5e") if unlocked else Color("8a6a4a"))
+	_style_label(status_label, 16, UI.SUCCESS if unlocked else UI.TEXT_DISABLED)
 	name_row.add_child(status_label)
 
 	var playstyle := Label.new()
 	var ability_data: Dictionary = AbilitySystem.ABILITIES.get(String(data.get("starting_ability", "")), {})
 	playstyle.text = "%s  ·  Start: %s" % [String(data.get("playstyle", "")), String(ability_data.get("name", "?"))]
-	_style_label(playstyle, 16, Color("554b3b"))
+	_style_label(playstyle, 16, UI.TEXT_SECOND)
 	info.add_child(playstyle)
 
 	var passive: Dictionary = data.get("passive", {})
@@ -243,7 +243,7 @@ func _create_character_card(char_id: String, data: Dictionary) -> PanelContainer
 		var passive_label := Label.new()
 		passive_label.text = "Passiv: %s" % String(passive.get("description", ""))
 		passive_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_style_label(passive_label, 16, Color("185a78"))
+		_style_label(passive_label, 16, Color("8FD8F0"))
 		info.add_child(passive_label)
 
 	if not unlocked:
@@ -353,5 +353,5 @@ func _panel_style(bg: Color, border: Color, width: int, radius: int) -> StyleBox
 
 
 func _style_label(label: Label, size: int, color: Color) -> void:
-	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_font_size_override("font_size", UI.snap_font_size(size))
 	label.add_theme_color_override("font_color", color)

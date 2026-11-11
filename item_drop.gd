@@ -87,7 +87,7 @@ func _create_visuals() -> void:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.position = Vector2(-50, -45)
 	label.custom_minimum_size = Vector2(100, 0)
-	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_font_size_override("font_size", 9)
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	label.add_theme_constant_override("outline_size", 2)
 	label.visible = false  # Nur bei Hover
@@ -305,7 +305,7 @@ func _show_inventory_full_message() -> void:
 	var msg := Label.new()
 	msg.text = "Inventar voll!"
 	msg.position = Vector2(-40, -60)
-	msg.add_theme_font_size_override("font_size", 12)
+	msg.add_theme_font_size_override("font_size", 18)
 	msg.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
 	msg.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	msg.add_theme_constant_override("outline_size", 2)

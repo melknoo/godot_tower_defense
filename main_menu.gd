@@ -50,7 +50,7 @@ func _create_ui() -> void:
 	
 	# Hintergrund - dunkles Pergament-Feeling
 	var bg := ColorRect.new()
-	bg.color = Color(0.035, 0.045, 0.085)
+	bg.color = UI.BG_0
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	_decorate_background(bg)
@@ -85,7 +85,7 @@ func _create_ui() -> void:
 	var title := Label.new()
 	title.text = "ARCANE BASTION"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_font_size_override("font_size", 45)
 	title.add_theme_color_override("font_color", UI.ACCENT)
 	title.add_theme_color_override("font_outline_color", Color(0.15, 0.1, 0.05))
 	title.add_theme_constant_override("outline_size", 4)
@@ -202,7 +202,7 @@ func _create_menu_button(parent: Node, text: String, icon_name: String, callback
 	elif secondary:
 		btn.theme_type_variation = &"SecondaryButton"
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.add_theme_font_size_override("font_size", 24)
+	btn.add_theme_font_size_override("font_size", 27)
 
 	# Icon direkt auf dem Button
 	var icon_texture: Texture2D = null
@@ -224,7 +224,7 @@ func _create_styled_button(text: String, callback: Callable, red: bool = false) 
 	if red:
 		btn.theme_type_variation = &"DangerButton"
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.add_theme_font_size_override("font_size", 16)
+	btn.add_theme_font_size_override("font_size", 18)
 
 	btn.pressed.connect(callback)
 	return btn
@@ -268,7 +268,7 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	var name_label := Label.new()
 	name_label.text = char_name if unlocked else "???"
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 20)
+	name_label.add_theme_font_size_override("font_size", 18)
 	name_label.add_theme_color_override("font_color", char_color if unlocked else UI.TEXT_DISABLED)
 	
 	if unlocked:
@@ -308,13 +308,13 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 		else:
 			var fallback := Label.new()
 			fallback.text = ElementalSystem.get_element_display_name(element).substr(0, 1).to_upper()
-			fallback.add_theme_font_size_override("font_size", 32)
+			fallback.add_theme_font_size_override("font_size", 36)
 			fallback.add_theme_color_override("font_color", char_color)
 			icon_container.add_child(fallback)
 	else:
 		var lock_label := Label.new()
 		lock_label.text = "?"
-		lock_label.add_theme_font_size_override("font_size", 32)
+		lock_label.add_theme_font_size_override("font_size", 36)
 		lock_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 		icon_container.add_child(lock_label)
 	
@@ -328,7 +328,7 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	else:
 		ability_label.text = "Gesperrt"
 	ability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ability_label.add_theme_font_size_override("font_size", 16)
+	ability_label.add_theme_font_size_override("font_size", 18)
 	ability_label.add_theme_color_override("font_color", UI.TEXT_PRIMARY if unlocked else UI.TEXT_DISABLED)
 	vbox.add_child(ability_label)
 
@@ -340,7 +340,7 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	passive_label.text = ("Passiv: " + passive_text) if (unlocked and not passive_text.is_empty()) else ""
 	passive_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	passive_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	passive_label.add_theme_font_size_override("font_size", 16)
+	passive_label.add_theme_font_size_override("font_size", 18)
 	passive_label.add_theme_color_override("font_color", UI.TEXT_PRIMARY if unlocked else UI.TEXT_DISABLED)
 	vbox.add_child(passive_label)
 
@@ -350,7 +350,7 @@ func _create_character_button(char_id: String, data: Dictionary, unlocked: bool)
 	desc_label.text = description if unlocked else ""
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	desc_label.add_theme_font_size_override("font_size", 16)
+	desc_label.add_theme_font_size_override("font_size", 18)
 	desc_label.add_theme_color_override("font_color", UI.TEXT_SECOND)
 	vbox.add_child(desc_label)
 	

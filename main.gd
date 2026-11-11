@@ -1143,7 +1143,7 @@ func _update_hover_appearance(tower_type: String, level: int = 0) -> void:
 		var level_label := Label.new()
 		level_label.text = "★".repeat(level)
 		level_label.position = Vector2(15, -25)
-		level_label.add_theme_font_size_override("font_size", 10)
+		level_label.add_theme_font_size_override("font_size", 9)
 		level_label.add_theme_color_override("font_color", Color(1, 0.85, 0))
 		hover_sprite.add_child(level_label)
 	

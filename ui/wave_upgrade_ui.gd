@@ -80,7 +80,7 @@ func _setup_ui() -> void:
 	title_label = Label.new()
 	title_label.text = "Welle abgeschlossen!"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 24)
+	title_label.add_theme_font_size_override("font_size", 27)
 	title_label.add_theme_color_override("font_color", Color("edf3ff"))
 	vbox.add_child(title_label)
 	
@@ -88,7 +88,7 @@ func _setup_ui() -> void:
 	subtitle_label = Label.new()
 	subtitle_label.text = "Wähle ein Upgrade für diesen Run:"
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle_label.add_theme_font_size_override("font_size", 16)
+	subtitle_label.add_theme_font_size_override("font_size", 18)
 	subtitle_label.add_theme_color_override("font_color", Color("9aa8c2"))
 	vbox.add_child(subtitle_label)
 	
@@ -296,14 +296,14 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		var icon_label := Label.new()
 		icon_label.text = data.get("icon", "?")
 		icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		icon_label.add_theme_font_size_override("font_size", 48)
+		icon_label.add_theme_font_size_override("font_size", 45)
 		vbox.add_child(icon_label)
 	
 	# Name
 	var name_label := Label.new()
 	name_label.text = data.get("name", "???")
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_font_size_override("font_size", 18)
 	name_label.add_theme_color_override("font_color", Color("f2f5ff"))
 	vbox.add_child(name_label)
 	
@@ -314,7 +314,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		if current_stacks > 5:
 			stack_label.text += " +%d" % (current_stacks - 5)
 		stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stack_label.add_theme_font_size_override("font_size", 16)
+		stack_label.add_theme_font_size_override("font_size", 18)
 		stack_label.add_theme_color_override("font_color", Color("f4cf6a"))
 		vbox.add_child(stack_label)
 	
@@ -324,7 +324,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	desc_label.custom_minimum_size.x = CARD_WIDTH - 20
-	desc_label.add_theme_font_size_override("font_size", 16)
+	desc_label.add_theme_font_size_override("font_size", 18)
 	desc_label.add_theme_color_override("font_color", Color("c1cbe0"))
 	vbox.add_child(desc_label)
 	
@@ -335,7 +335,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		tooltip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 		tooltip_label.custom_minimum_size.x = CARD_WIDTH - 20
-		tooltip_label.add_theme_font_size_override("font_size", 16)
+		tooltip_label.add_theme_font_size_override("font_size", 18)
 		tooltip_label.add_theme_color_override("font_color", Color("8f9bb2"))
 		vbox.add_child(tooltip_label)
 	
@@ -344,7 +344,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 	var cat_name: String = _get_category_name(category)
 	category_label.text = cat_name
 	category_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	category_label.add_theme_font_size_override("font_size", 16)
+	category_label.add_theme_font_size_override("font_size", 18)
 	category_label.add_theme_color_override("font_color", cat_color.lightened(0.18))
 	vbox.add_child(category_label)
 	
@@ -353,7 +353,7 @@ func _create_card(upgrade_id: String) -> PanelContainer:
 		var stack_info := Label.new()
 		stack_info.text = "(%d/%d)" % [current_stacks + 1, max_stacks]
 		stack_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stack_info.add_theme_font_size_override("font_size", 16)
+		stack_info.add_theme_font_size_override("font_size", 18)
 		stack_info.add_theme_color_override("font_color", Color("8491aa"))
 		vbox.add_child(stack_info)
 	

@@ -211,8 +211,8 @@ func _setup_hud_size() -> void:
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		bg.z_index = -1
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.035, 0.05, 0.09, 0.97)
-		style.border_color = Color(0.15, 0.38, 0.58, 0.8)
+		style.bg_color = Color(UI.BG_1, 0.97)
+		style.border_color = UI.BORDER_SOFT
 		style.border_width_top = 2
 		bg.add_theme_stylebox_override("panel", style)
 		bottom_strip.add_child(bg)
@@ -379,6 +379,17 @@ func _build_top_bar_content() -> void:
 # Loest einen Panel-Button aus dem BottomStrip und macht ihn zu einem
 # 56x56-Icon-Button im TopBar-Cluster (rechtes Ende). pause_button/research_button
 # kommen erst spaeter dazu, sobald _create_progression_ui() sie angelegt hat.
+# 24-px-Icon-Kacheln aus dem Ninja-Pack: ganzzahlig x2 = 48 px (ICON_BTN 56 minus
+# Rand), damit das Pixelraster nicht verzieht. Fehlt die Datei, bleibt der Button leer.
+func _set_hud_tile_icon(btn: Button, icon_name: String) -> void:
+	btn.text = ""
+	btn.icon = IconSystem.get_texture(icon_name) if IconSystem else null
+	btn.expand_icon = true
+	btn.add_theme_constant_override("icon_max_width", 48)
+	if UITheme:
+		UITheme.center_button_icon(btn)
+
+
 func _dock_icon_button(btn: Button) -> void:
 	if not btn:
 		return
@@ -452,7 +463,7 @@ func _create_wave_status_ui() -> void:
 	# als Kind der gemeinsamen BottomBar-HBox neben den Tower-Shop gesetzt.
 	# Feste Mindestbreite statt der alten Anchor-Offsets (-785/-5 = 780px), damit
 	# next_column (EXPAND_FILL) weiterhin genug Platz für die Wellenvorschau hat.
-	wave_status_panel.custom_minimum_size.x = 780
+	wave_status_panel.custom_minimum_size.x = 800
 	wave_status_panel.size_flags_horizontal = Control.SIZE_SHRINK_END
 	wave_status_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	wave_status_panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -582,7 +593,7 @@ func _create_wave_status_ui() -> void:
 func _create_wave_heading(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", Color(0.68, 0.76, 0.84))
 	return label
 
@@ -611,12 +622,11 @@ func _create_progression_ui() -> void:
 
 	_style_progression_button(auto_wave_button)
 
-	# "ARCHIV" wird ein reiner Icon-Button im TopBar-Cluster (kein eigenes Icon-Asset
-	# vorhanden -> thematisches Glyph, gleiches Muster wie Synergie/Schmiede oben).
+	# "ARCHIV" ist ein reiner Icon-Button im TopBar-Cluster (Schriftrolle aus dem
+	# Ninja-Pack, wie Synergie/Schmiede - vorher Unicode-Glyphen).
 	research_button = Button.new()
 	research_button.name = "ResearchButton"
-	research_button.text = "▤"
-	research_button.add_theme_font_size_override("font_size", 24)
+	_set_hud_tile_icon(research_button, "hud_archive")
 	research_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	research_button.tooltip_text = "Dauerhafte Forschung öffnen (M)"
 	research_button.pressed.connect(_on_research_pressed)
@@ -651,7 +661,7 @@ func _create_progression_ui() -> void:
 	streak_label = Label.new()
 	streak_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	streak_label.add_theme_color_override("font_color", Color("6d277d"))
-	streak_label.add_theme_font_size_override("font_size", 16)
+	streak_label.add_theme_font_size_override("font_size", 18)
 	streak_box.add_child(streak_label)
 	streak_bar = ProgressBar.new()
 	streak_bar.custom_minimum_size.y = 10
@@ -699,7 +709,7 @@ func _show_item_toast(item: Dictionary) -> void:
 	panel.custom_minimum_size = Vector2(340, 58)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.04, 0.075, 0.96)
+	style.bg_color = Color(UI.BG_1, 0.96)
 	style.border_color = rarity_color
 	style.border_width_left = 4
 	style.border_width_top = 1
@@ -736,7 +746,7 @@ func _show_item_toast(item: Dictionary) -> void:
 	row.add_child(labels)
 	var title := Label.new()
 	title.text = String(item.get("name", "Unbekanntes Item"))
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(0.95, 0.98, 1.0))
 	labels.add_child(title)
 	var rarity_names := {
@@ -746,7 +756,7 @@ func _show_item_toast(item: Dictionary) -> void:
 	var rarity := String(item.get("rarity", "common"))
 	var detail := Label.new()
 	detail.text = "%s  ·  INS INVENTAR AUFGENOMMEN" % rarity_names.get(rarity, rarity.to_upper())
-	detail.add_theme_font_size_override("font_size", 16)
+	detail.add_theme_font_size_override("font_size", 18)
 	detail.add_theme_color_override("font_color", rarity_color)
 	labels.add_child(detail)
 	for label in [title, detail]:
@@ -802,7 +812,7 @@ func _create_boss_bar() -> void:
 
 	boss_bar_label = Label.new()
 	boss_bar_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	boss_bar_label.add_theme_font_size_override("font_size", 16)
+	boss_bar_label.add_theme_font_size_override("font_size", 18)
 	boss_bar_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
 	boss_bar_label.add_theme_color_override("font_outline_color", Color(0.1, 0.03, 0.02))
 	boss_bar_label.add_theme_constant_override("outline_size", 4)
@@ -866,7 +876,7 @@ func _living_bosses() -> Array:
 
 func _style_arcane_progress_bar(bar: ProgressBar, color: Color) -> void:
 	var background := StyleBoxFlat.new()
-	background.bg_color = Color(0.02, 0.03, 0.06, 0.9)
+	background.bg_color = Color(UI.BG_3, 0.9)
 	background.set_corner_radius_all(4)
 	var fill: StyleBoxFlat = background.duplicate()
 	fill.bg_color = color
@@ -878,7 +888,7 @@ func _style_arcane_progress_bar(bar: ProgressBar, color: Color) -> void:
 
 func _style_progression_button(button: Button) -> void:
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.add_theme_font_size_override("font_size", 16)
+	button.add_theme_font_size_override("font_size", 18)
 
 
 func _get_or_create_label(node_name: String, default_pos: Vector2) -> Label:
@@ -939,22 +949,22 @@ func _get_or_create_texture_rect_child(parent: Node, node_name: String, local_po
 
 func _apply_styles() -> void:
 	if gold_label:
-		gold_label.add_theme_font_size_override("normal_font_size", 16)
+		gold_label.add_theme_font_size_override("normal_font_size", 18)
 
 	if bonus_preview_label:
-		bonus_preview_label.add_theme_font_size_override("font_size", 16)
+		bonus_preview_label.add_theme_font_size_override("font_size", 18)
 		bonus_preview_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 		bonus_preview_label.add_theme_color_override("font_outline_color", Color(0.15, 0.1, 0.0))
 		bonus_preview_label.add_theme_constant_override("outline_size", 2)
 	if enemies_label:
-		enemies_label.add_theme_font_size_override("font_size", 16)
+		enemies_label.add_theme_font_size_override("font_size", 18)
 
 	if cores_label:
-		cores_label.add_theme_font_size_override("font_size", 16)
+		cores_label.add_theme_font_size_override("font_size", 18)
 		cores_label.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 
 	if current_wave_info_label:
-		current_wave_info_label.add_theme_font_size_override("font_size", 16)
+		current_wave_info_label.add_theme_font_size_override("font_size", 18)
 		current_wave_info_label.text = "AKTUELL"
 		current_wave_info_label.add_theme_color_override("font_color", Color(0.68, 0.76, 0.84))
 
@@ -964,11 +974,11 @@ func _apply_styles() -> void:
 
 	if current_wave_element_label:
 		current_wave_element_label.text = "—"
-		current_wave_element_label.add_theme_font_size_override("font_size", 16)
+		current_wave_element_label.add_theme_font_size_override("font_size", 18)
 		current_wave_element_label.add_theme_color_override("font_color", Color(0.58, 0.64, 0.7))
 
 	if wave_preview_label:
-		wave_preview_label.add_theme_font_size_override("normal_font_size", 16)
+		wave_preview_label.add_theme_font_size_override("normal_font_size", 18)
 		wave_preview_label.add_theme_color_override("default_color", Color(0.95, 0.95, 0.98))
 		wave_preview_label.mouse_filter = Control.MOUSE_FILTER_STOP
 
@@ -977,26 +987,26 @@ func _apply_styles() -> void:
 		wave_element_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	if wave_element_label:
-		wave_element_label.add_theme_font_size_override("font_size", 16)
+		wave_element_label.add_theme_font_size_override("font_size", 18)
 
 
 	if supply_label:
-		supply_label.add_theme_font_size_override("font_size", 16)
+		supply_label.add_theme_font_size_override("font_size", 18)
 		supply_label.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7))
 
 	if blocked_warning_label:
-		blocked_warning_label.add_theme_font_size_override("font_size", 16)
+		blocked_warning_label.add_theme_font_size_override("font_size", 18)
 		blocked_warning_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 		blocked_warning_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 		blocked_warning_label.add_theme_constant_override("outline_size", 2)
 		blocked_warning_label.visible = false
 
 	if wave_events_label:
-		wave_events_label.add_theme_font_size_override("normal_font_size", 16)
+		wave_events_label.add_theme_font_size_override("normal_font_size", 18)
 		wave_events_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
 
 	if wave_advice_label:
-		wave_advice_label.add_theme_font_size_override("normal_font_size", 16)
+		wave_advice_label.add_theme_font_size_override("normal_font_size", 18)
 
 	if inventory_button:
 		inventory_button.icon = IconSystem.get_texture("inventory")
@@ -1008,7 +1018,7 @@ func _apply_styles() -> void:
 		inventory_notification = Label.new()
 		inventory_notification.name = "InventoryNotification"
 		inventory_notification.position = Vector2(32, -5)
-		inventory_notification.add_theme_font_size_override("font_size", 16)
+		inventory_notification.add_theme_font_size_override("font_size", 18)
 		inventory_notification.add_theme_color_override("font_color", Color(1, 1, 1))
 		inventory_notification.add_theme_color_override("font_outline_color", Color(0.8, 0.2, 0.2))
 		inventory_notification.add_theme_constant_override("outline_size", 3)
@@ -1019,7 +1029,7 @@ func _apply_styles() -> void:
 		core_notification = Label.new()
 		core_notification.name = "CoresNotification"
 		core_notification.position = Vector2(32, -5)
-		core_notification.add_theme_font_size_override("font_size", 16)
+		core_notification.add_theme_font_size_override("font_size", 18)
 		core_notification.add_theme_color_override("font_color", Color(1, 1, 1))
 		core_notification.add_theme_color_override("font_outline_color", Color(0.8, 0.2, 0.2))
 		core_notification.add_theme_constant_override("outline_size", 3)
@@ -1047,9 +1057,7 @@ func _apply_styles() -> void:
 		upgrades_button.tooltip_text = "Aktive Upgrades anzeigen (U)"
 
 	if synergy_button:
-		# Kein eigenes Icon-Asset vorhanden -> thematisches Glyph
-		synergy_button.text = "✦"
-		synergy_button.add_theme_font_size_override("font_size", 24)
+		_set_hud_tile_icon(synergy_button, "hud_synergy")
 		synergy_button.tooltip_text = "Meisterschaft & Synergien (Y)"
 
 	if schedule_button:
@@ -1060,9 +1068,7 @@ func _apply_styles() -> void:
 		schedule_button.tooltip_text = "Fahrplan der kommenden Wellen (F)"
 
 	if forge_button:
-		# Kein eigenes Schmiede-Asset vorhanden -> thematisches Glyph
-		forge_button.text = "⚒"
-		forge_button.add_theme_font_size_override("font_size", 24)
+		_set_hud_tile_icon(forge_button, "hud_forge")
 		forge_button.tooltip_text = "Schmiede: zwei Items kombinieren"
 
 	if tower_stats_button:
@@ -1351,7 +1357,7 @@ func update_wave_events_preview(next_wave: int) -> void:
 
 	var events: Array[String] = []
 	for event in schedule:
-		events.append("%s %s" % [IconSystem.bb(event["icon"], 14), event["label"]])
+		events.append("%s %s" % [IconSystem.bb(event["icon"], 16), event["label"]])
 
 	wave_events_label.text = "DANACH  %s" % " · ".join(events)
 	wave_events_label.visible = true
@@ -1818,7 +1824,7 @@ func _create_wave_tooltip() -> void:
 
 	# --- Titel ---
 	wave_tooltip_title = Label.new()
-	wave_tooltip_title.add_theme_font_size_override("font_size", 16)
+	wave_tooltip_title.add_theme_font_size_override("font_size", 18)
 	wave_tooltip_title.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
 	vb.add_child(wave_tooltip_title)
 
@@ -1871,7 +1877,7 @@ func _create_wave_tooltip() -> void:
 	var wk_title := Label.new()
 	wk_title.name = "WeaknessTitle"
 	wk_title.text = "Gegner dieser Welle:"
-	wk_title.add_theme_font_size_override("font_size", 16)
+	wk_title.add_theme_font_size_override("font_size", 18)
 	wk_title.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
 	vb.add_child(wk_title)
 
@@ -1972,26 +1978,26 @@ func _show_wave_tooltip(which: String) -> void:
 			var name_lbl := Label.new()
 			name_lbl.text = info["name"] + ":"
 			name_lbl.custom_minimum_size = Vector2(72, 0)
-			name_lbl.add_theme_font_size_override("font_size", 16)
+			name_lbl.add_theme_font_size_override("font_size", 18)
 			name_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 			row.add_child(name_lbl)
 
 			var weak_lbl := Label.new()
 			weak_lbl.text = "▲ " + TOWER_NAMES.get(info["weak"], info["weak"])
-			weak_lbl.add_theme_font_size_override("font_size", 16)
+			weak_lbl.add_theme_font_size_override("font_size", 18)
 			weak_lbl.add_theme_color_override("font_color", Color(0.35, 1.0, 0.45))
 			row.add_child(weak_lbl)
 
 			var resist_lbl := Label.new()
 			resist_lbl.text = "▼ " + TOWER_NAMES.get(info["resist"], info["resist"])
-			resist_lbl.add_theme_font_size_override("font_size", 16)
+			resist_lbl.add_theme_font_size_override("font_size", 18)
 			resist_lbl.add_theme_color_override("font_color", Color(1.0, 0.38, 0.38))
 			row.add_child(resist_lbl)
 
 			# Typ-Mechanik in einer Zeile darunter
 			var trait_lbl := Label.new()
 			trait_lbl.text = "   " + String(info.get("trait", ""))
-			trait_lbl.add_theme_font_size_override("font_size", 16)
+			trait_lbl.add_theme_font_size_override("font_size", 18)
 			trait_lbl.add_theme_color_override("font_color", Color(0.62, 0.68, 0.76))
 			wk_container.add_child(trait_lbl)
 
@@ -2054,7 +2060,7 @@ func show_final_wave_choice(on_endless: Callable, on_finish: Callable) -> void:
 
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.025, 0.035, 0.07, 0.85)
+	backdrop.color = Color(UI.BG_0, 0.85)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay_layer.add_child(backdrop)
 
@@ -2088,7 +2094,7 @@ func show_final_wave_choice(on_endless: Callable, on_finish: Callable) -> void:
 	var text := Label.new()
 	text.text = "Der reguläre Run ist damit gewonnen.\nWeiterspielen oder jetzt abschließen und auszahlen lassen?"
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	text.add_theme_font_size_override("font_size", 16)
+	text.add_theme_font_size_override("font_size", 18)
 	text.add_theme_constant_override("line_spacing", 6)
 	box.add_child(text)
 
@@ -2112,7 +2118,7 @@ func show_final_wave_choice(on_endless: Callable, on_finish: Callable) -> void:
 
 	for button in [endless_btn, finish_btn]:
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		button.add_theme_font_size_override("font_size", 16)
+		button.add_theme_font_size_override("font_size", 18)
 
 	var close_and_call := func(callback: Callable) -> void:
 		Sound.play_click()
@@ -2147,7 +2153,7 @@ func show_run_summary(summary: Dictionary = {}, is_victory: bool = false) -> voi
 	add_child(overlay_layer)
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.025, 0.035, 0.07, 0.9)
+	backdrop.color = Color(UI.BG_0, 0.9)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay_layer.add_child(backdrop)
 	var center := CenterContainer.new()
@@ -2176,7 +2182,7 @@ func show_run_summary(summary: Dictionary = {}, is_victory: bool = false) -> voi
 	var wave_result := Label.new()
 	wave_result.text = "WELLE %d" % GameState.current_wave
 	wave_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	wave_result.add_theme_font_size_override("font_size", 48)
+	wave_result.add_theme_font_size_override("font_size", 45)
 	wave_result.add_theme_color_override("font_color", UI.ACCENT)
 	box.add_child(wave_result)
 
@@ -2189,7 +2195,7 @@ func show_run_summary(summary: Dictionary = {}, is_victory: bool = false) -> voi
 	payout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	payout.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	payout.custom_minimum_size.y = 62
-	payout.add_theme_font_size_override("font_size", 20)
+	payout.add_theme_font_size_override("font_size", 18)
 	payout.add_theme_color_override("font_color", UI.ACCENT)
 	payout_panel.add_child(payout)
 
@@ -2203,7 +2209,7 @@ func show_run_summary(summary: Dictionary = {}, is_victory: bool = false) -> voi
 		int(summary.get("essence_total", 0))
 	]
 	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	detail.add_theme_font_size_override("font_size", 16)
+	detail.add_theme_font_size_override("font_size", 18)
 	detail.add_theme_constant_override("line_spacing", 6)
 	box.add_child(detail)
 
@@ -2211,7 +2217,7 @@ func show_run_summary(summary: Dictionary = {}, is_victory: bool = false) -> voi
 	hint.text = "Welle %d überstanden. Investiere Aether im Archiv und starte dauerhaft stärker." % RunSchedule.FINAL_WAVE \
 		if is_victory else "Investiere Aether im Archiv und starte dauerhaft stärker."
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_font_size_override("font_size", 18)
 	hint.add_theme_color_override("font_color", Color("554731"))
 	box.add_child(hint)
 
@@ -2237,10 +2243,10 @@ func show_run_summary(summary: Dictionary = {}, is_victory: bool = false) -> voi
 	buttons.add_child(menu_btn)
 	for button in [archive_btn, restart_btn]:
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		button.add_theme_font_size_override("font_size", 16)
+		button.add_theme_font_size_override("font_size", 18)
 	menu_btn.theme_type_variation = &"DangerButton"
 	menu_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	menu_btn.add_theme_font_size_override("font_size", 16)
+	menu_btn.add_theme_font_size_override("font_size", 18)
 
 	summary_panel.modulate.a = 0.0
 	summary_panel.scale = Vector2(0.9, 0.9)

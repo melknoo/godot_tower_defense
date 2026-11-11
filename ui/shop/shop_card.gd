@@ -19,8 +19,9 @@ class CardButton extends Button:
 ## Einzige Quelle der Wahrheit für die Kartengröße — Aufrufer (z.B. tower_shop.gd)
 ## sollen daraus ihre Scroll-/Frame-Geometrie ableiten statt die Maße zu duplizieren.
 static func preferred_size() -> Vector2:
+	# Breite: Pixel-Font-Namen bis ~9 Zeichen ("Aura-Turm") brauchen ~88 px Text.
 	return Vector2(
-		UI.SLOT_SIZE + UI.SP_3 * 2,
+		UI.SLOT_SIZE + UI.SP_4 * 2,
 		UI.SLOT_SIZE + UI.SP_3 * 2 + UI.SP_1 * 2 + UI.FS_MICRO * 2
 	)
 
@@ -56,8 +57,8 @@ func _init() -> void:
 	add_child(_button)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", UI.SP_3)
-	margin.add_theme_constant_override("margin_right", UI.SP_3)
+	margin.add_theme_constant_override("margin_left", UI.SP_1)
+	margin.add_theme_constant_override("margin_right", UI.SP_1)
 	margin.add_theme_constant_override("margin_top", UI.SP_3)
 	margin.add_theme_constant_override("margin_bottom", UI.SP_3)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -81,7 +82,7 @@ func _init() -> void:
 	_cost_row.add_child(_cost_label)
 
 	_coin_icon = TextureRect.new()
-	_coin_icon.custom_minimum_size = Vector2(12, 12)
+	_coin_icon.custom_minimum_size = Vector2(16, 16)
 	_coin_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_coin_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE

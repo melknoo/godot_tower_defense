@@ -191,7 +191,7 @@ func _make_menu_button(text: String, icon_name: String, callback: Callable, red:
 	button.text = text
 	button.custom_minimum_size = Vector2(390, 70)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_font_size_override("font_size", 18)
 	if red: button.theme_type_variation = &"DangerButton"
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	if IconSystem:
@@ -243,7 +243,7 @@ func _create_toggle(text: String) -> CheckButton:
 	var toggle := CheckButton.new()
 	toggle.text = text
 	toggle.custom_minimum_size = Vector2(390, 46)
-	toggle.add_theme_font_size_override("font_size", 16)
+	toggle.add_theme_font_size_override("font_size", 18)
 	return toggle
 
 

@@ -2,6 +2,15 @@
 
 Letzte Aktualisierung: 2026-11-03
 
+## Playtest-Runde 2026-11-11: UI-Holz-Theme
+
+- Shop-Tooltip mit Werten, Pfad-Tooltip mehrzeilig + am Rand gespiegelt, Item-Toast über
+  der Leiste, Icon-Buttons (Aura/Gravur) wieder mit Icon (`IconButton`-Variante).
+- Inventar: Item anklicken → „Ausrüsten auf:“ listet passende Türme (Hover hebt hervor).
+- UI komplett auf das Ninja-Holz-Theme umgestellt (Panels/Buttons als 9-Patch, ein
+  Pixel-Font mit 9-px-Raster, Pack-Icons in der Top-Bar). Navy/Messing-Design-Handoff ist
+  damit abgelöst; Token-Namen (`BG_*`, `BORDER_BRASS`, …) sind geblieben, Werte neu.
+
 ## Design-Pass 2026-11-03 (Branch `design-pass`)
 
 Game-Design-Review mit Plan in fuenf Phasen; Phasen 0-4 sind umgesetzt, Phase 5 bleibt

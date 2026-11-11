@@ -119,19 +119,27 @@ func _load_corner_pieces() -> void:
 
 
 func _load_font() -> void:
-	# Dieselbe Pixelschrift wie das restliche UI (ui/ui_theme.gd). Vorher Clarity.ttf -
-	# ein zweiter, glatter Schriftstil fuer Schadens-/Goldzahlen und Alt-Buttons.
-	game_font = _load_pixel_font("res://ui/fonts/pixel_operator/PixelOperator8.ttf")
+	# Dieselbe Pixelschrift wie das restliche UI (ui/ui_theme.gd: NinjaAdventure, Fallback
+	# PixelOperator8). Dieses Autoload startet vor UI - load() liefert aber dieselbe
+	# Font-Ressource, beide teilen sich also Objekt und Fallback-Kette.
+	game_font = _load_pixel_font("res://assets/fonts/ninja_normal.ttf")
+	var fallback := _load_pixel_font("res://ui/fonts/pixel_operator/PixelOperator8.ttf")
+	if not game_font:
+		game_font = fallback
+	elif fallback and not game_font.fallbacks.has(fallback):
+		var fbs := game_font.fallbacks
+		fbs.insert(0, fallback)
+		game_font.fallbacks = fbs
 	if not game_font:
 		return
-	var bold := _load_pixel_font("res://ui/fonts/pixel_operator/PixelOperator8-Bold.ttf")
 
-	# Keine embolden-/Scher-Variationen: die verschmieren das Pixelraster.
+	# Keine embolden-/Scher-Variationen: die verschmieren das Pixelraster. Der Pack-Font
+	# hat keinen Bold-Schnitt; Schadens-/Goldzahlen tragen ihre Outline.
 	font_damage = FontVariation.new()
-	font_damage.base_font = bold if bold else game_font
+	font_damage.base_font = game_font
 
 	font_gold = FontVariation.new()
-	font_gold.base_font = bold if bold else game_font
+	font_gold.base_font = game_font
 	font_gold.spacing_glyph = 1
 
 
@@ -142,6 +150,7 @@ func _load_pixel_font(path: String) -> FontFile:
 	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
 	f.generate_mipmaps = false
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	f.oversampling = 1.0   # in Nenngroesse rastern, siehe UI._prepare_pixel_font
 	# Die Pixelschrift deckt nur ASCII ab - Symbole/Emoji kommen aus den Fallback-Subsets
 	SymbolFont.install(f)
 	return f

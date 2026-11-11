@@ -811,7 +811,7 @@ func _create_visuals() -> void:
 	add_child(level_indicator)
 	
 	engraving_indicator = _get_or_create_rich_label("engraving_indicator", Vector2(-25, -45))
-	engraving_indicator.add_theme_font_size_override("font_size", 14)
+	engraving_indicator.add_theme_font_size_override("font_size", 18)
 	engraving_indicator.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	engraving_indicator.add_theme_constant_override("outline_size", 2)
 	engraving_indicator.visible = false
