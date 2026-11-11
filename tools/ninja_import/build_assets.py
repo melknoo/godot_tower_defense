@@ -149,13 +149,41 @@ def boss_strip(pack: Path, folder: str, file: str, frames: int) -> Image.Image:
     return Image.open(pack / "Actor/Boss" / folder / file).convert("RGBA")
 
 
+# Die Pack-Kanten haben je Seite ~4 px Grasrand - ein waagrechter Weg waere nur 8 von
+# 16 px breit und laege sichtbar schmaler als die 64-px-Zelle. Jedes Kantenviertel wird
+# deshalb um PATH_TIGHTEN px nach aussen geschoben und innen mit Erde aufgefuellt: die
+# gezackte Kante bleibt, der Weg wird 12 von 16 px breit. Achsen je Quellkachel:
+PATH_TIGHTEN = 2
+TIGHTEN_AXES = {
+    "iso": (True, True), "hmid": (False, True), "vmid": (True, False), "center": (False, False),
+    "inner_br": (True, True), "inner_bl": (True, True), "inner_tr": (True, True), "inner_tl": (True, True),
+}
+
+
+def tighten_path_tile(src: Image.Image, center: Image.Image, axes: tuple) -> Image.Image:
+    half = T // 2
+    out = Image.new("RGBA", (T, T))
+    for qy in range(2):
+        for qx in range(2):
+            box = (qx * half, qy * half, qx * half + half, qy * half + half)
+            dx = (PATH_TIGHTEN if qx else -PATH_TIGHTEN) if axes[0] else 0
+            dy = (PATH_TIGHTEN if qy else -PATH_TIGHTEN) if axes[1] else 0
+            quarter = center.crop(box)
+            quarter.paste(src.crop(box), (dx, dy))
+            out.paste(quarter, box[:2])
+    return out
+
+
 def build_path_atlas(pack: Path) -> Image.Image:
     floor = Image.open(pack / "Backgrounds/Tilesets/TilesetFloor.png").convert("RGBA")
     atlas = Image.new("RGBA", (T * len(PATH_SOURCES), T * len(MATERIALS)))
+    center_pos = dict(PATH_SOURCES)["center"]
     for mi, (mat, mapping) in enumerate(MATERIALS.items()):
-        for si, (_, (c, r)) in enumerate(PATH_SOURCES):
-            src = recolor(tile(floor, c, r), mapping, MATERIAL_SPRINKLE.get(mat), seed=mi * 31 + si)
-            atlas.paste(src, (si * T, mi * T))
+        sprinkle = MATERIAL_SPRINKLE.get(mat)
+        center = recolor(tile(floor, *center_pos), mapping, sprinkle, seed=mi * 31 + 3)
+        for si, (name, (c, r)) in enumerate(PATH_SOURCES):
+            src = recolor(tile(floor, c, r), mapping, sprinkle, seed=mi * 31 + si)
+            atlas.paste(tighten_path_tile(src, center, TIGHTEN_AXES[name]), (si * T, mi * T))
     return atlas
 
 

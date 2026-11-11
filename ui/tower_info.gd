@@ -533,14 +533,16 @@ func _refit_and_position() -> void:
 
 	size = get_combined_minimum_size()
 
-	var tower_y := float(current_grid_pos.y) * tile + tile * 0.5
+	# Zelle in Bildschirmkoordinaten - die Feldkamera (main.gd) verschiebt die Welt.
+	var cell_screen := get_viewport().get_canvas_transform() * (Vector2(current_grid_pos) * tile)
+	var tower_y := cell_screen.y + tile * 0.5
 	var open_up := tower_y > screen_size.y * 0.5
 
-	position.x = float(current_grid_pos.x) * tile + tile + margin
+	position.x = cell_screen.x + tile + margin
 	position.y = (tower_y - size.y - margin) if open_up else (tower_y + margin)
 
 	if position.x + size.x > screen_size.x - margin:
-		position.x = float(current_grid_pos.x) * tile - size.x - margin
+		position.x = cell_screen.x - size.x - margin
 
 	position.x = clamp(position.x, margin, screen_size.x - size.x - margin)
 	position.y = clamp(position.y, top_safe_margin, screen_size.y - size.y - bottom_safe_margin)

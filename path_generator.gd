@@ -5,7 +5,7 @@ class_name PathGenerator
 
 const GRID_SIZE := 64
 const MAP_WIDTH := 30
-const MAP_HEIGHT := 15
+const MAP_HEIGHT := 13  # muss main.gd::MAP_HEIGHT entsprechen
 
 # Pfad-Einstellungen
 const MIN_PATH_LENGTH := 35  # Mindestlänge für interessante Pfade
@@ -325,7 +325,17 @@ func _is_valid_cell(cell: Vector2i, visited: Dictionary) -> bool:
 	
 	if adjacent_visited > 1:
 		return false
-	
+
+	# Seitlich nur am Vorgaenger anliegen: sonst laeuft der Weg an einem eigenen
+	# frueheren Stueck entlang und die beiden Strecken verschmelzen optisch zu einem
+	# Klumpen (ground_layer zeichnet zwischen ihnen keinen Rand).
+	var orthogonal_visited := 0
+	for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		if visited.has(cell + d):
+			orthogonal_visited += 1
+	if orthogonal_visited > 1:
+		return false
+
 	return true
 
 

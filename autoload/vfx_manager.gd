@@ -1060,7 +1060,8 @@ func spawn_earthquake_effect() -> void:
 	var colors: Array = PALETTES["earth"]
 	
 	# Mehrere Shockwave-Ringe vom Zentrum
-	var center := screen_size / 2
+	# Bildschirmmitte in Weltkoordinaten (die Feldkamera verschiebt die Welt)
+	var center := viewport.get_canvas_transform().affine_inverse() * (screen_size / 2)
 	
 	for wave in range(3):
 		await parent.get_tree().create_timer(0.1 * wave).timeout

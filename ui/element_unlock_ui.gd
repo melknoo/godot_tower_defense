@@ -316,7 +316,15 @@ func _show_unlock_effect(element: String, was_new: bool) -> void:
 	# VFX am Panel
 	if VFX:
 		var center_pos := panel.global_position + panel.size / 2
-		VFX.spawn_pixel_burst(center_pos, element, 12 if was_new else 8)
+		# Bildschirmposition -> im UI-CanvasLayer spawnen, nicht in der Welt
+		VFX.spawn_pixel_burst(center_pos, element, 12 if was_new else 8, _ui_layer())
+
+
+func _ui_layer() -> Node:
+	var node: Node = get_parent()
+	while node and not node is CanvasLayer:
+		node = node.get_parent()
+	return node
 
 
 func _on_close_pressed() -> void:

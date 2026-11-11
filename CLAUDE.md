@@ -44,7 +44,8 @@ Ziel: Der Hauptkontext (teures Modell, z. B. Opus im Plan Mode) bleibt schlank u
   - `cursor_manager.gd` bietet `set_context()` mit eigener Grafik pro Kontext
 
 ### Gameplay (Root)
-- `main.gd`/`main.tscn` — Spielszene, verdrahtet alles
+- `main.gd`/`main.tscn` — Spielszene, verdrahtet alles. Feld 30x13 à 64 px liegt per `FieldCamera`
+  unter der Top-Bar (`FIELD_TOP`): Mauspositionen immer über `_to_world()`, Welt→UI über `_to_screen()`
 - `tower.gd`, `tower_manager.gd`, `data/tower_data.gd` — Türme (Logik, Platzierung, Daten)
 - `enemy.gd`, `wave_manager.gd` — Gegner & Wellen
 - `bullet.gd`, `trap.gd`, `item_drop.gd` — Projektile, Fallen, Drops

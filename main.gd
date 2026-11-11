@@ -5,8 +5,16 @@ const GRID_SIZE := 64
 const RangeGridHelper = preload("res://autoload/range_grid.gd")
 const RunSchedule = preload("res://autoload/run_schedule.gd")
 const MAP_WIDTH := 30
-const MAP_HEIGHT := 15
+# 13 Reihen: das Feld liegt komplett zwischen Top-Bar (UI.TOPBAR_H) und unterer Leiste
+# (UI.BOTTOMBAR_H) - 64 + 13*64 = 896 <= 1080 - 168. Bei mehr Reihen verdeckt das HUD
+# Weg und Bauplaetze.
+const MAP_HEIGHT := 13
+# Die Welt beginnt unter der Top-Bar. Eine Kamera verschiebt nur die Darstellung,
+# Weltkoordinaten (position/global_position) bleiben unveraendert; Maus- und UI-Positionen
+# laufen ueber _to_world()/_to_screen().
+const FIELD_TOP := 64
 
+var field_camera: Camera2D
 @onready var ground_layer: GroundLayer = $GroundLayer
 @onready var wave_manager: WaveManager = $WaveManager
 @onready var tower_manager: TowerManager = $TowerManager
@@ -67,6 +75,7 @@ var _auto_wave_generation := 0
 
 
 func _ready() -> void:
+	_setup_camera()
 	if ProgressionSystem and not ProgressionSystem.run_active:
 		GameState.reset()
 		ProgressionSystem.begin_run()
@@ -509,7 +518,37 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		_handle_mouse_click(event)
 	elif event is InputEventMouseMotion:
-		_update_hover_preview(event.position)
+		_update_hover_preview(_to_world(event.position))
+
+
+func _setup_camera() -> void:
+	var camera := Camera2D.new()
+	camera.name = "FieldCamera"
+	camera.anchor_mode = Camera2D.ANCHOR_MODE_FIXED_TOP_LEFT
+	add_child(camera)
+	camera.make_current()
+	field_camera = camera
+	_update_field_camera()
+	get_viewport().size_changed.connect(_update_field_camera)
+	# Raender um das Feld in der UI-Grundfarbe statt Engine-Grau
+	RenderingServer.set_default_clear_color(UI.BG_0)
+
+
+# Breitere Fenster als 16:9 (Stretch "expand") bekommen das Feld waagrecht mittig;
+# oben bleibt es buendig unter der Top-Bar.
+func _update_field_camera() -> void:
+	if not field_camera:
+		return
+	var spare_x := get_viewport().get_visible_rect().size.x - MAP_WIDTH * GRID_SIZE
+	field_camera.position = Vector2(-maxf(spare_x, 0.0) * 0.5, -FIELD_TOP)
+
+
+func _to_world(screen_pos: Vector2) -> Vector2:
+	return get_viewport().get_canvas_transform().affine_inverse() * screen_pos
+
+
+func _to_screen(world_pos: Vector2) -> Vector2:
+	return get_viewport().get_canvas_transform() * world_pos
 
 
 # === WELLEN-EREIGNIS LOGIK ===
@@ -544,25 +583,25 @@ func _handle_mouse_click(event: InputEventMouseButton) -> void:
 			# Ability ausführen wenn Targeting aktiv
 			if AbilitySystem and AbilitySystem.is_targeting:
 				var ability_id := AbilitySystem.selected_ability
-				if AbilitySystem.execute_ability(ability_id, event.position):
+				if AbilitySystem.execute_ability(ability_id, _to_world(event.position)):
 					ability_target_preview.visible = false
 				return
-			_on_left_mouse_pressed(event.position)
+			_on_left_mouse_pressed(_to_world(event.position))
 		else:
-			_on_left_mouse_released(event.position)
+			_on_left_mouse_released(_to_world(event.position))
 
 
 
 
 func _on_left_mouse_pressed(pos: Vector2) -> void:
-	if _is_over_ui(pos):
+	if _is_over_ui(_to_screen(pos)):
 		return
 	
 	var game_area_height := MAP_HEIGHT * GRID_SIZE
 	if pos.y > game_area_height:
 		return
 	
-	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
+	var grid_pos := Vector2i(floori(pos.x / GRID_SIZE), floori(pos.y / GRID_SIZE))
 	
 	if tower_manager.has_picked_up_tower():
 		_handle_relocate_click(grid_pos)
@@ -593,7 +632,7 @@ func _on_left_mouse_pressed(pos: Vector2) -> void:
 
 func _on_left_mouse_released(pos: Vector2) -> void:
 	var game_area_height := MAP_HEIGHT * GRID_SIZE
-	var grid_pos := Vector2i(int(pos.x / GRID_SIZE), int(pos.y / GRID_SIZE))
+	var grid_pos := Vector2i(floori(pos.x / GRID_SIZE), floori(pos.y / GRID_SIZE))
 	
 	if is_dragging:
 		var drop_from := tower_manager.picked_up_from_pos
@@ -716,9 +755,9 @@ func _is_over_ui(pos: Vector2) -> bool:
 	if tower_stats_ui and tower_stats_ui.visible:
 		return true
 
-	# Untere UI-Leiste (Shop, HUD)
+	# Top-Bar und untere UI-Leiste (Shop, HUD) - pos ist hier Bildschirmraum
 	var viewport_size := get_viewport_rect().size
-	if pos.y > viewport_size.y - 105:
+	if pos.y < UI.TOPBAR_H or pos.y > viewport_size.y - UI.BOTTOMBAR_H:
 		return true
 	
 	# Item Inventory Panel (hat feste Position)
@@ -776,14 +815,14 @@ func _setup_zone_tooltip() -> void:
 func _update_zone_tooltip(mouse_pos: Vector2) -> void:
 	if not zone_tooltip:
 		return
-	var zone := _zone_at(Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE)))
+	var zone := _zone_at(Vector2i(floori(mouse_pos.x / GRID_SIZE), floori(mouse_pos.y / GRID_SIZE)))
 	if zone == "":
 		zone_tooltip.visible = false
 		return
 	zone_tooltip_label.text = TerrainData.describe(zone)
 	zone_tooltip.visible = true
 	zone_tooltip.reset_size()
-	zone_tooltip.position = mouse_pos + Vector2(20, 20)
+	zone_tooltip.position = _to_screen(mouse_pos) + Vector2(20, 20)
 
 
 func _zone_at(grid_pos: Vector2i) -> String:
@@ -978,7 +1017,7 @@ func _update_hover_preview(mouse_pos: Vector2) -> void:
 		hover_preview.visible = false
 		return
 	
-	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
+	var grid_pos := Vector2i(floori(mouse_pos.x / GRID_SIZE), floori(mouse_pos.y / GRID_SIZE))
 	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
 		hover_preview.visible = false
 		return
@@ -1005,7 +1044,7 @@ func _update_pickup_hover_preview(mouse_pos: Vector2) -> void:
 		hover_preview.visible = false
 		return
 	
-	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
+	var grid_pos := Vector2i(floori(mouse_pos.x / GRID_SIZE), floori(mouse_pos.y / GRID_SIZE))
 	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
 		hover_preview.visible = false
 		return
@@ -1040,7 +1079,7 @@ func _tower_under_mouse(mouse_pos: Vector2) -> bool:
 	var game_area_height := MAP_HEIGHT * GRID_SIZE
 	if mouse_pos.y > game_area_height:
 		return false
-	var grid_pos := Vector2i(int(mouse_pos.x / GRID_SIZE), int(mouse_pos.y / GRID_SIZE))
+	var grid_pos := Vector2i(floori(mouse_pos.x / GRID_SIZE), floori(mouse_pos.y / GRID_SIZE))
 	if grid_pos.x < 0 or grid_pos.x >= MAP_WIDTH or grid_pos.y < 0 or grid_pos.y >= MAP_HEIGHT:
 		return false
 	return tower_manager.get_tower_at(grid_pos) != null
@@ -1442,7 +1481,7 @@ func _on_shop_tower_selected(_tower_type: String) -> void:
 	is_drag_potential = false
 	drag_start_grid = Vector2i(-1, -1)
 	tower_manager.deselect_tower()
-	_update_hover_preview(get_viewport().get_mouse_position())
+	_update_hover_preview(get_global_mouse_position())
 
 
 func _on_shop_tower_deselected() -> void:
